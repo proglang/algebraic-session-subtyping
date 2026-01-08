@@ -227,7 +227,7 @@ sound-<<:ₚ : ∀ {T₁ T₂ : Ty{k} Δ KP} {N₁ : NormalProto T₁}{N₂ : No
 
 sound-algₚ′ : ∀ {T₁ T₂ : Ty{k} Δ KP} {N₁ : NormalProto′ T₁}{N₂ : NormalProto′ T₂}
   → N₁ <:ₚ′ N₂ → T₁ <: T₂
-sound-algₚ′ (<:ₚ′-proto #c₁⊆#c₂ N₁<:N₂) = <:-proto #c₁⊆#c₂ {!!}
+sound-algₚ′ (<:ₚ′-proto #c₁⊆#c₂ N₁<:N₂) = <:-proto #c₁⊆#c₂ (sound-<<:ₚ N₁<:N₂)
 sound-algₚ′ (<:ₚ′-up N₁<:ₜN₂) = <:-up (sound-algₜ N₁<:ₜN₂)
 sound-algₚ′ <:ₚ′-var = <:-refl
 
@@ -246,7 +246,7 @@ sound-algₜ (<:ₜ-arrow M₂<:ₜM₁ N₁<:ₜN₂) = <:-fun (sound-algₜ M�
 sound-algₜ (<:ₜ-poly N₁<:ₜN₂) = <:-all (sound-algₜ N₁<:ₜN₂)
 sound-algₜ (<:ₜ-sub {km≤ = km≤} N₁<:ₜN₂) = <:-sub km≤ (sound-algₜ N₁<:ₜN₂)
 sound-algₜ <:ₜ-end = <:-refl
-sound-algₜ (<:ₜ-msg {p = p} P₁<<P₂ N₁<:ₜN₂) = <:-msg {!!} (sound-algₜ N₁<:ₜN₂)
+sound-algₜ (<:ₜ-msg {p = p} P₁<<P₂ N₁<:ₜN₂) = <:-msg (sound-<<:ₚ P₁<<P₂) (sound-algₜ N₁<:ₜN₂)
 sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 
 -- urk
@@ -264,7 +264,7 @@ np-unique (N-Minus NP₁) (N-Minus NP₂) = cong N-Minus (np′-unique NP₁ NP�
 
 np′-unique (N-ProtoP NP₁) (N-ProtoP NP₂) = cong N-ProtoP (np-unique NP₁ NP₂)
 np′-unique (N-Up N₁) (N-Up N₂) = cong N-Up (nt-unique N₁ N₂)
-np′-unique N-Var N-Var = {!!}
+np′-unique N-Var N-Var = refl
 
 nt-unique (N-Var NV₁) (N-Var NV₂) = cong N-Var (nv-unique NV₁ NV₂)
 nt-unique N-Base N-Base = refl
@@ -303,12 +303,44 @@ nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
 <:ₜ-refl (N-Msg p NP N) = <:ₜ-msg (<<:ₚ-refl NP) (<:ₜ-refl N)
 <:ₜ-refl (N-ProtoD N) = <:ₜ-data (<:ₜ-refl N)
 
+-- algorithmic subtyping is transitive
+
+<:ₜ-trans : ∀ {T₁ T₂ T₃ : Ty{k} Δ (KV pk m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂} {N₃ : NormalTy T₃} → N₁ <:ₜ N₂ → N₂ <:ₜ N₃ → N₁ <:ₜ N₃
+<:ₚ′-trans : ∀ {T₁ T₂ T₃ : Ty{k} Δ KP} {N₁ : NormalProto′ T₁} {N₂ : NormalProto′ T₂} {N₃ : NormalProto′ T₃} → N₁ <:ₚ′ N₂ → N₂ <:ₚ′ N₃ → N₁ <:ₚ′ N₃
+<<:ₚ-trans : ∀ {T₁ T₂ T₃ : Ty{k} Δ KP} {N₁ : NormalProto T₁} {N₂ : NormalProto T₂} {N₃ : NormalProto T₃} → N₁ <<:ₚ[ ⊙ ] N₂ → N₂ <<:ₚ[ ⊙ ] N₃ → N₁ <<:ₚ[ ⊙ ] N₃
+
+<:ₚ′-trans (<:ₚ′-proto #c₁⊆#c₂ N₁<<:N₂) (<:ₚ′-proto #c₂⊆#c₃ N₂<<:N₃) = <:ₚ′-proto (λ {x} z → #c₂⊆#c₃ (#c₁⊆#c₂ z)) (<<:ₚ-trans N₁<<:N₂ N₂<<:N₃)
+<:ₚ′-trans (<:ₚ′-up N₁<:N₂) (<:ₚ′-up N₂<:N₃) = <:ₚ′-up (<:ₜ-trans N₁<:N₂ N₂<:N₃)
+<:ₚ′-trans <:ₚ′-var <:ₚ′-var = <:ₚ′-var
+
+<:ₚ-trans : ∀ {T₁ T₂ T₃ : Ty{k} Δ KP} {N₁ : NormalProto T₁} {N₂ : NormalProto T₂} {N₃ : NormalProto T₃} → N₁ <:ₚ N₂ → N₂ <:ₚ N₃ → N₁ <:ₚ N₃
+<:ₚ-trans (<:ₚ-plus N₁<:N₂) (<:ₚ-plus N₂<:N₃) = <:ₚ-plus (<:ₚ′-trans N₁<:N₂ N₂<:N₃)
+<:ₚ-trans (<:ₚ-minus N₁<:N₂) (<:ₚ-minus N₂<:N₃) = <:ₚ-minus (<:ₚ′-trans N₂<:N₃ N₁<:N₂)
+
+
+<<:ₚ-trans {⊙ = ⊕} N₁<<:N₂ N₂<<:N₃ = <:ₚ-trans N₁<<:N₂ N₂<<:N₃
+<<:ₚ-trans {⊙ = ⊝} N₁<<:N₂ N₂<<:N₃ = <:ₚ-trans N₂<<:N₃ N₁<<:N₂
+<<:ₚ-trans {⊙ = ⊘} N₁<<:N₂ N₂<<:N₃ = trans N₁<<:N₂ N₂<<:N₃
+
+<:ₜ-trans <:ₜ-var <:ₜ-var = <:ₜ-var
+<:ₜ-trans <:ₜ-base <:ₜ-base = <:ₜ-base
+<:ₜ-trans (<:ₜ-arrow N₁<:N₂ N₁<:N₃) (<:ₜ-arrow N₂<:N₃ N₂<:N₄) = <:ₜ-arrow (<:ₜ-trans N₂<:N₃ N₁<:N₂) (<:ₜ-trans N₁<:N₃ N₂<:N₄)
+<:ₜ-trans (<:ₜ-poly N₁<:N₂) (<:ₜ-poly N₂<:N₃) = <:ₜ-poly (<:ₜ-trans N₁<:N₂ N₂<:N₃)
+<:ₜ-trans (<:ₜ-sub N₁<:N₂) (<:ₜ-sub N₂<:N₃) = <:ₜ-sub (<:ₜ-trans N₁<:N₂ N₂<:N₃)
+<:ₜ-trans <:ₜ-end <:ₜ-end = <:ₜ-end
+<:ₜ-trans (<:ₜ-msg P₁<<:P₂ N₁<:N₂) (<:ₜ-msg P₂<<:P₃ N₂<:N₃) = <:ₜ-msg (<<:ₚ-trans P₁<<:P₂ P₂<<:P₃) (<:ₜ-trans N₁<:N₂ N₂<:N₃)
+<:ₜ-trans (<:ₜ-data N₁<:N₂) (<:ₜ-data N₂<:N₃) = <:ₜ-data (<:ₜ-trans N₁<:N₂ N₂<:N₃)
+
+
 -- algorithmic subtyping is complete
 
 complete-algₜ : ∀ {T₁ T₂ : Ty{k} Δ (KV pk m)} {N₁ : NormalTy T₁}{N₂ : NormalTy T₂}
   → T₁ <: T₂ → N₁ <:ₜ N₂
 complete-algₜ {N₁ = N₁} {N₂} <:-refl rewrite nt-unique N₁ N₂ = <:ₜ-refl N₂
-complete-algₜ (<:-trans T₁<:T₂ T₁<:T₃) = {!!}  --- requires trans of alg subtyping
+complete-algₜ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) = <:ₜ-trans (complete-algₜ T₁<:T₂) (complete-algₜ T₂<:T₃)
+-- this is more complex: T₂ is not necessarily normalized!
+-- hence: normalize T₂ → T₂′, we have T₁ <: T₂ and T₂ ≡ T₂′ ⇒ T₁ <: T₂′ and in the same manner T₂′ <: T₃
+-- now we have suitable arguments for complete-algₜ!
 complete-algₜ {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub K≤K′ T₁<:T₂) = <:ₜ-sub (complete-algₜ T₁<:T₂)
 complete-algₜ {N₁ = N-Var ()} {N-Var x₁} <:-sub-dual-l
 complete-algₜ {N₁ = N-Var ()} {N-Sub N₂} <:-sub-dual-l
