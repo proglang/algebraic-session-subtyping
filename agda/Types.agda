@@ -72,30 +72,30 @@ module _ {k : ℕ} where
     P P₁ : Ty Δ KP
     #c : Subset.Subset k
 
-  data NormalTy {Δ} : Ty Δ KP → Set
-  data NormalTy″ {Δ} : Ty Δ (KV pk m) → Set
-  data NormalTy′ {Δ} : Ty Δ KP → Set where
-    N-ProtoP : NormalTy T → NormalTy′ (T-ProtoP #c ⊙ T)
-    N-Up     : NormalTy″ T → NormalTy′ (T-Up T)
-    N-Var    : {x : KP ∈ Δ} → NormalTy′ (T-Var x)
+  data NormalTy {Δ} : Ty Δ (KV pk m) → Set
+  data NormalProto {Δ} : Ty Δ KP → Set
+  data NormalProto′ {Δ} : Ty Δ KP → Set where
+    N-ProtoP : NormalProto T → NormalProto′ (T-ProtoP #c ⊙ T)
+    N-Up     : NormalTy T → NormalProto′ (T-Up T)
+    N-Var    : {x : KP ∈ Δ} → NormalProto′ (T-Var x)
 
-  data NormalTy {Δ} where
-    N-Normal : NormalTy′ T → NormalTy T
-    N-Minus  : NormalTy′ T → NormalTy (T-Minus T)
+  data NormalProto {Δ} where
+    N-Normal : NormalProto′ T → NormalProto T
+    N-Minus  : NormalProto′ T → NormalProto (T-Minus T)
 
   data NormalVar {Δ} : Ty Δ K → Set where
     NV-Var  : {x : K ∈ Δ} → NormalVar (T-Var x)
     NV-Dual : (d : Dualizable K) → (x : K ∈ Δ) → NormalVar (T-Dual d (T-Var x))
 
-  data NormalTy″ {Δ} where
-    N-Var    : NormalVar T → NormalTy″ T
-    N-Base   : NormalTy″ T-Base
-    N-Arrow  : {km : KM ≤p pk}{m : Multiplicity} → NormalTy″ T₁ → NormalTy″ T₂ → NormalTy″ (T-Arrow {m = m} km T₁ T₂)
-    N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → NormalTy″ T → NormalTy″ (T-Poly T)
-    N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → NormalTy″ T → NormalTy″ (T-Sub km≤ T)
-    N-End    : NormalTy″ T-End
-    N-Msg    : ∀ p → NormalTy T → NormalTy″ S → NormalTy″ (T-Msg p T S)
-    N-ProtoD : NormalTy″ T → NormalTy″ (T-ProtoD T)
+  data NormalTy {Δ} where
+    N-Var    : NormalVar T → NormalTy T
+    N-Base   : NormalTy T-Base
+    N-Arrow  : {km : KM ≤p pk}{m : Multiplicity} → NormalTy T₁ → NormalTy T₂ → NormalTy (T-Arrow {m = m} km T₁ T₂)
+    N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → NormalTy T → NormalTy (T-Poly T)
+    N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → NormalTy T → NormalTy (T-Sub km≤ T)
+    N-End    : NormalTy T-End
+    N-Msg    : ∀ p → NormalProto T → NormalTy S → NormalTy (T-Msg p T S)
+    N-ProtoD : NormalTy T → NormalTy (T-ProtoD T)
 
   -- type conversion
 
@@ -203,14 +203,14 @@ module _ {k : ℕ} where
   t-msg-minus {p = p} (T-Minus T) rewrite invert-involution{p} = t-msg-plus T
   t-msg-minus (T-ProtoP _ _ T) = refl
 
-  t-minus-reify : (T : Ty Δ KP) → NormalTy′ T → t-minus T ≡ T-Minus T
+  t-minus-reify : (T : Ty Δ KP) → NormalProto′ T → t-minus T ≡ T-Minus T
   t-minus-reify (T-Var x) N-Var = refl
   t-minus-reify (T-Dual x T) ()
   t-minus-reify (T-Up T) (N-Up nT) = refl
   t-minus-reify (T-Minus T) ()
   t-minus-reify (T-ProtoP _ _ T) (N-ProtoP nT) = refl
 
-  t-minus-normal : (T : Ty Δ KP) → NormalTy T → NormalTy (t-minus T)
+  t-minus-normal : (T : Ty Δ KP) → NormalProto T → NormalProto (t-minus T)
   t-minus-normal (T-Var x) (N-Normal N-Var) = N-Minus N-Var
   t-minus-normal (T-Up T) (N-Normal (N-Up x)) =  N-Minus (N-Up x)
   t-minus-normal (T-Minus (T-ProtoP _ _ _)) (N-Minus (N-ProtoP nT)) = N-Normal (N-ProtoP nT)
@@ -218,7 +218,7 @@ module _ {k : ℕ} where
   t-minus-normal (T-Minus (T-Var _)) (N-Minus N-Var) = N-Normal N-Var
   t-minus-normal (T-ProtoP _ _ T) (N-Normal (N-ProtoP x)) =  N-Minus (N-ProtoP x)
 
-  t-minus-involution : (T : Ty Δ KP) → NormalTy T → t-minus (t-minus T) ≡ T
+  t-minus-involution : (T : Ty Δ KP) → NormalProto T → t-minus (t-minus T) ≡ T
   t-minus-involution (T-Var x) (N-Normal x₁) = refl
   t-minus-involution (T-Up T) (N-Normal x) = refl
   t-minus-involution (T-Minus (T-ProtoP _ _ _)) (N-Minus (N-ProtoP nT)) = refl
@@ -249,7 +249,7 @@ module _ {k : ℕ} where
   -- the nf algorithm returns a normal form
 
   -- t-msg returns a normal form
-  nf-t-msg : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalTy T) → {S : Ty Δ SLin} → (nS : NormalTy″ S) → NormalTy″ (t-msg p T S)
+  nf-t-msg : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → {S : Ty Δ SLin} → (nS : NormalTy S) → NormalTy (t-msg p T S)
   nf-t-msg p (N-Normal (N-ProtoP x)) nS = N-Msg p (N-Normal (N-ProtoP x)) nS
   nf-t-msg p (N-Normal (N-Up x)) nS = N-Msg p (N-Normal (N-Up x)) nS
   nf-t-msg p (N-Normal N-Var) nS = N-Msg p (N-Normal N-Var) nS
@@ -257,9 +257,9 @@ module _ {k : ℕ} where
   nf-t-msg p (N-Minus (N-Up x)) nS = N-Msg (invert p) (N-Normal (N-Up x)) nS
   nf-t-msg p (N-Minus N-Var) nS = N-Msg (invert p) (N-Normal N-Var) nS
 
-  nf-normal-proto : (T : Ty Δ KP) → NormalTy (nf ⊕ (λ ()) T)
+  nf-normal-proto : (T : Ty Δ KP) → NormalProto (nf ⊕ (λ ()) T)
 
-  nf-normal-type : ∀ ⊙ → (d? : ⊙ ≡ ⊝ → Dualizable (KV pk m)) (T : Ty Δ (KV pk m)) → NormalTy″ (nf ⊙ d? T)
+  nf-normal-type : ∀ ⊙ → (d? : ⊙ ≡ ⊝ → Dualizable (KV pk m)) (T : Ty Δ (KV pk m)) → NormalTy (nf ⊙ d? T)
   nf-normal-type ⊕ d? (T-Var x) = N-Var NV-Var
   nf-normal-type ⊝ d? (T-Var x) = N-Var (NV-Dual (d? refl) x)
   nf-normal-type ⊙ d? T-Base = N-Base
