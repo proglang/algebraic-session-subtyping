@@ -334,10 +334,96 @@ nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
 
 -- algorithmic subtyping is complete
 
+module next-try where
+
+  open import Ext using (ext)
+
+  irr : ∀ (p : Polarity) → (f g : p ≡ ⊝ → Dualizable K) → f ≡ g
+  irr ⊕ f g = ext f g λ ()
+  irr ⊝ f g = dual-irrelevant f g
+
+  complete-algₜ : ∀ {p : Polarity} {T₁ T₂ : Ty{k} Δ (KV pk m)}
+    {f₁ f₂} {N₁ : NormalTy (nf p f₁ T₁)}{N₂ : NormalTy (nf p f₂ T₂)}
+    → T₁ <: T₂
+    → N₁ <:ₜ N₂
+
+  complete-algₚ′ : ∀ {T₁ T₂ : Ty{k} Δ KP}
+    {f₁ f₂} {N₁ : NormalProto′ (nf ⊕ f₁ T₁)}{N₂ : NormalProto′ (nf ⊕ f₂ T₂)}
+    → T₁ <: T₂
+    → N₁ <:ₚ′ N₂
+
+  complete-algₚ : ∀ {T₁ T₂ : Ty{k} Δ KP}
+    {f₁ f₂} {N₁ : NormalProto (nf ⊕ f₁ T₁)}{N₂ : NormalProto (nf ⊕ f₂ T₂)}
+    → T₁ <: T₂
+    → N₁ <:ₚ N₂
+
+  complete-<<:ₚ : ∀ {⊙} {T₁ T₂ : Ty{k} Δ KP}
+    {f₁ f₂} {N₁ : NormalProto (nf ⊕ f₁ T₁)}{N₂ : NormalProto (nf ⊕ f₂ T₂)}
+    → T₁ <<:[ ⊙ ] T₂
+    → N₁ <<:ₚ[ ⊙ ] N₂
+
+  complete-<<:ₚ {⊙ = ⊕} T₁<<:T₂ = complete-algₚ T₁<<:T₂
+  complete-<<:ₚ {⊙ = ⊝} T₁<<:T₂ = complete-algₚ T₁<<:T₂
+  complete-<<:ₚ {⊙ = ⊘} T₁<<:T₂ = nf-complete _ _ T₁<<:T₂
+
+  complete-algₚ{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-refl 
+    rewrite irr ⊕ f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
+  complete-algₚ {f₂ = f₂} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
+    using N₂ ← nf-normal-proto T₂
+    using N₁<:N₂ ← complete-algₚ{N₁ = N₁}{N₂ = N₂} T₁<:T₂
+    using N₂<:N₃ ← complete-algₚ{N₁ = N₂}{N₂ = N₃} T₂<:T₃    
+    = <:ₚ-trans N₁<:N₂ N₂<:N₃
+  complete-algₚ {N₁ = N-Normal (N-Up N₁)} {N-Normal (N-Up N₂)} (<:-up T₁<:T₂)
+    = <:ₚ-plus (<:ₚ′-up (complete-algₜ T₁<:T₂))
+  complete-algₚ {N₁ = N-Normal (N-ProtoP N₁)} {N-Normal (N-ProtoP N₂)} (<:-proto #c₁⊆#c₂ T₁<<:T₂)
+    = <:ₚ-plus (<:ₚ′-proto #c₁⊆#c₂ (complete-<<:ₚ T₁<<:T₂))
+  complete-algₚ (<:-minus T₁<:T₂) = {!!}
+  complete-algₚ (<:-minus-minus-l {T₁} T₁<:T₂)
+    rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+    = complete-algₚ T₁<:T₂
+  complete-algₚ (<:-minus-minus-r {T₂ = T₂} T₁<:T₂)
+    rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+    = complete-algₚ T₁<:T₂
+
+  complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-refl
+    rewrite irr p f₁ f₂ | nt-unique N₁ N₂ = <:ₜ-refl N₂
+  complete-algₜ {p = p}{f₂ = f₂} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) 
+    using N₂ ← nf-normal-type p f₂ T₂
+    using N₁<:N₂ ← complete-algₜ{N₁ = N₁}{N₂ = N₂} T₁<:T₂
+    using N₂<:N₃ ← complete-algₜ{N₁ = N₂}{N₂ = N₃} T₂<:T₃ = <:ₜ-trans N₁<:N₂ N₂<:N₃ 
+  complete-algₜ {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub K≤K′ T₁<:T₂) = <:ₜ-sub (complete-algₜ T₁<:T₂)
+  complete-algₜ {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub-dual-l {K≤K′ = ≤k-step ≤p-refl _})
+    rewrite nt-unique N₁ N₂ = <:ₜ-sub (<:ₜ-refl N₂)
+  complete-algₜ {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub-dual-r {K≤K′ = ≤k-step ≤p-refl _})
+    rewrite nt-unique N₁ N₂ = <:ₜ-sub (<:ₜ-refl N₂)
+  complete-algₜ {N₁ = N-Arrow N₁ N₂} {N-Arrow N₃ N₄} (<:-fun T₁<:T₂ T₁<:T₃) = <:ₜ-arrow (complete-algₜ T₁<:T₂) (complete-algₜ T₁<:T₃)
+  complete-algₜ {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (<:-protoD T₁<:T₂) = <:ₜ-data (complete-algₜ T₁<:T₂)
+  complete-algₜ {N₁ = N-Poly N₁} {N-Poly N₂} (<:-all T₁<:T₂) = <:ₜ-poly (complete-algₜ T₁<:T₂)
+  complete-algₜ {N₁ = N₁} (<:-neg-l T₁<:T₂) = {!!}
+  complete-algₜ {N₁ = N₁} {N-Msg p x N₂} (<:-neg-r T₁<:T₂) = {!!}
+  complete-algₜ {p = p} {T₁ = T-Dual _ T₁} {T₂ = T-Dual _ T₂} {N₁ = N₁} {N₂} (<:-dual-lr d T₁<:T₂) = {!complete-algₜ {p = invert p} {T₁ = T₂}{T₂ = T₁} {N₁ = N₂} {N₂ = N₁} T₁<:T₂ !}
+  complete-algₜ {p = p} (<:-dual-dual-l d T₁<:T₂)
+    rewrite invert-involution {p} = complete-algₜ T₁<:T₂
+  complete-algₜ {p = p} (<:-dual-dual-r d T₁<:T₂)
+    rewrite invert-involution {p} = complete-algₜ T₁<:T₂
+  complete-algₜ {N₁ = N-Msg p₁ P₁ N₁} {N₂} (<:-dual-msg-l T₁<:T₂) = {!!}
+  complete-algₜ {N₁ = N₁} {N-Msg p₂ P₂ N₂} (<:-dual-msg-r T₁<:T₂) = {!!}
+  complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-l = <:ₜ-end
+  complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-r = <:ₜ-end
+  complete-algₜ {N₁ = N-Msg p₁ NP₁ N₁} {N-Msg p₂ NP₂ N₂} (<:-msg {p = p} P₁<<:P₂ T₁<:T₂)
+    =
+    let p = complete-<<:ₚ {f₁ = d?⊥}{f₂ = d?⊥} P₁<<:P₂ in
+    let r = <:ₜ-msg {NP₁ = NP₁}{NP₂ = NP₂} {!!} (complete-algₜ{N₁ = N₁}{N₂ = N₂} T₁<:T₂) in {!r!}
+
 complete-algₜ : ∀ {T₁ T₂ : Ty{k} Δ (KV pk m)} {N₁ : NormalTy T₁}{N₂ : NormalTy T₂}
   → T₁ <: T₂ → N₁ <:ₜ N₂
 complete-algₜ {N₁ = N₁} {N₂} <:-refl rewrite nt-unique N₁ N₂ = <:ₜ-refl N₂
-complete-algₜ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) = <:ₜ-trans (complete-algₜ T₁<:T₂) (complete-algₜ T₂<:T₃)
+complete-algₜ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
+  using T₂′ ← nf ⊕ d?⊥ T₂
+  with  nf-normal-type ⊕ d?⊥ T₂ | nf-sound+ {f = d?⊥}T₂
+... | N₂ | nf≡T₂
+  using T₂′<:T₂ , T₂<:T₂′ ← conv⇒subty T₂′ T₂ nf≡T₂ = {!!}
+-- <:ₜ-trans (complete-algₜ T₁<:T₂) (complete-algₜ T₂<:T₃)
 -- this is more complex: T₂ is not necessarily normalized!
 -- hence: normalize T₂ → T₂′, we have T₁ <: T₂ and T₂ ≡ T₂′ ⇒ T₁ <: T₂′ and in the same manner T₂′ <: T₃
 -- now we have suitable arguments for complete-algₜ!
@@ -521,27 +607,27 @@ subty⇒conv = {!!}
 -- nf : (p : Polarity) → (p ≡ ⊝ → Dualizable K) → Ty Δ K → Ty Δ K
 -- nf p d? (T-Var x) = nf-var p d? x
 -- nf p d? T-Base = T-Base
--- nf p d? (T-Arrow x T U) = T-Arrow x (nf ⊕ (λ()) T) (nf ⊕ (λ()) U)
--- nf p d? (T-Poly T) = T-Poly (nf ⊕ (λ()) T)
+-- nf p d? (T-Arrow x T U) = T-Arrow x (nf ⊕ d?⊥ T) (nf ⊕ d?⊥ U)
+-- nf p d? (T-Poly T) = T-Poly (nf ⊕ d?⊥ T)
 -- nf p d? (T-Sub x T) = T-Sub x (nf p (λ x₁ → dualizable-sub (d? x₁) x) T)
 -- nf p d? (T-Dual dK T) = nf (invert p) (λ x₁ → dK) T
 -- nf p d? T-End = T-End
--- nf p d? (T-Msg q T S) = t-msg (mult p q) (nf ⊕ (λ()) T) (nf p d? S)
--- nf p d? (T-Up T) = T-Up (nf ⊕ (λ()) T)
--- nf p d? (T-Plus T) = t-plus (nf ⊕ (λ()) T)
--- nf p d? (T-Minus T) = t-minus (nf ⊕ (λ()) T)
--- nf p d? (T-ProtoD T) = T-ProtoD (nf ⊕ (λ()) T)
--- nf p d? (T-ProtoP ⊙ T) = T-ProtoP ⊙ (nf ⊕ (λ()) T)
+-- nf p d? (T-Msg q T S) = t-msg (mult p q) (nf ⊕ d?⊥ T) (nf p d? S)
+-- nf p d? (T-Up T) = T-Up (nf ⊕ d?⊥ T)
+-- nf p d? (T-Plus T) = t-plus (nf ⊕ d?⊥ T)
+-- nf p d? (T-Minus T) = t-minus (nf ⊕ d?⊥ T)
+-- nf p d? (T-ProtoD T) = T-ProtoD (nf ⊕ d?⊥ T)
+-- nf p d? (T-ProtoP ⊙ T) = T-ProtoP ⊙ (nf ⊕ d?⊥ T)
 
 -- -- the nf algorithm returns a normal form
 
--- nf-normal : (T : Ty Δ KP) → NormalTy (nf ⊕ (λ ()) T)
+-- nf-normal : (T : Ty Δ KP) → NormalTy (nf ⊕ d?⊥ T)
 -- nf-normal (T-Var x) = N-Normal N-Var
 -- nf-normal (T-Up T) = N-Normal N-Up
 -- nf-normal (T-Plus T) with nf-normal T
--- ... | nf-T = subst NormalTy (sym (t-plus-constant ((nf ⊕ (λ()) T)) nf-T)) nf-T
--- nf-normal (T-Minus T) with inspect (nf ⊕ (λ ())) T | nf-normal T
--- ... | Eq.[ eq ] | nf-t-normal = t-minus-normal ((nf ⊕ (λ ())) T) nf-t-normal
+-- ... | nf-T = subst NormalTy (sym (t-plus-constant ((nf ⊕ d?⊥ T)) nf-T)) nf-T
+-- nf-normal (T-Minus T) with inspect (nf ⊕ d?⊥) T | nf-normal T
+-- ... | Eq.[ eq ] | nf-t-normal = t-minus-normal ((nf ⊕ d?⊥) T) nf-t-normal
 -- nf-normal (T-ProtoP ⊙ T) = N-Normal N-ProtoP
 
 -- -- nf ⊕ ignores dualizability
@@ -554,7 +640,7 @@ subty⇒conv = {!!}
 -- nf-⊕-ignores {T = T-Sub x T} f g = cong (T-Sub x) (nf-⊕-ignores {T = T} (λ x₁ → dualizable-sub (f x₁) x) (λ x₁ → dualizable-sub (g x₁) x))
 -- nf-⊕-ignores {T = T-Dual x T} f g = refl
 -- nf-⊕-ignores {T = T-End} f g = refl
--- nf-⊕-ignores {T = T-Msg x T T₁} f g = cong (t-msg (mult ⊕ x) (nf ⊕ (λ ()) T)) (nf-⊕-ignores {T = T₁} f g)
+-- nf-⊕-ignores {T = T-Msg x T T₁} f g = cong (t-msg (mult ⊕ x) (nf ⊕ d?⊥ T)) (nf-⊕-ignores {T = T₁} f g)
 -- nf-⊕-ignores {T = T-Up T} f g = refl
 -- nf-⊕-ignores {T = T-Plus T} f g = refl
 -- nf-⊕-ignores {T = T-Minus T} f g = refl
@@ -566,22 +652,22 @@ subty⇒conv = {!!}
 -- nf-complete : ∀ f g → T₁ ≡c T₂ → nf ⊕ f T₁ ≡ nf ⊕ g T₂
 -- nf-complete {T₁ = T₁} f g ≡c-refl = nf-⊕-ignores {T = T₁} f g
 -- nf-complete f g (≡c-symm T1=T2) = sym (nf-complete g f T1=T2)
--- nf-complete f g (≡c-trns T1=T2 T1=T3) = trans (nf-complete f (λ ()) T1=T2) (nf-complete (λ ()) g T1=T3)
+-- nf-complete f g (≡c-trns T1=T2 T1=T3) = trans (nf-complete f d?⊥ T1=T2) (nf-complete d?⊥ g T1=T3)
 -- nf-complete f g (≡c-sub K≤K′ T1=T2) = cong (T-Sub K≤K′) (nf-complete (λ x₁ → dualizable-sub (f x₁) K≤K′) (λ x₁ → dualizable-sub (g x₁) K≤K′) T1=T2)
 -- nf-complete {T₂ = T₂} f g (≡c-dual-dual d) = nf-⊕-ignores {T = T₂} (λ x₁ → d) g
 -- nf-complete f g ≡c-dual-end = refl
 -- nf-complete f g (≡c-dual-msg {p = p}) rewrite mult-invert{p = p} = refl
--- nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g | mult-⊕-unit p | mult-⊕-unit (invert p) = t-msg-minus {p = p} (nf ⊕ (λ()) T)
+-- nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g | mult-⊕-unit p | mult-⊕-unit (invert p) = t-msg-minus {p = p} (nf ⊕ d?⊥ T)
 -- nf-complete {T₁ = T₁} {T₂ = T₂} f g ≡c-plus-p
---   rewrite nf-⊕-ignores{T = T₁} f (λ()) = sym (t-plus-constant (nf ⊕ (λ()) T₁) (nf-normal T₁))
--- nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g (λ()) = t-minus-involution (nf ⊕ (λ()) T₂) (nf-normal T₂)
--- nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete (λ()) (λ()) T1=T2) (nf-complete (λ()) (λ()) T1=T3)
--- nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete (λ()) (λ()) T1=T2)
--- nf-complete f g (≡c-msg {p = p} T1=T2 T1=T3) = cong₂ (t-msg (mult ⊕ p)) (nf-complete (λ()) (λ()) T1=T2) (nf-complete f g T1=T3)
--- nf-complete f g (≡c-protoD T1=T2) = cong T-ProtoD (nf-complete (λ()) (λ()) T1=T2)
--- nf-complete f g (≡c-protoP T1=T2) = cong (T-ProtoP _) (nf-complete (λ()) (λ()) T1=T2)
+--   rewrite nf-⊕-ignores{T = T₁} f d?⊥ = sym (t-plus-constant (nf ⊕ d?⊥ T₁) (nf-normal T₁))
+-- nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g d?⊥ = t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal T₂)
+-- nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
+-- nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete d?⊥ d?⊥ T1=T2)
+-- nf-complete f g (≡c-msg {p = p} T1=T2 T1=T3) = cong₂ (t-msg (mult ⊕ p)) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete f g T1=T3)
+-- nf-complete f g (≡c-protoD T1=T2) = cong T-ProtoD (nf-complete d?⊥ d?⊥ T1=T2)
+-- nf-complete f g (≡c-protoP T1=T2) = cong (T-ProtoP _) (nf-complete d?⊥ d?⊥ T1=T2)
 -- nf-complete f g (≡c-sub-dual {K≤K′ = ≤k-step ≤p-refl x₁}) = refl
--- nf-complete f g (≡c-up T1=T2) = cong T-Up (nf-complete (λ ()) (λ ()) T1=T2)
+-- nf-complete f g (≡c-up T1=T2) = cong T-Up (nf-complete d?⊥ d?⊥ T1=T2)
 -- nf-complete f g (≡c-minus T1=T2) = cong t-minus (nf-complete _ _ T1=T2)
 
 -- nf-complete- : ∀ f → T₁ ≡c T₂ → nf ⊝ f T₁ ≡ nf ⊝ f T₂
@@ -593,13 +679,13 @@ subty⇒conv = {!!}
 -- nf-complete- f (≡c-dual-dual d) rewrite dual-irrelevant f (λ x → d) = refl
 -- nf-complete- f ≡c-dual-end = refl
 -- nf-complete- f (≡c-dual-msg {p = p}) rewrite mult-invert-⊕ {p} = refl
--- nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ (λ ()) T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ (λ()) T))) (cong (λ q → t-msg q (nf ⊕ (λ ()) T) (nf ⊝ f S)) (invert-mult-⊝ p))
+-- nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ d?⊥ T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ d?⊥ T))) (cong (λ q → t-msg q (nf ⊕ d?⊥ T) (nf ⊝ f S)) (invert-mult-⊝ p))
 -- nf-complete- f ≡c-plus-p with () ← f refl
 -- nf-complete- f ≡c-minus-p with () ← f refl
 -- nf-complete- f (≡c-fun {≤pk = ≤p-refl} t1≡t2 t1≡t3) with () ← f refl
 -- nf-complete- f (≡c-fun {≤pk = ≤p-step <p-mt} t1≡t2 t1≡t3) with () ← f refl
 -- nf-complete- f (≡c-all t1≡t2) with () ← f refl
--- nf-complete- f (≡c-msg {S₂ = S₂} {p = p} t1≡t2 t1≡t3) rewrite nf-complete- f t1≡t3 = cong (λ nft → t-msg (mult ⊝ p) nft (nf ⊝ f S₂)) ( nf-complete (λ()) (λ()) t1≡t2)
+-- nf-complete- f (≡c-msg {S₂ = S₂} {p = p} t1≡t2 t1≡t3) rewrite nf-complete- f t1≡t3 = cong (λ nft → t-msg (mult ⊝ p) nft (nf ⊝ f S₂)) ( nf-complete d?⊥ d?⊥ t1≡t2)
 -- nf-complete- f (≡c-protoD t1≡t2) with () ← f refl
 -- nf-complete- f (≡c-protoP t1≡t2) with () ← f refl
 -- nf-complete- f (≡c-up t1≡t2) with () ← f refl
@@ -617,11 +703,11 @@ subty⇒conv = {!!}
 -- nf-sound+ (T-Sub x T) = ≡c-sub x (nf-sound+ T)
 -- nf-sound+ (T-Dual D-S T) = ≡c-trns (nf-sound- T) (≡c-symm (dual-tinv T))
 -- nf-sound+ T-End = ≡c-refl
--- nf-sound+ (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
--- nf-sound+ (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
+-- nf-sound+ (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
+-- nf-sound+ (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
 -- nf-sound+ (T-Up T) = ≡c-up (nf-sound+ T)
--- nf-sound+ (T-Plus T) = ≡c-trns (t-plus-≡c (nf ⊕ (λ ()) T)) (≡c-trns (nf-sound+ T) ≡c-plus-p)
--- nf-sound+ (T-Minus T) = ≡c-trns (t-minus-≡c (nf ⊕ (λ ()) T)) (≡c-minus (nf-sound+ T))
+-- nf-sound+ (T-Plus T) = ≡c-trns (t-plus-≡c (nf ⊕ d?⊥ T)) (≡c-trns (nf-sound+ T) ≡c-plus-p)
+-- nf-sound+ (T-Minus T) = ≡c-trns (t-minus-≡c (nf ⊕ d?⊥ T)) (≡c-minus (nf-sound+ T))
 -- nf-sound+ (T-ProtoD T) = ≡c-protoD (nf-sound+ T)
 -- nf-sound+ (T-ProtoP _ T) = ≡c-protoP (nf-sound+ T)
 
@@ -630,6 +716,6 @@ subty⇒conv = {!!}
 -- nf-sound- (T-Sub (≤k-step ≤p-refl x₁) T) = ≡c-sub (≤k-step ≤p-refl x₁) (nf-sound- T)
 -- nf-sound- (T-Dual D-S T) = nf-sound+ T
 -- nf-sound- T-End = ≡c-refl
--- nf-sound- (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
--- nf-sound- (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
+-- nf-sound- (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
+-- nf-sound- (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
 
