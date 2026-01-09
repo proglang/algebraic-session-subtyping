@@ -81,3 +81,8 @@ dual-irrelevant {KV KM x₁} f g with () ← f refl
 dual-irrelevant {KV KS x₁} f g = ext-dual-s-irrelevant f g
 dual-irrelevant {KV KT x₁} f g with () ← f refl
 dual-irrelevant {KP} f g with () ← f refl
+
+-- use this definition instead of (λ()) to enable rewriting
+
+d?⊥ : (⊕ ≡ ⊝ → Dualizable K)
+d?⊥ ()
