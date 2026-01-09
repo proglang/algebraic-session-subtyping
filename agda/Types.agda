@@ -128,11 +128,14 @@ module _ {k : ℕ} where
 
   -- smart constructors
 
+  t-loop : Polarity → Ty Δ KP → Polarity × Ty Δ KP
+  t-loop p T@(T-Var x) = p , T
+  t-loop p T@(T-Up _)  = p , T
+  t-loop p (T-Minus T) = t-loop (invert p) T
+  t-loop p T@(T-ProtoP _ _ _) = p , T
+  
   t-msg : Polarity → Ty Δ KP → Ty Δ SLin → Ty Δ SLin
-  t-msg p T@(T-Var x) = T-Msg p T
-  t-msg p T@(T-Up _)  = T-Msg p T
-  t-msg p (T-Minus T) = t-msg (invert p) T
-  t-msg p T@(T-ProtoP _ _ _) = T-Msg p T
+  t-msg p T = let p′ , T′ = t-loop p T in T-Msg p′ T′
 
   t-plus  : Ty Δ KP → Ty Δ KP
   t-minus : Ty Δ KP → Ty Δ KP
@@ -235,16 +238,17 @@ module _ {k : ℕ} where
   nf : (p : Polarity) → (p ≡ ⊝ → Dualizable K) → Ty Δ K → Ty Δ K
   nf p d? (T-Var x) = nf-var p d? x
   nf p d? T-Base = T-Base
-  nf p d? (T-Arrow x T U) = T-Arrow x (nf ⊕ (λ()) T) (nf ⊕ (λ()) U)
-  nf p d? (T-Poly T) = T-Poly (nf ⊕ (λ()) T)
+  nf p d? (T-Arrow x T U) = T-Arrow x (nf ⊕ d?⊥ T) (nf ⊕ d?⊥ U)
+  nf p d? (T-Poly T) = T-Poly (nf ⊕ d?⊥ T)
+  -- nf p d? (T-Sub (≤k-step ≤p-refl ≤m-refl) T) = nf p d? T
   nf p d? (T-Sub x T) = T-Sub x (nf p (λ x₁ → dualizable-sub (d? x₁) x) T)
   nf p d? (T-Dual dK T) = nf (invert p) (λ x₁ → dK) T
   nf p d? T-End = T-End
-  nf p d? (T-Msg q T S) = t-msg (mult p q) (nf ⊕ (λ()) T) (nf p d? S)
-  nf p d? (T-Up T) = T-Up (nf ⊕ (λ()) T)
-  nf p d? (T-Minus T) = t-minus (nf ⊕ (λ()) T)
-  nf p d? (T-ProtoD T) = T-ProtoD (nf ⊕ (λ()) T)
-  nf p d? (T-ProtoP #c ⊙ T) = T-ProtoP #c ⊙ (nf ⊕ (λ()) T)
+  nf p d? (T-Msg q T S) = t-msg (mult p q) (nf ⊕ d?⊥ T) (nf p d? S)
+  nf p d? (T-Up T) = T-Up (nf ⊕ d?⊥ T)
+  nf p d? (T-Minus T) = t-minus (nf ⊕ d?⊥ T)
+  nf p d? (T-ProtoD T) = T-ProtoD (nf ⊕ d?⊥ T)
+  nf p d? (T-ProtoP #c ⊙ T) = T-ProtoP #c ⊙ (nf ⊕ d?⊥ T)
 
   -- the nf algorithm returns a normal form
 
@@ -257,24 +261,24 @@ module _ {k : ℕ} where
   nf-t-msg p (N-Minus (N-Up x)) nS = N-Msg (invert p) (N-Normal (N-Up x)) nS
   nf-t-msg p (N-Minus N-Var) nS = N-Msg (invert p) (N-Normal N-Var) nS
 
-  nf-normal-proto : (T : Ty Δ KP) → NormalProto (nf ⊕ (λ ()) T)
+  nf-normal-proto : (T : Ty Δ KP) → NormalProto (nf ⊕ d?⊥ T)
 
   nf-normal-type : ∀ ⊙ → (d? : ⊙ ≡ ⊝ → Dualizable (KV pk m)) (T : Ty Δ (KV pk m)) → NormalTy (nf ⊙ d? T)
   nf-normal-type ⊕ d? (T-Var x) = N-Var NV-Var
   nf-normal-type ⊝ d? (T-Var x) = N-Var (NV-Dual (d? refl) x)
   nf-normal-type ⊙ d? T-Base = N-Base
-  nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow (nf-normal-type ⊕ (λ ()) T) (nf-normal-type ⊕ (λ ()) T₁)
-  nf-normal-type ⊙ d? (T-Poly T) = N-Poly (nf-normal-type ⊕ (λ()) T)
+  nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
+  nf-normal-type ⊙ d? (T-Poly T) = N-Poly (nf-normal-type ⊕ d?⊥ T)
   nf-normal-type ⊙ d? (T-Sub x T) = N-Sub (nf-normal-type ⊙ (λ x₁ → dualizable-sub (d? x₁) x) T)
   nf-normal-type ⊙ d? (T-Dual x T) = nf-normal-type (invert ⊙) (λ _ → x) T
   nf-normal-type ⊙ d? T-End = N-End
   nf-normal-type ⊙ d? (T-Msg p T T₁) = nf-t-msg (mult ⊙ p) (nf-normal-proto T) (nf-normal-type ⊙ d? T₁)
-  nf-normal-type ⊙ d? (T-ProtoD T) = N-ProtoD (nf-normal-type ⊕ (λ ()) T)
+  nf-normal-type ⊙ d? (T-ProtoD T) = N-ProtoD (nf-normal-type ⊕ d?⊥ T)
 
   nf-normal-proto (T-Var x) = N-Normal N-Var
-  nf-normal-proto (T-Up T) = N-Normal (N-Up (nf-normal-type ⊕ (λ()) T))
-  nf-normal-proto (T-Minus T) with inspect (nf ⊕ (λ ())) T | nf-normal-proto T
-  ... | Eq.[ eq ] | nf-t-normal = t-minus-normal ((nf ⊕ (λ ())) T) nf-t-normal
+  nf-normal-proto (T-Up T) = N-Normal (N-Up (nf-normal-type ⊕ d?⊥ T))
+  nf-normal-proto (T-Minus T) with inspect (nf ⊕ d?⊥) T | nf-normal-proto T
+  ... | Eq.[ eq ] | nf-t-normal = t-minus-normal ((nf ⊕ d?⊥) T) nf-t-normal
   nf-normal-proto (T-ProtoP #c ⊙ T) = N-Normal (N-ProtoP (nf-normal-proto T))
 
   -- nf ⊕ ignores dualizability
@@ -287,7 +291,7 @@ module _ {k : ℕ} where
   nf-⊕-ignores {T = T-Sub x T} f g = cong (T-Sub x) (nf-⊕-ignores {T = T} (λ x₁ → dualizable-sub (f x₁) x) (λ x₁ → dualizable-sub (g x₁) x))
   nf-⊕-ignores {T = T-Dual x T} f g = refl
   nf-⊕-ignores {T = T-End} f g = refl
-  nf-⊕-ignores {T = T-Msg x T T₁} f g = cong (t-msg (mult ⊕ x) (nf ⊕ (λ ()) T)) (nf-⊕-ignores {T = T₁} f g)
+  nf-⊕-ignores {T = T-Msg x T T₁} f g = cong (t-msg (mult ⊕ x) (nf ⊕ d?⊥ T)) (nf-⊕-ignores {T = T₁} f g)
   nf-⊕-ignores {T = T-Up T} f g = refl
   nf-⊕-ignores {T = T-Minus T} f g = refl
   nf-⊕-ignores {T = T-ProtoD T} f g = refl
@@ -298,20 +302,20 @@ module _ {k : ℕ} where
   nf-complete : ∀ f g → T₁ ≡c T₂ → nf ⊕ f T₁ ≡ nf ⊕ g T₂
   nf-complete {T₁ = T₁} f g ≡c-refl = nf-⊕-ignores {T = T₁} f g
   nf-complete f g (≡c-symm T1=T2) = sym (nf-complete g f T1=T2)
-  nf-complete f g (≡c-trns T1=T2 T1=T3) = trans (nf-complete f (λ ()) T1=T2) (nf-complete (λ ()) g T1=T3)
+  nf-complete f g (≡c-trns T1=T2 T1=T3) = trans (nf-complete f d?⊥ T1=T2) (nf-complete d?⊥ g T1=T3)
   nf-complete f g (≡c-sub K≤K′ T1=T2) = cong (T-Sub K≤K′) (nf-complete (λ x₁ → dualizable-sub (f x₁) K≤K′) (λ x₁ → dualizable-sub (g x₁) K≤K′) T1=T2)
   nf-complete {T₂ = T₂} f g (≡c-dual-dual d) = nf-⊕-ignores {T = T₂} (λ x₁ → d) g
   nf-complete f g ≡c-dual-end = refl
   nf-complete f g (≡c-dual-msg {p = p}) rewrite mult-invert{p = p} = refl
-  nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g | mult-⊕-unit p | mult-⊕-unit (invert p) = t-msg-minus {p = p} (nf ⊕ (λ()) T)
-  nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g (λ()) = t-minus-involution (nf ⊕ (λ()) T₂) (nf-normal-proto T₂)
-  nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete (λ()) (λ()) T1=T2) (nf-complete (λ()) (λ()) T1=T3)
-  nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete (λ()) (λ()) T1=T2)
-  nf-complete f g (≡c-msg {p = p} T1=T2 T1=T3) = cong₂ (t-msg (mult ⊕ p)) (nf-complete (λ()) (λ()) T1=T2) (nf-complete f g T1=T3)
-  nf-complete f g (≡c-protoD T1=T2) = cong T-ProtoD (nf-complete (λ()) (λ()) T1=T2)
-  nf-complete f g (≡c-protoP T1=T2) = cong (T-ProtoP _ _) (nf-complete (λ()) (λ()) T1=T2)
+  nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g | mult-⊕-unit p | mult-⊕-unit (invert p) = t-msg-minus {p = p} (nf ⊕ d?⊥ T)
+  nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g d?⊥ = t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
+  nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete d?⊥ d?⊥ T1=T2)
+  nf-complete f g (≡c-msg {p = p} T1=T2 T1=T3) = cong₂ (t-msg (mult ⊕ p)) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete f g T1=T3)
+  nf-complete f g (≡c-protoD T1=T2) = cong T-ProtoD (nf-complete d?⊥ d?⊥ T1=T2)
+  nf-complete f g (≡c-protoP T1=T2) = cong (T-ProtoP _ _) (nf-complete d?⊥ d?⊥ T1=T2)
   nf-complete f g (≡c-sub-dual {K≤K′ = ≤k-step ≤p-refl x₁}) = refl
-  nf-complete f g (≡c-up T1=T2) = cong T-Up (nf-complete (λ ()) (λ ()) T1=T2)
+  nf-complete f g (≡c-up T1=T2) = cong T-Up (nf-complete d?⊥ d?⊥ T1=T2)
   nf-complete f g (≡c-minus T1=T2) = cong t-minus (nf-complete _ _ T1=T2)
 
   nf-complete- : ∀ f → T₁ ≡c T₂ → nf ⊝ f T₁ ≡ nf ⊝ f T₂
@@ -323,12 +327,12 @@ module _ {k : ℕ} where
   nf-complete- f (≡c-dual-dual d) rewrite dual-irrelevant f (λ x → d) = refl
   nf-complete- f ≡c-dual-end = refl
   nf-complete- f (≡c-dual-msg {p = p}) rewrite mult-invert-⊕ {p} = refl
-  nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ (λ ()) T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ (λ()) T))) (cong (λ q → t-msg q (nf ⊕ (λ ()) T) (nf ⊝ f S)) (invert-mult-⊝ p))
+  nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ d?⊥ T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ d?⊥ T))) (cong (λ q → t-msg q (nf ⊕ d?⊥ T) (nf ⊝ f S)) (invert-mult-⊝ p))
   nf-complete- f ≡c-minus-p with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-refl} t1≡t2 t1≡t3) with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-step <p-mt} t1≡t2 t1≡t3) with () ← f refl
   nf-complete- f (≡c-all t1≡t2) with () ← f refl
-  nf-complete- f (≡c-msg {S₂ = S₂} {p = p} t1≡t2 t1≡t3) rewrite nf-complete- f t1≡t3 = cong (λ nft → t-msg (mult ⊝ p) nft (nf ⊝ f S₂)) ( nf-complete (λ()) (λ()) t1≡t2)
+  nf-complete- f (≡c-msg {S₂ = S₂} {p = p} t1≡t2 t1≡t3) rewrite nf-complete- f t1≡t3 = cong (λ nft → t-msg (mult ⊝ p) nft (nf ⊝ f S₂)) ( nf-complete d?⊥ d?⊥ t1≡t2)
   nf-complete- f (≡c-protoD t1≡t2) with () ← f refl
   nf-complete- f (≡c-protoP t1≡t2) with () ← f refl
   nf-complete- f (≡c-up t1≡t2) with () ← f refl
@@ -346,10 +350,10 @@ module _ {k : ℕ} where
   nf-sound+ (T-Sub x T) = ≡c-sub x (nf-sound+ T)
   nf-sound+ (T-Dual D-S T) = ≡c-trns (nf-sound- T) (≡c-symm (dual-tinv T))
   nf-sound+ T-End = ≡c-refl
-  nf-sound+ (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
-  nf-sound+ (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
+  nf-sound+ (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
+  nf-sound+ (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound+ S))
   nf-sound+ (T-Up T) = ≡c-up (nf-sound+ T)
-  nf-sound+ (T-Minus T) = ≡c-trns (t-minus-≡c (nf ⊕ (λ ()) T)) (≡c-minus (nf-sound+ T))
+  nf-sound+ (T-Minus T) = ≡c-trns (t-minus-≡c (nf ⊕ d?⊥ T)) (≡c-minus (nf-sound+ T))
   nf-sound+ (T-ProtoD T) = ≡c-protoD (nf-sound+ T)
   nf-sound+ (T-ProtoP _ _ T) = ≡c-protoP (nf-sound+ T)
 
@@ -358,6 +362,6 @@ module _ {k : ℕ} where
   nf-sound- (T-Sub (≤k-step ≤p-refl x₁) T) = ≡c-sub (≤k-step ≤p-refl x₁) (nf-sound- T)
   nf-sound- (T-Dual D-S T) = nf-sound+ T
   nf-sound- T-End = ≡c-refl
-  nf-sound- (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
-  nf-sound- (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ (λ ()) T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
+  nf-sound- (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
+  nf-sound- (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
 
