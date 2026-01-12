@@ -29,7 +29,9 @@ data Variance : Set where
 
 variable ⊙ : Variance
 
-module _ {k : ℕ} where
+module _ where
+
+  variable k : ℕ
 
   data Ty : List Kind → Kind → Set where
     T-Var   : K ∈ Δ → Ty Δ K
@@ -263,6 +265,8 @@ module _ {k : ℕ} where
 
   nf-normal-proto : (T : Ty Δ KP) → NormalProto (nf ⊕ d?⊥ T)
 
+  nf-normal-proto-inverted : (T : Ty Δ KP) → NormalProto (t-minus (nf ⊕ d?⊥ T))
+
   nf-normal-type : ∀ ⊙ → (d? : ⊙ ≡ ⊝ → Dualizable (KV pk m)) (T : Ty Δ (KV pk m)) → NormalTy (nf ⊙ d? T)
   nf-normal-type ⊕ d? (T-Var x) = N-Var NV-Var
   nf-normal-type ⊝ d? (T-Var x) = N-Var (NV-Dual (d? refl) x)
@@ -280,6 +284,12 @@ module _ {k : ℕ} where
   nf-normal-proto (T-Minus T) with inspect (nf ⊕ d?⊥) T | nf-normal-proto T
   ... | Eq.[ eq ] | nf-t-normal = t-minus-normal ((nf ⊕ d?⊥) T) nf-t-normal
   nf-normal-proto (T-ProtoP #c ⊙ T) = N-Normal (N-ProtoP (nf-normal-proto T))
+
+  nf-normal-proto-inverted (T-Var x) = N-Minus N-Var
+  nf-normal-proto-inverted (T-Up T) = N-Minus (N-Up (nf-normal-type ⊕ d?⊥ T))
+  nf-normal-proto-inverted (T-Minus T)
+    rewrite t-minus-involution (nf ⊕ d?⊥ T) (nf-normal-proto T) = nf-normal-proto T  
+  nf-normal-proto-inverted (T-ProtoP #c ⊙ T) = N-Minus (N-ProtoP (nf-normal-proto T))
 
   -- nf ⊕ ignores dualizability
 
