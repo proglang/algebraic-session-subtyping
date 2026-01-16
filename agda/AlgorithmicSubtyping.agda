@@ -271,7 +271,9 @@ module next-try where
   complete-algₜ {N₁ = N-Arrow N₁ N₂} {N-Arrow N₃ N₄} (<:-fun T₁<:T₂ T₁<:T₃) = <:ₜ-arrow (complete-algₜ T₁<:T₂) (complete-algₜ T₁<:T₃)
   complete-algₜ {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (<:-protoD T₁<:T₂) = <:ₜ-data (complete-algₜ T₁<:T₂)
   complete-algₜ {N₁ = N-Poly N₁} {N-Poly N₂} (<:-all T₁<:T₂) = <:ₜ-poly (complete-algₜ T₁<:T₂)
-  complete-algₜ {N₁ = N₁} (<:-neg-l T₁<:T₂) = {!!}
+  complete-algₜ {p = p} {N₁ = N₁@(N-Msg p₁ x _)} (<:-neg-l {p₂} {T} {S} T₁<:T₂)
+    using N₁′ ← nf-normal-type p (λ z → D-S) (T-Msg (invert p₂) T S)
+    = {!!}
   complete-algₜ {N₁ = N₁} {N-Msg p x N₂} (<:-neg-r T₁<:T₂) = {!!}
   complete-algₜ {p = p} {T₁ = T-Dual _ T₁} {T₂ = T-Dual _ T₂} {N₁ = N₁} {N₂} (<:-dual-lr d T₁<:T₂) = {!complete-algₜ {p = invert p} {T₁ = T₂}{T₂ = T₁} {N₁ = N₂} {N₂ = N₁} T₁<:T₂ !}
   complete-algₜ {p = p} (<:-dual-dual-l d T₁<:T₂)
