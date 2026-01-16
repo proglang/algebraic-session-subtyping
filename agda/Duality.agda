@@ -44,9 +44,11 @@ mult-⊕-unit : ∀ p → mult ⊕ p ≡ p
 mult-⊕-unit ⊕ = refl
 mult-⊕-unit ⊝ = refl
 
-invert-mult-⊝ : ∀ p → invert (mult ⊝ p) ≡ mult ⊝ (invert p)
-invert-mult-⊝ ⊕ = refl
-invert-mult-⊝ ⊝ = refl
+invert-mult-⊙ : ∀ p {⊙} → invert (mult ⊙ p) ≡ mult ⊙ (invert p)
+invert-mult-⊙ ⊕ {⊕} = refl
+invert-mult-⊙ ⊕ {⊝} = refl
+invert-mult-⊙ ⊝ {⊕} = refl
+invert-mult-⊙ ⊝ {⊝} = refl
 
 data Dualizable : Kind → Set where
   D-S : Dualizable (KV KS m)
