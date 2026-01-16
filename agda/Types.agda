@@ -255,21 +255,31 @@ module _ where
   -- the nf algorithm returns a normal form
 
   -- t-msg returns a normal form
+  nf-t-msg-loop : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → let p′ , T′ = t-loop p T in Polarity × NormalProto T′
+  nf-t-msg-loop p (N-Normal (N-ProtoP x)) = p , N-Normal (N-ProtoP x)
+  nf-t-msg-loop p (N-Normal (N-Up x)) = p , N-Normal (N-Up x)
+  nf-t-msg-loop p (N-Normal N-Var) = p , N-Normal N-Var
+  nf-t-msg-loop p (N-Minus (N-ProtoP x)) = invert p , N-Normal (N-ProtoP x)
+  nf-t-msg-loop p (N-Minus (N-Up x)) = invert p , N-Normal (N-Up x)
+  nf-t-msg-loop p (N-Minus N-Var) = invert p , N-Normal N-Var
+  
   nf-t-msg : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → {S : Ty Δ SLin} → (nS : NormalTy S) → NormalTy (t-msg p T S)
-  nf-t-msg p (N-Normal (N-ProtoP x)) nS = N-Msg p (N-Normal (N-ProtoP x)) nS
-  nf-t-msg p (N-Normal (N-Up x)) nS = N-Msg p (N-Normal (N-Up x)) nS
-  nf-t-msg p (N-Normal N-Var) nS = N-Msg p (N-Normal N-Var) nS
-  nf-t-msg p (N-Minus (N-ProtoP x)) nS = N-Msg (invert p) (N-Normal (N-ProtoP x)) nS
-  nf-t-msg p (N-Minus (N-Up x)) nS = N-Msg (invert p) (N-Normal (N-Up x)) nS
-  nf-t-msg p (N-Minus N-Var) nS = N-Msg (invert p) (N-Normal N-Var) nS
+  nf-t-msg p {T} NP NS =
+    let p′ , T′ = t-loop p T in
+    let p″ , N″ = nf-t-msg-loop p NP in
+    -- it holds that p′ ≡ p″ (unproved)
+    N-Msg p′ N″ NS
 
   nf-normal-proto : (T : Ty Δ KP) → NormalProto (nf ⊕ d?⊥ T)
 
   nf-normal-proto-inverted : (T : Ty Δ KP) → NormalProto (t-minus (nf ⊕ d?⊥ T))
 
+  nf-normal-type-var : ∀ (⊙ : Polarity) → (d? : ⊙ ≡ ⊝ → Dualizable K)  (x : K ∈ Δ) → NormalVar (nf ⊙ d? (T-Var x))
+  nf-normal-type-var ⊕ d? x = NV-Var
+  nf-normal-type-var ⊝ d? x = NV-Dual (d? refl) x
+
   nf-normal-type : ∀ ⊙ → (d? : ⊙ ≡ ⊝ → Dualizable (KV pk m)) (T : Ty Δ (KV pk m)) → NormalTy (nf ⊙ d? T)
-  nf-normal-type ⊕ d? (T-Var x) = N-Var NV-Var
-  nf-normal-type ⊝ d? (T-Var x) = N-Var (NV-Dual (d? refl) x)
+  nf-normal-type ⊙ d? (T-Var x) = N-Var (nf-normal-type-var ⊙ d? x)
   nf-normal-type ⊙ d? T-Base = N-Base
   nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
   nf-normal-type ⊙ d? (T-Poly T) = N-Poly (nf-normal-type ⊕ d?⊥ T)
@@ -290,6 +300,17 @@ module _ where
   nf-normal-proto-inverted (T-Minus T)
     rewrite t-minus-involution (nf ⊕ d?⊥ T) (nf-normal-proto T) = nf-normal-proto T  
   nf-normal-proto-inverted (T-ProtoP #c ⊙ T) = N-Minus (N-ProtoP (nf-normal-proto T))
+
+  nf-tmsg-invert-minus  : ∀ (⊙ : Polarity) (d? : ⊙ ≡ ⊝ → Dualizable (KV KS Lin)) → (T : Ty Δ KP)
+    → t-msg (invert ⊙) (nf ⊕ d?⊥ T) S ≡ t-msg ⊙ (t-minus (nf ⊕ d?⊥ T)) S
+  nf-tmsg-invert-minus ⊙ d? (T-Var x) = refl
+  nf-tmsg-invert-minus ⊙ d? (T-Up T) = refl
+  nf-tmsg-invert-minus ⊙ d? (T-Minus T) = sym (t-msg-minus (t-minus (nf ⊕ d?⊥ T)))
+  nf-tmsg-invert-minus ⊙ d? (T-ProtoP x x₁ T) = refl
+
+  nf-invert-minus : ∀ (⊙ : Polarity) (d? : ⊙ ≡ ⊝ → Dualizable (KV KS Lin)) → ∀ T → nf ⊙ d? (T-Msg (invert p) T S) ≡ nf ⊙ d? (T-Msg p (T-Minus T) S)
+  nf-invert-minus {p} ⊙ d? T
+    rewrite sym (invert-mult-⊙ p {⊙}) = nf-tmsg-invert-minus (mult ⊙ p) (λ _ → D-S) T
 
   -- nf ⊕ ignores dualizability
 
@@ -337,7 +358,7 @@ module _ where
   nf-complete- f (≡c-dual-dual d) rewrite dual-irrelevant f (λ x → d) = refl
   nf-complete- f ≡c-dual-end = refl
   nf-complete- f (≡c-dual-msg {p = p}) rewrite mult-invert-⊕ {p} = refl
-  nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ d?⊥ T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ d?⊥ T))) (cong (λ q → t-msg q (nf ⊕ d?⊥ T) (nf ⊝ f S)) (invert-mult-⊝ p))
+  nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ d?⊥ T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ d?⊥ T))) (cong (λ q → t-msg q (nf ⊕ d?⊥ T) (nf ⊝ f S)) (invert-mult-⊙ p))
   nf-complete- f ≡c-minus-p with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-refl} t1≡t2 t1≡t3) with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-step <p-mt} t1≡t2 t1≡t3) with () ← f refl
