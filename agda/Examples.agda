@@ -60,44 +60,70 @@ E-SX ctrs X = T-ProtoP ctrs ⊕ X
 ---- subtyping judgments
 
 -- given that c⊆d ...
+module _ {c}{d}{c⊆d : c ⊆ d} where
 
--- Alt[c] <: Alt[d]
+  -- Alt[c] <: Alt[d]
 
-st-alt : ∀ {c d} (c⊆d : c ⊆ d) → E-Alt c <: E-Alt d
-st-alt c⊆d = <:-proto c⊆d ≡c-refl
+  st-alt : E-Alt c <: E-Alt d
+  st-alt = <:-proto c⊆d ≡c-refl
 
--- Id (Alt[c]) <: Id (Alt[d])
+  -- Id (Alt[c]) <: Id (Alt[d])
 
-st-id : ∀ {c d} (c⊆d : c ⊆ d) → E-Id c <: E-Id d
-st-id c⊆d = <:-proto ⊆-refl (st-alt c⊆d)
+  st-id : E-Id c <: E-Id d
+  st-id = <:-proto ⊆-refl st-alt
 
--- Inv (Alt[d]) <: Inv (Alt[c])
+  -- Inv (Alt[d]) <: Inv (Alt[c])
 
-st-inv : ∀ {c d} (c⊆d : c ⊆ d) → E-Inv d <: E-Inv c
-st-inv c⊆d = <:-proto ⊆-refl (st-alt c⊆d)
+  st-inv : E-Inv d <: E-Inv c
+  st-inv = <:-proto ⊆-refl st-alt
 
--- Id (-Alt[d]) <: Id (-Alt[c])
+  -- Id (-Alt[d]) <: Id (-Alt[c])
 
-st-id-minus : ∀ {c d} (c⊆d : c ⊆ d) → E-Id-Minus d <: E-Id-Minus c
-st-id-minus c⊆d = <:-proto ⊆-refl (<:-minus (st-alt c⊆d))
+  st-id-minus : E-Id-Minus d <: E-Id-Minus c
+  st-id-minus = <:-proto ⊆-refl (<:-minus st-alt)
 
--- Inv (-Alt[c]) <: Inv (-Alt[d])
+  -- Inv (-Alt[c]) <: Inv (-Alt[d])
 
-st-inv-minus : ∀ {c d} (c⊆d : c ⊆ d) → E-Inv-Minus c <: E-Inv-Minus d
-st-inv-minus c⊆d = <:-proto ⊆-refl (<:-minus (st-alt c⊆d))
+  st-inv-minus : E-Inv-Minus c <: E-Inv-Minus d
+  st-inv-minus = <:-proto ⊆-refl (<:-minus st-alt)
 
--- question: is subtyping closed under substitution?
--- the suspicion was that substituting negative types might lead to problems
--- but the example shows that it does not
+  -- question: is subtyping closed under substitution?
+  -- the suspicion was that substituting negative types might lead to problems
+  -- but the example shows that it does not
 
--- SX[c] X <: SX[d] X
+  -- SX[c] X <: SX[d] X
 
-st-sx : ∀ {c d}  (c⊆d : c ⊆ d) → E-SX{Δ = KP ∷ []} c (T-Var (here refl)) <: E-SX d (T-Var (here refl))
-st-sx c⊆d = <:-proto c⊆d <:-refl
+  st-sx : E-SX{Δ = KP ∷ []} c (T-Var (here refl)) <: E-SX d (T-Var (here refl))
+  st-sx = <:-proto c⊆d <:-refl
 
-st-sx-alt : ∀ {c d}  (c⊆d : c ⊆ d) → E-SX c (E-Alt c) <: E-SX d (E-Alt c)
-st-sx-alt c⊆d = <:-proto c⊆d (<:-proto ⊆-refl ≡c-refl)
+  st-sx-alt : E-SX c (E-Alt c) <: E-SX d (E-Alt c)
+  st-sx-alt = <:-proto c⊆d (<:-proto ⊆-refl ≡c-refl)
 
-st-sx-alt-minus : ∀ {c d}  (c⊆d : c ⊆ d) → E-SX c (T-Minus (E-Alt c)) <: E-SX d (T-Minus (E-Alt c))
-st-sx-alt-minus c⊆d = <:-proto c⊆d (<:-minus (<:-proto ⊆-refl ≡c-refl))
+  st-sx-alt-minus : E-SX c (T-Minus (E-Alt c)) <: E-SX d (T-Minus (E-Alt c))
+  st-sx-alt-minus = <:-proto c⊆d (<:-minus (<:-proto ⊆-refl ≡c-refl))
 
+  -- ok, I think the problem only arises at the level of message types,
+  -- not at the level of protocols
+
+  -- !(Id (Alt[d])).End <: !(Id (Alt[c])).End
+
+  st-msg-id : T-Msg ⊕ (E-Id d) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+           <: T-Msg ⊕ (E-Id c) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+  st-msg-id = <:-msg (<:-proto ⊆-refl (<:-proto c⊆d ≡c-refl)) <:-refl
+
+  -- !(Id (-Alt[d])).End <: !(Id (-Alt[c])).End
+
+  st-msg-id-minus : T-Msg ⊕ (E-Id-Minus c) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+           <: T-Msg ⊕ (E-Id-Minus d) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+  st-msg-id-minus = <:-msg (<:-proto ⊆-refl (<:-minus (<:-proto c⊆d ≡c-refl))) <:-refl
+
+  -- !SX[c] (Alt[c]) <: !SX[d] (Alt[c])
+  st-msg-sx : T-Msg ⊕ (E-SX d (E-Alt c)) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+           <: T-Msg ⊕ (E-SX c (E-Alt c)) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+  st-msg-sx = <:-msg st-sx-alt <:-refl
+
+  -- !SX[c] (- Alt[c]) <: !SX[d] (- Alt[c])
+  st-msg-sx-minus : T-Msg ⊕ (E-SX d (T-Minus (E-Alt c))) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+           <: T-Msg ⊕ (E-SX c (T-Minus (E-Alt c))) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+  st-msg-sx-minus = <:-msg st-sx-alt-minus <:-refl
+  
