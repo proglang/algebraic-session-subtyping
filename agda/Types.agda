@@ -14,10 +14,11 @@ open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; i
 open import Util
 open import Kinds
 open import Duality
+open import Kits
 
 variable
   n : ℕ
-  Δ : List Kind
+  Δ Δ₁ Δ₂ Δ₃ Δ′ : List Kind
 
 -- variance of parameter of protocol type constructor
 -- ⊕ : covariant - parameter appears under even number of T-Minus operators
@@ -33,7 +34,7 @@ module _ where
 
   variable k : ℕ
 
-  data Ty : List Kind → Kind → Set where
+  data Ty (Δ : List Kind) : Kind → Set where
     T-Var   : K ∈ Δ → Ty Δ K
     T-Base  : Ty Δ MUn
     T-Arrow : KM ≤p pk → Ty Δ TLin → Ty Δ TLin → Ty Δ (KV pk m)
@@ -53,6 +54,75 @@ module _ where
 
     T-ProtoD : Ty Δ TLin → Ty Δ TLin      -- a data protocol
     T-ProtoP : Subset.Subset k → Variance → Ty Δ KP → Ty Δ KP          -- a general protocol with k constructors
+
+  t-var-injective : {x y : K ∈ Δ} → T-Var x ≡ T-Var y → x ≡ y
+  t-var-injective refl = refl
+
+  Ty-Syntax : Syntax
+  Ty-Syntax = record
+    { Sort = Kind
+    ; _⊢_  = Ty
+    ; `_   = T-Var
+    ; `-injective = t-var-injective
+    }
+
+  open Syntax Ty-Syntax hiding (Sort)
+
+  _⋯_ : ⦃ KT : Kit _∋/⊢_ ⦄ → Ty Δ₁ K → Δ₁ –[ KT ]→ Δ₂ → Ty Δ₂ K
+  T-Var x ⋯ ϕ = `/id (ϕ _ x)
+  T-Base ⋯ ϕ = T-Base
+  T-Arrow x t u ⋯ ϕ = T-Arrow x (t ⋯ ϕ) (u ⋯ ϕ)
+  T-Poly t ⋯ ϕ = T-Poly (t ⋯ (ϕ ↑ _))
+  T-Sub x t ⋯ ϕ = T-Sub x (t ⋯ ϕ)
+  T-Dual x t ⋯ ϕ = T-Dual x (t ⋯ ϕ)
+  T-End ⋯ ϕ = T-End
+  T-Msg x t u ⋯ ϕ = T-Msg x (t ⋯ ϕ) (u ⋯ ϕ)
+  T-Up t ⋯ ϕ = T-Up (t ⋯ ϕ)
+  T-Minus t ⋯ ϕ = T-Minus (t ⋯ ϕ)
+  T-ProtoD t ⋯ ϕ = T-ProtoD (t ⋯ ϕ)
+  T-ProtoP x v t ⋯ ϕ = T-ProtoP x v (t ⋯ ϕ)
+
+  ⋯-id : ⦃ KT : Kit _∋/⊢_ ⦄ (t : Ty Δ K) → t ⋯ id ≡ t
+  ⋯-id (T-Var x) = `/`-is-` x
+  ⋯-id T-Base = refl
+  ⋯-id (T-Arrow x t u) = cong₂ (T-Arrow x) (⋯-id t) (⋯-id u)
+  ⋯-id (T-Poly t) = cong T-Poly (trans (cong (t ⋯_) (~-ext id↑~id)) (⋯-id t))
+  ⋯-id (T-Sub x t) = cong (T-Sub x) (⋯-id t)
+  ⋯-id (T-Dual x t) = cong (T-Dual x) (⋯-id t)
+  ⋯-id T-End = refl
+  ⋯-id (T-Msg x t u) = cong₂ (T-Msg x) (⋯-id t) (⋯-id u)
+  ⋯-id (T-Up t) = cong T-Up (⋯-id t)
+  ⋯-id (T-Minus t) = cong T-Minus (⋯-id t)
+  ⋯-id (T-ProtoD t) = cong T-ProtoD (⋯-id t)
+  ⋯-id (T-ProtoP x v t) = cong (T-ProtoP x v) (⋯-id t)
+
+  Ty-Traversal : Traversal
+  Ty-Traversal = record
+    { _⋯_ = _⋯_
+    ; ⋯-var = λ x ϕ → refl
+    ; ⋯-id = ⋯-id
+    }
+
+  open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)
+
+  fusion :
+    ⦃ K₁ : Kit _∋/⊢₁_ ⦄ ⦃ K₂ : Kit _∋/⊢₂_ ⦄ ⦃ KT : Kit _∋/⊢_ ⦄ ⦃ W₁ : WkKit K₁ ⦄ ⦃ C : CKit K₁ K₂ KT ⦄
+    (t : Ty Δ₁ K) (ϕ₁ : Δ₁ –[ K₁ ]→ Δ₂) (ϕ₂ : Δ₂ –[ K₂ ]→ Δ₃) →
+    (t ⋯ ϕ₁) ⋯ ϕ₂ ≡ t ⋯ (ϕ₁ ·ₖ ϕ₂)
+  fusion (T-Var x) ϕ₁ ϕ₂ = sym (&/⋯-⋯ _ ϕ₂)
+  fusion T-Base ϕ₁ ϕ₂ = refl
+  fusion (T-Arrow x t u) ϕ₁ ϕ₂ = cong₂ (T-Arrow x) (fusion t ϕ₁ ϕ₂) (fusion u ϕ₁ ϕ₂)
+  fusion (T-Poly t) ϕ₁ ϕ₂ = cong T-Poly (trans (fusion t (ϕ₁ ↑ _) (ϕ₂ ↑ _)) (cong (t ⋯_) (sym (~-ext (dist-↑-· _ ϕ₁ ϕ₂)))))
+  fusion (T-Sub x t) ϕ₁ ϕ₂ = cong (T-Sub x) (fusion t ϕ₁ ϕ₂)
+  fusion (T-Dual x t) ϕ₁ ϕ₂ = cong (T-Dual x) (fusion t ϕ₁ ϕ₂)
+  fusion T-End ϕ₁ ϕ₂ = refl
+  fusion (T-Msg x t u) ϕ₁ ϕ₂ = cong₂ (T-Msg x) (fusion t ϕ₁ ϕ₂) (fusion u ϕ₁ ϕ₂)
+  fusion (T-Up t) ϕ₁ ϕ₂ = cong T-Up (fusion t ϕ₁ ϕ₂)
+  fusion (T-Minus t) ϕ₁ ϕ₂ = cong T-Minus (fusion t ϕ₁ ϕ₂)
+  fusion (T-ProtoD t) ϕ₁ ϕ₂ = cong T-ProtoD (fusion t ϕ₁ ϕ₂)
+  fusion (T-ProtoP x v t) ϕ₁ ϕ₂ = cong (T-ProtoP x v) (fusion t ϕ₁ ϕ₂)
+
+  open CTraversal record { fusion = fusion } hiding (fusion)
 
   t-dual : Dualizable K → Ty Δ K → Ty Δ K
   t-dual D-S (T-Var x) = T-Dual D-S (T-Var x)
