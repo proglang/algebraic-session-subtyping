@@ -10,6 +10,7 @@ open import Relation.Nullary using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; inspect; Reveal_·_is_)
 
+open import Function using (id)
 
 module Subtyping  where
 
@@ -33,6 +34,10 @@ T₁ <<:[ ⊕ ] T₂ = T₁ <: T₂
 T₁ <<:[ ⊝ ] T₂ = T₂ <: T₁
 T₁ <<:[ ⊘ ] T₂ = T₁ ≡c T₂
 
+invert-<<: : ∀ p → T₁ <<:[ injᵥ p ] T₂ ≡ T₂ <<:[ injᵥ (invert p) ] T₁
+invert-<<: ⊕ = refl
+invert-<<: ⊝ = refl
+
 data _<:_ {Δ} where
   <:-refl  : T <: T
   <:-trans : T₁ <: T₂ → T₂ <: T₃ → T₁ <: T₃
@@ -52,7 +57,8 @@ data _<:_ {Δ} where
   <:-neg-l : T-Msg (invert p) T S <: S′ → T-Msg p (T-Minus T) S <: S′
   <:-neg-r : S′ <: T-Msg (invert p) T S → S′ <: T-Msg p (T-Minus T) S
 
-  <:-dual-lr : {T₁ T₂ : Ty Δ K} (d : Dualizable K) → T₂ <: T₁ → T-Dual d T₁ <: T-Dual d T₂
+  -- this rule is derivable
+  -- <:-dual-lr : {T₁ T₂ : Ty Δ K} (d : Dualizable K) → T₂ <: T₁ → T-Dual d T₁ <: T-Dual d T₂
   <:-dual-dual-l : (d : Dualizable K) → T₁ <: T₂ → T-Dual d (T-Dual d T₁) <: T₂
   <:-dual-dual-r : (d : Dualizable K) → T₁ <: T₂ → T₁ <: T-Dual d (T-Dual d T₂)
   <:-dual-msg-l : T-Msg (invert p) T (T-Dual D-S S) <: T₂ → T-Dual D-S (T-Msg p T S) <: T₂
@@ -65,8 +71,7 @@ data _<:_ {Δ} where
 
   -- protocol kinds
   
-  <:-proto : ∀ {#c₁ #c₂ : Subset.Subset k}
-    → #c₁ ⊆ #c₂ → T₁ <<:[ ⊙ ] T₂
+  <:-proto : #c₁ ⊆ #c₂ → T₁ <<:[ ⊙ ] T₂
     → T-ProtoP #c₁ ⊙ T₁ <: T-ProtoP #c₂ ⊙ T₂
   <:-minus : T₂ <: T₁ → T-Minus T₁ <: T-Minus T₂
   <:-minus-minus-l : T₁ <: T₂ → T-Minus (T-Minus T₁) <: T₂
@@ -103,7 +108,7 @@ dual-<: D-S (<:-sub-dual-r {K≤K′ = ≤k-step ≤p-refl x₁}) = <:-refl
 dual-<: D-S (<:-fun {≤pk = ≤p-step ()} T₁<:T₂ T₁<:T₃)
 dual-<: D-S (<:-neg-l T₁<:T₂) = <:-trans (dual-<: D-S T₁<:T₂) (<:-neg-r <:-refl)
 dual-<: D-S (<:-neg-r T₁<:T₂) = <:-trans (<:-neg-l <:-refl) (dual-<: D-S T₁<:T₂)
-dual-<: D-S (<:-dual-lr d T₁<:T₂) = T₁<:T₂
+-- dual-<: D-S (<:-dual-lr d T₁<:T₂) = T₁<:T₂
 dual-<: D-S (<:-dual-dual-l D-S T₁<:T₂) = <:-trans (dual-<: D-S T₁<:T₂) (t-dual-<: D-S)
 dual-<: D-S (<:-dual-dual-r D-S T₁<:T₂) = <:-trans (t-dual-:> D-S) (dual-<: D-S T₁<:T₂)
 dual-<: D-S (<:-dual-msg-l {p} T₁<:T₂) with dual-<: D-S T₁<:T₂
@@ -173,3 +178,57 @@ norm-pres-sub {T₁ = T₁} {T₂} {p = ⊝} {d?} T₁<:T₂
   with conv⇒subty _ _ (nf-sound- {f = d?} T₁) | conv⇒subty _ _ (nf-sound- {f = d?} T₂)
 ... | nT₁<:T₁ , T₁<:nT₁ | nT₂<:T₂ , T₂<:nT₁ = <:-trans nT₂<:T₂ (<:-trans (dual-<: D-S T₁<:T₂) T₁<:nT₁)
 
+-- is this rule derivable?
+
+<:-refl-subst : T₁ ≡ T₂ → T₁ <: T₂
+<:-refl-subst refl = <:-refl
+
+<:-dual-lr-derivable :  {T₁ T₂ : Ty Δ K} (d : Dualizable K) → T₂ <: T₁ → T-Dual d T₁ <: T-Dual d T₂
+<:-dual-lr-derivable d <:-refl = <:-refl
+<:-dual-lr-derivable d (<:-trans T₃<:T₂ T₂<:T₁) = <:-trans (<:-dual-lr-derivable d T₂<:T₁) (<:-dual-lr-derivable d T₃<:T₂)
+<:-dual-lr-derivable {K = KV KS m} D-S (<:-sub (≤k-step ≤p-refl x₁) T₂<:T₁) = <:-trans <:-sub-dual-l (<:-trans (<:-sub (≤k-step ≤p-refl x₁) (<:-dual-lr-derivable D-S T₂<:T₁)) <:-sub-dual-r)
+<:-dual-lr-derivable D-S (<:-sub-dual-l { K≤K′ = K≤K′ }) = <:-trans <:-sub-dual-l (<:-trans (<:-sub K≤K′ (<:-dual-dual-l D-S <:-refl)) (<:-dual-dual-r D-S <:-refl))
+<:-dual-lr-derivable D-S (<:-sub-dual-r {K≤K′ = K≤K′}) = <:-trans (<:-trans (<:-dual-dual-l D-S <:-refl) (<:-sub K≤K′ (<:-dual-dual-r D-S <:-refl))) <:-sub-dual-r
+<:-dual-lr-derivable {K = KV KS m} D-S (<:-fun {≤pk = ≤p-step ()} T₂<:T₁ T₂<:T₂)
+<:-dual-lr-derivable D-S (<:-neg-l T₂<:T₁) = <:-trans (<:-neg-r (<:-trans (<:-dual-lr-derivable D-S T₂<:T₁) (<:-dual-msg-l <:-refl))) (<:-dual-msg-r <:-refl)
+<:-dual-lr-derivable D-S (<:-neg-r T₂<:T₁) = <:-trans (<:-dual-msg-l <:-refl) (<:-neg-l (<:-trans (<:-dual-msg-r <:-refl) (<:-dual-lr-derivable D-S T₂<:T₁)))
+-- <:-dual-lr-derivable d (<:-dual-lr d₁ T₂<:T₁) = <:-dual-lr d (<:-dual-lr-derivable d₁ T₂<:T₁)
+<:-dual-lr-derivable D-S (<:-dual-dual-l D-S T₂<:T₁) = <:-dual-dual-r D-S (<:-dual-lr-derivable D-S T₂<:T₁)
+<:-dual-lr-derivable D-S (<:-dual-dual-r D-S T₂<:T₁) = <:-dual-dual-l D-S (<:-dual-lr-derivable D-S T₂<:T₁)
+<:-dual-lr-derivable D-S (<:-dual-msg-l T₂<:T₁) = <:-trans (<:-dual-lr-derivable D-S T₂<:T₁) (<:-dual-dual-r D-S (<:-trans (<:-dual-msg-l (<:-msg <<:-refl (<:-dual-dual-l D-S <:-refl))) (<:-refl-subst (cong (λ p → T-Msg p _ _) invert-involution))))
+<:-dual-lr-derivable D-S (<:-dual-msg-r T₂<:T₁) = <:-trans (<:-trans (<:-dual-dual-l D-S (<:-refl-subst (cong (λ p → T-Msg p _ _) (sym invert-involution)))) (<:-dual-msg-r (<:-msg <<:-refl (<:-dual-dual-r D-S <:-refl)))) (<:-dual-lr-derivable D-S T₂<:T₁)
+<:-dual-lr-derivable D-S <:-dual-end-l = <:-trans <:-dual-end-l (<:-dual-dual-r D-S <:-refl)
+<:-dual-lr-derivable D-S <:-dual-end-r = <:-trans (<:-dual-dual-l D-S <:-refl) <:-dual-end-r
+<:-dual-lr-derivable D-S (<:-msg {p = p} P₁<<:P₂ T₂<:T₁) = <:-trans (<:-dual-msg-l (<:-msg (subst id (invert-<<: p) P₁<<:P₂) (<:-dual-lr-derivable D-S T₂<:T₁))) (<:-dual-msg-r <:-refl)
+
+-- properties
+
+
+t-loop-sub : ∀ p → T₁ <: T₂ → t-loop p (nf ⊕ d?⊥ T₁) .proj₁ ≡ t-loop p (nf ⊕ d?⊥ T₂) .proj₁
+t-loop-sub-minus : ∀ p → T₂ <: T₁ → t-loop p (t-minus (nf ⊕ d?⊥ T₁)) .proj₁ ≡ t-loop p (t-minus (nf ⊕ d?⊥ T₂)) .proj₁
+
+t-loop-sub p <:-refl = refl
+t-loop-sub p (<:-trans T₁<:T₂ T₂<:T₃) = trans (t-loop-sub p T₁<:T₂) (t-loop-sub p T₂<:T₃)
+t-loop-sub p (<:-up T₁<:T₂) = refl
+t-loop-sub p (<:-proto x x₁) = refl
+t-loop-sub p (<:-minus T₂<:T₁) = t-loop-sub-minus p T₂<:T₁
+t-loop-sub p (<:-minus-minus-l {T₁} T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = t-loop-sub p T₁<:T₂
+t-loop-sub p (<:-minus-minus-r {T₂ = T₂} T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = t-loop-sub p T₁<:T₂
+
+t-loop-sub-minus p <:-refl = refl
+t-loop-sub-minus p (<:-trans T₃<:T₂ T₂<:T₁) = trans (t-loop-sub-minus p T₂<:T₁) (t-loop-sub-minus p T₃<:T₂)
+t-loop-sub-minus p (<:-up T₂<:T₁) = refl
+t-loop-sub-minus p (<:-proto x x₁) = refl
+t-loop-sub-minus p (<:-minus {T₂} {T₁} T₂<:T₁)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁) | t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = t-loop-sub p T₂<:T₁
+t-loop-sub-minus p (<:-minus-minus-l {T₁} T₂<:T₁)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = t-loop-sub-minus p T₂<:T₁
+t-loop-sub-minus p (<:-minus-minus-r {T₂ = T₂} T₂<:T₁)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = t-loop-sub-minus p T₂<:T₁
