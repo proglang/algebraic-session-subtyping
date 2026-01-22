@@ -10,6 +10,7 @@ open import Data.Sum
 open import Relation.Nullary using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; inspect; Reveal_·_is_)
+open import Function using (const)
 
 open import Util
 open import Kinds
@@ -142,7 +143,7 @@ module _ where
     Tl Tl₁ Tl₂ : Ty Δ (KV KT Lin)
     S S₁ S₂ S′ : Ty Δ (KV KS Lin)
     P P₁ : Ty Δ KP
-    #c : Subset.Subset k
+    #c #c₁ #c₂ : Subset.Subset k
 
   data NormalTy {Δ} : Ty Δ (KV pk m) → Set
   data NormalProto {Δ} : Ty Δ KP → Set
@@ -265,6 +266,19 @@ module _ where
   tinv-dual T-End = ≡c-refl
   tinv-dual (T-Msg x T T₁) = ≡c-refl
 
+  t-loop-plus : (T : Ty Δ KP) → t-loop p (t-plus T) ≡ t-loop p T 
+  t-loop-minus : (T : Ty Δ KP) → t-loop p (t-minus T) ≡ t-loop (invert p) T
+
+  t-loop-plus (T-Var x) = refl
+  t-loop-plus (T-Up T) = refl
+  t-loop-plus (T-Minus T) = t-loop-minus T
+  t-loop-plus (T-ProtoP x x₁ T) = refl
+
+  t-loop-minus (T-Var x) = refl
+  t-loop-minus (T-Up T) = refl
+  t-loop-minus {p = p} (T-Minus T) rewrite invert-involution {p} = t-loop-plus T
+  t-loop-minus (T-ProtoP x x₁ T) = refl
+
   t-msg-plus : (T : Ty Δ KP) → t-msg p (t-plus T) S ≡ t-msg p T S
   t-msg-minus : (T : Ty Δ KP) → t-msg p (t-minus T) S ≡ t-msg (invert p) T S
 
@@ -354,7 +368,7 @@ module _ where
   nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
   nf-normal-type ⊙ d? (T-Poly T) = N-Poly (nf-normal-type ⊕ d?⊥ T)
   nf-normal-type ⊙ d? (T-Sub x T) = N-Sub (nf-normal-type ⊙ (λ x₁ → dualizable-sub (d? x₁) x) T)
-  nf-normal-type ⊙ d? (T-Dual x T) = nf-normal-type (invert ⊙) (λ _ → x) T
+  nf-normal-type ⊙ d? (T-Dual x T) = nf-normal-type (invert ⊙) (const x) T
   nf-normal-type ⊙ d? T-End = N-End
   nf-normal-type ⊙ d? (T-Msg p T T₁) = nf-t-msg (mult ⊙ p) (nf-normal-proto T) (nf-normal-type ⊙ d? T₁)
   nf-normal-type ⊙ d? (T-ProtoD T) = N-ProtoD (nf-normal-type ⊕ d?⊥ T)
@@ -380,7 +394,7 @@ module _ where
 
   nf-invert-minus : ∀ (⊙ : Polarity) (d? : ⊙ ≡ ⊝ → Dualizable (KV KS Lin)) → ∀ T → nf ⊙ d? (T-Msg (invert p) T S) ≡ nf ⊙ d? (T-Msg p (T-Minus T) S)
   nf-invert-minus {p} ⊙ d? T
-    rewrite sym (invert-mult-⊙ p {⊙}) = nf-tmsg-invert-minus (mult ⊙ p) (λ _ → D-S) T
+    rewrite sym (invert-mult-⊙ p {⊙}) = nf-tmsg-invert-minus (mult ⊙ p) d?S T
 
   -- nf ⊕ ignores dualizability
 
@@ -465,4 +479,31 @@ module _ where
   nf-sound- T-End = ≡c-refl
   nf-sound- (T-Msg ⊕ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
   nf-sound- (T-Msg ⊝ T S) = ≡c-trns (t-msg-≡c (nf ⊕ d?⊥ T)) (≡c-msg (nf-sound+ T) (nf-sound- S))
+
+  -- normal types are determined by their type index
+
+  nv-unique : ∀ {T : Ty Δ (KV pk m)} (NV₁ NV₂ : NormalVar T) → NV₁ ≡ NV₂
+  nv-unique NV-Var NV-Var = refl
+  nv-unique (NV-Dual d x) (NV-Dual d₁ x₁) = refl
+
+  nt-unique : ∀ {T : Ty Δ (KV pk m)}(N₁ N₂ : NormalTy T) → N₁ ≡ N₂
+  np′-unique : ∀ {P : Ty Δ KP} (NP₁ NP₂ : NormalProto′ P) → NP₁ ≡ NP₂
+  np-unique : ∀ {P : Ty Δ KP} (NP₁ NP₂ : NormalProto P) → NP₁ ≡ NP₂
+
+  np-unique (N-Normal NP₁) (N-Normal NP₂) = cong N-Normal (np′-unique NP₁ NP₂)
+  np-unique (N-Minus NP₁) (N-Minus NP₂) = cong N-Minus (np′-unique NP₁ NP₂)
+
+  np′-unique (N-ProtoP NP₁) (N-ProtoP NP₂) = cong N-ProtoP (np-unique NP₁ NP₂)
+  np′-unique (N-Up N₁) (N-Up N₂) = cong N-Up (nt-unique N₁ N₂)
+  np′-unique N-Var N-Var = refl
+
+  nt-unique (N-Var NV₁) (N-Var NV₂) = cong N-Var (nv-unique NV₁ NV₂)
+  nt-unique N-Base N-Base = refl
+  nt-unique (N-Arrow N₁ N₃) (N-Arrow N₂ N₄) = cong₂ N-Arrow (nt-unique N₁ N₂) (nt-unique N₃ N₄)
+  nt-unique (N-Poly N₁) (N-Poly N₂) = cong N-Poly (nt-unique N₁ N₂)
+  nt-unique (N-Sub N₁) (N-Sub N₂) = cong N-Sub (nt-unique N₁ N₂)
+  nt-unique N-End N-End = refl
+  nt-unique (N-Msg {T = T} p NP₁ N₁) (N-Msg p₁ NP₂ N₂) = cong₂ (N-Msg p) (np-unique {P = T} NP₁ NP₂) (nt-unique N₁ N₂)
+  nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
+
 
