@@ -317,10 +317,9 @@ complete-algₜ {p = p}{f₁ = f₁}{f₂ = f₂}{N₁ = N₁} {N₂@(N-Msg p₁
   = <:ₜ-trans N₁<:N₂′ (<:ₜ-eq-ty N₂′ N₂ (sym t-eq))
 complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-l = <:ₜ-end
 complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-r = <:ₜ-end
-complete-algₜ {p = p} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {p = p₃} T₁<<:T₂ S₁<:S₂)
-  = {!<:ₜ-msg!}
-  -- let p = complete-<<:ₚ {f₁ = d?⊥}{f₂ = d?⊥} P₁<<:P₂ in
-  -- let r = <:ₜ-msg {NP₁ = NP₁}{NP₂ = NP₂} {!!} (complete-algₜ{N₁ = N₁}{N₂ = N₂} T₁<:T₂) in {!r!}
+complete-algₜ {p = p} {f₁ = f₁}{f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {T₁ = T₁}{p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
+  rewrite t-loop-sub-<<: p₃ (mult p p₃) T₁<<:T₂
+  = <:ₜ-msg (complete-<<:ₚ {f₁ = d?⊥}{f₂ = d?⊥} {N₁ = NT₁} {N₂ = NT₂} {!!}) (complete-algₜ S₁<:S₂)
 
 
 --------------------------------------------------------------------------------

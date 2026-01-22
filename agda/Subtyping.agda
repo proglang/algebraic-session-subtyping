@@ -232,3 +232,8 @@ t-loop-sub-minus p (<:-minus-minus-l {T₁} T₂<:T₁)
 t-loop-sub-minus p (<:-minus-minus-r {T₂ = T₂} T₂<:T₁)
   rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   = t-loop-sub-minus p T₂<:T₁
+
+t-loop-sub-<<: : ∀ v p →  T₁ <<:[ injᵥ v ] T₂
+  → t-loop p (nf ⊕ d?⊥ T₁) .proj₁ ≡ t-loop p (nf ⊕ d?⊥ T₂) .proj₁
+t-loop-sub-<<: ⊕ p T₁<<:T₂ = sym (t-loop-sub p T₁<<:T₂)
+t-loop-sub-<<: ⊝ p T₁<<:T₂ = t-loop-sub p T₁<<:T₂
