@@ -28,21 +28,35 @@ mult ⊕ ⊝ = ⊝
 mult ⊝ ⊕ = ⊝
 mult ⊝ ⊝ = ⊕
 
+mult-⊕-unit : ∀ p → mult ⊕ p ≡ p
+mult-⊕-unit ⊕ = refl
+mult-⊕-unit ⊝ = refl
+
+mult-⊖-invert : ∀ p → mult ⊝ p ≡ invert p
+mult-⊖-invert ⊕ = refl
+mult-⊖-invert ⊝ = refl
+
+mult-comm : ∀ p₁ p₂ → mult p₁ p₂ ≡ mult p₂ p₁
+mult-comm ⊕ ⊕ = refl
+mult-comm ⊕ ⊝ = refl
+mult-comm ⊝ ⊕ = refl
+mult-comm ⊝ ⊝ = refl
+
+mult-invert-invert : ∀ p₁ p₂ → mult (invert p₁) p₂ ≡ mult p₁ (invert p₂)
+mult-invert-invert ⊕ ⊕ = refl
+mult-invert-invert ⊕ ⊝ = refl
+mult-invert-invert ⊝ ⊕ = refl
+mult-invert-invert ⊝ ⊝ = refl
+
 mult-invert : mult ⊝ p ≡ mult ⊕ (invert p)
-mult-invert {⊕} = refl
-mult-invert {⊝} = refl
+mult-invert = mult-invert-invert ⊕ _
 
 mult-invert-⊕ : mult ⊕ p ≡ mult ⊝ (invert p)
-mult-invert-⊕ {⊕} = refl
-mult-invert-⊕ {⊝} = refl
+mult-invert-⊕ = mult-invert-invert ⊝ _
 
 mult-invert-⊕-invert : invert (mult ⊕ (invert p)) ≡ mult ⊕ p
 mult-invert-⊕-invert {⊕} = refl
 mult-invert-⊕-invert {⊝} = refl
-
-mult-⊕-unit : ∀ p → mult ⊕ p ≡ p
-mult-⊕-unit ⊕ = refl
-mult-⊕-unit ⊝ = refl
 
 invert-mult-⊙ : ∀ p {⊙} → invert (mult ⊙ p) ≡ mult ⊙ (invert p)
 invert-mult-⊙ ⊕ {⊕} = refl
@@ -84,7 +98,14 @@ dual-irrelevant {KV KS x₁} f g = ext-dual-s-irrelevant f g
 dual-irrelevant {KV KT x₁} f g with () ← f refl
 dual-irrelevant {KP} f g with () ← f refl
 
+dual-all-irrelevant : ∀ {p} {K} → (f g : p ≡ ⊝ → Dualizable K) → f ≡ g
+dual-all-irrelevant {⊕} f g = ext f g (λ())
+dual-all-irrelevant {⊝} f g = dual-irrelevant f g
+
 -- use this definition instead of (λ()) to enable rewriting
 
 d?⊥ : (⊕ ≡ ⊝ → Dualizable K)
 d?⊥ ()
+
+d?S : ∀ {p} → p ≡ ⊝ → Dualizable (KV KS m)
+d?S _ = D-S
