@@ -24,11 +24,18 @@ open import Subtyping
 -- algorithmic version of subtyping that only works on normal forms
 
 data _<:ₚ_ : {P₁ P₂ : Ty Δ KP} → NormalProto P₁ → NormalProto P₂ → Set
+data _<:ₚ′_ : {P₁ P₂ : Ty Δ KP} → NormalProto′ P₁ → NormalProto′ P₂ → Set
+
+_<<:ₚ′[_]_ : {P₁ P₂ : Ty Δ KP} → NormalProto′ P₁ → Variance → NormalProto′ P₂ → Set
+N₁ <<:ₚ′[ ⊕ ] N₂ = N₁ <:ₚ′ N₂
+_<<:ₚ′[_]_ {P₁ = P₁}{P₂} N₁ ⊘ N₂ = P₁ ≡ P₂
+N₁ <<:ₚ′[ ⊝ ] N₂ = N₂ <:ₚ′ N₁
 
 _<<:ₚ[_]_ : {P₁ P₂ : Ty Δ KP} → NormalProto P₁ → Variance → NormalProto P₂ → Set
 N₁ <<:ₚ[ ⊕ ] N₂ = N₁ <:ₚ N₂
 _<<:ₚ[_]_ {P₁ = P₁}{P₂} N₁ ⊘ N₂ = P₁ ≡ P₂
 N₁ <<:ₚ[ ⊝ ] N₂ = N₂ <:ₚ N₁
+
 
 data _<:ₜ_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → NormalTy T₂ → Set where
 
@@ -36,18 +43,19 @@ data _<:ₜ_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → NormalTy T₂
   <:ₜ-base : N-Base{Δ = Δ} <:ₜ N-Base
   <:ₜ-arrow : ∀ {≤pk : KM ≤p pk} {m} {T₁ : Ty Δ _}{U₁}{T₂}{U₂}
                {M₁ : NormalTy T₁}{N₁ : NormalTy U₁}{M₂ : NormalTy T₂}{N₂ : NormalTy U₂}
-        → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → _<:ₜ_ (N-Arrow{km = ≤pk}{m} M₁ N₁) (N-Arrow{km = ≤pk}{m} M₂ N₂)
+        → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow{km = ≤pk}{m} M₁ N₁) <:ₜ (N-Arrow{km = ≤pk}{m} M₂ N₂)
   <:ₜ-poly : ∀ {m}{K′}{T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂}
         → N₁ <:ₜ N₂ → N-Poly N₁ <:ₜ N-Poly N₂
-  <:ₜ-sub : ∀ {km≤ : KV pk m ≤k KV pk′ m′}{T₁ T₂ : Ty Δ (KV pk m)}{N₁ : NormalTy T₁}{N₂ : NormalTy T₂} → N₁ <:ₜ N₂ → N-Sub{km≤ = km≤} N₁ <:ₜ N-Sub{km≤ = km≤} N₂
+  <:ₜ-sub : ∀ {km≤ : KV pk m ≤k KV pk′ m′}{T₁ T₂ : Ty Δ (KV pk m)}{N₁ : NormalTy T₁}{N₂ : NormalTy T₂}
+          → N₁ <:ₜ N₂ → N-Sub{km≤ = km≤} N₁ <:ₜ N-Sub{km≤ = km≤} N₂
   <:ₜ-end : N-End{Δ = Δ} <:ₜ N-End
   <:ₜ-msg : ∀ {p} {P₁ P₂ : Ty Δ KP}{S₁ S₂ : Ty Δ (KV KS Lin)}
-          {NP₁ : NormalProto P₁}{NP₂ : NormalProto P₂}{NS₁ : NormalTy S₁} {NS₂ : NormalTy S₂}
-          → NP₁ <<:ₚ[ injᵥ p ] NP₂ → NS₁ <:ₜ NS₂ → N-Msg p NP₁ NS₁ <:ₜ N-Msg p NP₂ NS₂
+          {NP₁ : NormalProto′ P₁}{NP₂ : NormalProto′ P₂}{NS₁ : NormalTy S₁} {NS₂ : NormalTy S₂}
+          → NP₁ <<:ₚ′[ injᵥ p ] NP₂ → NS₁ <:ₜ NS₂ → N-Msg p NP₁ NS₁ <:ₜ N-Msg p NP₂ NS₂
   <:ₜ-data : ∀ {T₁ T₂ : Ty Δ (KV KT Lin)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂}
     → N₁ <:ₜ N₂ → N-ProtoD N₁ <:ₜ N-ProtoD N₂
 
-data _<:ₚ′_ : {P₁ P₂ : Ty Δ KP} → NormalProto′ P₁ → NormalProto′ P₂ → Set where
+data _<:ₚ′_ where
 
   <:ₚ′-proto : ∀{P₁ P₂ : Ty Δ KP} {N₁ : NormalProto P₁}{N₂ : NormalProto P₂}
     → #c₁ ⊆ #c₂
@@ -73,6 +81,9 @@ sound-algₜ : ∀ {T₁ T₂ : Ty Δ (KV pk m)} {N₁ : NormalTy T₁}{N₂ : N
 sound-<<:ₚ : ∀ {T₁ T₂ : Ty Δ KP} {N₁ : NormalProto T₁}{N₂ : NormalProto T₂}
   → N₁ <<:ₚ[ ⊙ ] N₂ → T₁ <<:[ ⊙ ] T₂
 
+sound-<<:ₚ′ : ∀ {T₁ T₂ : Ty Δ KP} {N₁ : NormalProto′ T₁}{N₂ : NormalProto′ T₂}
+  → N₁ <<:ₚ′[ ⊙ ] N₂ → T₁ <<:[ ⊙ ] T₂
+
 sound-algₚ′ : ∀ {T₁ T₂ : Ty Δ KP} {N₁ : NormalProto′ T₁}{N₂ : NormalProto′ T₂}
   → N₁ <:ₚ′ N₂ → T₁ <: T₂
 sound-algₚ′ (<:ₚ′-proto #c₁⊆#c₂ N₁<:N₂) = <:-proto #c₁⊆#c₂ (sound-<<:ₚ N₁<:N₂)
@@ -88,13 +99,17 @@ sound-<<:ₚ {⊙ = ⊕} N₁<<:N₂ = sound-algₚ N₁<<:N₂
 sound-<<:ₚ {⊙ = ⊝} N₁<<:N₂ = sound-algₚ N₁<<:N₂
 sound-<<:ₚ {⊙ = ⊘} refl = ≡c-refl
 
+sound-<<:ₚ′ {⊙ = ⊕} N₁<<:N₂ = sound-algₚ′ N₁<<:N₂
+sound-<<:ₚ′ {⊙ = ⊝} N₁<<:N₂ = sound-algₚ′ N₁<<:N₂
+sound-<<:ₚ′ {⊙ = ⊘} refl = ≡c-refl
+
 sound-algₜ <:ₜ-var = <:-refl
 sound-algₜ <:ₜ-base = <:-refl
 sound-algₜ (<:ₜ-arrow M₂<:ₜM₁ N₁<:ₜN₂) = <:-fun (sound-algₜ M₂<:ₜM₁) (sound-algₜ N₁<:ₜN₂)
 sound-algₜ (<:ₜ-poly N₁<:ₜN₂) = <:-all (sound-algₜ N₁<:ₜN₂)
 sound-algₜ (<:ₜ-sub {km≤ = km≤} N₁<:ₜN₂) = <:-sub km≤ (sound-algₜ N₁<:ₜN₂)
 sound-algₜ <:ₜ-end = <:-refl
-sound-algₜ (<:ₜ-msg {p = p} P₁<<P₂ N₁<:ₜN₂) = <:-msg (sound-<<:ₚ P₁<<P₂) (sound-algₜ N₁<:ₜN₂)
+sound-algₜ (<:ₜ-msg {p = p} P₁<<P₂ N₁<:ₜN₂) = <:-msg (sound-<<:ₚ′ P₁<<P₂) (sound-algₜ N₁<:ₜN₂)
 sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 
 
@@ -103,6 +118,7 @@ sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 <:ₜ-refl : ∀ {T : Ty Δ (KV pk m)}(N : NormalTy T) → N <:ₜ N
 <:ₚ′-refl :  ∀ {T : Ty Δ KP}(NP : NormalProto′ T) → NP <:ₚ′ NP
 <<:ₚ-refl : ∀ {T : Ty Δ KP}(NP : NormalProto T) → NP <<:ₚ[ ⊙ ] NP
+<<:ₚ′-refl : ∀ {T : Ty Δ KP}(NP : NormalProto′ T) → NP <<:ₚ′[ ⊙ ] NP
 
 <:ₚ′-refl (N-ProtoP NP) = <:ₚ′-proto (λ {x} z → z) (<<:ₚ-refl NP)
 <:ₚ′-refl (N-Up N) = <:ₚ′-up (<:ₜ-refl N)
@@ -117,13 +133,17 @@ sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 <<:ₚ-refl {⊙ = ⊝} NP = <:ₚ-refl NP
 <<:ₚ-refl {⊙ = ⊘} NP = refl
 
+<<:ₚ′-refl {⊙ = ⊕} NP = <:ₚ′-refl NP
+<<:ₚ′-refl {⊙ = ⊝} NP = <:ₚ′-refl NP
+<<:ₚ′-refl {⊙ = ⊘} NP = refl
+
 <:ₜ-refl (N-Var x) = <:ₜ-var
 <:ₜ-refl N-Base = <:ₜ-base
 <:ₜ-refl (N-Arrow N N₁) = <:ₜ-arrow (<:ₜ-refl N) (<:ₜ-refl N₁)
 <:ₜ-refl (N-Poly N) = <:ₜ-poly (<:ₜ-refl N)
 <:ₜ-refl (N-Sub N) = <:ₜ-sub (<:ₜ-refl N)
 <:ₜ-refl N-End = <:ₜ-end
-<:ₜ-refl (N-Msg p NP N) = <:ₜ-msg (<<:ₚ-refl NP) (<:ₜ-refl N)
+<:ₜ-refl (N-Msg p NP N) = <:ₜ-msg (<<:ₚ′-refl NP) (<:ₜ-refl N)
 <:ₜ-refl (N-ProtoD N) = <:ₜ-data (<:ₜ-refl N)
 
 -- algorithmic subtyping is transitive
@@ -131,6 +151,7 @@ sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 <:ₜ-trans : ∀ {T₁ T₂ T₃ : Ty Δ (KV pk m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂} {N₃ : NormalTy T₃} → N₁ <:ₜ N₂ → N₂ <:ₜ N₃ → N₁ <:ₜ N₃
 <:ₚ′-trans : ∀ {T₁ T₂ T₃ : Ty Δ KP} {N₁ : NormalProto′ T₁} {N₂ : NormalProto′ T₂} {N₃ : NormalProto′ T₃} → N₁ <:ₚ′ N₂ → N₂ <:ₚ′ N₃ → N₁ <:ₚ′ N₃
 <<:ₚ-trans : ∀ {T₁ T₂ T₃ : Ty Δ KP} {N₁ : NormalProto T₁} {N₂ : NormalProto T₂} {N₃ : NormalProto T₃} → N₁ <<:ₚ[ ⊙ ] N₂ → N₂ <<:ₚ[ ⊙ ] N₃ → N₁ <<:ₚ[ ⊙ ] N₃
+<<:ₚ′-trans : ∀ {T₁ T₂ T₃ : Ty Δ KP} {N₁ : NormalProto′ T₁} {N₂ : NormalProto′ T₂} {N₃ : NormalProto′ T₃} → N₁ <<:ₚ′[ ⊙ ] N₂ → N₂ <<:ₚ′[ ⊙ ] N₃ → N₁ <<:ₚ′[ ⊙ ] N₃
 
 <:ₚ′-trans (<:ₚ′-proto #c₁⊆#c₂ N₁<<:N₂) (<:ₚ′-proto #c₂⊆#c₃ N₂<<:N₃) = <:ₚ′-proto (λ {x} z → #c₂⊆#c₃ (#c₁⊆#c₂ z)) (<<:ₚ-trans N₁<<:N₂ N₂<<:N₃)
 <:ₚ′-trans (<:ₚ′-up N₁<:N₂) (<:ₚ′-up N₂<:N₃) = <:ₚ′-up (<:ₜ-trans N₁<:N₂ N₂<:N₃)
@@ -140,10 +161,13 @@ sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 <:ₚ-trans (<:ₚ-plus N₁<:N₂) (<:ₚ-plus N₂<:N₃) = <:ₚ-plus (<:ₚ′-trans N₁<:N₂ N₂<:N₃)
 <:ₚ-trans (<:ₚ-minus N₁<:N₂) (<:ₚ-minus N₂<:N₃) = <:ₚ-minus (<:ₚ′-trans N₂<:N₃ N₁<:N₂)
 
-
 <<:ₚ-trans {⊙ = ⊕} N₁<<:N₂ N₂<<:N₃ = <:ₚ-trans N₁<<:N₂ N₂<<:N₃
 <<:ₚ-trans {⊙ = ⊝} N₁<<:N₂ N₂<<:N₃ = <:ₚ-trans N₂<<:N₃ N₁<<:N₂
 <<:ₚ-trans {⊙ = ⊘} N₁<<:N₂ N₂<<:N₃ = trans N₁<<:N₂ N₂<<:N₃
+
+<<:ₚ′-trans {⊙ = ⊕} N₁<<:N₂ N₂<<:N₃ = <:ₚ′-trans N₁<<:N₂ N₂<<:N₃
+<<:ₚ′-trans {⊙ = ⊝} N₁<<:N₂ N₂<<:N₃ = <:ₚ′-trans N₂<<:N₃ N₁<<:N₂
+<<:ₚ′-trans {⊙ = ⊘} N₁<<:N₂ N₂<<:N₃ = trans N₁<<:N₂ N₂<<:N₃
 
 <:ₜ-trans <:ₜ-var <:ₜ-var = <:ₜ-var
 <:ₜ-trans <:ₜ-base <:ₜ-base = <:ₜ-base
@@ -151,7 +175,7 @@ sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 <:ₜ-trans (<:ₜ-poly N₁<:N₂) (<:ₜ-poly N₂<:N₃) = <:ₜ-poly (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 <:ₜ-trans (<:ₜ-sub N₁<:N₂) (<:ₜ-sub N₂<:N₃) = <:ₜ-sub (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 <:ₜ-trans <:ₜ-end <:ₜ-end = <:ₜ-end
-<:ₜ-trans (<:ₜ-msg P₁<<:P₂ N₁<:N₂) (<:ₜ-msg P₂<<:P₃ N₂<:N₃) = <:ₜ-msg (<<:ₚ-trans P₁<<:P₂ P₂<<:P₃) (<:ₜ-trans N₁<:N₂ N₂<:N₃)
+<:ₜ-trans (<:ₜ-msg P₁<<:P₂ N₁<:N₂) (<:ₜ-msg P₂<<:P₃ N₂<:N₃) = <:ₜ-msg (<<:ₚ′-trans P₁<<:P₂ P₂<<:P₃) (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 <:ₜ-trans (<:ₜ-data N₁<:N₂) (<:ₜ-data N₂<:N₃) = <:ₜ-data (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 
 
@@ -319,8 +343,18 @@ complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-l = <:ₜ-end
 complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-r = <:ₜ-end
 complete-algₜ {p = p} {f₁ = f₁}{f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {T₁ = T₁}{p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
   rewrite t-loop-sub-<<: p₃ (mult p p₃) T₁<<:T₂
-  = <:ₜ-msg (complete-<<:ₚ {f₁ = d?⊥}{f₂ = d?⊥} {N₁ = NT₁} {N₂ = NT₂} {!!}) (complete-algₜ S₁<:S₂)
+  = <:ₜ-msg {!!} (complete-algₜ S₁<:S₂)
 
+{-
+complete-algₜ {p = p} {f₁ = f₁} {f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {T₁ = T₁} {p = ⊕} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
+  rewrite t-loop-sub-<<: ⊕ (mult p ⊕) T₁<<:T₂ | mult-identityʳ p
+  = <:ₜ-msg {!t-loop-nf-ident T₂ NT₂!} (complete-algₜ S₁<:S₂)
+complete-algₜ {p = p} {f₁ = f₁} {f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {T₁ = T₁} {p = ⊝} {T₂ = T₂} T₁<<:T₂ S₁<:S₂) = {!t-loop-nf-ident T₂ NT₂!}
+  -- rewrite t-loop-sub-<<: p₃ (mult p p₃) T₁<<:T₂
+  -- = <:ₜ-msg {!!} (complete-algₜ S₁<:S₂)
+-}
+
+-- (complete-<<:ₚ {f₁ = d?⊥}{f₂ = d?⊥} {N₁ = NT₁} {N₂ = NT₂} {!t-loop-sub-<<:!})
 
 --------------------------------------------------------------------------------
 
@@ -372,8 +406,8 @@ alg-subty⇒conv (<:ₜ-arrow N₁<:N₂ N₁<:N₃) (<:ₜ-arrow N₂<:N₁ N�
 alg-subty⇒conv (<:ₜ-poly N₁<:N₂) (<:ₜ-poly N₂<:N₁) = cong T-Poly (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
 alg-subty⇒conv (<:ₜ-sub N₁<:N₂) (<:ₜ-sub N₂<:N₁) = cong (T-Sub _) (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
 alg-subty⇒conv <:ₜ-end <:ₜ-end = refl
-alg-subty⇒conv (<:ₜ-msg {p = ⊕} NP₁<<:NP₂ N₁<:N₂) (<:ₜ-msg NP₂<<:NP₁ N₂<:N₁) = cong₂ (T-Msg _) (alg-subproto⇒conv NP₂<<:NP₁ NP₁<<:NP₂) (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
-alg-subty⇒conv (<:ₜ-msg {p = ⊝} NP₁<<:NP₂ N₁<:N₂) (<:ₜ-msg NP₂<<:NP₁ N₂<:N₁) = cong₂ (T-Msg _) (alg-subproto⇒conv NP₁<<:NP₂ NP₂<<:NP₁) (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
+alg-subty⇒conv (<:ₜ-msg {p = ⊕} NP₁<<:NP₂ N₁<:N₂) (<:ₜ-msg NP₂<<:NP₁ N₂<:N₁) = cong₂ (T-Msg _) (alg-subproto′⇒conv NP₂<<:NP₁ NP₁<<:NP₂) (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
+alg-subty⇒conv (<:ₜ-msg {p = ⊝} NP₁<<:NP₂ N₁<:N₂) (<:ₜ-msg NP₂<<:NP₁ N₂<:N₁) = cong₂ (T-Msg _) (alg-subproto′⇒conv NP₁<<:NP₂ NP₂<<:NP₁) (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
 alg-subty⇒conv (<:ₜ-data N₁<:N₂) (<:ₜ-data N₂<:N₁) = cong T-ProtoD (alg-subty⇒conv N₁<:N₂ N₂<:N₁)
 
 alg-subproto⇒conv (<:ₚ-plus N₁<:N₂) (<:ₚ-plus N₂<:N₁) = alg-subproto′⇒conv N₁<:N₂ N₂<:N₁
