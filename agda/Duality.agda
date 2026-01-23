@@ -3,7 +3,7 @@ module Duality where
 open import Data.Sum
 open import Relation.Nullary using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl)
+open Eq using (_≡_; refl; sym)
 
 open import Ext
 open import Kinds
@@ -23,18 +23,18 @@ invert-involution {⊕} = refl
 invert-involution {⊝} = refl
 
 mult : Polarity → Polarity → Polarity
-mult ⊕ ⊕ = ⊕
-mult ⊕ ⊝ = ⊝
-mult ⊝ ⊕ = ⊝
-mult ⊝ ⊝ = ⊕
+mult ⊕ p = p
+mult ⊝ p = invert p
 
-mult-⊕-unit : ∀ p → mult ⊕ p ≡ p
-mult-⊕-unit ⊕ = refl
-mult-⊕-unit ⊝ = refl
+mult-identityˡ : ∀ p → mult ⊕ p ≡ p
+mult-identityˡ p = refl
+
+mult-identityʳ : ∀ p → mult p ⊕ ≡ p
+mult-identityʳ ⊕ = refl
+mult-identityʳ ⊝ = refl
 
 mult-⊖-invert : ∀ p → mult ⊝ p ≡ invert p
-mult-⊖-invert ⊕ = refl
-mult-⊖-invert ⊝ = refl
+mult-⊖-invert p = refl
 
 mult-comm : ∀ p₁ p₂ → mult p₁ p₂ ≡ mult p₂ p₁
 mult-comm ⊕ ⊕ = refl
@@ -43,26 +43,22 @@ mult-comm ⊝ ⊕ = refl
 mult-comm ⊝ ⊝ = refl
 
 mult-invert-invert : ∀ p₁ p₂ → mult (invert p₁) p₂ ≡ mult p₁ (invert p₂)
-mult-invert-invert ⊕ ⊕ = refl
-mult-invert-invert ⊕ ⊝ = refl
-mult-invert-invert ⊝ ⊕ = refl
-mult-invert-invert ⊝ ⊝ = refl
+mult-invert-invert ⊕ p₂ = refl
+mult-invert-invert ⊝ p₂ = sym invert-involution
 
 mult-invert : mult ⊝ p ≡ mult ⊕ (invert p)
-mult-invert = mult-invert-invert ⊕ _
+mult-invert = refl
 
 mult-invert-⊕ : mult ⊕ p ≡ mult ⊝ (invert p)
-mult-invert-⊕ = mult-invert-invert ⊝ _
+mult-invert-⊕ = sym invert-involution
 
 mult-invert-⊕-invert : invert (mult ⊕ (invert p)) ≡ mult ⊕ p
-mult-invert-⊕-invert {⊕} = refl
-mult-invert-⊕-invert {⊝} = refl
+mult-invert-⊕-invert = invert-involution
 
 invert-mult-⊙ : ∀ p {⊙} → invert (mult ⊙ p) ≡ mult ⊙ (invert p)
-invert-mult-⊙ ⊕ {⊕} = refl
-invert-mult-⊙ ⊕ {⊝} = refl
-invert-mult-⊙ ⊝ {⊕} = refl
-invert-mult-⊙ ⊝ {⊝} = refl
+invert-mult-⊙ p {⊕} = refl
+invert-mult-⊙ p {⊝} = refl
+
 
 data Dualizable : Kind → Set where
   D-S : Dualizable (KV KS m)
