@@ -26,6 +26,7 @@ mult : Polarity → Polarity → Polarity
 mult ⊕ p = p
 mult ⊝ p = invert p
 
+-- definitional
 mult-identityˡ : ∀ p → mult ⊕ p ≡ p
 mult-identityˡ p = refl
 
@@ -33,8 +34,13 @@ mult-identityʳ : ∀ p → mult p ⊕ ≡ p
 mult-identityʳ ⊕ = refl
 mult-identityʳ ⊝ = refl
 
-mult-⊖-invert : ∀ p → mult ⊝ p ≡ invert p
-mult-⊖-invert p = refl
+-- definitional
+mult-invertˡ : ∀ p → mult ⊝ p ≡ invert p
+mult-invertˡ p = refl
+
+mult-invertʳ : ∀ p → mult p ⊝ ≡ invert p
+mult-invertʳ ⊕ = refl
+mult-invertʳ ⊝ = refl
 
 mult-comm : ∀ p₁ p₂ → mult p₁ p₂ ≡ mult p₂ p₁
 mult-comm ⊕ ⊕ = refl
@@ -46,6 +52,7 @@ mult-invert-invert : ∀ p₁ p₂ → mult (invert p₁) p₂ ≡ mult p₁ (in
 mult-invert-invert ⊕ p₂ = refl
 mult-invert-invert ⊝ p₂ = sym invert-involution
 
+-- definitional
 mult-invert : mult ⊝ p ≡ mult ⊕ (invert p)
 mult-invert = refl
 
