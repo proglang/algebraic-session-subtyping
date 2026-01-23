@@ -167,7 +167,7 @@ module _ where
     N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → NormalTy T → NormalTy (T-Poly T)
     N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → NormalTy T → NormalTy (T-Sub km≤ T)
     N-End    : NormalTy T-End
-    N-Msg    : ∀ p → NormalProto T → NormalTy S → NormalTy (T-Msg p T S)
+    N-Msg    : ∀ p → NormalProto′ T → NormalTy S → NormalTy (T-Msg p T S)
     N-ProtoD : NormalTy T → NormalTy (T-ProtoD T)
 
   -- type conversion
@@ -339,13 +339,13 @@ module _ where
   -- the nf algorithm returns a normal form
 
   -- t-msg returns a normal form
-  nf-t-msg-loop : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → let p′ , T′ = t-loop p T in Polarity × NormalProto T′
-  nf-t-msg-loop p (N-Normal (N-ProtoP x)) = p , N-Normal (N-ProtoP x)
-  nf-t-msg-loop p (N-Normal (N-Up x)) = p , N-Normal (N-Up x)
-  nf-t-msg-loop p (N-Normal N-Var) = p , N-Normal N-Var
-  nf-t-msg-loop p (N-Minus (N-ProtoP x)) = invert p , N-Normal (N-ProtoP x)
-  nf-t-msg-loop p (N-Minus (N-Up x)) = invert p , N-Normal (N-Up x)
-  nf-t-msg-loop p (N-Minus N-Var) = invert p , N-Normal N-Var
+  nf-t-msg-loop : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → let p′ , T′ = t-loop p T in Polarity × NormalProto′ T′
+  nf-t-msg-loop p (N-Normal (N-ProtoP x)) = p , N-ProtoP x
+  nf-t-msg-loop p (N-Normal (N-Up x)) = p , N-Up x
+  nf-t-msg-loop p (N-Normal N-Var) = p , N-Var
+  nf-t-msg-loop p (N-Minus (N-ProtoP x)) = invert p , N-ProtoP x
+  nf-t-msg-loop p (N-Minus (N-Up x)) = invert p , N-Up x
+  nf-t-msg-loop p (N-Minus N-Var) = invert p , N-Var
   
   nf-t-msg : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → {S : Ty Δ SLin} → (nS : NormalTy S) → NormalTy (t-msg p T S)
   nf-t-msg p {T} NP NS =
@@ -503,7 +503,7 @@ module _ where
   nt-unique (N-Poly N₁) (N-Poly N₂) = cong N-Poly (nt-unique N₁ N₂)
   nt-unique (N-Sub N₁) (N-Sub N₂) = cong N-Sub (nt-unique N₁ N₂)
   nt-unique N-End N-End = refl
-  nt-unique (N-Msg {T = T} p NP₁ N₁) (N-Msg p₁ NP₂ N₂) = cong₂ (N-Msg p) (np-unique {P = T} NP₁ NP₂) (nt-unique N₁ N₂)
+  nt-unique (N-Msg {T = T} p NP₁ N₁) (N-Msg p₁ NP₂ N₂) = cong₂ (N-Msg p) (np′-unique {P = T} NP₁ NP₂) (nt-unique N₁ N₂)
   nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
 
 
@@ -515,3 +515,36 @@ module _ where
   t-loop-nf-ident (T-Minus (T-ProtoP #c ⊙ T)) (N-Minus (N-ProtoP x)) = inj₂ refl
   t-loop-nf-ident (T-Minus T) (N-Minus (N-Up x)) = inj₂ refl
   t-loop-nf-ident (T-Minus T) (N-Minus N-Var) = inj₂ refl
+
+  t-loop-nf-ident′ : ∀ {p} (T : Ty Δ KP) → NormalProto′ T → t-loop p T ≡ (p , T)
+  t-loop-nf-ident′ T (N-ProtoP x) = refl
+  t-loop-nf-ident′ T (N-Up x) = refl
+  t-loop-nf-ident′ T N-Var = refl
+
+  -- normal form is idempotent
+
+  nf-idempotent : NormalTy T → nf ⊕ d?⊥ T ≡ T
+  nfp-idempotent : NormalProto T → nf ⊕ d?⊥ T ≡ T
+  nfp′-idempotent : NormalProto′ T → nf ⊕ d?⊥ T ≡ T
+
+
+  nf-idempotent {T = T-Var x₁} (N-Var x) = refl
+  nf-idempotent {T = T-Dual x₁ (T-Var x₂)} (N-Var x) = refl
+  nf-idempotent N-Base = refl
+  nf-idempotent (N-Arrow N₁ N₂) = cong₂ (T-Arrow _) (nf-idempotent N₁) (nf-idempotent N₂)
+  nf-idempotent (N-Poly N) = cong T-Poly (nf-idempotent N)
+  nf-idempotent {T = T-Sub km≤ T} (N-Sub N) = cong (T-Sub _) (trans (cong (λ d? → nf ⊕ d? T) (dual-all-irrelevant (λ x₁ → dualizable-sub (d?⊥ x₁) km≤) d?⊥)) (nf-idempotent N))
+  nf-idempotent N-End = refl
+  nf-idempotent (N-Msg p (N-ProtoP NT) NS) = cong₂ (T-Msg p) (cong (T-ProtoP _ _) (nfp-idempotent NT)) (nf-idempotent NS)
+  nf-idempotent (N-Msg p (N-Up NT) NS) = cong₂ (T-Msg p) (cong T-Up (nf-idempotent NT)) (nf-idempotent NS)
+  nf-idempotent (N-Msg p N-Var NS) = cong₂ (T-Msg p) refl (nf-idempotent NS)
+  nf-idempotent (N-ProtoD N) = cong T-ProtoD (nf-idempotent N)
+
+  nfp-idempotent (N-Normal NP) = nfp′-idempotent NP
+  nfp-idempotent (N-Minus (N-ProtoP NP)) = cong T-Minus (cong (T-ProtoP _ _) (nfp-idempotent NP))
+  nfp-idempotent (N-Minus (N-Up NT)) = cong T-Minus (cong T-Up (nf-idempotent NT))
+  nfp-idempotent (N-Minus N-Var) = cong T-Minus refl
+
+  nfp′-idempotent (N-ProtoP NP) = cong (T-ProtoP _ _) (nfp-idempotent NP)
+  nfp′-idempotent (N-Up NT) = cong T-Up (nf-idempotent NT)
+  nfp′-idempotent N-Var = refl
