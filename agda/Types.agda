@@ -422,7 +422,7 @@ module _ where
   nf-complete {T₂ = T₂} f g (≡c-dual-dual d) = nf-⊕-ignores {T = T₂} (λ x₁ → d) g
   nf-complete f g ≡c-dual-end = refl
   nf-complete f g (≡c-dual-msg {p = p}) rewrite mult-invert{p = p} = refl
-  nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g | mult-⊕-unit p | mult-⊕-unit (invert p) = t-msg-minus {p = p} (nf ⊕ d?⊥ T)
+  nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g = t-msg-minus {p = p} (nf ⊕ d?⊥ T)
   nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g d?⊥ = t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
   nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete d?⊥ d?⊥ T1=T2)
@@ -441,7 +441,7 @@ module _ where
   nf-complete- f (≡c-sub-dual {K≤K′ = ≤k-step ≤p-refl _}) = refl
   nf-complete- f (≡c-dual-dual d) rewrite dual-irrelevant f (λ x → d) = refl
   nf-complete- f ≡c-dual-end = refl
-  nf-complete- f (≡c-dual-msg {p = p}) rewrite mult-invert-⊕ {p} = refl
+  nf-complete- f (≡c-dual-msg {p = p}) rewrite invert-involution {p} = refl
   nf-complete- f (≡c-msg-minus {p = p}{T = T}{S = S}) = subst (λ x → x ≡ t-msg (mult ⊝ (invert p)) (nf ⊕ d?⊥ T) (nf ⊝ f S)) (sym (t-msg-minus {p = (mult ⊝ p)}{nf ⊝ f S} (nf ⊕ d?⊥ T))) (cong (λ q → t-msg q (nf ⊕ d?⊥ T) (nf ⊝ f S)) (invert-mult-⊙ p))
   nf-complete- f ≡c-minus-p with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-refl} t1≡t2 t1≡t3) with () ← f refl
@@ -507,3 +507,11 @@ module _ where
   nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
 
 
+  t-loop-nf-ident : ∀ {p} (T : Ty Δ KP) → NormalProto T
+    → t-loop p T ≡ (p , T) ⊎ t-loop p T ≡ (invert p , t-minus T)
+  t-loop-nf-ident (T-Var x₁) (N-Normal N′) = inj₁ refl
+  t-loop-nf-ident (T-Up T) (N-Normal N′) = inj₁ refl
+  t-loop-nf-ident (T-ProtoP #c ⊙ T) (N-Normal N′) = inj₁ refl
+  t-loop-nf-ident (T-Minus (T-ProtoP #c ⊙ T)) (N-Minus (N-ProtoP x)) = inj₂ refl
+  t-loop-nf-ident (T-Minus T) (N-Minus (N-Up x)) = inj₂ refl
+  t-loop-nf-ident (T-Minus T) (N-Minus N-Var) = inj₂ refl
