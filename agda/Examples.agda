@@ -137,3 +137,9 @@ module _ {c}{d}{c⊆d : c ⊆ d} where
 
   SS₁<:SS₂ : SS₁ <: SS₂
   SS₁<:SS₂ = <:-neg-r {p = ⊝} (<:-msg (<:-proto c⊆d ≡c-refl) <:-refl)
+
+  SS₃ : Ty [] SLin
+  SS₃ = T-Msg ⊕ (T-Minus (T-Minus (E-Alt c))) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+
+  SS₁<:SS₃ : SS₁ <: SS₃
+  SS₁<:SS₃ = <:-msg (<:-minus-minus-l (<:-proto c⊆d ≡c-refl)) (<:-sub (≤k-step ≤p-refl ≤m-unl) <:-end)
