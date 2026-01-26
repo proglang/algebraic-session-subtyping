@@ -127,3 +127,13 @@ module _ {c}{d}{c⊆d : c ⊆ d} where
            <: T-Msg ⊕ (E-SX c (T-Minus (E-Alt c))) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
   st-msg-sx-minus = <:-msg st-sx-alt-minus <:-refl
   
+  --- interaction between T-Msg and T-Minus
+
+  SS₁ : Ty [] SLin
+  SS₁ = T-Msg ⊕ (E-Alt d) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+
+  SS₂ : Ty [] SLin
+  SS₂ = T-Msg ⊝ (T-Minus (E-Alt c)) (T-Sub (≤k-step ≤p-refl ≤m-unl) T-End)
+
+  SS₁<:SS₂ : SS₁ <: SS₂
+  SS₁<:SS₂ = <:-neg-r {p = ⊝} (<:-msg (<:-proto c⊆d ≡c-refl) <:-refl)
