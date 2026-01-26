@@ -47,7 +47,10 @@ subst-preserves-≡c (≡c-minus T₁≡T₂) ϕ = ≡c-minus (subst-preserves-�
 subst-preserves : ⦃ KT : Kit _∋/⊢_ ⦄ → {T₁ T₂ : Ty Δ₁ K} → T₁ <: T₂ → (ϕ : Δ₁ –[ KT ]→ Δ₂) → (T₁ ⋯ ϕ) <: (T₂ ⋯ ϕ)
 subst-preserves-<<: : ⦃ KT : Kit _∋/⊢_ ⦄ → {T₁ T₂ : Ty Δ₁ K} → T₁ <<:[ ⊙ ] T₂ → (ϕ : Δ₁ –[ KT ]→ Δ₂) → (T₁ ⋯ ϕ) <<:[ ⊙ ] (T₂ ⋯ ϕ)
 
-subst-preserves <:-refl ϕ = <:-refl
+subst-preserves <:-var ϕ = <:-refl
+subst-preserves <:-dual-var ϕ = <:-refl
+subst-preserves <:-base ϕ = <:-refl
+subst-preserves <:-end ϕ = <:-refl
 subst-preserves (<:-trans T₁<:T₂ T₁<:T₃) ϕ = <:-trans (subst-preserves T₁<:T₂ ϕ) (subst-preserves T₁<:T₃ ϕ)
 subst-preserves (<:-sub K≤K′ T₁<:T₂) ϕ = <:-sub K≤K′ (subst-preserves T₁<:T₂ ϕ)
 subst-preserves <:-sub-dual-l ϕ = <:-sub-dual-l

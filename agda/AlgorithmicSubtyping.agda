@@ -216,8 +216,10 @@ complete-<<:ₚ {⊙ = ⊕} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊝} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊘} T₁<<:T₂ = nf-complete _ _ T₁<<:T₂
 
-complete-algₚ-inverted {f₁ = f₁} {f₂} {N₁} {N₂} <:-refl
-  rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
+-- complete-algₚ-inverted {f₁ = f₁} {f₂} {N₁} {N₂} <:-refl
+--   rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
+complete-algₚ-inverted {f₁ = f₁} {f₂} {N₁} {N₂} <:-var
+  rewrite np-unique N₁ N₂ = <:ₚ-refl N₂
 complete-algₚ-inverted {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
   using N₂ ← nf-normal-proto-inverted T₂
   using N₁<:N₂ ← complete-algₚ-inverted{N₁ = N₁}{N₂ = N₂} T₁<:T₂
@@ -235,8 +237,10 @@ complete-algₚ-inverted (<:-minus-minus-r {T₂ = T₂} T₁<:T₂)
   rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   = complete-algₚ-inverted T₁<:T₂
 
-complete-algₚ{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-refl 
-  rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
+-- complete-algₚ{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-refl 
+--   rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
+complete-algₚ{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var
+  rewrite np-unique N₁ N₂ = <:ₚ-refl N₂
 complete-algₚ {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
   using N₂ ← nf-normal-proto T₂
   using N₁<:N₂ ← complete-algₚ{N₁ = N₁}{N₂ = N₂} T₁<:T₂
@@ -254,8 +258,16 @@ complete-algₚ (<:-minus-minus-r {T₂ = T₂} T₁<:T₂)
   rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   = complete-algₚ T₁<:T₂
 
-complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-refl
+-- complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-refl
+--   rewrite dual-all-irrelevant {p} f₁ f₂ | nt-unique N₁ N₂ = <:ₜ-refl N₂
+complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var
   rewrite dual-all-irrelevant {p} f₁ f₂ | nt-unique N₁ N₂ = <:ₜ-refl N₂
+complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var
+  rewrite nt-unique N₁ N₂ = <:ₜ-refl N₂
+complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-base
+  rewrite nt-unique N₁ N₂ = <:ₜ-refl N₂
+complete-algₜ {p = p}{f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-end
+  rewrite nt-unique N₁ N₂ = <:ₜ-refl N₂
 complete-algₜ {p = p}{f₂ = f₂} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) 
   using N₂ ← nf-normal-type p f₂ T₂
   using N₁<:N₂ ← complete-algₜ{N₁ = N₁}{N₂ = N₂} T₁<:T₂
@@ -341,9 +353,15 @@ complete-algₜ {p = p}{f₁ = f₁}{f₂ = f₂}{N₁ = N₁} {N₂@(N-Msg p₁
   = <:ₜ-trans N₁<:N₂′ (<:ₜ-eq-ty N₂′ N₂ (sym t-eq))
 complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-l = <:ₜ-end
 complete-algₜ {N₁ = N-End} {N-End} <:-dual-end-r = <:ₜ-end
+complete-algₜ {p = p} {f₁ = f₁}{f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} sub@(<:-msg {T₁ = T₁}{p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
+  with norm-pres-sub {p = p} {d? = f₁} sub
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂ = f₂} {N-Msg .(proj₁ (t-loop (mult ⊕ p₃) (nf ⊕ d?⊥ T₁))) NT₁ NS₁} {N-Msg .(proj₁ (t-loop (mult ⊕ p₃) (nf ⊕ d?⊥ T₂))) NT₂ NS₂} (<:-msg {T₁} {p₃} {T₂} T₁<<:T₂ S₁<:S₂) | nf-<: = {!!}
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂ = f₂} {N-Msg .(proj₁ (t-loop (mult ⊝ p₃) (nf ⊕ d?⊥ T₁))) NT₁ NS₁} {N-Msg .(proj₁ (t-loop (mult ⊝ p₃) (nf ⊕ d?⊥ T₂))) NT₂ NS₂} (<:-msg {T₁} {p₃} {T₂} T₁<<:T₂ S₁<:S₂) | nf-<: = {!!}
+{-
 complete-algₜ {p = p} {f₁ = f₁}{f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {T₁ = T₁}{p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
   rewrite t-loop-sub-<<: p₃ (mult p p₃) T₁<<:T₂
   = <:ₜ-msg {!!} (complete-algₜ S₁<:S₂)
+-}
 
 {-
 complete-algₜ {p = p} {f₁ = f₁} {f₂ = f₂} {N₁ = N-Msg p₁ NT₁ NS₁} {N-Msg p₂ NT₂ NS₂} (<:-msg {T₁ = T₁} {p = ⊕} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
