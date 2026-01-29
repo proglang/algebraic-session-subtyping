@@ -109,6 +109,12 @@ data _<:_ {Δ} where
 <<:-refl {⊙ = ⊝} = <:-refl
 <<:-refl {⊙ = ⊘} = ≡c-refl
 
+<<:-trans : ∀ {T₁ T₂ T₃ : Ty Δ K} {⊙} → T₁ <<:[ ⊙ ] T₂ → T₂ <<:[ ⊙ ] T₃ → T₁ <<:[ ⊙ ] T₃
+<<:-trans {⊙ = ⊕} T₁<<:T₂ T₂<<:T₃ = <:-trans T₁<<:T₂ T₂<<:T₃
+<<:-trans {⊙ = ⊝} T₁<<:T₂ T₂<<:T₃ = <:-trans T₂<<:T₃ T₁<<:T₂
+<<:-trans {⊙ = ⊘} T₁<<:T₂ T₂<<:T₃ = ≡c-trns T₁<<:T₂ T₂<<:T₃
+
+
 t-dual-<: : {T₁ : Ty Δ K} → (dk : Dualizable K) → t-dual dk T₁ <: T-Dual dk T₁
 t-dual-<: {T₁ = T-Var x} D-S = <:-refl
 t-dual-<: {T₁ = T-Arrow (≤p-step ()) T₁ T₂} D-S
