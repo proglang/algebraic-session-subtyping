@@ -24,6 +24,12 @@ open import AlgorithmicSubtyping
 
 -- algorithmic subtyping is complete
 
+subst-<<: : {⊙ : Variance} {T₁ T₂ T₁′ T₂′ : Ty Δ KP} {N₁ : NormalProto′ T₁} {N₂ : NormalProto′ T₂}
+  → (eq₁ : T₁ ≡ T₁′) (eq₂ : T₂ ≡ T₂′)
+  → subst NormalProto′ eq₁ N₁ <<:ₚ′[ ⊙ ] subst NormalProto′ eq₂ N₂
+  → N₁ <<:ₚ′[ ⊙ ] N₂
+subst-<<: refl refl N₁<<:N₂ = N₁<<:N₂
+
 lemma-sub-<<: : {T₁ T₂ : Ty Δ KP} (T₁<<:T₂ : T₁ <<:[ ⊙ ] T₂) → nf ⊕ d?⊥ T₁ <<:[ ⊙ ] nf ⊕ d?⊥ T₂
 lemma-sub-<<: {⊙ = ⊕} T₁<<:T₂ = norm-pres-sub {p = ⊕} T₁<<:T₂
 lemma-sub-<<: {⊙ = ⊝} T₂<<:T₁ = norm-pres-sub {p = ⊕} T₂<<:T₁
@@ -106,7 +112,8 @@ complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N
                            (lemma-sub-loop {p₃ = p₃} T₁<<:T₂)
 ... | ih
   rewrite t-loop-sub-<<: p₃ p₃ T₁<<:T₂
-  = <:ₜ-msg {!ih!} (complete-algₜ {N₁ = NS₁} {N₂ = NS₂} S₁<:S₂)
+  = <:ₜ-msg (subst-<<: (sym eq₁) (sym eq₂) ih) (complete-algₜ {N₁ = NS₁} {N₂ = NS₂} S₁<:S₂)
+
 complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂) = {!!}
 --   with t-loop-sub-<<: p₃ (mult p p₃) T₁<<:T₂
 -- ... | p₁≡p₂
