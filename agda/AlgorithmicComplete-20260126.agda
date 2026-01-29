@@ -98,6 +98,27 @@ complete-algₜ : ∀ {p : Polarity} {T₁ T₂ : Ty Δ (KV pk m)}
   → T₁ <: T₂
   → N₁ <<:ₜ[ p ] N₂
 
+----
+
+complete-<<:ₚ′ {⊙ = ⊕} {T₁} {T₃} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃)
+  using N₂ ← nf-normal-proto T₂
+  -- have NormalProto, but I need NormalProto′
+  = {!<:ₜ-trans!}
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N-Var} {N-Var} <:-var = <:ₚ′-var
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N-Up N₁} {N-Up N₂} (<:-up T₁<<:T₂) = <:ₚ′-up (complete-algₜ {p = ⊕} {N₁ = N₂} {N₂ = N₁} T₁<<:T₂)
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N-ProtoP N₁} {N-ProtoP N₂} (<:-proto {⊙ = ⊙} #c⊆#d T₁<<:T₂) = <:ₚ′-proto #c⊆#d (complete-<<:ₚ {⊙ = ⊙} T₁<<:T₂)
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus T₁<<:T₂) = {!!}
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus-minus-l {T₁} T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = complete-<<:ₚ′ {⊙ = ⊕} T₁<<:T₂
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus-minus-r {T₂ = T₂} T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-<<:ₚ′ {⊙ = ⊕} T₁<<:T₂
+
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N₁} {N₂} T₁<<:T₂ = {!!}
+
+----
+
 complete-<<:ₚ {⊙ = ⊕} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊝} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊘} T₁<<:T₂ = nf-complete _ _ T₁<<:T₂
