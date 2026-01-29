@@ -48,6 +48,19 @@ mult-comm ⊕ ⊝ = refl
 mult-comm ⊝ ⊕ = refl
 mult-comm ⊝ ⊝ = refl
 
+mult-assoc : ∀ p₁ p₂ p₃ → mult p₁ (mult p₂ p₃) ≡ mult (mult p₁ p₂) p₃
+mult-assoc ⊕ p₂ p₃ = refl
+mult-assoc ⊝ ⊕ p₃ = refl
+mult-assoc ⊝ ⊝ p₃ = invert-involution
+
+mult-square : ∀ p → mult p p ≡ ⊕
+mult-square ⊕ = refl
+mult-square ⊝ = refl
+
+mult-inv-square : ∀ p → mult p (invert p) ≡ ⊝
+mult-inv-square ⊕ = refl
+mult-inv-square ⊝ = refl
+
 mult-invert-invert : ∀ p₁ p₂ → mult (invert p₁) p₂ ≡ mult p₁ (invert p₂)
 mult-invert-invert ⊕ p₂ = refl
 mult-invert-invert ⊝ p₂ = sym invert-involution
