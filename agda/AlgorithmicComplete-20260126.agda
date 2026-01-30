@@ -123,6 +123,10 @@ complete-<<:ₚ {⊙ = ⊕} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊝} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊘} T₁<<:T₂ = nf-complete _ _ T₁<<:T₂
 
+postulate
+  t-loop-invert : ∀ p (T : Ty Δ KP) → t-loop (invert p) T .proj₁ ≡ invert (t-loop p T .proj₁)
+  <<:-invert    : ∀ {p} {T₁ T₂ : Ty Δ KP} → T₁ <<:[ injᵥ p ] T₂ → T₂ <<:[ injᵥ (invert p) ] T₁
+
 complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
   rewrite t-loop-sub-<<: p₃ p₃ T₁<<:T₂
   using eq₁ ← (nfp′-idempotent N₁)
@@ -135,9 +139,11 @@ complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N
   rewrite t-loop-sub-<<: p₃ p₃ T₁<<:T₂
   = <:ₜ-msg (subst-<<: (sym eq₁) (sym eq₂) ih) (complete-algₜ {N₁ = NS₁} {N₂ = NS₂} S₁<:S₂)
 
-complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂) = {!!}
---   with t-loop-sub-<<: p₃ (mult p p₃) T₁<<:T₂
--- ... | p₁≡p₂
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
+  rewrite sym (t-loop-sub-<<: p₃ (invert p₃) T₁<<:T₂)
+  with complete-<<:ₚ′ {⊙ = t-loop (invert p₃) (nf ⊕ d?⊥ T₂) .proj₁} (lemma-sub-loop (<<:-invert T₁<<:T₂))
+... | ih
+  = <:ₜ-msg {!!} (complete-algₜ {N₁ = NS₁} {N₂ = NS₂} S₁<:S₂)
 
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-trans T₁<:T₂ T₁<:T₃) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-sub K≤K′ T₁<:T₂) = {!!}
