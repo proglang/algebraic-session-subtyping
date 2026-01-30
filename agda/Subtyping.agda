@@ -57,15 +57,25 @@ data _<:_ {Δ} where
   <:-protoD : T₁ <: T₂ → T-ProtoD T₁ <: T-ProtoD T₂
   <:-all : {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ <: T₂ → T-Poly T₁ <: T-Poly T₂
 
-  <:-neg-l : T-Msg (invert p) T S <: S′ → T-Msg p (T-Minus T) S <: S′
-  <:-neg-r : S′ <: T-Msg (invert p) T S → S′ <: T-Msg p (T-Minus T) S
+  -- obsolete
+  -- <:-neg-l : T-Msg (invert p) T S <: S′ → T-Msg p (T-Minus T) S <: S′
+  -- <:-neg-r : S′ <: T-Msg (invert p) T S → S′ <: T-Msg p (T-Minus T) S
+  -- replace by
+  <:-msg-minus : p₂ ≡ invert p₁ → T-Msg p₁ (T-Minus T) S <: T-Msg p₂ T S
+  <:-minus-msg : p₁ ≡ invert p₂ → T-Msg p₂ T S <: T-Msg p₁ (T-Minus T) S
 
   -- this rule is derivable
   -- <:-dual-lr : {T₁ T₂ : Ty Δ K} (d : Dualizable K) → T₂ <: T₁ → T-Dual d T₁ <: T-Dual d T₂
-  <:-dual-dual-l : (d : Dualizable K) → T₁ <: T₂ → T-Dual d (T-Dual d T₁) <: T₂
-  <:-dual-dual-r : (d : Dualizable K) → T₁ <: T₂ → T₁ <: T-Dual d (T-Dual d T₂)
+  -- <:-dual-dual-l : (d : Dualizable K) → T₁ <: T₂ → T-Dual d (T-Dual d T₁) <: T₂
+  -- <:-dual-dual-r : (d : Dualizable K) → T₁ <: T₂ → T₁ <: T-Dual d (T-Dual d T₂)
+  <:-dual-dual-l-new : (d : Dualizable K) → T-Dual d (T-Dual d T) <: T
+  <:-dual-dual-r-new : (d : Dualizable K) → T <: T-Dual d (T-Dual d T)
+
   <:-dual-msg-l : T-Msg (invert p) T (T-Dual D-S S) <: T₂ → T-Dual D-S (T-Msg p T S) <: T₂
   <:-dual-msg-r : T₁ <: T-Msg (invert p) T (T-Dual D-S S) → T₁ <: T-Dual D-S (T-Msg p T S)
+  -- <:-dual-msg-l-new : p₁ ≡ invert p₂ → T-Msg p₁ T (T-Dual D-S S) <: T-Dual D-S (T-Msg p₂ T S)
+  -- <:-dual-msg-r-new : p₁ ≡ invert p₂ → T-Dual D-S (T-Msg p₁ T S) <: T-Msg p₂ T (T-Dual D-S S)
+
   <:-dual-end-l  : T-Dual D-S T-End <: T-End
   <:-dual-end-r  : T-End <: T-Dual D-S T-End
 
@@ -101,7 +111,7 @@ data _<:_ {Δ} where
 <:-refl-dual {T = T-Var x} = <:-dual-var
 <:-refl-dual {T = T-Arrow (≤p-step ()) T T₁}
 <:-refl-dual {T = T-Sub (≤k-step ≤p-refl x₁) T} = <:-trans <:-sub-dual-l (<:-trans (<:-sub (≤k-step ≤p-refl x₁) <:-refl-dual) <:-sub-dual-r)
-<:-refl-dual {T = T-Dual D-S T} = <:-dual-dual-l D-S (<:-dual-dual-r D-S <:-refl)
+<:-refl-dual {T = T-Dual D-S T} = <:-trans (<:-dual-dual-l-new D-S) (<:-trans <:-refl (<:-dual-dual-r-new D-S))
 <:-refl-dual {T = T-End} = <:-trans <:-dual-end-l <:-dual-end-r
 <:-refl-dual {T = T-Msg ⊙ T S} = <:-dual-msg-l (<:-dual-msg-r (<:-msg <<:-refl <:-refl-dual))
 
@@ -114,12 +124,86 @@ data _<:_ {Δ} where
 <<:-trans {⊙ = ⊝} T₁<<:T₂ T₂<<:T₃ = <:-trans T₂<<:T₃ T₁<<:T₂
 <<:-trans {⊙ = ⊘} T₁<<:T₂ T₂<<:T₃ = ≡c-trns T₁<<:T₂ T₂<<:T₃
 
+invert-minus-<<: : T₁ <<:[ injᵥ (invert p) ] T₂ → T-Minus T₁ <<:[ injᵥ p ] T-Minus T₂
+invert-minus-<<: {p = ⊕} T₁<<:T₂ = <:-minus T₁<<:T₂
+invert-minus-<<: {p = ⊝} T₁<<:T₂ = <:-minus T₁<<:T₂
+
+minus-minus-<<: : T <<:[ injᵥ p ] T-Minus (T-Minus T)
+minus-minus-<<: {p = ⊕} = <:-minus-minus-l <:-refl
+minus-minus-<<: {p = ⊝} = <:-minus-minus-r <:-refl
+
+-- former derivable rules
+
+<:-neg-l : T-Msg (invert p) T S <: S′ → T-Msg p (T-Minus T) S <: S′
+
+<:-neg-l (<:-trans S₁<:S₂ S₂<:S₃) = <:-trans (<:-neg-l S₁<:S₂) S₂<:S₃
+-- <:-neg-l (<:-neg-l S₁<:S₂) = <:-trans (<:-msg-minus refl) (<:-trans (<:-msg-minus refl) S₁<:S₂)
+-- <:-neg-l (<:-neg-r S₁<:S₂) = <:-trans (<:-msg-minus refl) (<:-trans S₁<:S₂ (<:-minus-msg (sym invert-involution)))
+<:-neg-l (<:-msg-minus refl) = <:-trans (<:-msg-minus refl) (<:-msg-minus refl)
+<:-neg-l {p} (<:-minus-msg refl) rewrite invert-involution {p} = <:-refl
+-- <:-neg-l (<:-dual-dual-r D-S S₁<:S₂) = <:-dual-dual-r D-S (<:-neg-l S₁<:S₂)
+<:-neg-l (<:-dual-msg-r S₁<:S₂) = <:-dual-msg-r (<:-neg-l S₁<:S₂)
+<:-neg-l (<:-msg T₁<<:T₂ S₁<:S₂) = <:-trans (<:-msg-minus refl) (<:-msg T₁<<:T₂ S₁<:S₂)
+<:-neg-l (<:-dual-dual-r-new D-S) = <:-trans (<:-msg-minus refl) (<:-dual-dual-r-new D-S)
+
+<:-neg-r :  S′ <: T-Msg (invert p) T S → S′ <: T-Msg p (T-Minus T) S
+<:-neg-r (<:-trans S₁<:S₂ S₁<:S₃) = <:-trans S₁<:S₂ (<:-neg-r S₁<:S₃)
+-- <:-neg-r (<:-neg-l S₁<:S₂) = <:-neg-l (<:-neg-r S₁<:S₂)
+-- <:-neg-r (<:-neg-r S₁<:S₂) = <:-neg-r (<:-neg-r S₁<:S₂)
+<:-neg-r {p = p} (<:-msg-minus {p₁ = p₁} x) rewrite invert-injective x = <:-refl
+<:-neg-r {p = p} (<:-minus-msg {p₂ = p₂} x) rewrite invert-injective x = <:-msg minus-minus-<<: <:-refl
+-- <:-neg-r (<:-dual-dual-l d S₁<:S₂) = <:-dual-dual-l d (<:-neg-r S₁<:S₂)
+<:-neg-r (<:-dual-msg-l S₁<:S₂) = <:-dual-msg-l (<:-neg-r S₁<:S₂)
+<:-neg-r {p = p} {T = T} {S = S} (<:-msg {T₁} {S₁ = S₁} T₁<<:T₂ S₁<:S₂) = <:-trans (<:-minus-msg refl) (S₁<:S₂′ p T₁<<:T₂)
+  where S₁<:S₂′ : ∀ p → (T₁<<:T₂ : T₁ <<:[ injᵥ (invert p) ] T) → T-Msg (invert (invert p)) (T-Minus T₁) S₁ <: T-Msg p (T-Minus T) S
+        S₁<:S₂′ p T₁<<:T₂ rewrite invert-involution {p} = <:-msg (invert-minus-<<: T₁<<:T₂) S₁<:S₂
+<:-neg-r (<:-dual-dual-l-new D-S) = <:-trans (<:-dual-dual-l-new D-S) (<:-minus-msg (sym invert-involution))
+
+-- TODO:
+<:-dual-dual-l-derivable : (d : Dualizable K) → T₁ <: T₂ → T-Dual d (T-Dual d T₁) <: T₂
+<:-dual-dual-l-derivable D-S (<:-trans T₁<:T₂ T₁<:T₃) = <:-trans (<:-dual-dual-l-derivable D-S T₁<:T₂) T₁<:T₃
+<:-dual-dual-l-derivable D-S (<:-sub K≤K′ T₁<:T₂) = <:-trans (<:-dual-dual-l-new D-S) (<:-sub K≤K′ T₁<:T₂)
+<:-dual-dual-l-derivable D-S <:-sub-dual-l = <:-trans (<:-dual-dual-l-new D-S) <:-sub-dual-l
+<:-dual-dual-l-derivable D-S <:-sub-dual-r = <:-trans (<:-dual-dual-l-new D-S) <:-sub-dual-r
+<:-dual-dual-l-derivable D-S <:-var = <:-dual-dual-l-new D-S
+<:-dual-dual-l-derivable D-S <:-dual-var = <:-dual-dual-l-new D-S
+<:-dual-dual-l-derivable D-S (<:-fun T₁<:T₂ T₁<:T₃) = <:-trans (<:-dual-dual-l-new D-S) (<:-fun T₁<:T₂ T₁<:T₃)
+<:-dual-dual-l-derivable D-S (<:-msg-minus x) = <:-trans (<:-dual-dual-l-new D-S) (<:-msg-minus x)
+<:-dual-dual-l-derivable D-S (<:-minus-msg x) = <:-trans (<:-dual-dual-l-new D-S) (<:-minus-msg x)
+<:-dual-dual-l-derivable D-S (<:-dual-dual-l-new d) = <:-trans (<:-dual-dual-l-new D-S) (<:-dual-dual-l-new d)
+<:-dual-dual-l-derivable D-S (<:-dual-dual-r-new d) = <:-trans (<:-dual-dual-l-new D-S) (<:-dual-dual-r-new d)
+<:-dual-dual-l-derivable D-S (<:-dual-msg-l T₁<:T₂) = <:-trans (<:-dual-dual-l-new D-S) (<:-dual-msg-l T₁<:T₂)
+<:-dual-dual-l-derivable D-S (<:-dual-msg-r T₁<:T₂) = <:-dual-msg-r (<:-dual-dual-l-derivable D-S T₁<:T₂)
+<:-dual-dual-l-derivable D-S <:-dual-end-l = <:-trans (<:-dual-dual-l-new D-S) <:-dual-end-l
+<:-dual-dual-l-derivable D-S <:-dual-end-r = <:-trans (<:-dual-dual-l-new D-S) <:-dual-end-r
+<:-dual-dual-l-derivable D-S (<:-msg x T₁<:T₂) = <:-trans (<:-dual-dual-l-new D-S) (<:-msg x T₁<:T₂)
+<:-dual-dual-l-derivable D-S <:-end = <:-dual-dual-l-new D-S
+
+<:-dual-dual-r-derivable : (d : Dualizable K) → T₁ <: T₂ → T₁ <: T-Dual d (T-Dual d T₂)
+<:-dual-dual-r-derivable D-S (<:-trans T₁<:T₂ T₁<:T₃) = <:-trans T₁<:T₂ (<:-dual-dual-r-derivable D-S T₁<:T₃)
+<:-dual-dual-r-derivable D-S (<:-sub K≤K′ T₁<:T₂) = <:-trans (<:-sub K≤K′ T₁<:T₂) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S <:-sub-dual-l = <:-trans <:-sub-dual-l (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S <:-sub-dual-r = <:-trans <:-sub-dual-r (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S <:-var = <:-dual-dual-r-new D-S
+<:-dual-dual-r-derivable D-S <:-dual-var = <:-dual-dual-r-new D-S
+<:-dual-dual-r-derivable D-S (<:-fun T₁<:T₂ T₁<:T₃) = <:-trans (<:-fun T₁<:T₂ T₁<:T₃) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S (<:-msg-minus x) = <:-trans (<:-msg-minus x) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S (<:-minus-msg x) = <:-trans (<:-minus-msg x) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S (<:-dual-dual-l-new d) = <:-trans (<:-dual-dual-l-new d) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S (<:-dual-dual-r-new d) = <:-trans (<:-dual-dual-r-new d) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S (<:-dual-msg-l T₁<:T₂) = <:-dual-msg-l (<:-dual-dual-r-derivable D-S T₁<:T₂)
+<:-dual-dual-r-derivable D-S (<:-dual-msg-r T₁<:T₂) = <:-trans (<:-dual-msg-r T₁<:T₂) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S <:-dual-end-l = <:-trans <:-dual-end-l (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S <:-dual-end-r = <:-trans <:-dual-end-r (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S (<:-msg x T₁<:T₂) = <:-trans (<:-msg x T₁<:T₂) (<:-dual-dual-r-new D-S)
+<:-dual-dual-r-derivable D-S <:-end = <:-dual-dual-r-new D-S
+
 
 t-dual-<: : {T₁ : Ty Δ K} → (dk : Dualizable K) → t-dual dk T₁ <: T-Dual dk T₁
 t-dual-<: {T₁ = T-Var x} D-S = <:-refl
 t-dual-<: {T₁ = T-Arrow (≤p-step ()) T₁ T₂} D-S
 t-dual-<: {T₁ = T-Sub K≤K′@(≤k-step ≤p-refl x₁) T₁} D-S = <:-trans (<:-sub K≤K′ (t-dual-<: D-S)) (<:-sub-dual-r {T = T₁}{K≤K′ = K≤K′})
-t-dual-<: {T₁ = T-Dual D-S T₁} D-S = <:-dual-dual-r D-S <:-refl
+t-dual-<: {T₁ = T-Dual D-S T₁} D-S = <:-dual-dual-r-new D-S
 t-dual-<: {T₁ = T-End} D-S = <:-dual-end-r
 t-dual-<: {T₁ = T-Msg p T₁ T₂} D-S = <:-dual-msg-r (<:-msg <<:-refl (t-dual-<: {T₁ = T₂} D-S))
 
@@ -127,7 +211,7 @@ t-dual-:> : {T₁ : Ty Δ K} → (dk : Dualizable K) → T-Dual dk T₁ <: t-dua
 t-dual-:> {T₁ = T-Var x} D-S = <:-refl
 t-dual-:> {T₁ = T-Arrow (≤p-step ()) T₁ T₂} D-S
 t-dual-:> {T₁ = T-Sub K≤K′@(≤k-step ≤p-refl x₁) T₁} D-S = <:-trans <:-sub-dual-l (<:-sub K≤K′ (t-dual-:> D-S))
-t-dual-:> {T₁ = T-Dual D-S T₁} D-S = <:-dual-dual-l D-S <:-refl
+t-dual-:> {T₁ = T-Dual D-S T₁} D-S = <:-dual-dual-l-new D-S
 t-dual-:> {T₁ = T-End} D-S = <:-dual-end-l
 t-dual-:> {T₁ = T-Msg p T₁ T₂} D-S = <:-dual-msg-l (<:-msg <<:-refl (t-dual-:> D-S))
 
@@ -142,11 +226,13 @@ dual-<: D-S (<:-var) = <:-dual-var
 dual-<: D-S (<:-dual-var) = <:-var
 dual-<: D-S (<:-end) = <:-end
 dual-<: D-S (<:-fun {≤pk = ≤p-step ()} T₁<:T₂ T₁<:T₃)
-dual-<: D-S (<:-neg-l T₁<:T₂) = <:-trans (dual-<: D-S T₁<:T₂) (<:-neg-r <:-refl)
-dual-<: D-S (<:-neg-r T₁<:T₂) = <:-trans (<:-neg-l <:-refl) (dual-<: D-S T₁<:T₂)
+-- dual-<: D-S (<:-neg-l T₁<:T₂) = <:-trans (dual-<: D-S T₁<:T₂) (<:-neg-r <:-refl)
+-- dual-<: D-S (<:-neg-r T₁<:T₂) = <:-trans (<:-neg-l <:-refl) (dual-<: D-S T₁<:T₂)
+dual-<: D-S (<:-msg-minus refl) = <:-minus-msg (cong invert (sym invert-involution))
+dual-<: D-S (<:-minus-msg refl) = <:-msg-minus (cong invert (sym invert-involution))
 -- dual-<: D-S (<:-dual-lr d T₁<:T₂) = T₁<:T₂
-dual-<: D-S (<:-dual-dual-l D-S T₁<:T₂) = <:-trans (dual-<: D-S T₁<:T₂) (t-dual-<: D-S)
-dual-<: D-S (<:-dual-dual-r D-S T₁<:T₂) = <:-trans (t-dual-:> D-S) (dual-<: D-S T₁<:T₂)
+-- dual-<: D-S (<:-dual-dual-l D-S T₁<:T₂) = <:-trans (dual-<: D-S T₁<:T₂) (t-dual-<: D-S)
+-- dual-<: D-S (<:-dual-dual-r D-S T₁<:T₂) = <:-trans (t-dual-:> D-S) (dual-<: D-S T₁<:T₂)
 dual-<: D-S (<:-dual-msg-l {p} T₁<:T₂) with dual-<: D-S T₁<:T₂
 ... | ih rewrite invert-involution{p} = ih
 dual-<: D-S (<:-dual-msg-r {p = p} T₁<:T₂) with dual-<: D-S T₁<:T₂
@@ -155,6 +241,9 @@ dual-<: D-S <:-dual-end-l = <:-refl
 dual-<: D-S <:-dual-end-r = <:-refl
 dual-<: D-S (<:-msg {p = ⊕} T₁<<:[p]T₂ S₁<:S₂) = <:-msg T₁<<:[p]T₂ (dual-<: D-S S₁<:S₂)
 dual-<: D-S (<:-msg {p = ⊝} T₁<<:[p]T₂ S₁<:S₂) = <:-msg T₁<<:[p]T₂ (dual-<: D-S S₁<:S₂)
+dual-<: D-S (<:-dual-dual-l-new D-S) = t-dual-<: D-S
+dual-<: D-S (<:-dual-dual-r-new D-S) = t-dual-:> D-S
+
 
 -- convertible implies subtyping
 
@@ -168,7 +257,7 @@ conv⇒subty T₁ T₃ (≡c-trns {T₂ = T₂} T₁≡T₂ T₂≡T₃)
 conv⇒subty T₁ T₂ (≡c-sub K≤K′ T₁≡T₂)
   using T₁<:T₂ , T₂<:T₁ ← conv⇒subty _ _ T₁≡T₂ = <:-sub K≤K′ T₁<:T₂ , <:-sub K≤K′ T₂<:T₁
 conv⇒subty T₁ T₂ ≡c-sub-dual = <:-sub-dual-l , <:-sub-dual-r
-conv⇒subty T₁ T₂ (≡c-dual-dual d) = <:-dual-dual-l d <:-refl , <:-dual-dual-r d <:-refl
+conv⇒subty T₁ T₂ (≡c-dual-dual d) = (<:-dual-dual-l-new d) , (<:-dual-dual-r-new d)
 conv⇒subty T₁ T₂ ≡c-dual-end = <:-dual-end-l , <:-dual-end-r
 conv⇒subty T₁ T₂ ≡c-dual-msg = <:-dual-msg-l <:-refl , <:-dual-msg-r <:-refl
 conv⇒subty T₁ T₂ ≡c-msg-minus = <:-neg-l <:-refl , <:-neg-r <:-refl
@@ -222,22 +311,29 @@ norm-pres-sub {T₁ = T₁} {T₂} {p = ⊝} {d?} T₁<:T₂
 <:-dual-lr :  {T₁ T₂ : Ty Δ K} (d : Dualizable K) → T₂ <: T₁ → T-Dual d T₁ <: T-Dual d T₂
 -- <:-dual-lr d <:-refl = <:-refl
 <:-dual-lr D-S <:-var = <:-dual-var
-<:-dual-lr D-S <:-dual-var = <:-dual-dual-l D-S (<:-dual-dual-r D-S <:-var)
+<:-dual-lr D-S <:-dual-var = <:-trans (<:-dual-dual-l-new D-S) (<:-dual-dual-r-new D-S)
 <:-dual-lr D-S <:-end = <:-trans <:-dual-end-l <:-dual-end-r
 <:-dual-lr D-S (<:-trans T₃<:T₂ T₂<:T₁) = <:-trans (<:-dual-lr D-S T₂<:T₁) (<:-dual-lr D-S T₃<:T₂)
 <:-dual-lr {K = KV KS m} D-S (<:-sub (≤k-step ≤p-refl x₁) T₂<:T₁) = <:-trans <:-sub-dual-l (<:-trans (<:-sub (≤k-step ≤p-refl x₁) (<:-dual-lr D-S T₂<:T₁)) <:-sub-dual-r)
-<:-dual-lr D-S (<:-sub-dual-l { K≤K′ = K≤K′ }) = <:-trans <:-sub-dual-l (<:-trans (<:-sub K≤K′ (<:-dual-dual-l D-S <:-refl)) (<:-dual-dual-r D-S <:-refl))
-<:-dual-lr D-S (<:-sub-dual-r {K≤K′ = K≤K′}) = <:-trans (<:-trans (<:-dual-dual-l D-S <:-refl) (<:-sub K≤K′ (<:-dual-dual-r D-S <:-refl))) <:-sub-dual-r
+<:-dual-lr D-S (<:-sub-dual-l { K≤K′ = K≤K′ }) = <:-trans (<:-trans <:-sub-dual-l (<:-sub K≤K′ (<:-dual-dual-l-new D-S))) (<:-dual-dual-r-new D-S)
+<:-dual-lr D-S (<:-sub-dual-r {K≤K′ = K≤K′}) = <:-trans
+                                                 (<:-trans (<:-dual-dual-l-new D-S)
+                                                  (<:-sub K≤K′ (<:-dual-dual-r-new D-S)))
+                                                 <:-sub-dual-r
 <:-dual-lr {K = KV KS m} D-S (<:-fun {≤pk = ≤p-step ()} T₂<:T₁ T₂<:T₂)
-<:-dual-lr D-S (<:-neg-l T₂<:T₁) = <:-trans (<:-neg-r (<:-trans (<:-dual-lr D-S T₂<:T₁) (<:-dual-msg-l <:-refl))) (<:-dual-msg-r <:-refl)
-<:-dual-lr D-S (<:-neg-r T₂<:T₁) = <:-trans (<:-dual-msg-l <:-refl) (<:-neg-l (<:-trans (<:-dual-msg-r <:-refl) (<:-dual-lr D-S T₂<:T₁)))
-<:-dual-lr D-S (<:-dual-dual-l D-S T₂<:T₁) = <:-dual-dual-r D-S (<:-dual-lr D-S T₂<:T₁)
-<:-dual-lr D-S (<:-dual-dual-r D-S T₂<:T₁) = <:-dual-dual-l D-S (<:-dual-lr D-S T₂<:T₁)
-<:-dual-lr D-S (<:-dual-msg-l T₂<:T₁) = <:-trans (<:-dual-lr D-S T₂<:T₁) (<:-dual-dual-r D-S (<:-trans (<:-dual-msg-l (<:-msg <<:-refl (<:-dual-dual-l D-S <:-refl))) (<:-refl-subst (cong (λ p → T-Msg p _ _) invert-involution))))
-<:-dual-lr D-S (<:-dual-msg-r T₂<:T₁) = <:-trans (<:-trans (<:-dual-dual-l D-S (<:-refl-subst (cong (λ p → T-Msg p _ _) (sym invert-involution)))) (<:-dual-msg-r (<:-msg <<:-refl (<:-dual-dual-r D-S <:-refl)))) (<:-dual-lr D-S T₂<:T₁)
-<:-dual-lr D-S <:-dual-end-l = <:-trans <:-dual-end-l (<:-dual-dual-r D-S <:-refl)
-<:-dual-lr D-S <:-dual-end-r = <:-trans (<:-dual-dual-l D-S <:-refl) <:-dual-end-r
+-- <:-dual-lr D-S (<:-neg-l T₂<:T₁) = <:-trans (<:-neg-r (<:-trans (<:-dual-lr D-S T₂<:T₁) (<:-dual-msg-l <:-refl))) (<:-dual-msg-r <:-refl)
+-- <:-dual-lr D-S (<:-neg-r T₂<:T₁) = <:-trans (<:-dual-msg-l <:-refl) (<:-neg-l (<:-trans (<:-dual-msg-r <:-refl) (<:-dual-lr D-S T₂<:T₁)))
+<:-dual-lr D-S (<:-msg-minus refl) = <:-dual-msg-l (<:-dual-msg-r (<:-minus-msg (cong invert (sym invert-involution))))
+<:-dual-lr D-S (<:-minus-msg refl) = <:-dual-msg-l (<:-dual-msg-r (<:-msg-minus (cong invert (sym invert-involution))))
+-- <:-dual-lr D-S (<:-dual-dual-l D-S T₂<:T₁) = <:-dual-dual-r D-S (<:-dual-lr D-S T₂<:T₁)
+-- <:-dual-lr D-S (<:-dual-dual-r D-S T₂<:T₁) = <:-dual-dual-l D-S (<:-dual-lr D-S T₂<:T₁)
+<:-dual-lr D-S (<:-dual-msg-l T₂<:T₁) = <:-trans (<:-dual-lr D-S T₂<:T₁) (<:-dual-msg-l (<:-trans (<:-trans (<:-refl-subst (cong (λ p → T-Msg p _ _) invert-involution)) (<:-msg <<:-refl (<:-dual-dual-l-new D-S))) (<:-dual-dual-r-new D-S)))
+<:-dual-lr D-S (<:-dual-msg-r T₂<:T₁) = <:-trans (<:-trans (<:-dual-dual-l-new D-S) (<:-dual-msg-r (<:-trans (<:-msg <<:-refl (<:-dual-dual-r-new D-S)) (<:-refl-subst (cong (λ p → T-Msg p _ _) (sym invert-involution)))))) (<:-dual-lr D-S T₂<:T₁)
+<:-dual-lr D-S <:-dual-end-l = <:-trans <:-dual-end-l (<:-dual-dual-r-new D-S)
+<:-dual-lr D-S <:-dual-end-r = <:-trans (<:-dual-dual-l-new D-S) <:-dual-end-r
 <:-dual-lr D-S (<:-msg {p = p} P₁<<:P₂ T₂<:T₁) = <:-trans (<:-dual-msg-l (<:-msg (subst id (invert-<<: p) P₁<<:P₂) (<:-dual-lr D-S T₂<:T₁))) (<:-dual-msg-r <:-refl)
+<:-dual-lr D-S (<:-dual-dual-l-new D-S) = <:-dual-dual-r-new D-S
+<:-dual-lr D-S (<:-dual-dual-r-new D-S) = <:-dual-dual-l-new D-S
 
 -- properties
 
