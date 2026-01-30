@@ -12,7 +12,9 @@ data Polarity : Set where
   ⊕ ⊝ : Polarity
 
 variable
-  p p₁ : Polarity
+  p p₁ p₂ : Polarity
+
+-- inversion and properties
 
 invert : Polarity → Polarity
 invert ⊕ = ⊝
@@ -21,6 +23,12 @@ invert ⊝ = ⊕
 invert-involution : invert (invert p) ≡ p
 invert-involution {⊕} = refl
 invert-involution {⊝} = refl
+
+invert-injective : invert p₁ ≡ invert p₂ → p₁ ≡ p₂
+invert-injective {⊕} {⊕} ip≡ = refl
+invert-injective {⊝} {⊝} ip≡ = refl
+
+-- multiplication and properties
 
 mult : Polarity → Polarity → Polarity
 mult ⊕ p = p
