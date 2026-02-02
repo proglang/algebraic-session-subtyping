@@ -155,15 +155,15 @@ complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-base = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-fun T₁<:T₂ T₁<:T₃) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-protoD T₁<:T₂) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-all T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-neg-l T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-neg-r T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-l D-S T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-r D-S T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-l T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-r T₁<:T₂) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-l-new refl) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-r-new refl) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-end-l = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-end-r = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-end = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-l-new D-S) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-r-new D-S) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-msg-minus refl) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-minus-msg refl) = {!!}
 
 -- -- complete-algₚ-inverted {f₁ = f₁} {f₂} {N₁} {N₂} <:-refl
 -- --   rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
