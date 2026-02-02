@@ -170,6 +170,37 @@ module _ where
     N-Msg    : ∀ p → NormalProto′ T → NormalTy S → NormalTy (T-Msg p T S)
     N-ProtoD : NormalTy T → NormalTy (T-ProtoD T)
 
+  -- size of a normal form
+
+  sizeₜ : NormalTy T → ℕ
+  sizeₚ : NormalProto T → ℕ
+  sizeₚ′ : NormalProto′ T → ℕ
+
+  sizeₜ (N-Var x) = zero
+  sizeₜ N-Base = zero
+  sizeₜ (N-Arrow N₁ N₂) = suc (sizeₜ N₁ ⊔ sizeₜ N₂)
+  sizeₜ (N-Poly N) = suc (sizeₜ N)
+  sizeₜ (N-Sub N) = suc (sizeₜ N)
+  sizeₜ N-End = zero
+  sizeₜ (N-Msg p NP NS) = suc (sizeₚ′ NP ⊔ sizeₜ NS)
+  sizeₜ (N-ProtoD N) = suc (sizeₜ N)
+
+  sizeₚ′ (N-ProtoP N) = suc (sizeₚ N)
+  sizeₚ′ (N-Up N) = suc (sizeₜ N)
+  sizeₚ′ N-Var = zero
+
+  sizeₚ (N-Normal N) = suc (sizeₚ′ N)
+  sizeₚ (N-Minus N) = suc (sizeₚ′ N)
+
+  sizeₜ-subst : (N : NormalTy T₁) → (eq : T₁ ≡ T₂) → sizeₜ N ≡ sizeₜ (subst NormalTy eq N)
+  sizeₜ-subst N refl = refl
+
+  sizeₚ-subst : (N : NormalProto T₁) → (eq : T₁ ≡ T₂) → sizeₚ N ≡ sizeₚ (subst NormalProto eq N)
+  sizeₚ-subst N refl = refl
+
+  sizeₚ′-subst : (N : NormalProto′ T₁) → (eq : T₁ ≡ T₂) → sizeₚ′ N ≡ sizeₚ′ (subst NormalProto′ eq N)
+  sizeₚ′-subst N refl = refl
+
   -- type conversion
 
   data _≡c_ {Δ} : {K : Kind} → Rel (Ty Δ K) where
