@@ -145,3 +145,24 @@ data _<:ₚ_ where
 <:ₜ-eq-ty N₁ N₂ refl
   rewrite nt-unique N₁ N₂ = <:ₜ-refl N₂
 
+
+_<<:ₜ[_]_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → Polarity → NormalTy T₂ → Set
+N₁ <<:ₜ[ ⊕ ] N₂ = N₁ <:ₜ N₂
+N₁ <<:ₜ[ ⊝ ] N₂ = N₂ <:ₜ N₁
+
+
+<<:ₜ-var : ∀ {p} {T : Ty Δ (KV pk m)} {nv : NormalVar T} → N-Var nv <<:ₜ[ p ] N-Var nv
+<<:ₜ-var {p = ⊕} = <:ₜ-var
+<<:ₜ-var {p = ⊝} = <:ₜ-var
+
+<<:ₜ-base : N-Base{Δ = Δ} <<:ₜ[ p ] N-Base
+<<:ₜ-base {p = ⊕} = <:ₜ-base
+<<:ₜ-base {p = ⊝} = <:ₜ-base
+
+-- <<:ₜ-msg : ∀ {p p₀} {P₁ P₂ : Ty Δ KP}{S₁ S₂ : Ty Δ (KV KS Lin)}
+--           {NP₁ : NormalProto′ P₁}{NP₂ : NormalProto′ P₂}{NS₁ : NormalTy S₁} {NS₂ : NormalTy S₂}
+--           → NP₁ <<:ₚ′[ injᵥ (mult p p₀) ] NP₂
+--           → NS₁ <<:ₜ[ p ] NS₂
+--           → N-Msg (mult p p₀) NP₁ NS₁ <<:ₜ[ p ] N-Msg (mult p p₀) NP₂ NS₂
+-- <<:ₜ-msg {p = ⊕} NP<< NS<< = <:ₜ-msg NP<< NS<<
+-- <<:ₜ-msg {p = ⊝} NP<< NS<< = {!<:ₜ-msg NP<<!}
