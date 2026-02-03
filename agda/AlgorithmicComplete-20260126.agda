@@ -20,6 +20,7 @@ open import Kinds
 open import Duality
 open import Types
 open import Subtyping
+open import SubtypingProperties
 open import AlgorithmicSubtyping
 
 -- algorithmic subtyping is complete
@@ -93,6 +94,11 @@ complete-<<:ₚ′ : ∀ {⊙} {T₁ T₂ : Ty Δ KP}
   → T₁ <<:[ injᵥ ⊙ ] T₂
   → N₁ <<:ₚ′[ injᵥ ⊙ ] N₂
 
+complete-<<:ₚ′-inverted : ∀ {⊙} {T₁ T₂ : Ty Δ KP}
+  {f₁ f₂} {N₁ : NormalProto′ (t-minus (nf ⊕ f₁ T₁))}{N₂ : NormalProto′ (t-minus (nf ⊕ f₂ T₂))}
+  → T₁ <<:[ injᵥ ⊙ ] T₂
+  → N₂ <<:ₚ′[ injᵥ ⊙ ] N₁
+
 complete-algₜ : ∀ {p : Polarity} {T₁ T₂ : Ty Δ (KV pk m)}
   {f₁ f₂} {N₁ : NormalTy (nf p f₁ T₁)}{N₂ : NormalTy (nf p f₂ T₂)}
   → T₁ <: T₂
@@ -100,14 +106,47 @@ complete-algₜ : ∀ {p : Polarity} {T₁ T₂ : Ty Δ (KV pk m)}
 
 ----
 
+complete-<<:ₚ′-inverted {⊙ = ⊕} {T₁} {T₃} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃)
+  using N₂ ← normal-proto′-<:-minus _ _ T₂<<:T₃ (subst (λ f → NormalProto′ (t-minus (nf ⊕ f T₁))) (dual-all-irrelevant _ _) N₁)
+  using N₁<:N₂ ← complete-<<:ₚ′-inverted {⊙ = ⊝}{N₁ = N₂}{N₂ = N₁} T₂<<:T₃
+  using N₂<:N₃ ← complete-<<:ₚ′-inverted {⊙ = ⊝}{N₁ = N₃}{N₂ = N₂} T₁<<:T₂
+  = <:ₚ′-trans N₁<:N₂ N₂<:N₃ 
+complete-<<:ₚ′-inverted {⊙ = ⊕} {T-Minus T₁} {T-Minus T₂} {N₁ = N₁} {N₂} (<:-minus T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  | t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-<<:ₚ′ {⊙ = ⊝}{N₁ = N₁} {N₂ = N₂} T₁<<:T₂
+complete-<<:ₚ′-inverted {⊙ = ⊕} {T₁} {T-Minus (T-Minus T₂)} {N₁ = N₁} {N₂} (<:-minus-minus-l T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-<<:ₚ′-inverted {⊙ = ⊕} {N₁ = N₁} {N₂ = N₂} T₁<<:T₂
+complete-<<:ₚ′-inverted {⊙ = ⊕} {T-Minus (T-Minus T₁)} {T₂} {N₁ = N₁} {N₂} (<:-minus-minus-r T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = complete-<<:ₚ′-inverted {⊙ = ⊕} {N₁ = N₁} {N₂ = N₂} T₁<<:T₂
+
+complete-<<:ₚ′-inverted {⊙ = ⊝} {T₁} {T₃} {N₁ = N₁} {N₃} (<:-trans T₁<<:T₂ T₂<<:T₃)
+  using N₂ ← normal-proto′-<:-minus _ _ T₂<<:T₃ (subst (λ f → NormalProto′ (t-minus (nf ⊕ f T₃))) (dual-all-irrelevant _ _) N₃)
+  using N₃<:N₂ ← complete-<<:ₚ′-inverted {⊙ = ⊕} {N₁ = N₃}{N₂ = N₂} T₂<<:T₃
+  using N₂<:N₁ ← complete-<<:ₚ′-inverted {⊙ = ⊕} {N₁ = N₂}{N₂ = N₁} T₁<<:T₂
+  = <:ₚ′-trans N₃<:N₂ N₂<:N₁
+complete-<<:ₚ′-inverted {⊙ = ⊝} {T-Minus T₁} {T-Minus T₂} {N₁ = N₁} {N₂} (<:-minus T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  | t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂ = N₂} T₁<<:T₂
+complete-<<:ₚ′-inverted {⊙ = ⊝} {T-Minus (T-Minus T₁)} {T₂} {N₁ = N₁} {N₂} (<:-minus-minus-l T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = complete-<<:ₚ′-inverted {⊙ = ⊝} {N₁ = N₁}{N₂ = N₂} T₁<<:T₂
+complete-<<:ₚ′-inverted {⊙ = ⊝} {T₁} {T-Minus (T-Minus T₂)} {N₁ = N₁} {N₂} (<:-minus-minus-r T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-<<:ₚ′-inverted {⊙ = ⊝} {N₁ = N₁}{N₂ = N₂} T₁<<:T₂
+
 complete-<<:ₚ′ {⊙ = ⊕} {T₁} {T₃} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃)
-  using N₂ ← nf-normal-proto T₂
-  -- have NormalProto, but I need NormalProto′
-  = {!<:ₜ-trans!}
+  using N₂ ← normal-proto′-<: _ _ T₁<<:T₂ (subst (λ f → NormalProto′ (nf ⊕ f T₃)) (dual-all-irrelevant _ _) N₃)
+  using N₃<:N₂ ← complete-<<:ₚ′ {⊙ = ⊝} {T₁ = T₃}{T₂ = T₂}{N₁ = N₃}{N₂ = N₂} T₁<<:T₂
+  using N₁<:N₂ ← complete-<<:ₚ′ {⊙ = ⊝} {T₁ = T₂}{T₂ = T₁}{N₁ = N₂}{N₂ = N₁} T₂<<:T₃
+  = <:ₚ′-trans N₃<:N₂ N₁<:N₂
 complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N-Var} {N-Var} <:-var = <:ₚ′-var
 complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N-Up N₁} {N-Up N₂} (<:-up T₁<<:T₂) = <:ₚ′-up (complete-algₜ {p = ⊕} {N₁ = N₂} {N₂ = N₁} T₁<<:T₂)
 complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N-ProtoP N₁} {N-ProtoP N₂} (<:-proto {⊙ = ⊙} #c⊆#d T₁<<:T₂) = <:ₚ′-proto #c⊆#d (complete-<<:ₚ {⊙ = ⊙} T₁<<:T₂)
-complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus T₁<<:T₂) = {!!}
+complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus T₁<<:T₂) = complete-<<:ₚ′-inverted {⊙ = ⊝} T₁<<:T₂
 complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus-minus-l {T₁} T₁<<:T₂)
   rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
   = complete-<<:ₚ′ {⊙ = ⊕} T₁<<:T₂
@@ -115,7 +154,21 @@ complete-<<:ₚ′ {⊙ = ⊕} {N₁ = N₁} {N₂} (<:-minus-minus-r {T₂ = T�
   rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   = complete-<<:ₚ′ {⊙ = ⊕} T₁<<:T₂
 
-complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N₁} {N₂} T₁<<:T₂ = {!!}
+complete-<<:ₚ′ {⊙ = ⊝} {T₁} {T₃} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃)
+  using N₂ ← normal-proto′-<: _ _ T₁<<:T₂ (subst (λ f → NormalProto′ (nf ⊕ f T₁)) (dual-all-irrelevant _ _) N₁)
+  using N₁<:N₂ ← complete-<<:ₚ′ {⊙ = ⊝} {T₁ = T₁}{T₂ = T₂}{N₁ = N₁}{N₂ = N₂} T₁<<:T₂
+  using N₂<:N₃ ← complete-<<:ₚ′ {⊙ = ⊝} {T₁ = T₂}{T₂ = T₃}{N₁ = N₂}{N₂ = N₃} T₂<<:T₃
+  = <:ₚ′-trans N₁<:N₂ N₂<:N₃
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N-Var} {N-Var} <:-var = <:ₚ′-var
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N-Up N₁} {N-Up N₂} (<:-up T₁<<:T₂) = <:ₚ′-up (complete-algₜ {p = ⊕} {N₁ = N₁} {N₂ = N₂} T₁<<:T₂)
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N-ProtoP N₁} {N-ProtoP N₂} (<:-proto {⊙ = ⊙} #c⊆#d T₁<<:T₂) = <:ₚ′-proto #c⊆#d (complete-<<:ₚ {⊙ = ⊙} T₁<<:T₂)
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N₁} {N₂} (<:-minus T₁<<:T₂) = complete-<<:ₚ′-inverted {⊙ = ⊕} T₁<<:T₂
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N₁} {N₂} (<:-minus-minus-l {T₁} T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = complete-<<:ₚ′ {⊙ = ⊝} T₁<<:T₂
+complete-<<:ₚ′ {⊙ = ⊝} {N₁ = N₁} {N₂} (<:-minus-minus-r {T₂ = T₂} T₁<<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-<<:ₚ′ {⊙ = ⊝} T₁<<:T₂
 
 ----
 
@@ -123,9 +176,6 @@ complete-<<:ₚ {⊙ = ⊕} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊝} T₁<<:T₂ = complete-algₚ T₁<<:T₂
 complete-<<:ₚ {⊙ = ⊘} T₁<<:T₂ = nf-complete _ _ T₁<<:T₂
 
-postulate
-  t-loop-invert : ∀ p (T : Ty Δ KP) → t-loop (invert p) T .proj₁ ≡ invert (t-loop p T .proj₁)
-  <<:-invert    : ∀ {p} {T₁ T₂ : Ty Δ KP} → T₁ <<:[ injᵥ p ] T₂ → T₂ <<:[ injᵥ (invert p) ] T₁
 
 complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂)
   rewrite t-loop-sub-<<: p₃ p₃ T₁<<:T₂
@@ -145,25 +195,37 @@ complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N
 ... | ih
   = <:ₜ-msg {!!} (complete-algₜ {N₁ = NS₁} {N₂ = NS₂} S₁<:S₂)
 
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-trans T₁<:T₂ T₁<:T₃) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-sub K≤K′ T₁<:T₂) = {!!}
+complete-algₜ {p = p} {T₁ = T₁} {T₃} {f₁ = f₁} {f₂} {N₁ = N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
+  using N₂ ← nf-normal-type p f₁ T₂
+  using N₁<<:N₂ ← complete-algₜ {T₁ = T₁}{T₂}{N₁ = N₁}{N₂ = N₂} T₁<:T₂
+  using N₂<<:N₁ ← complete-algₜ {T₁ = T₂}{T₃}{N₁ = N₂}{N₂ = N₃} T₂<:T₃
+  = <<:ₜ-trans N₁<<:N₂ N₂<<:N₁
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub K≤K′ T₁<:T₂) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-sub-dual-l = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-sub-dual-r = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-base = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-fun T₁<:T₂ T₁<:T₃) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-protoD T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-all T₁<:T₂) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var = {!N₁!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Base} {N-Base} <:-base = <<:ₜ-base
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} (<:-fun T₁<:T₂ T₁<:T₃) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (<:-protoD T₁<:T₂) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Poly N₁} {N-Poly N₂} (<:-all T₁<:T₂) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-l-new refl) = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-r-new refl) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-end-l = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-end-r = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-end = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-l-new D-S) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-r-new D-S) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-msg-minus refl) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-minus-msg refl) = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} <:-dual-end-l = <<:ₜ-end
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} <:-dual-end-r = <<:ₜ-end
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} <:-end = <<:ₜ-end
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-l-new D-S)
+  rewrite invert-involution {p} | dual-all-irrelevant (const D-S) f₂ | nt-unique N₁ N₂
+  = <<:ₜ-refl N₂ 
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-r-new D-S)
+  rewrite invert-involution {p} | dual-all-irrelevant (const D-S) f₁ | nt-unique N₁ N₂
+  = <<:ₜ-refl N₂
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-msg-minus {p₁ = p₃} {T} refl)
+  rewrite t-loop-minus {p = mult p p₃} (nf ⊕ d?⊥ T)
+  = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-minus-msg {p₂ = p₃} {T = T} refl)
+  rewrite t-loop-minus {p = mult p (invert p₃)} (nf ⊕ d?⊥ T) | invert-mult-invert {p}{p₃}
+  = {!<:-msg!}
 
 -- -- complete-algₚ-inverted {f₁ = f₁} {f₂} {N₁} {N₂} <:-refl
 -- --   rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
