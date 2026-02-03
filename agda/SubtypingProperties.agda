@@ -46,3 +46,7 @@ normal-proto′-<:-minus T₁ T₂ (<:-minus-minus-l {T₃} T₂<:T₁) N₁
 normal-proto′-<:-minus T₁ T₂ (<:-minus-minus-r {T₂ = T₃} T₂<:T₁) N₁
   rewrite t-minus-involution (nf ⊕ d?⊥ T₃) (nf-normal-proto T₃)
   = normal-proto′-<:-minus _ _ T₂<:T₁ N₁
+
+<<:-invert : ∀ {p} {T₁ T₂ : Ty Δ KP} → T₁ <<:[ injᵥ p ] T₂ → T₂ <<:[ injᵥ (invert p) ] T₁
+<<:-invert {p = ⊕} T₁<<:T₂ = T₁<<:T₂
+<<:-invert {p = ⊝} T₁<<:T₂ = T₁<<:T₂
