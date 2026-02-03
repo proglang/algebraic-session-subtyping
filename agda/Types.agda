@@ -579,3 +579,9 @@ module _ where
   nfp′-idempotent (N-ProtoP NP) = cong (T-ProtoP _ _) (nfp-idempotent NP)
   nfp′-idempotent (N-Up NT) = cong T-Up (nf-idempotent NT)
   nfp′-idempotent N-Var = refl
+
+  t-loop-invert : ∀ p (T : Ty Δ KP) → t-loop (invert p) T .proj₁ ≡ invert (t-loop p T .proj₁)
+  t-loop-invert p (T-Var x) = refl
+  t-loop-invert p (T-Up T) = refl
+  t-loop-invert p (T-Minus T) = t-loop-invert (invert p) T
+  t-loop-invert p (T-ProtoP x x₁ T) = refl
