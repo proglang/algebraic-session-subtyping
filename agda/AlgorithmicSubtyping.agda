@@ -107,6 +107,7 @@ data _<:ₚ_ where
 <:ₜ-refl (N-Msg p NP N) = <:ₜ-msg (<<:ₚ′-refl NP) (<:ₜ-refl N)
 <:ₜ-refl (N-ProtoD N) = <:ₜ-data (<:ₜ-refl N)
 
+
 -- algorithmic subtyping is transitive
 
 <:ₜ-trans : ∀ {T₁ T₂ T₃ : Ty Δ (KV pk m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂} {N₃ : NormalTy T₃} → N₁ <:ₜ N₂ → N₂ <:ₜ N₃ → N₁ <:ₜ N₃
@@ -139,6 +140,7 @@ data _<:ₚ_ where
 <:ₜ-trans (<:ₜ-msg P₁<<:P₂ N₁<:N₂) (<:ₜ-msg P₂<<:P₃ N₂<:N₃) = <:ₜ-msg (<<:ₚ′-trans P₁<<:P₂ P₂<<:P₃) (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 <:ₜ-trans (<:ₜ-data N₁<:N₂) (<:ₜ-data N₂<:N₃) = <:ₜ-data (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 
+
 -- utility
 
 <:ₜ-eq-ty : (N₁ : NormalTy T₁) (N₂ : NormalTy T₂) → T₁ ≡ T₂ → N₁ <:ₜ N₂
@@ -150,6 +152,19 @@ _<<:ₜ[_]_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → Polarity → N
 N₁ <<:ₜ[ ⊕ ] N₂ = N₁ <:ₜ N₂
 N₁ <<:ₜ[ ⊝ ] N₂ = N₂ <:ₜ N₁
 
+<<:ₜ-refl : ∀ {p} (N : NormalTy T) → N <<:ₜ[ p ] N
+<<:ₜ-refl {p = ⊕} N = <:ₜ-refl N
+<<:ₜ-refl {p = ⊝} N = <:ₜ-refl N
+
+<<:ₜ-refl-eq : ∀ {p} (N₁ : NormalTy T₁) (N₂ : NormalTy T₂) (eq : T₁ ≡ T₂) → N₁ <<:ₜ[ p ] N₂
+<<:ₜ-refl-eq N₁ N₂ refl
+  rewrite nt-unique N₁ N₂ = <<:ₜ-refl N₂
+
+
+<<:ₜ-trans : ∀ {p} {T₁ T₂ T₃ : Ty Δ (KV pk m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂} {N₃ : NormalTy T₃} → N₁ <<:ₜ[ p ] N₂ → N₂ <<:ₜ[ p ] N₃ → N₁ <<:ₜ[ p ] N₃
+<<:ₜ-trans {p = ⊕} N₁<<:N₂ N₂<<:N₃ = <:ₜ-trans N₁<<:N₂ N₂<<:N₃
+<<:ₜ-trans {p = ⊝} N₁<<:N₂ N₂<<:N₃ = <:ₜ-trans N₂<<:N₃ N₁<<:N₂
+
 
 <<:ₜ-var : ∀ {p} {T : Ty Δ (KV pk m)} {nv : NormalVar T} → N-Var nv <<:ₜ[ p ] N-Var nv
 <<:ₜ-var {p = ⊕} = <:ₜ-var
@@ -158,6 +173,10 @@ N₁ <<:ₜ[ ⊝ ] N₂ = N₂ <:ₜ N₁
 <<:ₜ-base : N-Base{Δ = Δ} <<:ₜ[ p ] N-Base
 <<:ₜ-base {p = ⊕} = <:ₜ-base
 <<:ₜ-base {p = ⊝} = <:ₜ-base
+
+<<:ₜ-end : N-End{Δ = Δ} <<:ₜ[ p ] N-End
+<<:ₜ-end {p = ⊕} = <:ₜ-end
+<<:ₜ-end {p = ⊝} = <:ₜ-end
 
 -- <<:ₜ-msg : ∀ {p p₀} {P₁ P₂ : Ty Δ KP}{S₁ S₂ : Ty Δ (KV KS Lin)}
 --           {NP₁ : NormalProto′ P₁}{NP₂ : NormalProto′ P₂}{NS₁ : NormalTy S₁} {NS₂ : NormalTy S₂}
