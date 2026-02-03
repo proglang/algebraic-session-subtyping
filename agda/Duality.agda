@@ -3,7 +3,7 @@ module Duality where
 open import Data.Sum
 open import Relation.Nullary using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl; sym)
+open Eq using (_≡_; refl; sym; trans; cong)
 
 open import Ext
 open import Kinds
@@ -87,6 +87,8 @@ invert-mult-⊙ : ∀ p {⊙} → invert (mult ⊙ p) ≡ mult ⊙ (invert p)
 invert-mult-⊙ p {⊕} = refl
 invert-mult-⊙ p {⊝} = refl
 
+invert-mult-invert : invert (mult p₁ (invert p₂)) ≡ mult p₁ p₂
+invert-mult-invert {p₁}{p₂} = trans (cong invert (sym (invert-mult-⊙ p₂ {p₁}))) invert-involution
 
 data Dualizable : Kind → Set where
   D-S : Dualizable (KV KS m)
