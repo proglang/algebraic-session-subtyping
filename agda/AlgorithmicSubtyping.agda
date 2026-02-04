@@ -178,6 +178,11 @@ N₁ <<:ₜ[ ⊝ ] N₂ = N₂ <:ₜ N₁
 <<:ₜ-end {p = ⊕} = <:ₜ-end
 <<:ₜ-end {p = ⊝} = <:ₜ-end
 
+<<:ₜ-sub : ∀ {f₁ f₂} {N₁ : NormalTy (nf p f₁ T₁)}{N₂ : NormalTy (nf p f₂ T₂)}
+  → {km≤ : KV pk m ≤k KV pk′ m′} → N₁ <<:ₜ[ p ] N₂ → N-Sub {pk = pk}{m = m}{km≤ = km≤} N₁ <<:ₜ[ p ] N-Sub{pk = pk}{m = m}{km≤ = km≤} N₂
+<<:ₜ-sub {⊕} N₁<:N₂ = <:ₜ-sub N₁<:N₂
+<<:ₜ-sub {⊝} N₁<:N₂ = <:ₜ-sub N₁<:N₂
+
 -- <<:ₜ-msg : ∀ {p p₀} {P₁ P₂ : Ty Δ KP}{S₁ S₂ : Ty Δ (KV KS Lin)}
 --           {NP₁ : NormalProto′ P₁}{NP₂ : NormalProto′ P₂}{NS₁ : NormalTy S₁} {NS₂ : NormalTy S₂}
 --           → NP₁ <<:ₚ′[ injᵥ (mult p p₀) ] NP₂
