@@ -200,8 +200,11 @@ complete-algₜ {p = p} {T₁ = T₁} {T₃} {f₁ = f₁} {f₂} {N₁ = N₁} 
   using N₁<<:N₂ ← complete-algₜ {T₁ = T₁}{T₂}{N₁ = N₁}{N₂ = N₂} T₁<:T₂
   using N₂<<:N₁ ← complete-algₜ {T₁ = T₂}{T₃}{N₁ = N₂}{N₂ = N₃} T₂<:T₃
   = <<:ₜ-trans N₁<<:N₂ N₂<<:N₁
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub {T₁ = T₁}{T₂ = T₂} K≤K′ T₁<:T₂) = <<:ₜ-sub{T₁ = T₁}{T₂ = T₂}{f₁ = λ x → dualizable-sub (f₁ x) K≤K′}{f₂ = λ x → dualizable-sub (f₂ x) K≤K′}{km≤ = K≤K′} (complete-algₜ {p = p} {N₁ = N₁}{N₂ = N₂} T₁<:T₂)
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N₂} <:-sub-dual-l = {!!}
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub {T₁ = T₁}{T₂ = T₂} K≤K′ T₁<:T₂)
+  = <<:ₜ-sub{T₁ = T₁}{T₂ = T₂}{f₁ = λ x → dualizable-sub (f₁ x) K≤K′}{f₂ = λ x → dualizable-sub (f₂ x) K≤K′}{km≤ = K≤K′} (complete-algₜ {p = p} {N₁ = N₁}{N₂ = N₂} T₁<:T₂)
+complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub-dual-l {T = T} {K≤K′ = K≤K′})
+  using eq-T ← cong (λ f → nf (invert p) f T) (dual-all-irrelevant (const D-S) (λ x₁ → dualizable-sub D-S K≤K′))
+  = <<:ₜ-sub{p = p} {f₁ = const D-S}{f₂ = const (dualizable-sub D-S K≤K′)} {km≤ = K≤K′} (<<:ₜ-refl-eq {T₁ = nf (invert p) (λ x₁ → dualizable-sub D-S K≤K′) T}{T₂ = nf (invert p) (λ x₁ → D-S) T} N₁ N₂ (sym eq-T))
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-sub-dual-r = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var = {!!}
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var = {!N₁!}
