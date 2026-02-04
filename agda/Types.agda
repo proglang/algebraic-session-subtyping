@@ -537,6 +537,8 @@ module _ where
   nt-unique (N-Msg {T = T} p NP₁ N₁) (N-Msg p₁ NP₂ N₂) = cong₂ (N-Msg p) (np′-unique {P = T} NP₁ NP₂) (nt-unique N₁ N₂)
   nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
 
+  nt-unique-eq : ∀ {T₁ T₂ : Ty Δ (KV pk m)} → (T≡ : T₂ ≡ T₁) → (N₁ : NormalTy T₁) (N₂ : NormalTy T₂) →  N₁ ≡ subst NormalTy T≡ N₂
+  nt-unique-eq refl N₁ N₂ = nt-unique N₁ N₂
 
   t-loop-nf-ident : ∀ {p} (T : Ty Δ KP) → NormalProto T
     → t-loop p T ≡ (p , T) ⊎ t-loop p T ≡ (invert p , t-minus T)
