@@ -310,6 +310,20 @@ module _ where
   t-loop-minus {p = p} (T-Minus T) rewrite invert-involution {p} = t-loop-plus T
   t-loop-minus (T-ProtoP x x₁ T) = refl
 
+  t-loop-minus-invert : (T : Ty Δ KP) → t-loop (invert p) (t-minus T) ≡ t-loop p T
+  t-loop-plus-invert : (T : Ty Δ KP) → t-loop (invert p) (t-plus T) ≡ t-loop (invert p) T
+
+  t-loop-minus-invert {p = p} (T-Var x) rewrite invert-involution {p} = refl
+  t-loop-minus-invert {p = p} (T-Up T) rewrite invert-involution {p} = refl
+  t-loop-minus-invert (T-Minus T) = t-loop-plus-invert T
+  t-loop-minus-invert {p = p} (T-ProtoP x x₁ T) rewrite invert-involution {p} = refl
+
+  t-loop-plus-invert (T-Var x) = refl
+  t-loop-plus-invert (T-Up T) = refl
+  t-loop-plus-invert {p = p} (T-Minus T) rewrite invert-involution {p} = t-loop-minus-invert T
+  t-loop-plus-invert (T-ProtoP x x₁ T) = refl
+
+
   t-msg-plus : (T : Ty Δ KP) → t-msg p (t-plus T) S ≡ t-msg p T S
   t-msg-minus : (T : Ty Δ KP) → t-msg p (t-minus T) S ≡ t-msg (invert p) T S
 
