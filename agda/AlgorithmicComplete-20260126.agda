@@ -202,18 +202,48 @@ complete-algₜ {p = p} {T₁ = T₁} {T₃} {f₁ = f₁} {f₂} {N₁ = N₁} 
   = <<:ₜ-trans N₁<<:N₂ N₂<<:N₁
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub {T₁ = T₁}{T₂ = T₂} K≤K′ T₁<:T₂)
   = <<:ₜ-sub{T₁ = T₁}{T₂ = T₂}{f₁ = λ x → dualizable-sub (f₁ x) K≤K′}{f₂ = λ x → dualizable-sub (f₂ x) K≤K′}{km≤ = K≤K′} (complete-algₜ {p = p} {N₁ = N₁}{N₂ = N₂} T₁<:T₂)
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub-dual-l {T = T} {K≤K′ = K≤K′})
-  using eq-T ← cong (λ f → nf (invert p) f T) (dual-all-irrelevant (const D-S) (λ x₁ → dualizable-sub D-S K≤K′))
-  = <<:ₜ-sub{p = p} {f₁ = const D-S}{f₂ = const (dualizable-sub D-S K≤K′)} {km≤ = K≤K′} (<<:ₜ-refl-eq {T₁ = nf (invert p) (λ x₁ → dualizable-sub D-S K≤K′) T}{T₂ = nf (invert p) (λ x₁ → D-S) T} N₁ N₂ (sym eq-T))
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-sub-dual-r = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var = {!N₁!}
+complete-algₜ {p = p} {T₁ = T-Dual D-S (T-Sub (≤k-step ≤p-refl _) T)} {T₂ = T-Sub K≤K′ (T-Dual D-S T)} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} (<:-sub-dual-l {T = T} {K≤K′ = K≤K′})
+  rewrite nt-unique N₁ N₂
+  = <<:ₜ-sub-invert {p = p}{T₁ = T}{T₂ = T}{f₁ = const D-S}{f₂ = const D-S}{km≤ = K≤K′} (<<:ₜ-refl {T = (nf (invert p) (λ x₁ → D-S) T)} N₂)
+complete-algₜ {p = p} {T₁ = T-Sub K≤K′ (T-Dual D-S T)} {T₂ = T-Dual D-S (T-Sub (≤k-step ≤p-refl _) T)} {f₁ = f₁} {f₂} {N₁ = N-Sub N₁} {N-Sub N₂} <:-sub-dual-r
+  rewrite nt-unique N₁ N₂
+  = <<:ₜ-sub-invert {p = p}{T₁ = T}{T₂ = T}{f₁ = const D-S}{f₂ = const D-S}{km≤ = K≤K′} (<<:ₜ-refl {T = (nf (invert p) (λ x₁ → D-S) T)} N₂)
+complete-algₜ {p = ⊕}{T₁ = T-Var x} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var
+  rewrite nt-unique N₁ N₂
+  = <<:ₜ-refl {T = T-Var x}{⊕} N₂
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-var
+  rewrite dual-all-irrelevant f₁ f₂ | nt-unique N₁ N₂
+  = <<:ₜ-refl {T = T-Dual _ (T-Var _)} {p = ⊝} N₂
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var
+  rewrite nt-unique N₁ N₂
+  = <<:ₜ-refl {T = T-Dual D-S (T-Var _)} {p = ⊕} N₂
+complete-algₜ {p = ⊝} {T₁ = T-Dual D-S (T-Var x)} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} <:-dual-var
+  rewrite nt-unique N₁ N₂
+  = <<:ₜ-refl {T = T-Var x}{⊝} N₂
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Base} {N-Base} <:-base = <<:ₜ-base
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} (<:-fun T₁<:T₂ T₁<:T₃) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (<:-protoD T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Poly N₁} {N-Poly N₂} (<:-all T₁<:T₂) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-l-new refl) = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-msg-r-new refl) = {!!}
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} (<:-fun T₁<:T₂ T₁<:T₃) = <:ₜ-arrow (complete-algₜ {N₁ = N₂}{N₂ = N₁} T₁<:T₂) (complete-algₜ {N₁ = N₃} {N₂ = N₄} T₁<:T₃)
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} (<:-fun {≤pk = ≤p-refl} T₁<:T₂ T₁<:T₃)
+  with () ←  f₁ refl
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} (<:-fun {≤pk = ≤p-step <p-mt} T₁<:T₂ T₁<:T₃)
+  with () ← f₁ refl
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (<:-protoD T₁<:T₂) = <:ₜ-data (complete-algₜ {N₁ = N₁} {N₂ = N₂} T₁<:T₂)
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (<:-protoD T₁<:T₂)
+  with () ← f₁ refl
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Poly N₁} {N-Poly N₂} (<:-all T₁<:T₂) = <:ₜ-poly (complete-algₜ {N₁ = N₁} {N₂ = N₂} T₁<:T₂)
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Poly N₁} {N-Poly N₂} (<:-all T₁<:T₂)
+  with () ← f₁ refl
+complete-algₜ {p = ⊕} {T₁ = T-Msg p₁ T₁ (T-Dual D-S S₁)} {T₂ = T-Dual D-S (T-Msg .(invert p₁) T₁ S₁)} {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} (<:-dual-msg-l-new refl)
+  rewrite invert-involution {p₁} | nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
+  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
+complete-algₜ {p = ⊝} {T₁ = T-Msg p₁ T₁ (T-Dual D-S S₁)} {T₂ = T-Dual D-S (T-Msg .(invert p₁) T₁ S₁)} {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} (<:-dual-msg-l-new refl)
+  rewrite nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
+  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
+complete-algₜ {p = ⊕} {T₁ = T-Dual D-S (T-Msg p₁ T S)} {T₂ = T-Msg p₁′ T (T-Dual D-S S)} {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} (<:-dual-msg-r-new refl)
+  rewrite invert-involution {p₁′} | nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
+  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
+complete-algₜ {p = ⊝} {T₁ = T-Dual D-S (T-Msg p₁ T S)} {T₂ = T-Msg p₁′ T (T-Dual D-S S)} {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} (<:-dual-msg-r-new refl)
+  rewrite nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
+  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} <:-dual-end-l = <<:ₜ-end
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} <:-dual-end-r = <<:ₜ-end
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} <:-end = <<:ₜ-end
@@ -223,12 +253,20 @@ complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-
 complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} (<:-dual-dual-r-new D-S)
   rewrite invert-involution {p} | dual-all-irrelevant (const D-S) f₁ | nt-unique N₁ N₂
   = <<:ₜ-refl N₂
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-msg-minus {p₁ = p₃} {T} refl)
-  rewrite t-loop-minus {p = mult p p₃} (nf ⊕ d?⊥ T)
-  = {!!}
-complete-algₜ {p = p} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-minus-msg {p₂ = p₃} {T = T} refl)
-  rewrite t-loop-minus {p = mult p (invert p₃)} (nf ⊕ d?⊥ T) | invert-mult-invert {p}{p₃}
-  = {!<:-msg!}
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-msg-minus {p₁ = p₃} {T} refl)
+  rewrite t-loop-minus {p = p₃} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ | nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
+  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
+complete-algₜ {p = ⊝} {T₁ = T-Msg p (T-Minus T) S}{T₂ = T-Msg .(invert p) T S} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-msg-minus {p₁ = p₃} refl)
+  rewrite invert-involution {p₃}
+  rewrite t-loop-minus-invert {p = p} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ | nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
+  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
+complete-algₜ {p = ⊕} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-minus-msg {p₂ = p₃} {T = T} refl)
+  rewrite t-loop-minus-invert {p = p₃} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ |  nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
+  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
+complete-algₜ {p = ⊝} {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} (<:-minus-msg {p₂ = p₃} {T = T} refl)
+  rewrite invert-involution {p₃} | t-loop-minus {p = p₃} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ |  nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
+  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
+
 
 -- -- complete-algₚ-inverted {f₁ = f₁} {f₂} {N₁} {N₂} <:-refl
 -- --   rewrite dual-all-irrelevant {⊕} f₁ f₂ | np-unique N₁ N₂ = <:ₚ-refl N₂
