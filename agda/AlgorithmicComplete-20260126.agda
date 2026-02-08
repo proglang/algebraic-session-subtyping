@@ -79,10 +79,10 @@ complete-algₚ-inverted : ∀ {T₁ T₂ : Ty Δ KP}
   → T₁ <: T₂
   → N₂ <:ₚ N₁
 
-complete-algₚ′ : ∀ {T₁ T₂ : Ty Δ KP}
-  {f₁ f₂} {N₁ : NormalProto′ (nf ⊕ f₁ T₁)}{N₂ : NormalProto′ (nf ⊕ f₂ T₂)}
-  → T₁ <: T₂
-  → N₁ <:ₚ′ N₂
+-- complete-algₚ′ : ∀ {T₁ T₂ : Ty Δ KP}
+--   {f₁ f₂} {N₁ : NormalProto′ (nf ⊕ f₁ T₁)}{N₂ : NormalProto′ (nf ⊕ f₂ T₂)}
+--   → T₁ <: T₂
+--   → N₁ <:ₚ′ N₂
 
 complete-<<:ₚ : ∀ {⊙} {T₁ T₂ : Ty Δ KP}
   {f₁ f₂} {N₁ : NormalProto (nf ⊕ f₁ T₁)}{N₂ : NormalProto (nf ⊕ f₂ T₂)}
@@ -103,6 +103,42 @@ complete-algₜ : ∀ {p : Polarity} {T₁ T₂ : Ty Δ (KV pk m)}
   {f₁ f₂} {N₁ : NormalTy (nf p f₁ T₁)}{N₂ : NormalTy (nf p f₂ T₂)}
   → T₁ <: T₂
   → N₁ <<:ₜ[ p ] N₂
+
+----
+
+complete-algₚ {T₁ = T₁} {T₃} {f₁} {f₂} {N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
+  using N₂ ← nf-normal-proto T₂
+  rewrite dual-all-irrelevant f₁ d?⊥ | dual-all-irrelevant f₂ d?⊥
+  = <:ₚ-trans (complete-algₚ {N₁ = N₁} {N₂ = N₂} T₁<:T₂) (complete-algₚ {N₁ = N₂} {N₂ = N₃} T₂<:T₃)
+complete-algₚ {T₁ = T₁} {T₂} {f₁} {f₂} {N-Normal N-Var} {N-Normal N-Var} <:-var = <:ₚ-plus <:ₚ′-var
+complete-algₚ {T₁ = T₁} {T₂} {f₁} {f₂} {N-Normal (N-Up N₁)} {N-Normal (N-Up N₂)} (<:-up T₁<:T₂) = <:ₚ-plus (<:ₚ′-up (complete-algₜ {N₁ = N₁}{N₂ = N₂} T₁<:T₂))
+complete-algₚ {T₁ = T₁} {T₂} {f₁} {f₂} {N-Normal (N-ProtoP N₁)} {N-Normal (N-ProtoP N₂)} (<:-proto #c⊆#d T₁<<:T₂) = <:ₚ-plus (<:ₚ′-proto #c⊆#d (complete-<<:ₚ {N₁ = N₁} {N₂ = N₂} T₁<<:T₂))
+complete-algₚ {T₁ = T-Minus T₁} {T-Minus T₂} {f₁} {f₂} {N₁} {N₂} (<:-minus T₁<:T₂) = complete-algₚ-inverted {N₁ = N₂} {N₂ = N₁} T₁<:T₂
+complete-algₚ {T₁ = T-Minus (T-Minus T₁)} {T₂} {f₁} {f₂} {N₁} {N₂} (<:-minus-minus-l T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = complete-algₚ {N₁ = N₁} {N₂ = N₂} T₁<:T₂
+complete-algₚ {T₁ = T₁} {T-Minus (T-Minus T₂)} {f₁} {f₂} {N₁} {N₂} (<:-minus-minus-r T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-algₚ {N₁ = N₁} {N₂ = N₂} T₁<:T₂
+
+----
+
+complete-algₚ-inverted {T₁ = T₁} {T₃} {f₁} {f₂} {N₁} {N₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃)
+  using N₂ ← nf-normal-proto T₂
+  rewrite dual-all-irrelevant f₁ d?⊥ | dual-all-irrelevant f₂ d?⊥
+   = <:ₚ-trans {!!} {!!}
+complete-algₚ-inverted {T₁ = T₁} {T₂} {f₁} {f₂} {N-Minus N-Var} {N-Minus N-Var} <:-var = <:ₚ-minus <:ₚ′-var
+complete-algₚ-inverted {T₁ = T₁} {T₂} {f₁} {f₂} {N-Minus (N-Up N₁)} {N-Minus (N-Up N₂)} (<:-up T₁<:T₂) = <:ₚ-minus (<:ₚ′-up (complete-algₜ {N₁ = N₁} {N₂ = N₂} T₁<:T₂))
+complete-algₚ-inverted {T₁ = T₁} {T₂} {f₁} {f₂} {N-Minus (N-ProtoP N₁)} {N-Minus (N-ProtoP N₂)} (<:-proto #c⊆#d T₁<<:T₂) = <:ₚ-minus (<:ₚ′-proto #c⊆#d (complete-<<:ₚ {N₁ = N₁} {N₂ = N₂} T₁<<:T₂))
+complete-algₚ-inverted {T₁ = T-Minus T₁} {T-Minus T₂} {f₁} {f₂} {N₁} {N₂} (<:-minus T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁) |  t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-algₚ {N₁ = N₂} {N₂ = N₁} T₁<:T₂
+complete-algₚ-inverted {T₁ = T-Minus (T-Minus T₁)} {T₂} {f₁} {f₂} {N₁} {N₂} (<:-minus-minus-l T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+  = complete-algₚ-inverted {N₁ = N₁}{N₂ = N₂} T₁<:T₂
+complete-algₚ-inverted {T₁ = T₁} {T-Minus (T-Minus T₂)} {f₁} {f₂} {N₁} {N₂} (<:-minus-minus-r T₁<:T₂)
+  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
+  = complete-algₚ-inverted {N₁ = N₁}{N₂ = N₂} T₁<:T₂
 
 ----
 
