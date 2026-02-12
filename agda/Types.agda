@@ -3,14 +3,14 @@ module Types where
 open import Data.Empty using (⊥-elim)
 open import Data.Fin
 open import Data.Fin.Subset as Subset using ()
-open import Data.Nat
+open import Data.Nat using (ℕ; zero; suc; _⊔_)
 open import Data.List
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary using (¬_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; inspect; Reveal_·_is_)
-open import Function using (const)
+open import Function using (const; case_of_; _$_)
 
 open import Util
 open import Kinds
@@ -176,21 +176,24 @@ module _ where
   sizeₚ : NormalProto T → ℕ
   sizeₚ′ : NormalProto′ T → ℕ
 
-  sizeₜ (N-Var x) = zero
-  sizeₜ N-Base = zero
-  sizeₜ (N-Arrow N₁ N₂) = suc (sizeₜ N₁ ⊔ sizeₜ N₂)
-  sizeₜ (N-Poly N) = suc (sizeₜ N)
-  sizeₜ (N-Sub N) = suc (sizeₜ N)
-  sizeₜ N-End = zero
-  sizeₜ (N-Msg p NP NS) = suc (sizeₚ′ NP ⊔ sizeₜ NS)
-  sizeₜ (N-ProtoD N) = suc (sizeₜ N)
+  sizeₜ N = suc $ case N of λ where
+    (N-Var x) →  zero
+    N-Base →  zero
+    (N-Arrow N₁ N₂) →  (sizeₜ N₁ ⊔ sizeₜ N₂)
+    (N-Poly N) →  (sizeₜ N)
+    (N-Sub N) →  (sizeₜ N)
+    N-End →  zero
+    (N-Msg p NP NS) →  (sizeₚ′ NP ⊔ sizeₜ NS)
+    (N-ProtoD N) →  (sizeₜ N)
 
-  sizeₚ′ (N-ProtoP N) = suc (sizeₚ N)
-  sizeₚ′ (N-Up N) = suc (sizeₜ N)
-  sizeₚ′ N-Var = zero
+  sizeₚ′ N = suc $ case N of λ where
+    (N-ProtoP N) → (sizeₚ N)
+    (N-Up N) → (sizeₜ N)
+    N-Var → zero
 
-  sizeₚ (N-Normal N) = suc (sizeₚ′ N)
-  sizeₚ (N-Minus N) = suc (sizeₚ′ N)
+  sizeₚ N = suc $ case N of λ where
+    (N-Normal N) → sizeₚ′ N
+    (N-Minus N) → sizeₚ′ N
 
   sizeₜ-subst : (N : NormalTy T₁) → (eq : T₁ ≡ T₂) → sizeₜ N ≡ sizeₜ (subst NormalTy eq N)
   sizeₜ-subst N refl = refl
