@@ -188,3 +188,10 @@ N₁ <<:ₜ[ ⊝ ] N₂ = N₂ <:ₜ N₁
 <<:ₜ-sub-invert {⊕} N₁<:N₂ = <:ₜ-sub N₁<:N₂
 <<:ₜ-sub-invert {⊝} N₁<:N₂ = <:ₜ-sub N₁<:N₂
 
+subst-<<: : {⊙ : Variance} {T₁ T₂ T₁′ T₂′ : Ty Δ KP} {N₁ : NormalProto′ T₁} {N₂ : NormalProto′ T₂}
+  → (eq₁ : T₁ ≡ T₁′) (eq₂ : T₂ ≡ T₂′)
+  → subst NormalProto′ eq₁ N₁ <<:ₚ′[ ⊙ ] subst NormalProto′ eq₂ N₂
+  → N₁ <<:ₚ′[ ⊙ ] N₂
+subst-<<: refl refl N₁<<:N₂ = N₁<<:N₂
+
+
