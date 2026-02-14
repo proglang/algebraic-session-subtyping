@@ -148,27 +148,27 @@ module _ where
   data NormalTy {Δ} : Ty Δ (KV pk m) → Set
   data NormalProto {Δ} : Ty Δ KP → Set
   data NormalProto′ {Δ} : Ty Δ KP → Set where
-    N-ProtoP : NormalProto T → NormalProto′ (T-ProtoP #c ⊙ T)
-    N-Up     : NormalTy T → NormalProto′ (T-Up T)
+    N-ProtoP : (N : NormalProto T) → NormalProto′ (T-ProtoP #c ⊙ T)
+    N-Up     : (N : NormalTy T) → NormalProto′ (T-Up T)
     N-Var    : {x : KP ∈ Δ} → NormalProto′ (T-Var x)
 
   data NormalProto {Δ} where
-    N-Normal : NormalProto′ T → NormalProto T
-    N-Minus  : NormalProto′ T → NormalProto (T-Minus T)
+    N-Normal : (NP : NormalProto′ T) → NormalProto T
+    N-Minus  : (NP : NormalProto′ T) → NormalProto (T-Minus T)
 
   data NormalVar {Δ} : Ty Δ K → Set where
     NV-Var  : {x : K ∈ Δ} → NormalVar (T-Var x)
     NV-Dual : (d : Dualizable K) → (x : K ∈ Δ) → NormalVar (T-Dual d (T-Var x))
 
   data NormalTy {Δ} where
-    N-Var    : NormalVar T → NormalTy T
+    N-Var    : (NV : NormalVar T) → NormalTy T
     N-Base   : NormalTy T-Base
-    N-Arrow  : {km : KM ≤p pk}{m : Multiplicity} → NormalTy T₁ → NormalTy T₂ → NormalTy (T-Arrow {m = m} km T₁ T₂)
-    N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → NormalTy T → NormalTy (T-Poly T)
-    N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → NormalTy T → NormalTy (T-Sub km≤ T)
+    N-Arrow  : {km : KM ≤p pk}{m : Multiplicity} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Arrow {m = m} km T₁ T₂)
+    N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → (N : NormalTy T) → NormalTy (T-Poly T)
+    N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → (N : NormalTy T) → NormalTy (T-Sub km≤ T)
     N-End    : NormalTy T-End
-    N-Msg    : ∀ p → NormalProto′ T → NormalTy S → NormalTy (T-Msg p T S)
-    N-ProtoD : NormalTy T → NormalTy (T-ProtoD T)
+    N-Msg    : ∀ p → (N : NormalProto′ T) → (NS : NormalTy S) → NormalTy (T-Msg p T S)
+    N-ProtoD : (N : NormalTy T) → NormalTy (T-ProtoD T)
 
   -- size of a normal form
 
