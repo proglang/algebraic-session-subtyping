@@ -90,6 +90,10 @@ invert-mult-⊙ p {⊝} = refl
 invert-mult-invert : invert (mult p₁ (invert p₂)) ≡ mult p₁ p₂
 invert-mult-invert {p₁}{p₂} = trans (cong invert (sym (invert-mult-⊙ p₂ {p₁}))) invert-involution
 
+mult-invert-invert⇒mult : ∀ p₁ p₂ → mult (invert p₁) (invert p₂) ≡ mult p₁ p₂
+mult-invert-invert⇒mult ⊕ p₂ = invert-involution
+mult-invert-invert⇒mult ⊝ p₂ = refl
+
 data Dualizable : Kind → Set where
   D-S : Dualizable (KV KS m)
 
