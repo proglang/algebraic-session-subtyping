@@ -233,6 +233,9 @@ module _ where
     ≡c-up : T₁ ≡c T₂ → T-Up T₁ ≡c T-Up T₂
     ≡c-minus : T₁ ≡c T₂ → T-Minus T₁ ≡c T-Minus T₂
 
+  ≡c-refl-eq : ∀ {T₁ T₂ : Ty Δ K} → T₁ ≡ T₂ → T₁ ≡c T₂
+  ≡c-refl-eq refl = ≡c-refl
+
   -- smart constructors
 
   t-loop : Polarity → Ty Δ KP → Polarity × Ty Δ KP
@@ -556,6 +559,12 @@ module _ where
 
   nt-unique-eq : ∀ {T₁ T₂ : Ty Δ (KV pk m)} → (T≡ : T₂ ≡ T₁) → (N₁ : NormalTy T₁) (N₂ : NormalTy T₂) →  N₁ ≡ subst NormalTy T≡ N₂
   nt-unique-eq refl N₁ N₂ = nt-unique N₁ N₂
+
+  np-unique-eq : ∀ {T₁ T₂ : Ty Δ KP} → (T≡ : T₂ ≡ T₁) → (N₁ : NormalProto T₁) (N₂ : NormalProto T₂) →  N₁ ≡ subst NormalProto T≡ N₂
+  np-unique-eq refl N₁ N₂ = np-unique N₁ N₂
+
+  np′-unique-eq : ∀ {T₁ T₂ : Ty Δ KP} → (T≡ : T₂ ≡ T₁) → (N₁ : NormalProto′ T₁) (N₂ : NormalProto′ T₂) →  N₁ ≡ subst NormalProto′ T≡ N₂
+  np′-unique-eq refl N₁ N₂ = np′-unique N₁ N₂
 
   t-loop-nf-ident : ∀ {p} (T : Ty Δ KP) → NormalProto T
     → t-loop p T ≡ (p , T) ⊎ t-loop p T ≡ (invert p , t-minus T)
