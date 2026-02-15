@@ -23,6 +23,7 @@ open import Types
 open import Subtyping
 open import SubtypingProperties
 open import AlgorithmicSubtyping
+open import AlgorithmicSound
 
 ⊔-≤ₗ : ∀ {m n o} → m ⊔ n ≤ o → m ≤ o
 ⊔-≤ₗ {zero} mn≤o = z≤n
@@ -319,11 +320,21 @@ complete-algₜ {n = suc n} {p = ⊝} (<:-minus-msg {p₂ = p₃} {T = T} refl) 
   = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
 
 
--- {- TODO:
--- subty⇒conv : {T₁ T₂ : Ty Δ K} → T₁ <: T₂ → T₂ <: T₁ → T₁ ≡c T₂
--- subty⇒conv {K = KV x x₁}{T₁ = T₁}{T₂ = T₂} T₁<:T₂ T₂<:T₁
---   using N₁<:N₂ ← complete-algₜ {N₁ = {!nf-normal-type ⊕ d?⊥ T₁ !}}T₁<:T₂
---   using N₂<:N₁ ← complete-algₜ T₂<:T₁ = {! !}
--- subty⇒conv {K = KP} T₁<:T₂ T₂<:T₁ = {!!}
 
--- -}
+subty⇒conv : {T₁ T₂ : Ty Δ K} → T₁ <: T₂ → T₂ <: T₁ → T₁ ≡c T₂
+subty⇒conv {K = KV x x₁}{T₁ = T₁}{T₂ = T₂} T₁<:T₂ T₂<:T₁
+  using N₁ ← nf-normal-type ⊕ d?⊥ T₁
+  using N₂ ← nf-normal-type ⊕ d?⊥ T₂
+  using N₁<:N₂ ← complete-algₜ {n = sizeₜ N₁ ⊔ sizeₜ N₂} T₁<:T₂ {N₁ = N₁} {N₂ = N₂} ≤-refl
+  using N₂<:N₁ ← complete-algₜ {n = sizeₜ N₂ ⊔ sizeₜ N₁} T₂<:T₁ {N₁ = N₂} {N₂ = N₁} ≤-refl
+  using nfT₁≡nfT₂ ← <:ₜ-pre-antisym N₁<:N₂ N₂<:N₁
+  = ≡c-trns (≡c-trns (≡c-symm (nf-sound+ T₁)) (≡c-refl-eq nfT₁≡nfT₂)) (nf-sound+ T₂)
+
+subty⇒conv {K = KP} {T₁} {T₂} T₁<:T₂ T₂<:T₁
+  using N₁ ← nf-normal-proto T₁
+  using N₂ ← nf-normal-proto T₂
+  using N₁<:N₂ ← complete-algₚ {n = sizeₚ N₁ ⊔ sizeₚ N₂} T₁<:T₂ {N₁ = N₁} {N₂ = N₂} ≤-refl
+  using N₂<:N₁ ← complete-algₚ {n = sizeₚ N₂ ⊔ sizeₚ N₁} T₂<:T₁ {N₁ = N₂} {N₂ = N₁} ≤-refl
+  using nfT₁≡nfT₂ ← <:ₚ-pre-antisym N₁<:N₂ N₂<:N₁
+  = ≡c-trns (≡c-trns (≡c-symm (nf-sound+ T₁)) (≡c-refl-eq nfT₁≡nfT₂)) (nf-sound+ T₂)
+
