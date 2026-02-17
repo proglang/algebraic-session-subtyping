@@ -194,4 +194,5 @@ subst-<<: : {⊙ : Variance} {T₁ T₂ T₁′ T₂′ : Ty Δ KP} {N₁ : Norm
   → N₁ <<:ₚ′[ ⊙ ] N₂
 subst-<<: refl refl N₁<<:N₂ = N₁<<:N₂
 
-
+subst-<:ₚ : ∀ {T₁ T₂ T₂′ : Ty Δ KP} {N₁ : NormalProto T₁} {N₂ : NormalProto T₂} → (eq : T₂ ≡ T₂′) → N₁ <:ₚ subst NormalProto eq N₂ → N₁ <:ₚ N₂
+subst-<:ₚ refl N₁<:N₂ = N₁<:N₂
