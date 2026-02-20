@@ -1,5 +1,9 @@
 module Kinds where
 
+open import Relation.Nullary using (¬_; Dec; yes; no)
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst)
+
 open import Util
 
 data Multiplicity : Set where
@@ -45,6 +49,27 @@ MUn  = KV KM Un
 
 -- properties
 
+-- irrelevance
+
+≤m-irrelevant : ∀ {m₁ m₂} (≤m₁ ≤m₂ : m₁ ≤m m₂) → ≤m₁ ≡ ≤m₂
+≤m-irrelevant ≤m-refl ≤m-refl = refl
+≤m-irrelevant ≤m-unl ≤m-unl = refl
+
+<p-irrelevant : ∀ {pk₁ pk₂} (<p₁ <p₂ : pk₁ <p pk₂) → <p₁ ≡ <p₂
+<p-irrelevant <p-sm <p-sm = refl
+<p-irrelevant <p-mt <p-mt = refl
+<p-irrelevant <p-st <p-st = refl
+
+≤p-irrelevant : ∀ {pk₁ pk₂} (≤pk₁ ≤pk₂ : pk₁ ≤p pk₂) → ≤pk₁ ≡ ≤pk₂
+≤p-irrelevant ≤p-refl ≤p-refl = refl
+≤p-irrelevant (≤p-step <p-sm) (≤p-step <p-sm) = refl
+≤p-irrelevant (≤p-step <p-mt) (≤p-step <p-mt) = refl
+≤p-irrelevant (≤p-step <p-st) (≤p-step <p-st) = refl
+
+≤k-irrelevant : ∀ {K₁ K₂} (≤k₁ ≤k₂ : K₁ ≤k K₂) → ≤k₁ ≡ ≤k₂
+≤k-irrelevant ≤k-top ≤k-top = refl
+≤k-irrelevant (≤k-step ≤pk₁ ≤m₁) (≤k-step ≤pk₂ ≤m₂) = cong₂ ≤k-step (≤p-irrelevant ≤pk₁ ≤pk₂) (≤m-irrelevant ≤m₁ ≤m₂)
+
 -- reflexivity
 
 ≤k-refl : K ≤k K
@@ -68,3 +93,35 @@ MUn  = KV KM Un
 ≤k-trans : K₁ ≤k K₂ → K₂ ≤k K₃ → K₁ ≤k K₃
 ≤k-trans ≤k-top ≤k-top = ≤k-top
 ≤k-trans (≤k-step pk₁≤pk₂ m₁≤m₂) (≤k-step pk₂≤pk₃ m₂≤m₃) = ≤k-step (≤p-trans pk₁≤pk₂ pk₂≤pk₃) (≤m-trans m₁≤m₂ m₂≤m₃)
+
+-- decidability
+
+eq-multiplicity : ∀ (m₁ m₂ : Multiplicity) → Dec (m₁ ≡ m₂)
+eq-multiplicity Lin Lin = yes refl
+eq-multiplicity Lin Un = no λ()
+eq-multiplicity Un Lin = no λ()
+eq-multiplicity Un Un = yes refl
+
+eq-prekind : ∀ (pk₁ pk₂ : PreKind) → Dec (pk₁ ≡ pk₂)
+eq-prekind KM KM = yes refl
+eq-prekind KM KS = no λ()
+eq-prekind KM KT = no λ()
+eq-prekind KS KM = no λ()
+eq-prekind KS KS = yes refl
+eq-prekind KS KT = no λ()
+eq-prekind KT KM = no λ()
+eq-prekind KT KS = no λ()
+eq-prekind KT KT = yes refl
+
+eq-kind : ∀ (K₁ K₂ : Kind) → Dec (K₁ ≡ K₂)
+eq-kind (KV pk₁ m₁) (KV pk₂ m₂)
+  with eq-prekind pk₁ pk₂
+... | no pk≢ = no (λ{ refl → pk≢ refl})
+... | yes refl
+  with eq-multiplicity m₁ m₂
+... | no m≢ = no (λ{refl → m≢ refl})
+... | yes refl = yes refl
+eq-kind (KV _ _) KP = no λ()
+eq-kind KP (KV _ _) = no λ()
+eq-kind KP KP = yes refl
+
