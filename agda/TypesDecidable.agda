@@ -21,6 +21,12 @@ open import Duality
 open import Kits
 open import Types
 
+polarity-equal : (p₁ p₂ : Polarity) → Dec (p₁ ≡ p₂)
+polarity-equal ⊕ ⊕ = yes refl
+polarity-equal ⊕ ⊝ = no λ()
+polarity-equal ⊝ ⊕ = no λ()
+polarity-equal ⊝ ⊝ = yes refl
+
 ⊙-equal : (v₁ v₂ : Variance) → Dec (v₁ ≡ v₂)
 ⊙-equal ⊕ ⊕ = yes refl
 ⊙-equal ⊕ ⊝ = no λ()
@@ -113,7 +119,13 @@ ty-equal (T-Msg x T₁ T₂) (T-Var x₁) = no λ()
 ty-equal (T-Msg x T₁ T₂) (T-Arrow x₁ T₃ T₄) = no λ()
 ty-equal (T-Msg x T₁ T₂) (T-Sub x₁ T₃) = no λ()
 ty-equal (T-Msg x T₁ T₂) (T-Dual x₁ T₃) = no λ()
-ty-equal (T-Msg x T₁ T₂) (T-Msg x₁ T₃ T₄) = {!!}
+ty-equal (T-Msg p₁ T₁ S₁) (T-Msg p₂ T₂ S₂)
+  with polarity-equal p₁ p₂
+... | no p₁≢p₂ = no (λ{ refl → p₁≢p₂ refl })
+... | yes refl
+  with ty-equal T₁ T₂
+... | no T₁≢T₂ = no (λ{ refl → T₁≢T₂ refl })
+... | yes refl = map′ (cong (T-Msg p₁ T₁)) (λ{ refl → refl }) (ty-equal S₁ S₂)
 ty-equal (T-Up T₁) (T-Var x) = no λ()
 ty-equal (T-Up {pk₁}{m₁} T₁) (T-Up {pk₂}{m₂} T₂)
   with eq-prekind pk₁ pk₂
