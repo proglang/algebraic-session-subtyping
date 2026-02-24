@@ -107,6 +107,10 @@ complete-algₚ (suc n) {T₁ = T-Minus T₁} {T-Minus T₂} (<:-minus T₁<:T�
 complete-algₚ (suc n) {T₁ = T-Minus (T-Minus T₁)} {T₂}  (<:-minus-minus-l T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
   rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
   = complete-algₚ (suc n) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
+-- complete-algₚ (suc n) {T₁ = T-Minus (T-Minus T₁)} {T₂}  (<:-minus-minus-l T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
+--   = let eq = t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
+--         r  = complete-algₚ (suc n) T₁<:T₂ {N₁ = subst NormalProto eq N₁} {N₂ = N₂} (≤-trans (≤-reflexive (cong (_⊔ sizeₚ N₂) (sym $ sizeₚ-subst N₁ eq))) sz≤)
+--     in {!subst-<:ₚ ? r!}
 complete-algₚ (suc n) {T₁ = T₁} {_} (<:-minus-minus-r {T₂ = T₃} T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
   using eq ← t-minus-involution (nf ⊕ d?⊥ T₃) (nf-normal-proto T₃)
   using r ← complete-algₚ (suc n) T₁<:T₂ {N₁ = N₁} {N₂ = subst NormalProto eq N₂} (≤-trans (≤-reflexive (cong (sizeₚ N₁ ⊔_) (sym $ sizeₚ-subst N₂ eq))) sz≤)
