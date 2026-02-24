@@ -537,6 +537,10 @@ module _ where
   nv-unique NV-Var NV-Var = refl
   nv-unique (NV-Dual d x) (NV-Dual d₁ x₁) = refl
 
+  nv-unique′ : ∀ {T : Ty Δ (KV pk m)} (NV : NormalVar T) → nv-unique NV NV ≡ refl
+  nv-unique′ NV-Var = refl
+  nv-unique′ (NV-Dual d x) = refl
+
   nt-unique : ∀ {T : Ty Δ (KV pk m)}(N₁ N₂ : NormalTy T) → N₁ ≡ N₂
   np′-unique : ∀ {P : Ty Δ KP} (NP₁ NP₂ : NormalProto′ P) → NP₁ ≡ NP₂
   np-unique : ∀ {P : Ty Δ KP} (NP₁ NP₂ : NormalProto P) → NP₁ ≡ NP₂
