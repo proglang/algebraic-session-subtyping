@@ -125,3 +125,20 @@ eq-kind (KV _ _) KP = no λ()
 eq-kind KP (KV _ _) = no λ()
 eq-kind KP KP = yes refl
 
+eq-kind′ : ∀ K → eq-kind K K ≡ yes refl
+eq-kind′ (KV KM Lin) = refl
+eq-kind′ (KV KM Un) = refl
+eq-kind′ (KV KS Lin) = refl
+eq-kind′ (KV KS Un) = refl
+eq-kind′ (KV KT Lin) = refl
+eq-kind′ (KV KT Un) = refl
+eq-kind′ KP = refl
+
+eq-prekind′ : ∀ (pk : PreKind) → eq-prekind pk pk ≡ yes refl
+eq-prekind′ KM = refl
+eq-prekind′ KS = refl
+eq-prekind′ KT = refl
+
+eq-multiplicity′ : ∀ (m : Multiplicity) → eq-multiplicity m m ≡ yes refl
+eq-multiplicity′ Lin = refl
+eq-multiplicity′ Un = refl
