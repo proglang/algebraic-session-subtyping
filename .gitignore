@@ -1,2 +1,10 @@
 *.agdai
 MAlonzo/**
+*.zip
+.DS_Store
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz
