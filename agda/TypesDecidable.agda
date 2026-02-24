@@ -27,6 +27,10 @@ polarity-equal ⊕ ⊝ = no λ()
 polarity-equal ⊝ ⊕ = no λ()
 polarity-equal ⊝ ⊝ = yes refl
 
+polarity-equal′ : (p : Polarity) → polarity-equal p p ≡ yes refl
+polarity-equal′ ⊕ = refl
+polarity-equal′ ⊝ = refl
+
 ⊙-equal : (v₁ v₂ : Variance) → Dec (v₁ ≡ v₂)
 ⊙-equal ⊕ ⊕ = yes refl
 ⊙-equal ⊕ ⊝ = no λ()
@@ -46,6 +50,10 @@ var-equal (here refl) (here refl) = yes refl
 var-equal (here refl) (there x₂) = no λ()
 var-equal (there x₁) (here px) = no λ()
 var-equal (there x₁) (there x₂) = map′ (cong there) (λ{ refl → refl}) (var-equal x₁ x₂)
+
+var-equal′ : (x : K ∈ Δ) → var-equal x x ≡ yes refl
+var-equal′ (here refl) = refl
+var-equal′ (there x) rewrite var-equal′ x = refl
 
 ty-equal : (T₁ T₂ : Ty Δ K) → Dec (T₁ ≡ T₂)
 ty-equal (T-Var x) (T-Var x₁) = map′ (cong T-Var) (λ{refl → refl}) (var-equal x x₁)
