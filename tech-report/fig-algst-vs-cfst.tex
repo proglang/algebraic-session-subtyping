@@ -1,0 +1,21 @@
+\begin{figure}[t!]
+  \declrel{AlgST${}_0$ to CFST: Translation of algebraic to context-free session types}{$\algsttocfst{\typec T}=T$}
+ 
+    \begin{mathpar}
+    \algsttocfst{\TUnit} = \syntax{unit} \quad
+    \algsttocfst{\TFun[]TU} = \algsttocfst {\typec{T}} \rightarrow \algsttocfst {\typec{U}} \quad
+    \algsttocfst{\TPair TU} = \algsttocfst {\typec{T}} \times \algsttocfst {\typec{U}}\quad
+    \algsttocfst{\TForall{\alpha}{\kindt} T} = \forall \alpha. \algsttocfst {\typec{T}}\quad
+	\algsttocfst{\typec{\alpha}} = \alpha\\
+	%% sessions
+	\algsttocfst{\TIn{T}{U}}= ?\algsttocfst{\typec{T}}; \algsttocfst{\typec U} \quad 
+	\algsttocfst{\TOut{T}{U}}= !\algsttocfst{\typec T}; \algsttocfst{\typec U} \quad 
+	\algsttocfst{\TEndT} = \syntax{skip} \quad 
+	\algsttocfst{\TEndW} = \syntax{skip}\quad
+	\algsttocfst{\polarizedparam{-}{T}} = \syntax{dual}\, \algsttocfst{\typec T} \\ 
+	\algsttocfst{\TPApp{P}{\overline T}} = \oplus\{ C_i\colon \algsttocfst{\tosession{T_i^1}{\TEndT}} ; \ldots;\algsttocfst{\tosession{T_i^{n_i}}{\TEndT}}\}_{i\in I}  \text{ when }
+	\protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ T_i^1\ldots T_i^{n_i}}\}_{i\in I} }
+    \end{mathpar}
+\caption{Translation of algebraic session types to context-free session types}
+\label{fig:algst-to-cfst}
+\end{figure}

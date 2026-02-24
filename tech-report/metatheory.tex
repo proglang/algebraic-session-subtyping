@@ -1,0 +1,116 @@
+% \section{Metatheory}
+% \label{sec:metatheory}
+
+% This section introduces the main results of our language: preservation and
+% progress possibly ending in a deadlock.
+
+\input{fig-proc-formation}
+
+We complete section with the main results of our language.
+%
+Towards this end we need to talk about context and process typing.
+%
+Type formation (\cref{fig:type-formation}) is lifted pointwise to contexts in 
+judgement $\isCtx{\Gamma}{\kind}$.
+%
+% , defined by the rules below. Notice that the
+% last premise in rule Ctx-Empty checks the invariant whereby contexts contain
+% only normalized terms.
+% %
+% \begin{mathpar}
+%      \infrule{Ctx-Empty}
+%      {}
+%      {\isCtx{\Empty}{\kind}}
+%  
+%      \infrule{Ctx-Ext}
+%      {\isCtx{\Gamma}{\kind}\\ \typeAgainst{T}{\kind} \\ \typec T = \Normal[+]{T}}
+%      {\isCtx{\Gamma, \ebind{x}{T}}{\kind}}
+% \end{mathpar}
+%
+The rules for typing processes are in
+\cref{fig:proc-formation}. The rule for threads requires the expression
+$\termc e$ to consume all resources given in context $\Gamma$. Rule P-Par splits
+the context in two parts and gives each to one of the parallel processes. The
+rule is not algorithmic but we plan to type check expressions only; processes
+are a runtime artefact. Rule P-New guesses a type $\typec T$ for channel end
+$\termc x$, then channel end $\termc y$ gets the type $\TDual T$, both in normal
+form. Again, this rule is not algorithmic and need not be.
+%
+The labelled transitions convey behaviour in their labels. Because we use an
+algorithmic typing system with leftovers, we require a labelled transition
+system for typing contexts to account for the impact of the behaviour of labels
+in the contexts. The statement of preservation relies on the labelled transition
+system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx}).
+
+\begin{theorem}[Preservation]\
+  \label{thm:preservation}
+  \begin{enumerate}
+  \item\label{it:pres-synth} If $\trans{e_1}{\lambda}{e_2}$ and
+    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
+    $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
+    $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
+    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\Gamma_3}$ and
+    $\isEquiv{T'}{T}$.
+  \item\label{it:pres-against} If $\trans{e_1}{\lambda}{e_2}$ and
+    $\expAgainst{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
+    $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
+    $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
+    $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3}$.
+  \item\label{it:pres-proc} If $\trans{p_1}{\pi}{p_2}$ and
+    $\isProc[\Gamma_1,\Gamma_2]{p_1}$ and $\transCtx{\Gamma_2}{\pi}{\Gamma_2'}$
+    and $\isCtx[\Empty]{\Gamma_1,\Gamma_2}{\kindt}$,
+    then $\isProc[\Gamma_1,\Gamma'_2]{p_2}$.
+  \end{enumerate}
+\end{theorem}
+
+%\paragraph{Progress}
+
+To the below set of labels we call the \emph{progress set} for $\termc x,\termc y$:
+%
+\begin{equation*}
+\{
+% processes
+\tau,\,
+(\parl{\receivel xv}{\sendl yv}),\,
+(\parl{\receivel xC}{\sendl yC}),\,
+(\parl{\closel x}{\openl y}),\,
+(\parl{\receivel xa}{\scopel abya}),\,
+(\parl{\receivel xb}{\scopel abyb})
+\}  
+\end{equation*}
+
+\emph{Completed processes} are of the form
+$\termc{\expp\unitk \PAR \dots \PAR \expp\unitk}$.
+%
+A process is a \emph{deadlock} if, for all its subterms of the form $\newp xyp$
+and all transitions $\trans{p}{\pi}{p'}$, we have $\pi$ not in the progress set
+for channel $\termc x,\termc y$.
+%
+To identify a deadlocked process we find all its $\nu$ subterms, and for each
+subterm we find all its transitions. Then, if all transitions fall outside the
+progress set, the process is deadlocked.
+%
+When the kind context $\Delta$ is apparent from the context, we write
+$\Gamma^{\kinds}$ to denote a typing context composed solely of session types,
+that is, such that $\ebind xT\in\Gamma$ implies $\typeAgainst T \kinds$.
+
+\begin{theorem}[Progress possibly leading to deadlock]\
+  \label{thm:progress}
+  \begin{enumerate}
+  \item\label{item:prog-exps} If
+    $\expSynth{\Gamma_1^{\kinds}}{e_1}{T}{\Gamma_2}$, then either $\termc{e_1}$
+    is a value or $\trans{e_1}{\lambda}{e_2}$.
+  \item  If $\expAgainst{\Gamma_1^{\kinds}}{e_1}{T}{\Gamma_2}$, then either $\termc{e_1}$
+    is a value or $\trans{e_1}{\lambda}{e_2}$.
+  \item\label{item:prog-procs} If $\isProc[\Gamma^\kinds]{p_1}$, then
+    $\termc{p_1}$ is completed, $\trans{p_1}{\pi}{p_2}$, or $\termc{p_1}$ is
+    a deadlock.
+  \end{enumerate}
+\end{theorem}
+%
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

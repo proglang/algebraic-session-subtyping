@@ -1,0 +1,609 @@
+\section{Proofs for expressions and processes}
+\label{sec:appendix-exps-procs}
+\label{sec:proofs}
+
+% In this section we present examples and the proofs of the main results 
+% of our work, along with some auxiliary lemmas. We preserve the structure 
+% of the paper, split into subsections, to facilitate the mapping between 
+% the supplementary material and the main document
+
+\input{fig-label-exps}
+
+\begin{lemma}\
+  \label{lem:synth-against-nf}
+  \begin{enumerate}
+       \item\label{it:synth-nf} If $\expSynth{\Gamma_1} eT{\Gamma_2}$ and $\isCtx[\Delta]{\Gamma_1}{\kindt}$, 
+       then $\isCtx[\Delta]{\Gamma_2}{\kindt}$ and $\typec T$ is in normal form.
+       \item\label{it:against-nf}  If $\expAgainst{\Gamma_1} eT{\Gamma_2}$ and $\isCtx[\Delta]{\Gamma_1}{\kindt}$
+       and $\typec T$ is in normal form, then $\isCtx[\Delta]{\Gamma_2}{\kindt}$.
+  \end{enumerate}
+  \begin{proof}\
+  \begin{enumerate}
+       \item By rule induction on the first hypothesis.
+       \item Using \cref{it:synth-nf} and observing that a type $\typec U$ such that 
+       $\typec U =_\alpha \typec T$ is also in normal form.
+  \end{enumerate}         
+  \end{proof}
+\end{lemma}
+
+%% section 5
+% \subsection{Metatheory}
+
+\input{fig-label-ctx}
+
+% \paragraph{Preliminaries} We start with some basic results.
+
+\begin{lemma}[Properties of normalization]\
+  \label{lem:norm-st}
+  % Let $\typeSynth U \kind$.
+  \begin{enumerate}
+  \item\label{it:anti-plus} If $\typeSynth{\Normal[+] T} \kind$, then
+    $\typeAgainst T \kind$.
+  \item\label{it:anti-minus} If $\typeSynth{\Normal[-] T} \kind$, then
+    % $\kind = \kinds$ and 
+    $\typeAgainst T \kinds$.
+  \item\label{it:anti-tosession} If $\typeSynth{\tosession TS} \kind$, then
+    % $\kind = \kinds$ and 
+    $\typeAgainst T \kindp$ and $\typeAgainst S \kinds$.
+  \item\label{it:anti-pm} If $\typeSynth{\polarizedparam \pm T} \kind$,
+    then $\typeAgainst T \kind$.
+  \end{enumerate}
+\end{lemma}
+%
+\begin{proof}
+  The proof is by mutual induction on the various hypotheses. Most cases follow
+  by a straightforward induction. We detail the case for
+  $\Normal[-]{\typec{\TIn TS}} = \TFOut{\Normal[+]T}{\Normal[-]S}$.
+  \Cref{it:anti-tosession} gives
+  $\typeAgainst {\polarizedparam +{\Normal[+]T}} \kindp$ and
+  $\typeAgainst {\Normal[-]S} \kinds$. Rule \rulenametypeSub gives
+  $\typeSynth {\polarizedparam +{\Normal[+]T}} \kindp$ and
+  $\typeSynth {\Normal[-]S} \kinds$. \Cref{it:anti-pm} gives
+  $\typeSynth {\Normal[+]T} \kindp$. Again rule \rulenametypeSub gives
+  $\typeAgainst {\Normal[+]T} \kindp$. \Cref{it:anti-plus} gives
+  $\typeSynth T \kindp$. Once again, rule \rulenametypeSub gives
+  $\typeAgainst T \kindp$. From $\typeAgainst {\Normal[-]S} \kinds$, induction
+  gives $\typeSynth S \kinds$ and \rulenametypeSub gives
+  $\typeAgainst S \kinds$. Finally, rule \rulenametypeDotIn gives
+  $\typeSynth{\TIn TS}\kinds$ and rule \rulenametypeSub yields
+  $\typeAgainst{\TIn TS}\kinds$.
+\end{proof}
+
+\begin{lemma}[Substitution]
+  \label{lem:substitution}\
+    \begin{enumerate}
+    \item\label{it:substitution-tt} If $\typeSynth[\Delta,\tbind\alpha\kind]{T}{\kind'}$ and $\typeAgainst{U}{\kind}$, then
+      $\typeSynth{T\tsubs U\alpha}{\kind'}$.
+    \item\label{it:substitution-et} If $\expSynth[\Delta,\tbind\alpha\kind]{\Gamma_1}{e}{T}{\Gamma_2}$ and $\typeAgainst{U}{\kind}$,
+      then $\expSynth{\Gamma_1}{e\tsubs{U}{\alpha}}{\Normal[+]{T\tsubs{U}{\alpha}}}{\Gamma_2}$.
+    \item\label{it:substitution-ee} If $\expSynth{\Gamma_1,\ebind xU}{e}{T}{\Gamma_2}$ and
+      $\expAgainst{\Gamma_3}{v}{U}{\Empty}$, then
+      $\expSynth{\Gamma_1,\Gamma_3}{e\esubs vx}{T}{\Gamma_2}$.
+    \item\label{it:substitution-ee2} If $\expSynth{\Gamma_1,\eubind x{U}}{e}{T}{\Gamma_2,\eubind x{U}}$ and
+      $\expAgainst{\Gamma_3}{v}{U}{\Empty}$, then
+      $\expSynth{\Gamma_1,\Gamma_3}{e\esubs vx}{T}{\Gamma_2}$.
+    \end{enumerate}
+  \end{lemma}
+  \begin{proof}
+    The proof follows by mutual induction on the first hypothesis.
+  \end{proof}
+
+\begin{lemma}[Agreement]
+  \label{lem:agreement}
+  Let $\isCtx{\Gamma_1}{\kindt}$.
+  \begin{enumerate}
+  \item\label{it:agreement-expL} If $\expSynth{\Gamma_1,\ebind xT}{e}{U}{\Gamma_2}$, then $\typeAgainst{T}{\kind}$.
+  \item \label{it:agreement-expR} If $\expSynth{\Gamma_1}{e}{T}{\Gamma_2}$, then $\typeAgainst{T}{\kind}$.
+  \item\label{it:agreement-proc} If $\isProc[\Gamma_1,\ebind xT] p$, then $\typeAgainst[\Empty]{T}{\kind}$.
+\end{enumerate}
+\end{lemma}
+%
+\begin{proof}\
+  \begin{enumerate}
+    \item By rule induction on the first hypothesis.
+    \item By rule induction on the first hypothesis, using~\cref{lem:substitution} and \cref{it:agreement-type-conv}.
+    \item By rule induction on the first hypothesis, using \rulenameexpCheck and~\cref{it:agreement-expL}.
+  \end{enumerate}
+\end{proof}
+
+Monotonicity tells us that resources are not created during the process of type
+checking.
+
+\begin{lemma}[Monotonicity]
+  \label{lem:monotonicity}
+  If $\expSynth{\Gamma_1} vT {\Gamma_2}$, then $\Gamma_2\subseteq\Gamma_1$.
+\end{lemma}
+%
+\begin{proof}
+  A straightforward rule induction on the hypothesis. The base cases are E-Const
+  and E-Var. The cases for E-Abs, E-TAbs, E-Pair and E-TApp follow by induction
+  and transitivity of the subset relation.
+\end{proof}
+
+\begin{lemma}[Strengthening]\
+  \label{lem:strengthening}
+  \begin{enumerate}
+  \item If $\typeSynth[\Delta, \tbind{\alpha}{\kind}]{T}{\kind'}$ and $\typec \alpha\not\in \FVT{\typec T}$,
+    then $\typeSynth[\Delta]{T}{\kind'}$.
+  \item
+    If $\expSynth{\Gamma_1,\ebind xU}{e}{T}{\Gamma_2,\ebind xU}$, then
+    $\expSynth{\Gamma_1}{e}{T}{\Gamma_2}$.
+  % \item If $\expAgainst{\Gamma_1,\ebind xU}{e}{T}{\Gamma_2,\ebind xU}$, then
+  %   $\expAgainst{\Gamma_1}{e}{T}{\Gamma_2}$.
+  \end{enumerate}
+\end{lemma}
+\begin{proof}\
+\begin{enumerate}
+  \item The proof is by induction hypothesis on the first hypothesis, using \rulenametypeSub.
+  \item The proof is by induction hypothesis on the first hypothesis.
+\end{enumerate}  
+\end{proof}
+
+\begin{lemma}[Weakening]\
+  \label{lem:weakening}
+  % \begin{enumerate}
+  % \item
+    If $\expSynth{\Gamma_1}{e}{T}{\Gamma_2}$, then
+    $\expSynth{\Gamma_1,\ebind xU}{e}{T}{\Gamma_2,\ebind xU}$.
+  % \end{enumerate}
+\end{lemma}
+\begin{proof}
+  The proof follows by induction on the hypothesis.
+\end{proof}
+
+% \begin{lemma}[Deprecated; a corollary of \cref{lem:strengthening}; we may not
+%   need it, state it direclty in proofs]\
+%   \begin{enumerate}
+%   \item If $\expSynth{\Gamma_1}{v}{T}{\Gamma_2}$, then
+%     $\Gamma_1 = \Gamma_2,\Gamma_3$ and $\expSynth{\Gamma_3}{v}{T}{\Empty}$.
+%   \item If $\expAgainst{\Gamma_1}{v}{T}{\Gamma_2}$, then
+%     $\Gamma_1 = \Gamma_2,\Gamma_3$ and $\expAgainst{\Gamma_3}{v}{T}{\Empty}$.
+%   \end{enumerate}
+% \end{lemma}
+
+\paragraph{Preservation and progress} We now prove the main results.
+
+\begin{proof}[Proof of \cref{thm:preservation} (Preservation)]\
+
+  The proof follows by mutual rule induction on the first hypothesis. 
+  \begin{enumerate}
+    \item 
+    Rule Act-App. In this case, $\trans{\appe{(\abse{x}{U}{e})}{v}}{\beta}{\termc{e}\esubs{v}{x}}$
+    and $\Gamma_2 = \Gamma_2' = \Empty$. Inversion of \rulenameexpApp on 
+    $\expSynth{\Gamma_1,\Gamma_3}{\appe{(\abse{x}{U}{e})}{v}}{\typec T}{\Gamma_3}$
+    yields (a) $\expSynth{\Gamma_1,\Gamma_3}{\abse{x}{U}{e}}{\TFun[]{V}{T}}{\Gamma'}$
+    and
+    (b) $\expAgainst{\Gamma'}vV{\Gamma_3}$. By monotonicity (\cref*{lem:monotonicity}), we 
+    know that $\Gamma_3\subseteq \Gamma'$; say that $\Gamma' = \Gamma_1',\Gamma_3$.
+    Applying inversion of \rulenameexpAbs on (a) and
+    strengthening (\cref{lem:strengthening}) on (b), we get 
+    $\expSynth{\Gamma_1,\Gamma_3,\ebind x{\Normal[+]U}}{e}{T}{\Gamma_1',\Gamma_3}$ and
+    $\expAgainst{\Gamma_1'}{v}{V}{\Empty}$ (and $\typec V = \Normal[+] U$). By \rulenametconvReflex and
+    agreement (\cref{lem:agreement}) on the second hypothesis, we know that $\isEquiv TT$.
+    Conclude applying the substituion lemma 
+    (\cref{lem:substitution},~\cref{it:substitution-ee}) and weakening (\cref{lem:weakening}).
+    
+    Rule Act-TApp. Again, $\Gamma_2 = \Gamma_2' = \Empty$. Apply inversion  of \rulenameexpTApp on the 
+    second hypothesis, followed by inversion of \rulenameexpTAbs and conclude 
+    with~\cref{lem:substitution},~\cref{it:substitution-et}, using $\typec {T'} = \typec T$.
+    
+    Rule Act-Let. Apply inversion of \rulenameexpLet to the second hypothesis, followed by inversion of \rulenameexpPair,
+    then apply substitution (\cref{lem:substitution},~\cref{it:substitution-ee}) and conclude using $\typec {T'} = \typec T$.
+    
+    Rule Act-Let*. In this case, $\trans{\letu{\unitk}{e}}{\beta}{\termc{e}}$ and $\Gamma_2 = \Gamma_2' = \Empty$.
+    Using inversion of \rulenameexpConst and \rulenameexpCheck for $\unitk$, we know that premises 
+    to \rulenameexpLetUnit include 
+    $\expSynth{\Gamma_1,\Gamma_3}{e}{\typec T}{\Gamma_3}$, which is what we want to prove, since $\isEquiv TT$.
+    
+    Rule Act-Rec. Again, $\Gamma_2 = \Gamma_2' = \Empty$. Premises to rule \rulenameexpApp 
+    are $\expSynth{\Gamma_1,\Gamma_3}{{\rece xVv}}{\TFun[]{U}{T}}{\Gamma_1,\Gamma_3}$
+    and $\expAgainst{\Gamma_1,\Gamma_3}uU{\Gamma_3}$. Applying inversion of \rulenameexpRec on the former, conclude 
+    that $\Normal[+]V= \TFun[]{U}{T}$ and then apply inversion of \rulenameexpCheck and the substitution lemma (\cref{lem:substitution}) to 
+    get $\expSynth{\Gamma_1,\Gamma_3}{v\esubs{\rece xVv}x}{\TFun[]{U}{T}}{\Gamma_1,\Gamma_3}$. Conclude
+    applying \rulenameexpApp and using the fact that $\isEquiv TT$.
+
+    Rule Act-Fork. %By L-Fork, we know that $\Gamma_2$ is such that 
+    %$\expAgainst[\Empty]{\Gamma_2}{v}{\TFun[]\TUnit\TUnit}{\Empty}$. 
+    Inversion of \rulenameexpApp
+    yields $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{\forkk}{\TFun[]UT}{\Gamma'}$ and
+    $\expAgainst{\Gamma'}vU{\Gamma_3}$. Applying \rulenameexpConst on the former we know that
+    $\Gamma' = \Gamma_1,\Gamma_2,\Gamma_3$, $\typec U= \TFun[]{\TUnit}{\TUnit}$ and $\typec T=\TUnit$.
+    By L-Fork we know that $\expAgainst{\Gamma_2}v{\TFun[]{\TUnit}{\TUnit}}{\Empty}$
+    and $\Gamma_1 = \Empty$ in this case. By applying \rulenameexpConst for $\unitk$
+    we conclude that $\expSynth{\Gamma_3}\unitk\TUnit{\Gamma_3}$, as we wanted.
+
+    Rule Act-New. In this case, $\trans{\tappe \newk U}{\newl xyU}{\paire xy}$.
+    By L-New, we know that $\Gamma_2 = \Empty$ and $\Gamma_2' = \ebind{x}{\Normal[+]{U}}, \ebind{y}{\Normal[-]{U}}$.
+    Inversion of \rulenameexpTApp and \rulenameexpConst on the second hypothesis yields
+    $\typec T=\TPair{\Normal[+]U}{\Normal[-]{U}}$ and $\Gamma_1 = \Empty$. Using 
+    \rulenameexpVar and \rulenameexpPair we conclude that 
+    $\expSynth{\Gamma_3,\ebind{x}{\Normal[+]{U}},\ebind{y}{\Normal[-]{U}}}{\paire{x}{y}}{\TPair{\Normal[+]{U}}{\Normal[-]{U}}}{\Gamma_3}$.
+    
+    Rule Act-Rcv. In this case, $\trans{\appe{\tappe{\tappe \receivek U}{V}}{x}}{\receivel xv}{\paire{v}{x}}$.
+    By L-Rcv, $\Gamma_2 = \ebind{x}{\TIn{U}{S}}$ and $\Gamma_2' = \ebind{x}{S}, \Gamma$, 
+    where $\Gamma$ is such that $\expAgainst[\Empty]{\Gamma}{v}{U}{\Empty}$. 
+    Inversion of \rulenameexpApp on the second hypothesis yields 
+    $\expSynth{\Gamma_1,\ebind{x}{\TIn{U}{S}}, \Gamma_3}{\tappe{\tappe \receivek U}{V}}{\TFun[]{W}{T}}{\Gamma_1'}$ and 
+    $\expAgainst{\Gamma_1'}{x}{W}{\Gamma_3}$. Inversion of \rulenameexpVar on the latter
+    yields $\Gamma_1' = \ebind{x}{\TIn{U}{S}}, \Gamma_3$ and $\typec{W}=\TIn{U}{S}$.
+    Inversion of \rulenameexpTApp applied twice, followed by \rulenameexpConst enables us to 
+    conclude that $\Gamma_1 = \Empty$ and $\typec{T}=\TPair{U}{S}$. Using L-Rcv, \rulenameexpCheck and
+    weakening we know that $\expSynth{\ebind{x}{S},\Gamma,\Gamma_3}vU{\ebind{x}{S},\Gamma_3}$, using \rulenameexpVar
+    and weakening we get $\expSynth{\ebind{x}{S},\Gamma_3}xS{\Gamma_3}$. Conclude applying \rulenameexpPair and
+    recalling that $\isEquiv{\TPair{U}{S}\,\blk{=}\,T}{T}$.
+
+    Rule Act-Send. In this case, $\trans{\appe{\appe{\tappe{\tappe \sendk U}{S}}{v}}{x}}{\sendl xv}{x}$.
+    By L-Send, $\Gamma_2 = \Gamma, \ebind{x}{\TOut{U}{S}}$ where $\Gamma$ is 
+    such that $\expAgainst[\Empty] \Gamma v U \Empty$. Proceed similarly to the previous case, 
+    applying inversion of \rulenameexpApp twice, followed by \rulenameexpTApp and then 
+    inversion of \rulenameexpConst over $\sendk$ to conclude that $\typec S=\typec T$. On the other hand, invert 
+    \rulenameexpVar and L-Send with weakening applied to the other premises to conclude that 
+    $\Gamma_1 = \Empty$. 
+    The result follows applying \rulenameexpVar and weakening with $\Gamma_2' = \ebind{x}{T}$,
+    and knowing that $\isEquiv TT$.
+
+    Rule Act-Match. In this case, $\trans{\matchwithe xCyeiI}{\receivel
+    x{C_k}}{e_k\esubs x{y_k}}$. By L-Match, we have $\Gamma_2 = \ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}$
+    for $\protocolsfull$. Premises to \rulenameexpMatch include
+    (a) $\expSynth {\Gamma_1,\ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}, \Gamma_3} x {\TIn{(\TPApp P{\overline{U}})}{S'}} {\Gamma_1,\Gamma_3}$,
+    (b) $\expSynth {\Gamma_1,\Gamma_3,\ebind{y_i}{\matchin}} {e_i} {V_i} {\Gamma_3}$ and
+    (c) ${T}=_\alpha{V_i}$.
+    By L-Match we know that $\Gamma_2' = \ebind{x}{\matchin[k]}$.
+    Applying \rulenameexpVar and \rulenameexpCheck we get (d) $\expAgainst{\ebind{x}{\matchin[k]}}x{\matchin[k]}{\Empty}$.
+    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d). 
+  %   {
+  %   \expSynth {\Gamma_1} e {S} {\Gamma_2} \\
+  %   \Normal[+]{S}={\TIn{(\TPApp P {\overline U})}{S'}} \\
+  %   \protocolsfull \\
+  %   \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i} \\
+  %   \termc{x_i}\not\in\Gamma_i\\
+  %   \isEquiv{V_k}{V_i} \\
+  %   \isEquivCtx{\Gamma_k}{\Gamma_i}%  \\
+  %   % k \in I
+  % }
+
+    Rule Act-Sel. We have $\trans{\appe{\tappe{\selecte{C}}{\overline U}}{x}}{\sendl x{C}}{x}$.
+    Using L-Sel, we know that
+    $\Gamma_2 = \ebind{x}{\TOut{(\TPApp P{\overline{U}})}{S'}}$ for $\protocolsfull$.
+    Use inversion of \rulenameexpApp and \rulenameexpTApp on the second hypothesis to conclude that 
+    $\typec T = \TFOut{\overline{T_k}\tsubs{\overline U}{\overline\alpha}}{S'}$. Using inversion of 
+    \rulenameexpVar conclude that $\Gamma_1 = \Empty$. Finally, use \rulenameexpVar
+    and weakening (\cref{lem:weakening}) to get 
+    $\expSynth{\ebind{x}{\matchout[k]},\Gamma_3}x{\TFOut{\overline{T_k}\tsubs{\overline U}{\overline\alpha}}{S'}}{\Gamma_3}$.
+    Conclude observing that 
+    $\isEquiv{\TFOut{\overline{T_k}\tsubs{\overline U}{\overline\alpha}}{S'} \,\blk{=}\, \typec T}{T}$.
+
+    Rule Act-Wait. In this case, $\Gamma_2 = \ebind{x}{\TEndW}$ and $\Gamma_2' = \Empty$.
+    Inversion of \rulenameexpApp on the second hypothesis yields 
+    $\expSynth{\Gamma_1,\ebind{x}{\TEndW},\Gamma_3}{\waitk}{\TFun[] UT}{\Gamma'}$
+    and $\expAgainst{\Gamma'}xU{\Gamma_3}$. Apply \rulenameexpConst to the former 
+    and \rulenameexpVar to the latter to conclude that $\Gamma_1=\Empty$, $\typec{U} = \TEndW$
+    and $\typec{T}=\TUnit$. The result follows using \rulenameexpConst on $\unitk$ and weakening (\cref*{lem:weakening}),
+    using $\typec{T'} = \typec   T$.
+
+    Rule Act-Term is similar.
+
+    Rule Act-AppR. In this case, $\trans{\appe{v}{e_1}}{\lambda}{\appe{v}{e_2}}$.
+    Using the second hypothesis
+    %, $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{\appe{v}{e_1}}{T}{\Gamma_3}$, 
+    and rule \rulenameexpApp
+    we know that 
+    (a) $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{v}{\TFun[]{U}{T}}{\Gamma_1',\Gamma_2,\Gamma_3}$
+    and (b) $\expAgainst{\Gamma_1',\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$.
+    By induction hypothesis on~\cref*{it:pres-against}, using (b), we get 
+    $\expAgainst{\Gamma_1',\Gamma_2',\Gamma_3}{e_2}{U}{\Gamma_3}$. Applying weakening and strengthening 
+    to (a) we get $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{v}{\TFun[]{U}{T}}{\Gamma_1',\Gamma_2',\Gamma_3}$
+    Apply E-App to conclude that $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{\appe{v}{e_2}}{T}{\Gamma_3}$.
+
+    Rules Act-AppL, Act-TAppE, Act-LetE, Act-LetE*, Act-PairL, Act-PairR, Act-MatchE are similar.
+    \item  
+    Inversion of \rulenameexpCheck on the second hypothesis yields 
+    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and ${U}=_\alpha{T}$.
+    By induction hypothesis on~\cref*{it:pres-synth} we know that 
+    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\Gamma_3'}$ with 
+    $\isEquiv{U'}{U}$. By \rulenametconvSymm
+    and \rulenametconvTrans we know that $\isEquiv{T}{U'}$. Using \rulenameexpCheck
+    we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3'}$.
+    % We detail the case for rule Act-Rcv. In this case, we have 
+    % $\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}$.
+    % Applying rule \rulenameexpCheck to the first hypothesis, we get 
+    % $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{\appe{\tappe{\tappe \receivek T}{U}}{x}}{T}{\Gamma_3}$
+    % and $\isEquiv TT$. By induction hypothesis on~\cref*{it:pres-synth}, we 
+    % have $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{\paire{v}{x}}{T}{\Gamma_3}$.
+    % Conclude applying \rulenameexpCheck.
+    \item  Rule Act-Session. Inversion of Act-Session yields $\trans{\termc{e_1}}{\sigma}{\termc{e_2}}$
+    and inversion of P-Exp on the second hypothesis implies $\expAgainst[\Empty]{\Gamma_1,\Gamma_2} {\termc{e_1}} {\TUnit} {\Empty}$.
+    Applying induction hypothesis on~\cref{it:pres-against} we get 
+    $\expAgainst[\Empty]{\Gamma_1,\Gamma_2'} {\termc{e_2}} {\TUnit} {\Empty}$. Conclude applying P-Exp.
+    
+    Rule Act-Beta is similar, considering $\Gamma_2 = \Gamma_2' = \Empty$, as prescribed by L-Tau and L-Beta.
+
+    Rule Act-Fork. Inversion of Act-Fork on the first hypothesis and
+    of P-Exp on the second hypothesis 
+    yields (a) $\termc{e_1}\lts{\forkl{v}}{\termc{e_2}}$ and
+    (b) $\expAgainst[\Empty]{\Gamma_1} {\termc{e_1}} {\TUnit} {\Empty}$.
+    By L-Fork we know that (c) $\transCtx{\Gamma_1}{\forkl{v}}{\Empty}$
+    and (d) $\expAgainst[\Empty]{\Gamma_1}{v}{\TFun[]\TUnit\TUnit}{\Empty}$.
+    Applying induction hypothesis on~\cref{it:pres-against} to (a), (b) and (c) we get 
+    $\expAgainst[\Empty]{\Empty} {\termc{e_2}} {\TUnit} {\Empty}$.
+    Inversion of \rulenameexpCheck on (d) and \rulenameexpConst for $\unitk$
+    enables the application of \rulenameexpApp to deduce
+    $\expSynth[\Empty]{\Gamma_1} {\appe{v}{\unitk}} {\TUnit} {\Empty}$.
+    Conclude using \rulenameexpCheck, P-Exp and P-Par.
+
+    Rule Act-New. By L-Tau, $\Gamma_2 = \Empty$. Inversion of P-Exp on the second hypothesis 
+    yields $\expAgainst[\Empty]{\Gamma_1} {\termc{e_1}} {\TUnit} {\Empty}$. Applying inversion of 
+    Act-New and induction hypothesis on~\cref{it:pres-against} we get 
+    $\expAgainst[\Empty]{\Gamma_1, \ebind{x}{\Normal[+]T}, \ebind{y}{\Normal[-]T}} {\termc{e_2}} {\TUnit} {\Empty}$.
+    Using P-Exp we know that \linebreak $\isProc[\Gamma_1, \ebind{x}{\Normal[+]T}, \ebind{y}{\Normal[-]T}]{\expp{e_2}}.$
+    Conclude using P-New.
+
+    Rule Act-JoinL. Inversion of P-Par dictates a context split: 
+    $\isProc[\Gamma_1, \Gamma_2^1]{p_1}$ and $\isProc[\Gamma_1, \Gamma_2^2]{p_2}$.
+    Using inversion of L-Par and applying induction hypothesis on \cref{it:pres-proc} 
+    we get $\isProc[\Gamma_1, \Gamma_3]{q_1}$ and $\isProc[\Gamma_1, \Gamma_4]{q_2}$,
+    where $\Gamma_2' = \Gamma_3,\Gamma_4$.
+    Conclude with P-Par and L-Par.
+
+    Rule Act-JoinR is similar.
+
+    Rule Act-Msg. In this case, $\trans{\newp xy{p_1}}{\tau}{\newp xy{p_2}}$.
+    By inversion of Act-Msg, we know that $\trans{p_1}{\parl{\receivel xv}{\sendl yv}}{p_2}$. 
+    For a $\tau$-transition, the second hypothesis reads as $\isProc[\Gamma_1]{\newp xy{p_1}}$
+    (recall rule L-Tau). By P-New, we have 
+    $\isProc[\Gamma, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p_1}$.
+%    $\isProc[\Gamma_1, \ebind xT , \ebind y{\TDual{T}}]{p_1}$.
+    By L-Par, L-Rcv and L-Send, we know that 
+    $\Normal[+]{T}= \TIn{U}{S}$
+    and 
+    $\transCtx{\Gamma_1, \ebind{x}{\TIn{U}{S}}, \ebind{y}{\TOut{U}{\Normal[-]{S}}}}{\parl{\receivel{x}{v}}{\sendl{y}{v}}}{\Gamma_1, \ebind{x}{S},\ebind{y}{\Normal[-]{S}}}$
+    and $\expAgainst[\Empty]{\Gamma_1}{v}{U}{\Empty}$.
+    Applying induction hypothesis on~\cref*{it:pres-proc} we get 
+    $\isProc[\Gamma_1, \ebind xS , \ebind y{\Normal[-]{S}}]{p_2}$.
+    Conclude applying P-New.
+
+    Rule Act-Bra. Premises to P-New include 
+    (a) $\isProc[\Gamma_1, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p_1}$.
+    By L-Match, L-Sel and L-Par we know that $\Normal[+]{T} = \TIn{(\TPApp{P}{\overline U})}{S'}$
+    where $\protocolsfull$ and $\termc{C} = \termc{C_k}$ for some $k\in I$. Thus, we can rewrite (a)
+    as  $\isProc[\Gamma_1, \ebind x{\TIn{(\TPApp{P}{\overline U})}{S'}} , \ebind y{\TOut{(\TPApp{P}{\overline U})}{\Normal[-]{S'}}}]{p_1}$.
+    Inversion of Act-Bra yields $\trans{p_1}{\parl{\receivel xC}{\sendl yC}}{p_2}$.
+    Applying induction hypothesis on~\cref*{it:pres-proc} we get
+    $\isProc[\Gamma_1, \ebind x{\matchin[k]} , \ebind y{\TFOut {\overline{T_{k}}\tsubs{\overline U}{\overline\alpha}}{\Normal[-]{S'}}}]{p_2}$. 
+    Apply \cref{lem:ops-dual}, \cref{it:dual-norm} and P-New to conclude.
+
+
+    Rule Act-Wait. Premises to P-New include 
+    $\isProc[\Gamma_1, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p_1}$.
+    By L-Par, L-Wait and L-Term, we know that $\Normal[+]{T} = \TEndW$.
+    Applying induction hypothesis on~\cref*{it:pres-proc} we get  
+    $\isProc[\Gamma_1]{p_2}$.
+
+    Rule Act-ParL. Inversion of Act-ParL yields $\trans{p_1}{\pi}{p_2}$. Premises to P-Par
+    are (a) $\isProc[\Gamma_1, \Gamma_2^1]{p_1}$ and (b) $\isProc[\Gamma_1, \Gamma_2^2]{q_1}$, 
+    where $\Gamma_2= \Gamma_2^1, \Gamma_2^2$.
+    Applying induction hypothesis on~\cref*{it:pres-proc} to (a) we get $\isProc[\Gamma_1,\Gamma_3]{p_2}$,
+    where $\transCtx{\Gamma_2^1}{\pi}{\Gamma_3}$. Conclude using (b) and applying P-Par.
+
+    Rule Act-ParR is similar.
+
+    Rule Act-Res. Premises to Act-Res are $\trans{p_1}{\pi}{p_2}$ and $\termc x,\termc y\not\in\FVL\pi$.
+    Since $\termc x,\termc y\not\in\FVL\pi$, we know that $\transCtx{\Empty}{\pi}{\Empty}$.
+    Premises to P-New include 
+    $\isProc[\Gamma_1, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p_1}$.
+    Induction hypothesis on~\cref*{it:pres-proc} yields   
+    $\isProc[\Gamma_1, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p_2}$.
+    Conclude using P-New.
+    
+    Rule Act-OpenL. By L-OpenL we know that $\Gamma_2 = \ebind{x}{\TOut{T}{S}}$.
+    Inversion of P-New yields \linebreak
+    $\isProc[\Gamma_1, \ebind x{\TOut{T}{S}} , \ebind{a}{\Normal[+]{U}}, \ebind b{\Normal[-]{U}}]{p_1}$.
+    Inversion of L-Send, \rulenameexpCheck and \rulenameexpVar yields ${\Normal[+]{U}} = \typec T$. By induction hypothesis
+    on~\cref*{it:pres-proc}, conclude that 
+    $\isProc[\Gamma_1, \ebind x{S} , \ebind b{\Normal[-]{U}}]{p_2}$.
+
+    Rule Act-OpenR is similar.
+
+    Rule Act-CloseL. By L-Tau, $\transCtx{\Empty}{\tau}{\Empty}$.
+    Inversion of P-New yields 
+    $\isProc[\Gamma_1, \ebind{x}{\Normal[+]{T}}, \ebind y{\Normal[-]{T}}]{p_1}$.
+    By L-Rcv, we know that $\Normal[+]{T} = \TIn{U}{S}$. By L-Rcv, L-OpenL, L-Par
+    and induction hypothesis on~\cref*{it:pres-proc} we get 
+    $\isProc[\Gamma_1, \ebind x{S} , \ebind{y}{\Normal[-]{S}},\ebind b{\Normal[-]{U}},\Gamma]{p_2}$
+    where $\expAgainst[\Empty]{\Gamma}{a}{U}{\Empty}$. Applying \rulenameexpCheck and 
+    \rulenameexpVar we know that $\Gamma = \ebind{a}{U}$.
+    Conclude applying P-New twice.
+
+    Rule Act-CloseR is similar.
+  \end{enumerate}
+\end{proof}
+
+Canonical forms tell us the form of values from the form of types.
+
+\begin{lemma}[Canonical forms]
+  \label{lem:cforms}
+  Let $\expSynth{\Gamma_1} vT {\Gamma_2}$.
+  \begin{enumerate}
+  \item If $\typec T = \TUnit$, then $\termc v = \unitk$.
+  \item If $\typec T = \TFun[] UV$, then
+    $\termc v = \abse xUe$ or
+    $\termc v = \rece xTe$ or
+    $\termc v = \forkk$ or
+    $\termc v = \waitk$ or 
+    $\termc v = \terminatek$ or
+    $\termc v = \tappe{\tappe{\receivek}{W}}{X}$ or
+    $\termc v = \tappe{\tappe{\sendk}{W}}{X}$ or
+    $\termc v = \appe{\tappe{\tappe{\sendk}{W}}{X}}{u}$ or
+    $\termc v = \tappe{\selecte C}{\overline W}$.
+  \item If $\typec T = \TPair UV$, then $\termc v = \paire uw$.
+  \item If $\typec T = \TForall \alpha \kind U$, then
+    $\termc v = \tabse \alpha \kind u$ or
+    $\termc v = \receivek$ or
+    $\termc v = \tappe \receivek V$ or
+    $\termc v = \sendk$ or
+    $\termc v = \tappe \sendk V$ or
+    % $\termc v = \reck$ or
+    % $\termc v = \tappe \reck V$ or
+    % $\termc v = \newk$ or
+    $\termc v = \tappe{\selecte C}{\overline V}$ or
+    $\termc v = \selecte C$ or 
+    $\termc v = \newk$.
+  \item If $\typeAgainst T \kinds$, then $\termc v = \termc x$.
+  % \item If $\typec T = \TEndW$ or $\typec T = \TEndT$, then $\termc v = \termc x$.
+  \end{enumerate}
+\end{lemma}
+%
+\begin{proof}%[Proof of \cref{lem:cforms} (Canonical forms)]
+  A straightforward analysis of the rules that apply to judgement
+  $\expSynth{\Gamma_1} vT {\Gamma_2}$. The cases for $\typec T = \TFun[] UV$ and
+  $\typec T = \TForall \alpha \kind U$ come from rules \rulenameexpAbs,
+  \rulenameexpTAbs as well as from the constants that bear these two types. The
+  only values for session types (types of kind $\kinds$) are variables
+  (representing channel ends).
+\end{proof}
+
+\begin{lemma}[Completed processes are closed]
+  \label{lem:completed-closed}
+  If $\termc{p}$ is completed, then $\isProc[\Empty]{p}$.
+\end{lemma}
+
+\begin{proof}[Proof of \cref{thm:progress} (Progress)]
+  By mutual rule induction in the first hypothesis, in each case.
+
+  Rules \rulenameexpConst, \rulenameexpVar, \rulenameexpAbs and
+  \rulenameexpTAbs. Constants, variables, lambda abstractions and type
+  abstractions are values.
+
+  Rule \rulenameexpLetUnit. Since $\termc{e} = \letu {e_1}{e_2}$ is not a value
+  it must reduce. Distinguish two cases. When $\termc{e_1}$ is a value,
+  canonical forms (\cref{lem:cforms}) give $\termc{e_1} = \unitk$ and
+  $\termc{e}$ has a transition by rule Act-Let*. Otherwise, the premises to rule
+  \rulenameexpLetUnit include $\expAgainst{\Gamma_1^{\kinds}}{e_1}{\TUnit}{\Gamma_2}$ and
+  induction gives $\trans {e_1} \lambda {e'_1}$ (because $\termc{e_1}$ is not a
+  value). Hence $\termc{e}$ reduces by rule Act-LetE*.
+
+  Rule \rulenameexpRec. Expression $\rece xTv$ is a value
+
+  Rule \rulenameexpApp. Since $\termc{e} = \appe {e_1}{e_2}$ is not a value
+  it must reduce. Distinguish two cases.
+  %
+  When $\termc{e_1}$ is not a value, by induction $\termc{e_1}$ reduces and so
+  does $\termc{e}$ (by rule ActAppL).
+  %
+  When $\termc{e_1}$ is a value, canonical forms (\cref{lem:cforms}) give a
+  series of cases that we analyse in turn. When $\termc{e_1}$ is an abstraction
+  we further distinguish two cases. If $\termc{e_2}$ is a value, then
+  $\termc{e}$ reduces by rule Act-App. Otherwise monotonicity
+  (\cref{lem:monotonicity}) gives $\Gamma_2 \subseteq \Gamma_1^\kinds$ hence
+  $\Gamma_2^\kinds$. The induction hypothesis allow concluding that $\termc{e}$
+  reduces by rule Act-AppR.
+  %
+  The case for $\reck$ is similar to that of $\lambda$.
+  %
+  When $\termc{e_1} = \forkk$, we further distinguish two cases. When
+  $\termc{e_2}$ is a value, $\termc{e}$ reduces by rule Act-Fork. Otherwise,
+  using induction expression $\termc{e}$ reduces by rule Act-AppR.
+  %
+  When $\termc{e_1} = \waitk$, we further distinguish two cases. When
+  $\termc{e_2}$ is a value, canonical forms give $\termc{e_2} = \termc{x}$,
+  hence $\termc{e}$ reduces by rule Act-Wait. Otherwise,  monotonicity
+  (\cref{lem:monotonicity}) places us in the induction hypothesis, hence
+  $\termc{e_2}$ reduces (because it is not a value), and $\termc{e}$ reduces by
+  rule Act-AppR.
+  %
+  The subcase for $\terminatek$ is similar.
+  %
+  When $\termc{e_1} = \tappe{\tappe{\receivek}{W}}{X}$, we further distinguish
+  two cases. When $\termc{e_2}$ is a value, canonical forms give
+  $\termc{e_2} = \termc{x}$, hence $\termc{e}$ reduces by rule Act-Rcv.
+  Otherwise, monotonicity (\cref{lem:monotonicity}) places us in the induction
+  hypothesis, hence $\termc{e_2}$ reduces (because it is not a value), and
+  $\termc{e}$ reduces by rule Act-AppR.
+  %
+  The subcases for $\tappe{\tappe{\sendk}{W}}{X}$ and
+  $\appe{\tappe{\tappe{\sendk}{W}}{X}}{u}$ and $\tappe{\selecte C}{\overline W}$
+  are similar.
+
+  Rule \rulenameexpTApp. These cases are analogous to those of rule
+  \rulenameexpApp.
+
+  Rule \rulenameexpPair. Distinguish three cases for
+  $\termc{e} = \paire{e_1}{e_2}$. When both $\termc{e_1}$ and $\termc{e_2}$ are
+  values, $\termc{e}$ is a value. When $\termc{e_1}$ is not a value, induction
+  ensures that $\termc{e_1}$ reduces and thus $\termc{e}$ has a transition by
+  rule Act-PairL. Finally, when $\termc{e_1}$ alone is a value, the premises to
+  rule \rulenameexpPair include
+  $\expSynth{\Gamma_1^{\kinds}}{e_1}{T}{\Gamma_2}$.
+  % and $\expSynth{\Gamma_2}{e_2}{U}{\Gamma_3}$.
+  Monotonicity (\cref{lem:monotonicity}) gives
+  $\Gamma_2 \subseteq \Gamma_1^{\kinds}$, hence $\Gamma_2^{\kinds}$ and we are
+  in the induction hypothesis. Conclude with rule Act-PairR.
+
+  Rule \rulenameexpLet. Similar to \rulenameexpLetUnit.
+
+  Rule \rulenameexpMatch. In this case $\termc{e} = \matchwithe{e'}CxeiI$. The
+  premises to the rule include $\expSynth{\Gamma_1^{\kinds}}{e'}{S}{\Gamma_2}$ and
+  $\Normal[+]{S}={\TIn{(\TPApp P {\overline U})}{S'}}$. Agreement
+  (\cref{lem:agreement}) gives $\typeAgainst{S}{\kind}$. Distinguish two cases.
+  When $\termc{e'}$ is value, normalization of session types
+  (\cref{lem:norm-st}) and canonical forms (\cref{lem:cforms}) give
+  $\termc{e'} = \termc{x}$ and $\termc{e}$ reduces by rule Act-Match. Otherwise,
+  the result follows by induction followed by rule Act-MatchE.
+
+  Rule P-Exp. In this case $\termc{p} = \expp e$. Distinguish two cases. When
+  $\termc{e}$ is a value, canonical forms give $\termc{e} = \unitk$ and
+  $\termc{p}$ is completed. Otherwise, by induction $\trans e \lambda {e'}$ and
+  we further distinguish three cases according to label $\lambda$:
+  
+  \begin{center}
+  \begin{tabular}{cc}
+    $\lambda$ & LTS rule\\\hline
+    $\forkl v$ & Act-Fork\\
+    $\newl xyT$ & Act-New\\
+    $\sigma$ & Act-Session\\
+    $\beta$ & Act-Beta\\\hline
+  \end{tabular}
+\end{center}
+
+  Rule P-Par. In this case $\termc{p} = \parp{p_1}{p_2}$. By induction each
+  $\termc{p_i}$ is either completed, reduces or is a deadlock. We must analyse
+  eight cases. When both $\termc{p_i}$ are completed, $\termc{p}$ is completed.
+  When one of the $\termc{p_i}$ is a deadlock, then so is $\termc{p}$. In case
+  both $\termc{p_i}$ reduce, then $\termc{p}$ reduces by ACT-JoinR (or
+  Act-JoinL). Otherwise, when $\termc{p_1}$ reduces (and $\termc{p_2}$ is
+  completed), $\termc{p}$ reduces with rule Act-ParL. Finally, hen $\termc{p_2}$
+  reduces (and $\termc{p_1}$ is completed), $\termc{p}$ reduces with rule
+  Act-ParR.
+
+  Rule P-New. In this case $\termc{p} = \newp xy{p_1}$. The premise to the rule
+is $\isProc[\Gamma, \ebind x{\Normal[+]T} , \ebind y{\Normal[-]T}]{p_1}$. Agreement
+(\cref{lem:agreement}) and the fact that duality is defined on session
+types alone %(\cref{lem:duality-st}) 
+establish that
+$(\Gamma,\ebind x{\Normal[+]T}, \ebind y{\Normal[-]T})^\kinds$. By induction $\termc{p_1}$ is
+completed, reduces or is a deadlock. Because completed processes are closed
+(\cref{lem:completed-closed}), $\termc{p_1}$ cannot be completed. If
+$\termc{p_1}$ is deadlocked, then so is $\termc{p}$, by definition. It remains
+to check the case when $\termc{p}$ is not a deadlock and reduces. Suppose that
+$\trans{p_1}{\pi}{p_2}$, with $\pi$ in the progress set for
+$\termc{x},\termc{y}$. Then $\termc{p}$ reduces according to the table below.
+%
+\begin{center}
+  \begin{tabular}{cc}
+    $\pi$ & LTS rule\\\hline
+    $\sigma$ & Act-Session\\
+    $\forkl v$ & Act-Fork\\
+    $\newl abT$ & Act-New\\
+    $\parl{\receivel xv}{\sendl yv}$ & Act-Msg\\
+    $\parl{\receivel xC}{\sendl yC}$ & Act-Bra\\
+    $\parl{\closel x}{\openl y}$ & Act-Wait\\
+    $\parl{\receivel xa}{\scopel abya}$ & Act-CloseL\\
+    $\parl{\receivel xb}{\scopel abyb}$ & Act-CloseR\\\hline
+  \end{tabular}
+\end{center}
+\end{proof}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

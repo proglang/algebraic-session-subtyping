@@ -1,0 +1,40 @@
+\begin{figure}[t!]
+  \declrel{Labelled transition system for expressions}{$\trans e \lambda e$}
+  \begin{mathpar}
+    \inferrule[Act-App]{}{\trans{\appe{(\abse{x}{T}{e})}{v}}{\beta}{\termc{e}\esubs{v}{x}}}
+    
+	\inferrule[Act-TApp]{}{\trans{\tappe{(\tabse{\alpha}{\kind}{v})}{T}}{\beta}{\termc{v}\tsubs{T}{\alpha}}}
+
+	\inferrule[Act-Let]{}{\trans{\lete{x}{y}{{\paire uv}}{e}}{\beta}{\termc{e}\esubs{u}{x}\esubs{v}{y}}}
+
+	\inferrule[Act-Let*]{}{\trans{\letu{\unitk}{e}}{\beta}{\termc{e}}}
+
+    \inferrule[Act-Rec]{}{\trans{\appe{({\rece xTv})}
+        u}{\beta}{\appe{(\termc{v}\esubs{\rece xTv}{x})}u}}
+
+    \inferrule[Act-Fork]{}{\trans{\appe{\forkk}{v}}{\forkl{v}} \unitk}
+	
+	\inferrule[Act-New]{}{\trans{\tappe \newk T}{\newl xyT}{\paire xy}}
+
+	\inferrule[Act-Rcv]{}{\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}}
+	
+	\inferrule[Act-Send]{}{\trans{\appe{\appe{\tappe{\tappe \sendk T}{U}}{v}}{x}}{\sendl xv}{x}}
+	
+	\inferrule[Act-Match]{}{\trans{\matchwithe xCyeiI}{\receivel
+        x{C_k}}{e_k\esubs x{y_k}}}
+
+	\inferrule[Act-Sel]{}{\trans{\appe{\tappe{\selecte{C}}{\overline T}}{x}}{\sendl x{C}}{x}}
+	
+	\inferrule[Act-Wait]{}{\trans{\waite{x}}{\closel x}\unitk}
+
+	\inferrule[Act-Term]{}{\trans{\closee{x}}{\openl x}{\unitk}}
+  \end{mathpar}
+  \caption{Labelled transition system for expressions (selected rules). The full version, including
+  call-by-value structural rules, is presented in \cref{sec:appendix-exps-procs}, \cref{fig:lts-exps}}
+  \label{fig:lts-exps-abbrev}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

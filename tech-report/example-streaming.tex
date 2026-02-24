@@ -1,0 +1,29 @@
+\subsection{Streaming}
+\label{sec:streaming}
+
+\begin{lstlisting}
+protocol Stream (a:T) = Cons +a +(Stream a)
+
+ones : !Stream Int -> Void
+ones c =
+  select Cons c & send 1 & ones
+
+repeat : foralla:T. Send a -> a -> !Stream a -> Void
+repeat sd@(Send send_a) x c =
+  select Cons c & send_a [!Stream a] x & repeat sd x
+
+mapStream : foralla:T. forallb:T. Send a -> Recv b ->
+  (a -> b) -> ?Stream a -> !Stream b -> Void
+mapStream sd@(Send send_b) rd@(Recv recv_a) f cin cout =
+  case cin of
+    Cons cin -> 
+      let (x, cin) = recv_a [a] cin in
+      let cout = select Cons cout & send_b [b] (f x) in
+      mapStream [a, b] sd rd f cin cout
+\end{lstlisting}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

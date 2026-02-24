@@ -1,0 +1,106 @@
+\declrel{Typing}{$\isExpr\Gamma eT$}
+\begin{mathpar}\small
+  \axiom{\rulenameexpConst}{\expSynth{\Gamma}{c}{\typeof{\termc c}}{\Gamma}}
+  
+  \infrule{\rulenameexpLinVar}
+  {\typeSynth{T}{\kindc{v}^\lin}}
+  {\expSynth{\Gamma,\termc{x}\colon\typec{T}}{x}{T}{\Gamma}}
+  
+  \infrule{\rulenameexpUnVar}
+  {\typeSynth{T}{\kindc{v}^\un}}
+  {\expSynth{\Gamma,\termc{x}\colon\typec{T}}{x}{T}{\Gamma, \termc{x}\colon\typec{T}}}
+  
+  \infrule{\rulenameexpLinAbs}
+  {\typeAgainst{T}{\kindtl} \\ \expSynth{\Gamma_1, x\colon\typec{T}}{e}{U}{\Gamma_2}}
+  {\expSynth{\Gamma_1}{\abse[\lin]xTe}{\TFun[\lin]{T}{U}}{\Gamma_2 \div \termc{x}}}
+
+  \infrule{\rulenameexpUnAbs}
+  {\typeAgainst{T}{\kindtl}
+    \\ \expSynth{\Gamma_1, \termc{x}\colon\typec{T}}{e}{U}{\Gamma_2}
+    \\ \Gamma_1 = \Gamma_2 \div \termc{x}}
+  {\expSynth{\Gamma_1}{\abse[\un]xTe}{\TFun[\un]{T}{U}}{\Gamma_1}}
+  
+  \infrule{\rulenameexpTAbs}
+  {\expSynth[\Delta, \typec{\alpha\colon \kind}]{\Gamma_1}{e}{T}{\Gamma_2}} 
+  {\expSynth{\Gamma_1}{\tabse \alpha\kind e}{\TForall \alpha\kind T}{\Gamma_2}}
+
+  \infrule{\rulenameexpApp}
+  {\expSynth{\Gamma_1}{e_1}{\TFun{T_1}{T_2}}{\Gamma_2}
+    \\\expAgainst{\Gamma_2}{e_2}{T_1}{\Gamma_3}} 
+  {\expSynth{\Gamma_1}{\appe {e_1}{e_2}}{T_2}{\Gamma_3}}
+
+  \infrule{\rulenameexpTApp}
+  {\expSynth{\Gamma_1}{e}{\TForall \alpha\kind U}{\Gamma_2} \\ \typeAgainst{T}{\kind}} 
+  {\expSynth{\Gamma_1}{\tappe e T}{U\tsubs{T}{\alpha}}{\Gamma_2}}
+
+  \infrule{\rulenameexpNew}
+  {\typeAgainst{T}{\kindsl}} 
+  {\expSynth{\Gamma}{\newe T}{\TPair {\typec T} {\TDual T}}{\Gamma}}
+
+  \infrule{\rulenameexpLet}
+  {\expSynth{\Gamma_1}{e_1}{\TPair TU}{\Gamma_2}
+    \\ \expSynth{\Gamma_2, \termc{x}\colon\typec{T}, \termc{y}\colon\typec{U}}{e_2}{V}{\Gamma_3}} 
+  {\expSynth{\Gamma_1}{\lete xy{e_1}{e_2}}{V}{\Gamma_3 \div \termc{x} \div \termc{y}}}
+  
+  \infrule{\rulenameexpCtor}
+  {\protocolsdata \triangleright \kindt^n}
+  {\expSynth{\Gamma}{\constr_i}{\TForall{\overline{\alpha}}{\overline{\kindt^m}}
+      {\TFun[n]{T_{i1}}{\dots \TFun[n]{T_{ik}}{\typec{D\
+              \overline{\alpha}}}}}}{\Gamma}}
+  
+  \infrule{\rulenameexpCase1}
+  {
+    \expSynth\Gamma e {\typec{P\ \overline{U}}} {\Gamma_0} \\
+    \protocolsdata \triangleright \kindt^n \\
+    \expSynth{\Gamma_0, \termc{\overline{x_i}}\colon
+      \typec{\overline{T_i\tsubs{\overline{U}}{\overline{\beta}}}}}{e_i}{V_i}{\Gamma_i}
+    \\
+    \typec V =_\alpha \Normal[+]{V_i}
+    \\
+    \Gamma' =_\alpha \Normal[+]{\Gamma_i \div \overline{x_i}}
+  }
+  {\expSynth{\Gamma}{\casee e {\{\constr_i\ \overline{x_i} \rightarrow
+        e_i\}}}{V}{\Gamma'}}
+
+  \infrule{\rulenameexpCase2}{
+    \expSynth \Gamma e {S_0} {\Gamma_0} \\
+    % \typec{S_0} \neq \typec{P\ \overline{U}} \\
+    \Normal[+]{S_0} = \typec{?(\TPApp P {\overline{U}}).S} \\
+    \protocolsfull \triangleright \kind \\
+    \expSynth {\Gamma_0,\termc{x_i}\colon {
+    \polarizedparams{?}{\overline{O_i\tsubs{\overline U}{\overline\alpha}}}{S}
+    %?(\typec{\overline{T_i^\pm\tsubs{\overline G}{\overline\alpha}}.S}
+    })
+  } {N_i} {V_i} {\Gamma_i} \\
+  \typec V = \Normal[+]{V_i} \\
+  \Gamma' = \Normal[+]{\Gamma_i}
+  }{
+    \expSynth \Gamma {\casee e {C_i\,x_i \to N_i, \dots}} V {\Gamma'}
+  }
+
+  \infrule{\rulenameexpSelect}{
+    \protocolsfull \triangleright \kind
+  }{
+    \expSynth \Gamma {\ESelect{C_i}}
+    {\TForall{\overline{\alpha}}{\overline\kind}
+      {
+        {\TForall \sigma \kinds {\TFun[\un]
+          {\typec{!}(\TPApp P {\overline\alpha}).\sigma}
+          {\polarizedparams{!}{\overline{O_i}}{\sigma}}
+%          {\overline{\blk{!}T_i^\pm}}.S
+        }}}}
+    \Gamma
+  }
+
+\\
+  \infrule{\rulenameexpCheck}
+  {\expSynth{\Gamma_1} e T {\Gamma_2} \\
+    \Normal[+]T =_\alpha \Normal[+]U
+  }
+  {\expAgainst{\Gamma_1} e U {\Gamma_2}}
+\end{mathpar}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

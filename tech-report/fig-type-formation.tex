@@ -1,0 +1,61 @@
+\begin{figure}[t!]
+	\declrel{Type formation}{$\hasType T\kind$}
+\begin{mathpar}
+  \infrule{\rulenametypeUnit}{}{\hasType\TUnit\kindt}
+  
+  \infrule{{\rulenametypeArrow}}{
+    \hasType T \kindt
+    \\ \hasType U \kindt
+  }{
+    \hasType{\TFun[] T U}{\kindt}}
+
+  % \infrule{\rulenametypeInt}{}{\hasType\TInt\kindt}
+  % \infrule{\rulenametypeBool}{}{\hasType\TBool\kindt}
+  \infrule{\rulenametypePair}{\hasType T \kindt \\ \hasType U \kindt}{\hasType{\TPair TU}\kindt}
+
+  \infrule{\rulenametypeVar}{\typec{\alpha}\colon\kind \in \Delta}{\hasType\alpha \kind}
+  \\
+  \infrule{{\rulenametypePoly}}{
+    \hasType[\Delta,\typec{\alpha}\colon\kind]{\typec{T}}{\kindt}
+  }{
+    \hasType{\forall (\typec{\alpha}\colon\kind) \typec{T}}{\kindt}}
+  
+  \infrule{\rulenametypeEndW}{}{\hasType\TEndW{\kinds}}
+
+  \infrule{\rulenametypeEndT}{}{\hasType\TEndT{\kinds}}
+ 
+  \infrule{\rulenametypeMsg}{\hasType T \kindp \\
+    \hasType S \kinds}{\hasType
+    {! T.S}{\kinds} \\ \hasType {? T.S}{\kinds}}
+
+  \infrule{\rulenametypeDualS}{\hasType S {\kinds}}{\hasType{\TDual S} {\kinds}}
+
+  \infrule{\rulenametypeAssume}{
+    \typec{\proto : \overline{\kindp} \to \kindp} \in \Delta \\
+    \hasType{\overline T}{\overline {\kindp}}
+  }{\hasType{\TPApp \proto {\overline{T}}}{\kindp}}
+  
+  \infrule{\rulenametypeMinus}{\hasType T \kindp} {\hasType {\pneg T} \kindp}
+  
+  \infrule{\rulenametypeSub}{\hasType{\typec T}\kind \\ \kind \le \kind'}{\hasType{\typec T}\kind'}
+  % \\
+  % \infrule{\rulenametypeUp}{\hasType T \kindt}{\hasType{\TUp T} \kindp}
+
+  % \infrule{\rulenametypePlus}{\hasType T \kindp}{\hasType {\ppos T} \kindp}
+
+  % \textcolor{red}{\infrule{\rulenametypeSemi}{
+  %   \hasType T \kindp \\ \hasType U \kindp}{
+  %   \hasType {T;U} \kindp
+  % }}
+  % \\
+  % \\
+  %   % \kind \in \{\kindt, \kindp\} \\
+\end{mathpar}
+  \caption{Type formation}
+  \label{fig:type-formation}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

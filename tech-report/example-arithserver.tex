@@ -1,0 +1,42 @@
+\subsection{Good ole Arithmetic Server}
+\label{sec:good-ole-arithmetic}
+
+Client view
+\begin{lstlisting}
+protocol Arith =
+  | Add +Int +Int -Int +Arith
+  | Sub +Int +Int -Int +Arith
+  | Neg +Int -Int +Arith
+  | Quit
+\end{lstlisting}
+The server
+\begin{lstlisting}
+arith : ?Arith.end -> end
+arith c =
+  case c of
+    Add c ->     // c : ?Int. ?Int. !Int. ?Arith.end
+      let (x, c) = receive c in
+      let (y, c) = receive c in
+      arith (send (x+y) c)
+    Sub c -> 
+      let (x, c) = receive c in
+      let (y, c) = receive c in
+      arith (send (x-y) c)
+    Neg c ->
+      let (x, c) = receive c in
+      arith (send (-x) c)
+    Quit c ->
+        c
+
+add : foralls:S. Int -> Int -> !Arith.s -> (Int, !Arith.s)
+add x y c = c &
+  select Add & 
+  send x &
+  send y &
+  receive
+\end{lstlisting}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

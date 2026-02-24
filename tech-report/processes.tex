@@ -1,0 +1,295 @@
+\section{Expressions and Processes}
+\label{sec:processes}
+
+This section introduces the notions of expressions and processes, algorithmic
+typing for expressions, and operational semantics for expressions and processes
+based on labelled transition relations.
+%
+% \paragraph*{Syntax}
+%
+The syntax of constants $\termc c$, values $\termc v$, expressions
+$\termc e$ and processes $\termc p$ is defined by the
+grammar below.
+%
+\begin{align*}
+  \termc c \grmeq & \unitk
+       % \grmor \reck
+       \grmor \forkk 
+       \grmor \newk
+       \grmor \receivek 
+       \grmor \sendk 
+       \grmor \selecte C
+       \grmor \waitk
+       \grmor \terminatek
+  \\
+  \termc v \grmeq & \termc{c}
+      \grmor \termc{x}
+      \grmor \abse{x}{T}{e}
+      \grmor \rece xTv
+      \grmor \tabse\alpha\kind v
+      \grmor \paire{v}{v}
+      \grmor \rece xTv
+      \grmor \tappe{\receivek}{T}
+  \\& \tappe{\tappe{\receivek}{T}}{T}
+      \grmor \tappe{\sendk}{T}
+      \grmor \tappe{\tappe{\sendk}{T}}{T}
+      \grmor \appe{\tappe{\tappe{\sendk}{T}}{T}}{v}
+      \grmor \tappe{\selecte C}{\overline T}
+  \\
+  \termc e \grmeq & \termc{v}
+       \grmor \appe{e}{e}
+       \grmor \tappe{e}{T}
+       \grmor \letu ee
+       \grmor \paire ee
+       \grmor \lete xxee
+      \grmor
+  \\& \matchwithe eCxeiI
+  \\
+  \termc p \grmeq & \expp e 
+  \grmor \parp{p}{p}
+  \grmor \newp{x}{y}{p} 
+\end{align*}
+
+All constructors are standard either in linear functional languages or in
+session type languages. From functional languages we find function introduction
+and elimination ($\abse xTe$ and $\appe{e_1}{e_2}$), linear pair introduction
+and elimination ($\paire{e_1}{e_2}$ and $\lete xy{e_1}{e_2}$), linear unit
+introduction and elimination ($\unitk$ and $\letu{e_1}{e_2}$). From session
+languages we find most of the constructors in the form of constants, including
+$\forkk$ to spawn a new thread, $\newk$ to create a new channel, $\receivek$ to
+receive a value on a given channel, $\sendk$ to send a value on a given channel,
+$\waitk$ to wait for a channel to be closed, $\terminatek$ to force channel
+closing, and $\appe \selectk {C}$ to exercise a choice on a given
+channel indicated by selector name $\constr$. The
+operator to offer a choice on some channel cannot be captured by a type in our
+type language, hence we have made it an expression ($\matchwithe eCxeiI$).
+%
+At the level of processes, we have expressions as threads $\expp e$,
+parallel composition $\termc{p_1 \PAR p_2}$, and 
+introduction of a channel by declaring its
+two ends $\termc x, \termc y$: $\newp xyp$.
+
+% \paragraph{Typing}
+
+%\input{fig-ctx}
+\input{fig-type-constants}
+\input{fig-alg-typing}
+
+Expression typing is again mostly standard with respect to (linear) functional
+or session type languages. The definitions for typing assume a set of
+protocol declarations as an implicit argument. The typings of
+$\appe\selectk{C}$ (\cref{fig:type-constants}) and $\matchk$
+(\cref{fig:alg-typing}, \rulenameexpMatch) access these protocol declarations. 
+The $\typeofop$ operator in~\cref{fig:type-constants} returns the
+types for constants in normal form. The typing rules for expressions are defined
+in~\cref{fig:alg-typing}. 
+%
+The type system is algorithmic, implemented with two mutually recursive
+judgments: one to synthetize a type of an expression, the other to check an
+expression against a type. The typing rules rely on type variable contexts
+$\Delta$ introduced in \cref{sec:types}, on term variable contexts $\Gamma$
+assigning types $\typec T$ to term variables $\termc x$. There are two sorts of
+entries in term variable contexts: linear entries, noted $\ebind xT$, and
+unrestricted entries, noted $\eubind xT$. The latter are used for recursive
+functions only (\cf rules \rulenameexpUVar and \rulenameexpRec) and are inspired
+by work on quantitative type theory
+\cite{DBLP:conf/lics/Atkey18,DBLP:conf/birthday/McBride16,DBLP:journals/pacmpl/BernardyBNJS18}.
+
+The type
+system maintains the invariant that entries in term variable contexts are always normalized:
+the rules that write into contexts, namely
+\rulenameexpAbs, \rulenameexpRec and \rulenameexpLet, normalize the
+new entry. 
+Judgments are of the form $\expSynth{\Gamma_1} eT{\Gamma_2}$ or
+$\expAgainst{\Gamma_1} eT{\Gamma_2}$, where $\Gamma_2$ represents the
+part of context $\Gamma_1$ \cite{walker:substructural-type-systems}
+that is not consumed by $\termc e$ and $\typec T$ is in normal form.
+% or the unused part of a session type for a given endpoint
+% \cite{DBLP:journals/iandc/Vasconcelos12,DBLP:conf/forte/ZalakainD21}.
+The axioms
+(\rulenameexpConst and \rulenameexpVar) mostly copy the input context to the
+output. Rule \rulenameexpApp is a good example of context threading: 
+to type expression $\appe {e_1}{e_2}$, expression $\termc{e_1}$ is given the
+input context $\Gamma_1$, produces $\Gamma_2$ which is given to $\termc{e_2}$,
+which turn produces $\Gamma_3$ that constitutes the outgoing context of
+application $\appe {e_1}{e_2}$.
+%
+The rules that add linear entries to the context (\rulenameexpAbs, \rulenameexpLet
+and \rulenameexpMatch) all check that the new variables are not present
+in the outgoing context, thus ensuring that the corresponding values are fully
+consumed. 
+% 
+Rule \rulenameexpTApp explicitly normalizes the output type for normalization is
+not preserved by substitution; all rules that introduce new entries in the
+context (\rulenameexpAbs, \rulenameexpRec, \rulenameexpLet, and
+\rulenameexpMatch) make sure that types are normalized, thus ensuring that contexts contain only
+normalized types.
+% other rules
+% construct types in normal form, either by assumption or by induction on a
+% premise (see \cref{sec:appendix-exps-procs}).
+
+% ======= I don't think we need this
+% Rule \rulenameexpTApp normalizes the output type, all other rules
+% construct types in normal form, either by assumption or by induction
+% on a premise (see \cref{sec:appendix-exps-procs}, \cref{lem:synth-against-nf}).
+% >>>>>>> e9014ece406b68d500fbdef7db6faf10a460f9ae
+
+Rules \rulenameexpRec and \rulenameexpUVar govern the typing of
+recursive functions. Rule \rulenameexpRec binds the recursive function $x$
+using an unrestricted binding $\eubind x\_$ so that any number of
+recursive calls is possible in the body via \rulenameexpUVar. Unrestricted
+bindings provide for termination of recursive functions. Such functions cannot use linear variables from the
+environment, which we enforce by requiring the incoming context
+$\Gamma$ to be equal to the outgoing context.
+
+The truly new rule is \rulenameexpMatch, which indicates that all
+rules are parametric with respect to an implicit set of protocol
+declarations: there is a declaration for each protocol $\proto$ which
+has a kinding in $\Delta$. The rule starts by synthesizing the 
+input type of the expression to be matched;
+the type is 
+$\TIn{(\TPApp \proto {\overline U})}{S}$ for some
+protocol constructor $\proto$. At this point, the declaration of protocol
+$\proto$ is looked up in the implicit set of declarations. The
+$\matchk$ branch for each choice of selector $\termc{C_i}$ is then typed in turn. The
+parameters $\typec{\overline \alpha}$ of the protocol are instantiated with
+the arguments $\typec{\overline U}$ to produce a sequence of types
+$\typec{\overline{T_i}\tsubs{\overline U}{\overline \alpha}}$. This sequence of
+types is converted to a normalized session type as described in \cref{sec:types},
+which is assigned to variable $\termc{x_i}$. Now, each branch synthesizes a type
+$\typec{V_i}$ and context $\Gamma_i$, for $i\in I$. In all branches,
+the output types and the contexts must coincide (up to $\alpha$
+equivalence) with the output type 
+and context of the $\matchk$, i.e., $\typec V$ and $\Gamma_3$. In practice,
+the implementation selects one branch, say $k\in I$, and compares all
+other output types and contexts with $\typec{V_k}$ and $\Gamma_k$.
+In this rule, and also in the type for $\selectk$ in \cref{fig:type-constants}, we extend the
+directional operators and  materialization (from \cref{fig:type-polarized-operator}) 
+to sequences
+of parameters by mapping:
+$\polarizedparam{\pm}{\overline{T}}{} =
+\overline{\polarizedparam{\pm}{T}{}}$ as well as
+$\tosession {\varepsilon}S = \typec S$ and $\tosession {T\overline T}S =
+\tosession{T}{\tosession {\overline T}S}$.
+
+Rule \rulenameexpCheck relies on the previous judgement to check expression $\termc e$ against 
+type $\typec T$, up to $\alpha$-equivalence. This simple comparison is
+sufficient because synthesis outputs $\typec U$ in normal form and
+checking must be invoked with $\typec T$ in normal form.
+%
+% \begin{lemma}\
+%      \label{lem:synth-against-nf}
+%      \begin{enumerate}
+%           \item\label{it:synth-nf} If $\expSynth{\Gamma_1} eT{\Gamma_2}$ and $\isCtx[\Delta]{\Gamma_1}{\kindt}$, 
+%           then $\isCtx[\Delta]{\Gamma_2}{\kindt}$ and $\typec T$ is in normal form.
+%           \item\label{it:against-nf}  If $\expAgainst{\Gamma_1} eT{\Gamma_2}$ and $\isCtx[\Delta]{\Gamma_1}{\kindt}$
+%           and $\typec T$ is in normal form, then $\isCtx[\Delta]{\Gamma_2}{\kindt}$.
+%      \end{enumerate}
+%      \begin{proof}\
+%      \begin{enumerate}
+%           \item By rule induction on the first hypothesis.
+%           \item Using \cref{it:synth-nf} and observing that type $\typec U$ such that 
+%           $\typec U =_\alpha \typec T$ is also in normal form.
+%           \qedhere
+%      \end{enumerate}         
+%      \end{proof}
+% \end{lemma}
+%
+%
+% \paragraph*{Operational semantics}
+
+The operational semantics for expressions and processes is defined via a 
+transition relation labelled by the below actions.
+%
+\begin{align*}
+  \sigma &\grmeq \receivel xv
+	   \grmor \sendl xv
+       \grmor \receivel xC
+	   \grmor \sendl xC
+       \grmor \closel x
+	   \grmor \openl x
+       && \text{labels for session operations}
+  \\
+  \lambda &\grmeq \sigma
+       \grmor \beta
+       \grmor \forkl v
+	   \grmor \newl xxT
+       && \text{labels for expressions}
+  \\
+  \pi &\grmeq \sigma 
+  \grmor \tau
+  \grmor \scopel xxxx
+  \grmor (\parl \pi \pi)
+       && \text{labels for processes}
+\end{align*}
+%
+The $\sigma$ labels capture the six operations on sessions: $\receivek$,
+$\sendk$, $\matchk$, $\selectk$, $\waitk$ and $\terminatek$.
+%
+Labels $\lambda$ are for expressions: $\beta$ is for internal actions and the
+remaining two for $\forkk$ and $\newk$.
+%
+Labels $\pi$ are for processes: $\tau$ is for silent actions (the counterpart of
+$\beta$ for expressions), $\scopel abxa$ or $\scopel abxb$ is for opening the
+scope of a $\termc{(\nu ab)}$ binding, and $\pi\PAR\pi$ for parallel
+composition.
+
+\input{fig-label-exps-abbrev}
+
+The axioms of the labelled transition system for
+expressions is defined by the rules in \cref{fig:lts-exps-abbrev}
+(\cref{sec:appendix-exps-procs}, \cref{fig:lts-exps}, contains the whole set).
+%
+We group under label $\beta$ the common reduction rules of the polymorphic
+lambda calculus. Rules Act-Fork and Act-New record in the label the value forked
+and the names and types of the channel ends created. These two transitions will
+then be handled at the process level. Then we have the six transitions for the
+common session operations.
+% These are now in appendix
+% Lastly we have the call-by-value structural rules.
+% For example, rule Act-AppL reduces the left hand side of an application, whereas
+% Act-AppR reduces the right hand side when the left is a value.
+
+\input{fig-label-procs}
+
+The labelled transition system for processes is defined by the rules in
+\cref{fig:lts-procs}. The rules are adapted from
+\citet{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996} which in
+turn are inspired by \citet{DBLP:journals/corr/abs-2106-11818}. The first four
+rules convert expression transitions into process transitions: the session
+transitions $\sigma$ are passed directly from expressions to processes (rule
+Act-Session). The next three rules all yield silent ($\tau$) transitions:
+Act-Fork launchs a new thread and Act-New creates a new channel. Rules Act-JoinL
+and Act-JoinR account for the commutative nature of parallel composition. Rules
+Act-ParL, Act-ParR and Act-Res allow transitions underneath parallel composition
+and scope restriction. The rules for opening and closing a scope (left and right
+versions) are adapted to the double binder scheme from the labelled transitions
+systems for the $\pi$-calculus~\cite{DBLP:journals/iandc/MilnerPW92b}. These
+rules are required for we work with free output, unlike the above cited
+works~\cite{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996,DBLP:journals/corr/abs-2106-11818}
+that work with bound output.
+
+
+Reduction underneath a prefix (rule Act-Res) can only occur if the channels ends
+$\termc x$ and $\termc y$ (two bound variables) do not capture the free
+variables in the label. For this purpose, we define the free variables of a
+process label $\pi$ as follows.
+%
+\begin{align*}
+  % sigma labels
+  \FVL {\receivel xv} = \FVL {\sendl xv} = \{x\} \cup \FVE v
+  \qquad
+  \FVL {\receivel xC} = \FVL {\sendl xC} = \FVL {\closel x} = \FVL {\openl x} = \{x\}
+  \\
+  \FVL \tau = \emptyset
+  \qquad
+  \FVL {\scopel wxyz} = \{y,z\} \setminus \{w,x\}
+  \qquad
+  \FVL {\parl \pi {\pi'}} = \FVL \pi \cup \FVL {\pi'}
+\end{align*}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

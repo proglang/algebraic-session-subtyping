@@ -1,0 +1,71 @@
+\smallskip
+\emph{Linear and unrestricted types.}
+Our 
+%formal 
+calculus is mostly linear, except that we
+%. The only exception we make is to
+allow unrestricted bindings for recursive functions, which would be
+rendered useless otherwise. 
+%On the other hand, we want to speak about
+%recursive protocols, so we felt like recursive functions are needed in
+%the formal development. 
+Our implementation goes well beyond that in
+allowing fully fledged unrestricted computations besides ensuring that
+session typed channels are treated linearly.
+% That said, all related work is closer to our implementation than to
+% the formal calculus.
+%
+There is some work on recursion and linearity in the context of lambda calculus
+\cite{DBLP:journals/lisp/AlvesFFM10}
+%. This work 
+adding iterators on
+linear natural numbers to the calculus, thereby avoiding the need for
+a rule like {\rulenameexpUVar}.
+%, which we need to bind the recursive function to a name.
+
+System F\degree~\cite{DBLP:conf/tldi/MazurakZZ10}
+extends System F with kinds to integrate polymorphism with linear and
+unrestricted types. This work serves as a blueprint for much
+subsequent work in this area including LFST and FreeST (see below), as well as our
+implemented language.
+They categorize all objects, including functions, into one-use or
+many-use resources. This style can be traced back to 
+\citet{walker:substructural-type-systems}. 
+% One example in the paper applies the language to protocols built with
+% linear capabilities, reminiscent of session types.
+%
+LFST \cite{lindley17:_light_funct_session_types} formalizes the
+session type system of Links, which features a mix of linear and
+unrestricted types, embedding a standard functional programming
+language. The substructural behavior of types is specified by a
+sophisticated kind structure.  The kinding used in our implementation
+is inspired by LFST, though LFST has additional kinds to describe row
+types that we do not support.
+%
+\citet{DBLP:journals/corr/abs-2106-06658}
+consider an integration of context-free session types with
+System~F. Their type system includes a kinding discipline that manages
+linear and unrestricted versions of ordinary types and
+message types (possible payloads for the send and receive
+operations). Our implemented system extends the kind structure in a
+similar way.
+
+Linear Haskell (LH) \cite{DBLP:journals/pacmpl/BernardyBNJS18}
+is a proposal to integrate linear types with stock functional
+programming. While the work discussed so far characterizes resources,
+LH supports the lollipop type $S \multimap T$ which classifies
+functions that use their argument exactly once. Originally, LH forced
+the programmer to allocate resources using continuations. This restriction
+has been fixed in subsequent work \cite{DBLP:journals/pacmpl/SpiwackKBWE22}.
+%
+There is further work on integrating linear and dependent types (e.g.,
+\cite{DBLP:conf/popl/KrishnaswamiPB15}) which relies on
+bifurcating the language in two calculi connected by an adjunction.
+
+% We believe that \algst definitions that do not make
+% significant use of negation on protocols
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

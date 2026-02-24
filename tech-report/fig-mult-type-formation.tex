@@ -1,0 +1,64 @@
+\begin{figure}[t!]
+	\declrel{Type formation}{$\isType T\kind$}
+\begin{mathpar}
+  \infrule{\rulenametypeInt}{}{\isType\TInt\kindmu}
+
+  \infrule{\rulenametypeBool}{}{\isType\TBool\kindmu}
+
+  \infrule{{\rulenametypeArrow}}{
+    \isType T \kindtl
+    \\ \isType U \kindtl
+  }{
+    \isType{\TFun[\mult] T U}{\kindtm}}
+
+  \infrule{\rulenametypeVar}{\typec{\alpha}\colon\kind \in \Delta}{\isType\alpha \kind}
+  
+  \infrule{{\rulenametypePoly}}{
+    \isType[\Delta,\typec{\alpha}\colon\kind']{\typec{T}}{\kindtm}
+  }{
+    \isType{\forall (\typec{\alpha}\colon\kind') \typec{T}}{\kindtm}}
+  
+  \infrule{\rulenametypeSub}{\isType{\typec T}\kind \\ \kind \le \kind'}{\isType{\typec T}\kind'}
+  \\
+  \infrule{\textcolor{red}{T-Assume}}{
+    \typec{P : \overline{\kind} \to \kind \in \Delta} \\
+    \isType{\overline T}{\overline {\kind}}
+  }{\isType{P\ \overline{T}}{\kind}}
+
+  \infrule{\rulenametypeGuarded}{\protocolsfull \triangleright \kind \\
+    \isType{\overline T}{\overline {\kind}}}{
+    \isType{P\ \overline{T}}\kind}
+\\
+  \infrule{\rulenametypeEnd}{}{\isType\TEnd{\kindsu}}
+
+  % \infrule{\rulenametypeDot}{\isType G \kindg \\ \isType S {\kinds^m}}{\isType{G.S} {\kindsl}}
+  % 
+  \infrule{\rulenametypeDualS}{\isType S {\kinds^m}}{\isType{\TDual S} {\kinds^m}}
+  
+  \infrule{}{\isType T \kindp \\ \isType S \kindsl}{\isType
+    {! T.S}{\kindsl} \\ \isType {? T.S}{\kindsl}}
+  % \\
+  % \infrule{\rulenametypeMsg}{\isType{T}{\kindtl} }{
+  %   \isType{{!T}}\kindg\\
+  %   \isType{{?T}}\kindg
+  % }
+  %   
+  % \infrule{\rulenametypeMsgP}{\isType{T}{\kindp}}{
+  %   \isType{{\typeconstr{!}T}}\kindg\\
+  %   \isType{{\typeconstr{?}T}}\kindg
+  % }
+  %   
+  % \infrule{\rulenametypeDualG}{\isType G \kindg}{\isType {\TDual G} \kindg}
+  \\
+  \infrule{}{\isType T \kind} {\isType {\pneg T} \kindp}
+
+  \infrule{}{\isType T \kind}{\isType {\ppos T} \kind}
+\end{mathpar}
+  \caption{Type formation}
+  \label{fig:type-formation}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

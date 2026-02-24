@@ -1,0 +1,53 @@
+\section{A Toolbox for Generic Servers}
+\label{sec:toolb-gener-serv-1}
+
+
+Analogously to the \lstinline+Stream+ protocol, we can define a protocol
+and a generic server for finite repetion of a subsidiary protocol:
+\begin{lstlisting}
+protocol Repeat x = More x (Repeat x) | Quit
+
+repeat : forall(p:P). Service p -> Service (Repeat p)
+repeat [p] serveP [s] c = match c of {
+  Quit c -> c,
+  More c -> serveP [?Repeat p.s] c |> repeat [p] serveP [s]
+}
+\end{lstlisting}
+This protocol may then be used similarly to  \lstinline+Stream+:
+\begin{lstlisting}
+repeatArith = repeat [Arith] serveArith
+\end{lstlisting}
+We can define an active version that offers the subprotocol $n$ times
+and use that with \lstinline+Arith+, too:
+\begin{lstlisting}
+repeatActive : Int -> forall(p:P). Service p -> Service -(Repeat -p)
+repeatActiveArith : Int -> Service -(Repeat -Arith)
+\end{lstlisting}
+While the implementation is straightforward, the astute reader might
+ask why we provide the negative parameter to \lstinline+Service+ in
+\lstinline+Service -(Repeat -p)+. In particular, could we not use the
+\lstinline+Dual+ operator to switch the direction of the service?
+
+To see the problem with this proposal, let's expand the two candidates:
+\begin{lstlisting}
+Dual (Service (Repeat -p)) = Dual (forall(s:S). ?Repeat -p.s -> s)
+\end{lstlisting}
+This proposal is doomed because the use of \lstinline+Dual+ on the
+right side is not well-kinded, as neither the
+universal type nor the function types are session types in our
+system.
+% Even applying \lstinline+Dual (?Repeat -p. s)+ results in
+% \lstinline+!Repeat -p. Dual s+ with a dualized continuation.
+
+\begin{lstlisting}
+Service -(Repeat -p) = forall(s:S). ?- (Repeat -p). s -> s
+                     = forall(s:S). !Repeat -p. s -> s
+\end{lstlisting}
+The negative parameter swaps the receiving operator in
+\lstinline+Service+ to sending with surgical precision.
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

@@ -1,0 +1,56 @@
+\begin{figure}[t!]
+  \declrel{CFST to AlgST: Translation of the functional fragment}{$\cfsttoalgst{T\colon \mathsf{T^{lin}}}=\typec T \colon \kindt$}
+ 
+    \begin{mathpar}
+    \cfsttoalgst{\syntax{unit}} = \TUnit \and
+    \cfsttoalgst{T \rightarrow U} = \TFun[]{\cfsttoalgst{T}}{\cfsttoalgst{U}} \and
+    \cfsttoalgst{T \times U} = \TPair{\cfsttoalgst{T}}{\cfsttoalgst{U}}\\
+%    \cfsttoalgst{\forall\alpha.T} = \TForall{\alpha}{\kindt}{\cfsttoalgst{T}}\quad
+%	\cfsttoalgst{\alpha} = \typec{\alpha} \\
+	\cfsttoalgst{\langle \ell \colon T_\ell\rangle_{\ell\in L}} = \typec{X_L }\text{ where }\datak\ \typec{X_L}~\blk{=}
+	~\typec{\{{\termc{\ell}\ \cfsttoalgst{T_\ell}}\}_{\ell\in L} }
+\\
+	\cfsttoalgst{X\colon \kappa} = \typec{X}
+	\text{ for } X \doteq T \text{ and } \kappa \neq \mathsf{S^{lin}}
+	\text{ where }
+	\datak\ \typec{X}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoalgst{T}}\\
+	\cfsttoalgst{T\colon \mathsf{S^{lin}}} = \TOut{X_T}{\TEndT} \text{ where }\protocolk\ \typec{X_T}~\blk{=}~\typec{\termc{X_T}\ \cfsttoprot T}\text{ and $X_T$ is a fresh name.}
+%% old version, with polymorphic types
+%		\datak\ \typec{X\ \overline{\alpha}}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoalgst{T}} \text{ and }\FVL{T} = \overline\alpha\\
+%	\cfsttoalgst{\langle \ell_1 \colon T_1, \ldots, \ell_n \colon T_n\rangle} = \TPApp {X_{\langle\ell_1\cdots \ell_n\rangle}}{\overline{\alpha}} \text{ where }\datak\ \typec{X_{\langle\ell_1\cdots \ell_n\rangle}\ \overline{\alpha}}~\blk{=}~\typec{\termc{\ell_1}\ \cfsttoalgst{T_1} \mid \ldots \mid \termc{\ell_n}\ \cfsttoalgst{T_n}} 
+%	\text{ and }\cup_{i=1}^n \FVL{T_i} = \overline\alpha
+%\\
+%	\cfsttoalgst{T\colon \mathsf{S^{lin}}} = \TOut{X_T}{\TEndT} \text{ where }\protocolk\ \typec{X_T}~\blk{=}~\typec{\termc{X_T}\ \cfsttoprot T}\text{ and $X_T$ is a fresh name.}
+    \end{mathpar}
+    
+    \declrel{CFST to AlgST:Translation of the session typed fragment}{$\cfsttoprot{T\colon \mathsf{S^{lin}}}=\typec{\overline {T\colon \kindp}}$}
+    
+    \begin{mathpar}
+    \cfsttoprot{\syntax{skip}} = \emptyseq \and \cfsttoprot{! T} = \cfsttoalgst{T} \and
+    \cfsttoprot{? T} = \TMinus {\cfsttoalgst{T}}\and
+    \cfsttoprot{T; U} = \cfsttoprot{T} \cfsttoprot{U}
+    	\\
+	\cfsttoprot{\oplus\{\ell\colon T_\ell\}_{\ell\in L}} = \typec{X_L}
+        \text{ where } \protocolk\ \typec{X_L}~\blk{=} ~\typec{\{{\termc{\ell}\ \cfsttoprot{T_\ell}}\}_{\ell\in L}}
+	\\
+	\cfsttoprot{\&\{\ell\colon T_\ell\}_{\ell\in L}} = \TMinus
+        {\typec{X_L}}
+        \text{ where } \protocolk\ \typec{X_L}~\blk{=}
+        ~\typec{\{{\termc{\ell}\ \cfsttoprot{\syntax{dual}\,T_\ell}}\}_{\ell\in L}}
+    \\
+	\cfsttoprot{X\colon \mathsf{S^{lin}}} = \typec{X}
+	\text{ for } X \doteq T
+	\text{ where }
+	\protocolk\ \typec{X}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoprot{T}} 
+	%
+	%~\typec{\termc{\ell_1}\ \cfsttoprot{T_1} \mid \ldots \mid \termc{\ell_n}\ \cfsttoprot{T_n}} 
+    \end{mathpar}
+\caption{Translation of linear context-free session types to algebraic session types}
+\label{fig:cfst-vs-algst-f}
+\end{figure}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

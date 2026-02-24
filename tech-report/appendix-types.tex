@@ -1,0 +1,168 @@
+\section{Proofs for Types}
+
+\begin{example}
+  We generalize the example from the introduction to a
+  parametric stack protocol.
+\begin{lstlisting}
+protocol Stack a = Pop -a | Push a (Stack a) (Stack a)
+\end{lstlisting}
+  We set  $ \Delta = \types{Neg} : \kindp \to \kindp, \types{a} :
+  \kindp$ and obtain
+  the straightforward derivation
+  \begin{mathpar}
+    \inferrule*{
+      \inferrule*
+      {\inferrule*
+      {\typeSynth{ \types{a} }{\kindp}}
+      {\typeAgainst{ \types{a} }{\kindp}}}
+      {\typeAgainst{ \types{-a} }{\kindp}} \\
+      \inferrule*
+      {\typeSynth{ \types{a} }{\kindp}}
+      {\typeAgainst{ \types{a} }{\kindp}} \\
+      \inferrule*
+      {\inferrule*
+        {\types{Stack} : {\kindp} \to \kindp \in \Delta \\
+          \inferrule*
+          {\typeSynth{\types{a}}{\kindp}}
+          {\typeAgainst{\types{a}}{\kindp}}}
+        {\typeSynth{ \types{Stack~a}}{\kindp}}}
+      {\typeAgainst{ \types{Stack~a}}{\kindp}}
+    }
+    {
+      \typeSynth[]{ \types{Stack} }{\kindp \to \kindp}
+    }
+  \end{mathpar}
+  The three subderivations correspond to the arguments of the protocol
+  constructors. We conclude that the definition of the protocol 
+  \lstinline+Stack a+ is well-formed.
+\end{example}
+
+\begin{lemma}[Properties of the materialization and directional operators]\
+  \label{lem:ops-dual}
+  \begin{enumerate}
+    \item\label{it:dual-norm} $\isConv{\TDual{(\tosession TS)}}{\tosession{\polarizedparam{-}{T}}{\TDual{S}}}\kinds$
+    \item\label{it:plus-minus} $\polarizedparam{-}{\polarizedparam{+}{T}} = \polarizedparam{-}{T}$
+    \item\label{it:minus-minus} $\polarizedparam{-}{\polarizedparam{-}{T}} = \polarizedparam{+}{T}$
+  \end{enumerate}
+\end{lemma}
+\begin{proof}\
+  \begin{enumerate}
+  \item By case analysis on the definition of the
+    $\tosessionop$ operator (\cref{fig:type-polarized-operator}).
+
+    Case $\typec T = \pneg U $.
+    %$\isConv{\TDual{(\tosession {-T}S)}}{\tosession{\polarizedparam{-}{-T}}{\TDual{S}}}\kinds$.
+    Since $\tosession {\pneg U}S = \TIn{U}{S}$, rule \rulenametconvDualInM gives
+    $\isConv{\TDual{(\tosession {\pneg U}S)}}{\TOut{U}{\TDual S}}\kinds$. Observing that
+    $\polarizedparam{-}{-U}=\polarizedparam{+}{U}=\typec U$ we conclude that
+    $\tosession{\polarizedparam{-}{\pneg U}}{\TDual{S}}=\TOut{U}{\TDual S}$.
+
+    Case $\typec T \neq \pneg U $
+    %$\isConv{\TDual{(\tosession {T}S)}}{\tosession{\polarizedparam{-}{T}}{\TDual{S}}}\kinds$.
+    Since $\tosession {T}S = \TOut{T}{S}$, rule \rulenametconvDualOutM gives
+    $\isConv{\TDual{(\tosession {T}S)}}{\TIn{T}{\TDual S}}\kinds$. Conclude observing
+    that $\polarizedparam{-}{T}=\typec{-T}$.
+    \item The proof follows by case analysis on the definition of the directional operators.
+
+    Case $\typec T = \pneg U $. We have:
+    $\polarizedparam{-}{\polarizedparam{+}{\pneg U}} = \polarizedparam{-}{\polarizedparam{-}{U}}
+    = \polarizedparam{-}{\pneg{U}}$.
+
+    Case $\typec T \neq \pneg U $. We have:
+    $\polarizedparam{-}{\polarizedparam{+}{T}} = \polarizedparam{-}{T}$.
+
+    \item The proof follows by case analysis on the definition of the directional operators.
+
+    Case $\typec T = \pneg U $. We have:
+    $\polarizedparam{-}{\polarizedparam{-}{\pneg U}} = \polarizedparam{-}{\polarizedparam{+}{U}}
+    = \polarizedparam{-}{U} = \pneg U = \polarizedparam{+}{\pneg U}$.
+
+    Case $\typec T \neq \pneg U $. We have:
+    $\polarizedparam{-}{\polarizedparam{-}{T}} = \polarizedparam{-}{\pneg T}= \polarizedparam{+}{T}$.
+  \end{enumerate}
+\end{proof}
+
+\begin{lemma}[Agreement for type conversion]
+  \label{it:agreement-type-conv}
+  If $\isConv T U \kind$, then $\typeAgainst T \kind$ and
+  $\typeAgainst U \kind$.
+\end{lemma}
+\begin{proof}
+  By rule induction on the hypothesis.
+\end{proof}
+
+
+We start by specifying the syntax of types in normal form. Normal forms for well-formed types
+are $\typec{Q}$ as defined by the following grammar:
+%
+\begin{align*}
+  \typec{Q} &\grmeq \typec{R} \grmor \pneg{R}
+  \\
+  \typec{R} &\grmeq
+  % functional types
+  \TUnit \grmor \TFun[]{R}{R} \grmor \TPair{R}{R} \grmor
+  \TForall \alpha \kind {R} \grmor \typec\alpha
+  % session types
+  \grmor \TIn{R}{R} \grmor \TOut{R}{R}
+  \grmor \TEndW \grmor \TEndT  \grmor
+  \TDual{\alpha}
+  % protocol and data types
+  \grmor \TPApp \proto {\overline{Q}}
+\end{align*}
+
+
+\begin{proposition}[Kind preservation]
+  ~\label{lemma:kind-preservation}
+  \begin{enumerate}
+  \item For all $\typeSynth T\kind$,  $\isConv{\Normal[+] T}T\kind$.
+  \item For all $\typeSynth T\kinds$,  $\isConv{\Normal[-] T}{\TDual T}\kinds$.
+  \end{enumerate}
+\end{proposition}
+\begin{proof}
+  See Agda development \texttt{nf-sound+} and \texttt{nf-sound-}.
+\end{proof}
+
+\begin{proof}[Proof of \cref{thm:soundness-type-equiv} (Soundness)]
+  \Cref{it:soundness-type-equiv-t}. Suppose that $\Normal[+] T =_\alpha \Normal[+] U$. From
+  \cref{lemma:kind-preservation}, we have  $\isConv{\Normal[+]
+    T}T\kind$ and  $\isConv{\Normal[+] U}U\kind$. Conclude by symmetry
+  and transitivity of conversion as type equality is in $\equiv$.
+  % 
+  The proof for \cref{it:soundness-type-equiv-s} is analogous.
+\end{proof}
+
+\begin{proof}[Proof of \cref{thm:completeness-type-equiv} (Completeness)]
+  See Agda development \texttt{nf-complete} and \texttt{nf-complete-}.
+\end{proof}
+
+To obtain a complexity bound for the computation of a normal form,
+we exploit its syntactic form.
+\begin{lemma}
+  \label{lemma:syntax-of-type-normal-forms}
+  If $\Normal[\pm]T = \typec{T'}$, then $\typec{T'}$ is described by $\typec{Q}$.
+\end{lemma}
+\begin{proof}
+  See Agda development \texttt{nf-normal}.
+\end{proof}
+\begin{proposition}
+  For each $\typeSynth T\kind$,
+  the worst case running time of $\Normal[\pm]T$ is in $O(|\typec{T}|)$.
+\end{proposition}
+\begin{proof}
+  A run of $\Normal T$ visits each of the $|\typec{T}|$ nodes in the input type
+  once. At each node, it either reconstructs the type from the normal forms of
+  the sub-terms in $O(1)$ time, or (in the transmission rules) it applies
+  polarity correction to normal forms. By
+  Lemma~\ref{lemma:syntax-of-type-normal-forms}, a normal form starts with at
+  most one negative polarity, so correction takes at most two steps, at cost
+  $O(1)$.
+\end{proof}
+
+\begin{proof}[Proof of \cref{thm:complexity} (Time complexity of type equivalence)]
+  A corollary of \cref{lemma:syntax-of-type-normal-forms}.
+\end{proof}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

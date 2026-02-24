@@ -1,0 +1,56 @@
+\begin{figure}[t!]
+    \declrel{Labelled transition system for contexts}{$\Gamma\lts{\lambda} \Gamma$\quad $\Gamma\lts{\pi} \Gamma$}
+\begin{mathpar}
+    \inferrule[L-Rcv]
+    {\expAgainst[\Empty]{\Gamma}{v}{T}{\Empty}}
+    {\transCtx{\ebind{x}{\TIn{T}{S}}}{\receivel{x}{v}}{\Gamma,\ebind{x}{S}}}
+    
+    \inferrule[L-Send]
+    {\expAgainst[\Empty] \Gamma v T \Empty}
+    {\transCtx{\Gamma, \ebind{x}{\TOut{T}{S}}}{\sendl{x}{v}}{\ebind{x}{S}}}
+    
+    \inferrule[L-Match]
+    {\protocolsfull}
+    {\transCtx{\ebind{x}{\TIn{(\TPApp \proto{\overline{U}})}{S}}}{\receivel{x}{C_k}}{\ebind{x}{\matchin[k]}}}
+    
+    \inferrule[L-Sel]
+    {\protocolsfull}
+    {\transCtx{\ebind{x}{\TOut{(\TPApp \proto{\overline{U}})}{S'}}}{\sendl{x}{C_k}}{\ebind{x}{\matchout[k]}}}
+    
+    \inferrule[L-Wait]{}
+    {\transCtx{\ebind{x}{\TEndW}}{\closel{x}}{\Empty}}
+    
+    \inferrule[L-Term]{}
+    {\transCtx{\ebind{x}{\TEndT}}{\openl{x}}{\Empty}}
+    
+    \inferrule[L-Beta]{}
+    {\transCtx{\Empty}{\beta}{\Empty}}
+    
+    \inferrule[L-Fork]
+    {\expAgainst[\Empty]{\Gamma}{v}{\TFun[]\TUnit\TUnit}{\Empty}}
+    {\transCtx{\Gamma}{\forkl{v}}{\Empty}}
+    
+    \inferrule[L-New]{}
+    {\transCtx{\Empty}{\newl xyT}{\ebind{x}{\Normal[+] T}, \ebind{y}{\Normal[-]{T}}}}
+    
+    \inferrule[L-Tau]{}
+    {\transCtx{\Empty}{\tau}{\Empty}}
+    
+    \inferrule[L-OpenL]{}
+    {\transCtx{\ebind{x}{\TOut{T}{S}}}{\scopel abxa}{\ebind{b}{\Normal[-]{T}},\ebind{x}{S}}}
+\quad
+    \inferrule[L-OpenR]{}
+    {\transCtx{\ebind{x}{\TOut{T}{S}}}{\scopel abxb}{\ebind{a}{\Normal[-]{T}},\ebind{x}{S}}}
+\quad
+    \inferrule[L-Par]
+    {\transCtx{\Gamma_1}{\pi_1}{\Gamma_3}
+    \and \transCtx{\Gamma_2}{\pi_2}{\Gamma_4}}
+    {\transCtx{\Gamma_1,\Gamma_2}{\parl{\pi_1}{\pi_2}}{\Gamma_3,\Gamma_4}}
+\end{mathpar}
+\caption{Labelled transition system for typing contexts}
+\label{fig:lts-ctx}
+\end{figure}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

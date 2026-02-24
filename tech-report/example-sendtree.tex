@@ -1,0 +1,60 @@
+\subsection{Sending a tree}
+\label{sec:sending-tree}
+
+\begin{lstlisting}
+data Send (a:T) = Send (foralls:S. a -> !a.s -> s)
+data Recv (a:T) = Recv (foralls:S. ?a.s -> (a, s))
+
+sendall : foralla:T. foralls:S. Send a -> a -> !a.s -> s
+sendall (Send send_a) a c = send_a [s] a c
+
+data BTree a = Leaf | Branch a (BTree a) (BTree a)
+
+sendBTree : foralla:T. foralls:S. Send a -> BTree a -> !BTree a. s -> s
+sendBTree _ Leaf c = 
+  select Leaf c
+sendBTree sd@(Send send_a) (Branch x l r) c =
+  c &                               -- c :            !BTree a. s
+  select Branch &                   --     !a.!Btree a.!BTree a.s
+  send_a [!Btree a.!BTree a.s] x &  --        !Btree a.!BTree a.s
+  sendBTree [a, !BTree a.s] sd l &  --                 !BTree a.s
+  sendBTree [a, s] sd r             --                          s
+
+send_sb : foralla:T. Send a -> Send (BTree a)
+send_sb (Send send_a) = Send (Lambdas:S. sendBTree [a, s] (send_a [s]))
+
+-- Primitive sending only works for M-types
+-- but the formation of !T.S types only requires T:T and S:S
+send : foralla:M. foralls:S. a -> !a.s -> s
+
+-- Specialised send tree ops
+sendIntTree : foralls:S. BTree Int -> !BTree Int.s -> s
+sendIntTree = sendBTree [Int] (Send [Int] send)
+
+sendIntTreeTree : foralls:S. BTree (BTree Int) -> !BTree (BTree Int).s -> s
+sendIntTreeTree = sendBTree [BTree Int] (Send [BTree Int] sendIntTree)
+\end{lstlisting}
+
+Q. Why a newtype for \lstinline|Send|? Why not simply a type abbreviation? It'd
+simplify things. See below.
+%
+\begin{lstlisting}
+-- Does not work; we want to write Send a, but Send :: *
+-- type Send = foralla:T. foralls:S. a -> !a.s -> s 
+-- Type operator Send :: T -> *, to be used only fully applied
+type Send (a:T) = foralls:S. a -> !a.s -> s 
+sendBTree : foralla:T. foralls:S. Send a -> BTree a -> !BTree a. s -> s
+sendBTree send_a (Branch x l r) c =
+  <as before>
+
+sendIntTree : foralls:S. BTree Int -> !BTree Int.s -> s
+sendIntTree = sendBTree [Int] (send Int)
+
+sendIntTreeTree : foralls:S. BTree (BTree Int) -> !BTree (BTree Int).s -> s
+sendIntTreeTree = sendBTree [BTree Int] sendIntTree
+\end{lstlisting}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

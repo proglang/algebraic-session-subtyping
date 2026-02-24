@@ -1,0 +1,76 @@
+\begin{figure}[t!]
+  \declrel{Types for constants}{$\typeof c = \typec T$}
+  % 
+  % \begin{align*}
+  %   \typeof \unitk & = \TUnit
+  %   \\
+  %   % \typeof \reck &= \TForall{\alpha}{\kindt}{\TForall{\beta}{\kindt}{((\alpha\rightarrow\beta)
+  %   %                 \rightarrow (\alpha\rightarrow\beta)) \rightarrow (\alpha\rightarrow\beta)}}
+  %   % \\
+  %   \typeof \forkk & = \TFun[] {(\TFun[] \TUnit \TUnit)} \TUnit
+  %   \\
+  %   \typeof \newk & = \TForall\alpha\kinds{\TPair\alpha{\TDual \alpha}}
+  %   \\
+  %   \typeof \receivek &= \TForall\alpha\kindt{\TForall\beta\kinds
+  %                       {?\alpha. \beta \to \TPair\alpha\beta}}
+  %   \\
+  %   \typeof \sendk &= \TForall\alpha\kindt{\TForall\beta\kinds { \alpha \to {! \alpha}. \beta \to \beta}}
+  %   \\
+  %   \typeof {\appe \selectk {C_k}} & = \TForall{\overline{\alpha}}{\overline\kindp}
+  %                                    {
+  %                                    {\TForall \beta \kinds {\TFun[]
+  %                                    {\TOut{(\TPApp \proto {\overline\alpha})}\beta}
+  %                                    {\TFOut{\overline{T_k}}\beta}
+  %                                    }}}\quad
+  %                                    \text{if }\protocolsfull \text{ and } k\in I
+  %   \\
+  %   \typeof \waitk &= \TFun[]{\TEndW}{\TUnit}
+  %   \\
+  %   \typeof \terminatek &= \TFun[]{\TEndT}{\TUnit}
+  % \end{align*}
+  \begin{align*}
+    % \typeof \reck &= \TForall{\alpha}{\kindt}{\TForall{\beta}{\kindt}{((\alpha\rightarrow\beta)
+    %                 \rightarrow (\alpha\rightarrow\beta)) \rightarrow (\alpha\rightarrow\beta)}}
+    % \\
+    \typeof \unitk & = \TUnit
+    &
+    \typeof \forkk & = \TFun[] {(\TFun[] \TUnit \TUnit)} \TUnit
+    \\
+    \typeof \newk & = \TForall\alpha\kinds{\TPair\alpha{\TDual \alpha}}
+    &
+    \typeof \terminatek &= \TFun[]{\TEndT}{\TUnit}
+    \\
+    \typeof \receivek &= \TForall\alpha\kindt{\TForall\beta\kinds
+                        {?\alpha. \beta \to \TPair\alpha\beta}}
+    & 
+    \typeof \waitk &= \TFun[]{\TEndW}{\TUnit}
+    \\
+    \typeof \sendk &= \TForall\alpha\kindt{\TForall\beta\kinds { \alpha \to {! \alpha}. \beta \to \beta}}
+  \end{align*}
+  $
+    \typeof {\appe \selectk {C_k}} = \TForall{\overline{\alpha}}{\overline\kindp}
+                                     {
+                                     {\TForall \beta \kinds {\TFun[]
+                                     {\TOut{(\TPApp \proto {\overline\alpha})}\beta}
+                                     {\TFOut{\overline{T_k}}\beta}
+                                     }}}
+                                    \text{ if }\protocolsfull \text{ and } k\in I
+  $
+  \caption{Types for constants}
+  \label{fig:type-constants}
+\end{figure}
+
+% \\
+% \ESelect{C_i} &= \TBForall {(\overline{\alpha\colon\kind})(\tbind\beta\kinds}
+% {\oplus(\TPApp P{\overline{\alpha}}). \beta \to  {\overline{!T_i^\pm}. \beta}}
+% &
+% \offerk &= \TBForall {(\overline{\alpha}\colon K)(\tbind\beta\kinds} {\&
+% (\TPApp P {\overline{\alpha}}).\beta \to 
+% \TVariant C {{\overline{?T^\pm}}.\beta}}
+% \\ 
+% & \text{if } \protocols
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

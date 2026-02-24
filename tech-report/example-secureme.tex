@@ -1,0 +1,129 @@
+\subsection{Abstraction over Protocols}
+\label{sec:abstr-over-prot}
+
+In this section, we want to write a protocol transformer that takes an
+implementation of a protocol and wraps another protocol around
+it. This encapsulation can be done in a modular fashion (see second
+attempt) that does not expose details of the encapsulating protocol.
+
+\begin{lstlisting}
+type Service (p:P) = foralls:S. ?p.s -> s
+type Client  (p:P) = foralls:S. !p.s -> s
+
+type Passwd = Int -- for the sake of concreteness
+PASSWORD, SECRET : Passwd
+
+-- as a client, send a password, either get service or rejected
+protocol Maybe (p:P) = Ok +p | No
+type SecureMeA (p:P) (s:S) = !Passwd. ?Maybe p. s
+
+-- take a protocol `proto` and provide the password to run it
+authProvider : 
+  forallp:P. Service p -> 
+  foralls:S. SecureMeA p s -> s 
+authProvider proto c =    -- c: SecureMeA p s = !Passwd. ?Maybe p. s
+  case send PASSWORD c of -- c: ?Maybe p. s
+    Ok c -> proto [s] c   -- c: ?p. s -> c: s
+    No c -> c             -- c: s
+
+data List a = Nil | Cons a (List a)
+
+fromto : foralls:S. Int -> Int -> !(List Int).s -> s
+fromto a b c =                        -- c: !(List Int).s
+  if a > b then
+    select Nil c                      -- c: s
+  else
+    select Cons c &                   -- c: !Int. (!(List Int). s)
+    send [Int, !(List Int).s] a &     -- c: !(List Int). s
+    fromto [s] (a + 1) b              -- c: s
+--  select Cons c & send a & fromto (a + 1) b
+
+-- authorize and send integers from a to b
+authFromto : foralls:S. Int -> Int -> SecureMeA (-List Int) s -> s
+authFromto a b c =     -- c : SecureMeA (-List Int) s
+                       --  == !Password. ?Maybe (-List Int). s
+  authProvider [-List Int] (Lambdar:S. fromto [r] a b) [s] c
+--authProvider (Lambdar:S. fromto [r] a b) c
+
+-- not sure how the other direction should work...
+-- constructing the type for the server is not that straightforward
+authChecker : 
+  forallp:P. Client p ->
+  foralls:S. ?Passwd. !Maybe p. s -> s
+
+-- I'd prefer to write
+--   dual (SecureMeA p s) -> s
+-- but that results in
+--   ?Passwd. !Maybe p. dual s
+-- where
+-- * `dual s` is wrong
+
+authChecker proto c =                 -- c : ?Passwd. !Maybe p. s
+  let (pwd, c) = receive [Passwd] c in -- c: !Maybe p. s
+  if pwd == SECRET then
+    select Ok c &                     -- c: !p. s
+    proto [s]                         -- c: s
+  else
+    select No c                       -- c: s
+
+sumFrom : foralla:S. Int -> ?List Int.s -> s
+sumFrom x c =                   -- c: ?List Int.s
+  case c of
+    Nil c ->                    
+      print x; c                -- c: s
+    Cons c ->                   -- c: ?Int. (?List Int.s)
+      let (y, c) = receive c in -- c: ?List Int.s
+      sumFrom (x + y) c         -- c: s
+
+authSummer : foralls:S. Int -> ?Passwd. !Maybe (-List Int). s -> s
+authSummer x c =   -- c: ?Passwd. !Maybe (-List Int). s
+  authChecker [-List Int] (Lambdar:S. sumFrom [r] x) [s] c
+\end{lstlisting}
+
+Here is an alternative encoding which does not break the abstraction
+of the encapsulating protocol at the price of inserting another wrapper.
+\begin{lstlisting}
+protocol SecureMeP (p:P) = SM +Passwd -(Maybe p)
+
+authProvider : 
+  forallp:P.
+  Service p ->
+  Client (SecureMeP p)
+authProvider proto [s] c =    -- c : !SecureMeP p. s
+  let c = select SM c in      -- c : !Passwd. ?(Maybe p). s
+  case send PASSWD c of       -- c : ?(Maybe p). s
+    Ok c ->                   -- c : ?p. s
+      proto [s] c             -- c : s
+    No c ->
+      c                       -- c : s
+
+authChecker :
+  forallp:P.
+  Client p ->
+  Service (SecureMeP p)
+authChecker proto c =         -- c : ?SecureMeP p. s
+  case c of SM c ->           -- c : ?Passwd. !Maybe p. s
+    let (pwd, c) = receive [Passwd] c in -- c : !Maybe p. s
+    if pwd == SECRET then
+      select Ok c &           -- c : !p. s
+      proto [s]               -- c : s
+    else
+      select No c             -- c : s
+
+-- now the applications become
+authFromto : foralls:S. Int -> Int -> !SecureMeP (-List Int). s -> s
+authFromto a b c =     -- c : !SecureMeP (-List Int). s
+  authProvider [-List Int] (Lambdar:S. fromto [r] a b) [s] c
+
+authSummer : foralls:S. Int -> ?SecureMeP (-List Int). s -> s
+authSummer x c =   -- c: ?SecureMeP (-List Int). s
+  authChecker [-List Int] (Lambdar:S. sumFrom [r] x) [s] c
+
+-- ... and it holds that 
+--   Client p = Service -p
+\end{lstlisting}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

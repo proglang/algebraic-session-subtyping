@@ -1,0 +1,60 @@
+\begin{figure}[t!]
+    \declrel{Type normalization}{$\Normal[+]T=\typec T \quad \Normal[-]T=\typec T$}
+
+  \begin{minipage}{0.49\linewidth}
+    \begin{align*}
+    % Positive normalisation
+    % Functional
+    \Normal[+]\TUnit &= \TUnit \\
+    \Normal[+]{\TFun[] TU} &= \TFun[]{\Normal[+] T}{\Normal[+] U} \\
+    \Normal[+]{\TPair TU} &= \TPair{\Normal[+] T}{\Normal[+] U} \\
+    \Normal[+]{\TForall \alpha \kind T} &= \TForall\alpha \kind {\Normal[+] T} \\
+    % Functional and session
+    \Normal[+]\alpha &= \typec\alpha \\
+    % Session
+    \Normal[+]{\TIn TS} &= \TFIn{\Normal[+]T}{\Normal[+] S} \\
+    \Normal[+]{\TOut TS} &= \TFOut{\Normal[+]T}{\Normal[+]S} \\
+    \Normal[+]\TEndW &= \TEndW \\
+    \Normal[+]\TEndT &= \TEndT\\
+    \end{align*}
+  \end{minipage}
+  \begin{minipage}{0.49\linewidth}
+    \begin{align*}
+    \Normal[+]{\TDual T} &= \Normal[-]{T} \\
+    % Protocol
+    \Normal[+]{\TPApp \proto{\overline T}} &= \typec{\TPApp \proto {\overline{\Normal[+] {T}}}} \\
+    \Normal[+]{\pneg T} &= \polarizedparam - {\Normal[+] T}\\
+    \Normal[-]{\TDual T} &= \Normal[+]{T} \\
+    % Negative noralisation
+    \Normal[-]\alpha &= \TDual\alpha \\
+    \Normal[-]{\typec{\TIn TS}} &= \TFOut{\Normal[+]T}{\Normal[-]S} \\
+    \Normal[-]{\typec{\TOut TS}} &= \TFIn{\Normal[+]T}{\Normal[-]S} \\
+    \Normal[-]\TEndW &= \TEndT \\
+    \Normal[-]\TEndT &= \TEndW \\
+    \end{align*}
+  \end{minipage}
+
+  \declrel{Materialization and the directional operators}
+  {$\tosession TT = \typec{T} \quad 
+    \polarizedparam - T = \typec{T} \quad
+    \polarizedparam + T = \typec{T}$}
+  %
+  \begin{align*}
+    \tosession {\pneg T} U &= \TIn TU & 
+    \polarizedparam - {\pneg T} &= \polarizedparam + T &
+    \polarizedparam + {\pneg T} &= \polarizedparam - T
+    \\
+    \tosession TU &= \typec{\TOut TU} & 
+    \polarizedparam - T &= \pneg T &
+    \polarizedparam + T &= \typec{T}
+  \end{align*}
+  In the second line $\typec T \neq \pneg U$ in all cases.
+  \caption{Type normalization and auxiliary metafunctions on session types and protocol types}
+  \label{fig:normalisation}
+  \label{fig:type-polarized-operator}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

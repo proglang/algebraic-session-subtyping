@@ -1,0 +1,14 @@
+\begin{figure}
+\declrel{Context formation}{$\isCtx{\Gamma}{\kind}$}
+\begin{mathpar}
+  \infrule{Ctx-Empty}
+  {}
+  {\isCtx{\Empty}{\kind}}
+
+  \infrule{Ctx-Ext}
+  {\isCtx{\Gamma}{\kind}\\ \typeAgainst{T}{\kind} \\ \typec T = \Normal[+]{T}}
+  {\isCtx{\Gamma, \ebind{x}{T}}{\kind}}
+\end{mathpar}
+\caption{Context formation}
+\label{fig:ctx}
+\end{figure}

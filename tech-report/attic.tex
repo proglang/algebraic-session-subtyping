@@ -1,0 +1,32 @@
+
+\begin{lstlisting}
+compose : (X, C) -> (C -> (Y, C')) -> ((X, Y), C') -- aka (#>)
+compose xc f = let (x, c) = xc in
+                          let (y, c) = f c in
+                          ((x,y), c)
+fmap : (X, C) -> (X -> Y) -> (Y, C)                    -- Haskell (<&>)
+fmap (x, c) f = (f x, c)
+
+ILeaf_P c -> receive [Int, s] c <&> ILeaf
+INode_P c -> recvITree [?ITree_P.s] c #> recvITree [s] <&> uncurry INode
+\end{lstlisting}
+
+Or better yet:
+\begin{lstlisting}
+(<*>) : (C1 -> (A -> B, C2)) -> (C2 -> (A, C3)) -> (C1 -> (B, C3))
+fab <*> fa = \c1 ->  let (f, c2) = fab c1 in
+                               let (a, c3) = fa c2 in
+                               (f a, c3)
+
+pure : X -> (C -> (X, C))
+pure x c = (x, c)
+
+ILeaf_P c  -> c |> (pure ILeaf <*> receive [Int, s])
+INode_P c -> c |> (pure INode <*> recvITree [?ITree_P.s]) <*> recvITree [s]
+
+\end{lstlisting}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

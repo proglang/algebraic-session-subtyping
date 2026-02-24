@@ -1,0 +1,41 @@
+\section{Algorithmic rules}
+\label{sec:alg}
+
+% \subsection{Algorithmic type formation}
+% \input{fig-alg-type-formation}
+
+\subsection{Expressions}
+% \input{fig-type-constants}
+
+% \begin{align*}
+%   \termc e &::= \termc x
+%              \mid \termc c
+%              \mid \abse xTe
+%              \mid \tabse x\kind e
+%              \mid \appe ee
+%              \mid \paire ee
+%              \mid \lete xyee\\
+%            & \mid \inje \ell e
+%              \mid \casee e {\{\ell \rightarrow e_\ell\}_{\ell \in L}}
+%              \mid \casee e {\{\constr\ \overline{x} \rightarrow e_\constr\}_{\constr \in P}}
+%              \mid \tappe eT
+%              \mid \newe T
+%              \mid \ESelect e
+% \end{align*}
+
+\todo{\exps{match} ?\quad records: $\termc {\{\ell = e_\ell\}_{\ell
+      \in L}}$ ? or just pairs? \quad more ?}
+\pt{records and variants should be subsumed by data protocols.}
+% \subsection{Algorithmic typing}
+% \input{fig-alg-typing}
+
+\pt{Need to check rules from E-Ctor to end because the rules for
+  protocol definition changed.}
+\pt{I'm wondering if we can create a E-case2 rule similar to the
+  E-select rule. I.e., the variant would deal with just one
+  constructor and have a default case for the remaining ones.}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

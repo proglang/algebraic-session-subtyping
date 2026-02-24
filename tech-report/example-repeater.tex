@@ -1,0 +1,120 @@
+\subsection{Simple Abstraction over Protocols}
+\label{sec:simple-abstr-over}
+
+Structure the arithmetic server into a non-recursive service and a
+generic repeater. 
+\begin{lstlisting}
+protocol Repeat (x:P) = More +x +(Repeat x) | Quit
+-- PT:
+-- (after removing the G kind)
+-- Repeat is just a stream
+
+type Service (p:P) = foralls:S. ?p.s -> s
+
+repeater : forallp:P. Service p -> Service (Repeat p)
+repeater [p] proto [s] c =
+  -- c : ?(Repeat p).s
+  case c of                   
+    Quit c ->
+      -- c : s
+      c
+    More c ->
+      -- c: ?p.?Repeat p.s
+      let c = proto [?Repeat p.s] c in
+      -- c: ?Repeat p.s
+      repeater [p] proto [s] c
+
+
+protocol PrimArith = Add +Int +Int -Int | Neg +Int -Int
+
+primArithServer : Service PrimArith
+primArithServer c =
+  -- c : ?PrimArith.s
+  case c of 
+    Add c ->
+      let (x, c) = receive c in
+      let (y, c) = receive c in
+      send (x+y, c)
+    Neg c ->
+      let (x, c) = receive c in
+      send (-x, c)
+
+arithServer : Service (Repeat PrimArith)
+arithServer [s] c =
+  -- c : ?(Repeat PrimArith). s
+  repeater [PrimArith, s] primArithServer c
+
+-- run a single query
+negate : foralls:S. Int -> !Repeat PrimArith.s -> (Int, s)
+negate x c =
+  -- c : !Repeat PrimArith.s
+  let c = select More c in
+  -- c : !PrimArith. !Repeat PrimArith. s
+  let c = select Neg c in
+  -- c : !Int. ?Int. !Repeat PrimArith. s
+  let c = send x c in
+  -- c : ?Int. !Repeat PrimArith. s
+  let (y, c) = receive c in
+  -- c : !Repeat PrimArith. s
+  let c = select Quit c in
+  -- c : s
+  (y, c)
+
+-- run one query among many
+negate_one : foralls:S. Int
+           -> !Repeat PrimArith.s
+           -> (Int, !Repeat PrimArith.s)
+negate_one x c =
+  let c = select More c & select Neg & send x in
+  receive c
+
+-- add the numbers from x down to zero to acc using the arithmetic server
+sumdown : foralls:S. Int
+       -> (Int, !Repeat PrimArith.s)
+       -> (Int, !Repeat PrimArith.s)
+sumdown x (acc, c) = 
+  if x > 0 then
+    let c = select More c & select Add & send x & send acc in
+    let (z, c) = receive c in
+    sumdown (x-1) (z, c)
+  else
+    (acc, c)
+
+-- alternative way of writing the function body
+sumdown x (acc, c) = 
+  if x > 0 then
+    c & select More & select Add & send x & send acc &
+        receive & sumdown (x-1)
+  else
+    (acc, c)
+
+-- unconventional, but not very useful?
+negquery : Int -> foralls:S. !PrimArith.s -> s
+negquery x c = 
+  snd (receive (select Neg c & send x))
+
+stubborn : Int -> ?Repeat -PrimArith.s -> s
+stubborn x c =
+  -- repeater : forallp:P. (foralls:S. ?p.s -> s) -> ...
+  -- repeater [-PrimArith] : (foralls:S. ?-PrimArith.s -> s) -> ...
+  --                      == (foralls:S. !PrimArith.s -> s) -> ...
+  repeater (negquery x)
+
+-- offer the arithmetic service n times
+askme : Int -> !Repeat -PrimArith.s -> s
+askme n c =
+  if n=0 then
+    select Quit c
+  else
+    select More c &        -- c : !-PrimArith. !Repeat -PrimArith. s
+    primArithServer [!Repeat -PrimArith.s] & 
+    askme (n-1)
+\end{lstlisting}
+
+\clearpage
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

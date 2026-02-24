@@ -1,0 +1,70 @@
+\begin{lstlisting}
+protocol List a = Nil | Cons a (List a)
+\end{lstlisting}
+  We have the following algorithmic derivation. Let $\Delta =
+  \types{List} : \kindp \to \kindp, \types{a} : \kindp$.
+  \begin{mathpar}
+    \inferrule*{
+      \typeAgainst{ \exps{Nil} }{ \kindp} \\
+      \inferrule*{
+        \inferrule*{
+          {
+            \typeSynth{{\types{a}}}{\kindp}}}{\typeAgainst{{\types{a}}}{\kindp}} \\
+        \inferrule*{
+          \inferrule*{{\types{List}}:{\kindp\to\kindp} \in \Delta \\
+            \typeAgainst{\types{a}}{\kindp}}{
+          {\typeSynth{\types{List a}}{\kindp}}}
+        }{\typeAgainst{\types{List a}}{\kindp}}}
+      {\typeAgainst{ \exps{Cons}\ {\types{a}}\ \types{(List a)}}{\kindp}}
+    }{
+      \typeSynth[]{ \types{List} }{\kindp \to \kindp}
+    }
+  \end{mathpar}
+% According to the derived kind $\types{List} : \kindt \to \kindp$, the type
+% $\types{List}$ is a data protocol, which may also be used as an
+% algebraic datatype.
+%   We can make that protocol more general by dropping the lifting from
+%   the parameter of $\exps{Cons}$:
+% \begin{lstlisting}
+% protocol ListP a:P = NilP | ConsP a (ListP a)
+% \end{lstlisting}
+%   With this definition \lstinline{ListP} has kind $\kindp \to
+%   \kindp$. Clearly, \lstinline{List a} is equivalent to \lstinline{List ^a}.
+
+\begin{lstlisting}
+protocol Neg = Neg Int -Int
+\end{lstlisting}
+  We set $ \Delta = \types{Neg} : \varepsilon \to \kindp$ and obtain the derivation:
+  \begin{mathpar}
+    \inferrule*{
+      \inferrule*{
+        \inferrule*{\typeSynth{\types{Int}}{\kindm}}{\typeAgainst{{\types{Int}}}{\kindp}} \\
+        \inferrule*{
+          \inferrule*{
+            \inferrule*{\typeSynth{\types{Int}}{\kindm}}{\typeAgainst{{\types{Int}}}{\kindp}}
+          }{\typeSynth{{-\types{Int}}}{\kindp}}
+        }{\typeAgainst{\types{-{\types{Int}}}}{\kindp}}
+      }{
+        \typeAgainst{\exps{Neg}\ {\types{Int}}\ \types{-{\types{Int}}}}{\kindp}}
+    }{
+      \typeSynth[]{\types{Neg}}{\varepsilon \to \kindp}
+    }
+  \end{mathpar}
+  According to the derived kind $\types{Neg} : \varepsilon \to \kindp$, the
+  type $\types{Neg}$ is a pure protocol that is not associated to any
+  data value.
+
+  We can again generalize by parameterizing over the payload of the protocol.
+\begin{lstlisting}
+protocol NegP a = NegP a -a
+\end{lstlisting}
+  With this protocol we first send/receive according to protocol \lstinline{a}
+  and then receive/send according to the same protocol. The actual
+  direction of  the communication depends on the context in which the
+  protocol is used and also on the polarity of the parameter protocol
+  \lstinline{a}.
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

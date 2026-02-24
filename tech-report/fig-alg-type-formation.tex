@@ -1,0 +1,93 @@
+\begin{figure}[t!]
+  \declrel{Type formation (synthesis, check-against)}{$\typeSynth T
+    \kind$,\quad $\typeAgainst T \kind$}
+  \begin{mathpar}
+    % FUNCTIONAL TYPES
+    \infrule{\rulenametypeUnit}{}{\typeSynth\TUnit\kindt}
+
+    \infrule{\rulenametypeArrow}
+    {\typeAgainst T\kindt \\ \typeAgainst U\kindt}
+    {\typeSynth{\TFun[] TU}\kindt}
+    
+    \infrule{\rulenametypePair}
+    {\typeAgainst T\kindt \\ \typeAgainst U\kindt}
+    {\typeSynth{\TPair TU}\kindt}
+
+    \infrule{\rulenametypeVar}{\tbind\alpha\kind \in \Delta}{\typeSynth\alpha\kind}
+    
+    \infrule{{\rulenametypePoly}}
+    {\typeAgainst[\Delta,\tbind\alpha\kind] T {\kindc{\kindt}}}
+    {\typeSynth {\TForall \alpha\kind T}{\kindt}}
+
+    % SESSION TYPES
+    % \infrule{\rulenametypeEndW}{}{\typeSynth\TEndW\kinds}
+%
+    % \infrule{\rulenametypeEndT}{}{\typeSynth\TEndT\kinds}
+%
+    \infrule{\rulenametypeDotIn}
+    {\typeAgainst T \kindp \\ \typeAgainst S \kinds}
+    {\typeSynth{?T.S} \kinds}
+
+    \infrule{\rulenametypeDotOut}
+    {\typeAgainst T \kindp \\ \typeAgainst S \kinds}
+    {\typeSynth{!T.S} \kinds}
+
+    \begin{minipage}{2cm} 
+      \begin{mathpar}  
+        \infrule{\rulenametypeEndW}{}{\typeSynth\TEndW\kinds}
+
+        \infrule{\rulenametypeEndT}{}{\typeSynth\TEndT\kinds}
+      \end{mathpar} 
+    \end{minipage}
+
+    \infrule{\rulenametypeDualS}
+    {\typeAgainst S \kinds}
+    {\typeSynth{\TDual S} \kinds}
+    
+    % GUARDED
+    \infrule{\rulenametypeProtocol}
+    { \tbind \proto {\kinda\kindp\kindp} \in \Delta
+      \\ \typeAgainst{\overline T}{\overline{\kindp}}}
+    {\typeSynth{\TPApp \proto {\overline{T}}}\kindp}
+
+    \infrule{{\rulenametypeMsgNeg}}
+    {\typeAgainst{T}{\kindp}}
+    {\typeSynth{{-T}}\kindp}
+
+    \infrule{\rulenametypeSub}
+    {\typeSynth T\kind
+      \\ \isSubKind \kind \kind'}
+    {\typeAgainst T\kind'}
+  \end{mathpar}
+  % \declrel{Type formation (check-against)}{$\typeAgainst T \kind$}
+  % \begin{mathpar}
+  %   \infrule{\rulenametypeSub}
+  %   {\typeSynth T\kind
+  %     \\ \isSubKind \kind \kind'}
+  %   {\typeAgainst T\kind'}
+  % \end{mathpar}
+  \caption{Algorithmic type formation rules}
+  \label{fig:type-formation}
+\end{figure}
+
+% \infrule{\rulenametypeDot}
+% {\typeAgainst G \kindg \\ \typeAgainst S \kinds}
+% {\typeSynth{G.S} \kinds}
+% 
+% \infrule{\rulenametypeUp}{\typeAgainst T \kindt}{
+% \typeSynth{\TUp T}\kindp}
+% 
+% \infrule{{\rulenametypeMsgPos}}
+% {\typeAgainst{T}{\kindp}
+% }
+%   {\typeSynth{{+T}}\kindp}
+%   
+%   \infrule{\rulenametypeInt}{}{\typeSynth\TInt\kindt}
+%   
+%   \infrule{\rulenametypeBool}{}{\typeSynth\TBool\kindt}
+%   
+
+%%%   Local Variables:
+%%%   mode: latex
+%%%   TeX-master: "main"
+%%%   End:

@@ -1,0 +1,95 @@
+%\begin{figure}[t!]
+	\declrel{Type formation (synthesis)}{$\typeSynth T \kind$}
+\begin{mathpar}
+  \infrule{\rulenametypeInt}{}{\typeSynth\TInt\kindtu}
+
+  \infrule{\rulenametypeBool}{}{\typeSynth\TBool\kindtu}
+
+  \infrule{\rulenametypeArrow}
+  {\typeAgainst T\kindtl \\ \typeAgainst U\kindtl}
+  {\typeSynth{\TFun TU}\kindt^\kindc{m}}
+
+  \infrule{\rulenametypeVar}{\typec{\alpha}\colon\kind \in \Delta}{\typeSynth\alpha\kind} \\
+  
+  \infrule{\textcolor{red}{\rulenametypePoly}}
+    {\typeSynth[\Delta,\typec{\alpha}\colon\kind] T {\kindc{\kindt^m}}}
+    {\typeSynth {\forall (\typec{\alpha}\colon\kind) \typec{T}}{\kindt^\kindc{m}}}
+
+  \infrule{\rulenametypeEnd}{}{\typeSynth\TEnd\kindsu}
+
+  \infrule{\textcolor{red}{\rulenametypeMsgPos}}
+    {\typeSynth{T}{\kind}
+      % \\
+      % \isSubKind\kind\kindtl \text{ or } \isSubKind\kind\kindp
+    }
+  {\typeSynth{{+T}}\kind}
+    
+  \infrule{\textcolor{red}{\rulenametypeMsgNeg}}
+  {\typeSynth{T}{\kindp}}
+  {\typeSynth{{-T}}\kindp}
+
+  % \infrule{\rulenametypeDot}
+  % {\typeAgainst G \kindg \\ \typeAgainst S \kindsl}
+  % {\typeSynth{G.S} \kindsl}
+  % 
+  \infrule{\rulenametypeDotOut}
+  {\typeAgainst T \kindp \\ \typeAgainst S \kindsl}
+  {\typeSynth{!T.S} \kindsl}
+
+  \infrule{\rulenametypeDotIn}
+  {\typeAgainst T \kindp \\ \typeAgainst S \kindsl}
+  {\typeSynth{?T.S} \kindsl}
+    
+  \infrule{\rulenametypePair}
+  {\typeSynth{T}{\kind_1}
+    \\ \typeSynth{U}{\kind_2}
+    \\ \isSubKind {\kind_1, \kind_2}{\kindtl} }
+  {\typeSynth{\TPair TU}{\kind_1\sqcup\kind_2}}
+  
+  \infrule{\rulenametypeDualS}
+  {\typeSynth S \kind \\ \isSubKind\kind{\kindsl}}
+  {\typeSynth{\TDual S} \kind}
+  
+  \infrule{\rulenametypeGuarded}
+  { \typec{P : \overline\kind \to \kind \in \Delta }
+    % \protocolsfull \triangleright \kind
+    \\ \typeAgainst{\overline U}{\overline{\kind}}}
+  {\typeSynth{P\,\overline{U}}\kind}
+
+\end{mathpar}
+
+  \declrel{Type formation (check-against)}{$\typeAgainst T \kind$}
+  \begin{mathpar}
+  % \infrule{\rulenametypeDualG}
+  % {\typeAgainst G \kindg}
+  % {\typeAgainst {\TDual G} \kindg}
+  % 
+  %   \infrule{\textcolor{red}{\rulenametypeMsg}}
+  % {\typeSynth{T}{\kind} \\
+  %   \isSubKind\kind\kindtl \text{ or } \isSubKind\kind\kindp}
+  % {\typeAgainst{{!T}}\kindg \\ \typeAgainst{{?T}}\kindg}
+  % 
+  \infrule{\rulenametypeSub}
+  {\typeSynth T\kind
+    \\ \isSubKind \kind \kind'}
+  {\typeAgainst T\kind'}
+  % 
+  % \infrule{\rulenametypeMsg}
+  % {\typeAgainst{T}{\kindtl}}
+  % {\typeAgainst{{!T}}\kindg \\ \typeAgainst{{?T}}\kindg}
+  %
+  % \infrule{\rulenametypeMsgP}
+  % {\typeAgainst{T}{\kindpl}}
+  % {\typeAgainst{{!T}}\kindg\\\typeAgainst{{?T}}\kindg
+  % }
+\end{mathpar}
+
+
+%  \caption{Type formation rules}
+%  \label{fig:type-formation}
+%\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

@@ -1,0 +1,87 @@
+\PassOptionsToPackage{dvipsnames}{xcolor}
+\documentclass[runningheads]{llncs}
+
+\usepackage{geometry}
+\geometry{
+  textwidth=15cm,  % llncs has 12.2cm
+  hratio=1:1,      % horizontally centered
+}
+
+% \usepackage{natbib}
+\usepackage{babel}
+\usepackage[sort&compress,square,comma,authoryear]{natbib}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{gensymb}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{mathpartir}
+\usepackage{tikz}
+\usepackage{xspace}
+\usepackage{listings}
+\usepackage{stmaryrd}
+\usepackage{subcaption}
+% \usepackage[capitalise]{cleveref}
+\usepackage{cleveref}
+\renewcommand\appendixname{Supplement}
+\crefname{appendix}{supplement}{supplements}
+
+\input{macros}
+
+
+
+\begin{document}
+\title{Parameterized Algebraic Protocols}
+
+\author{Andreia Mordido\inst{1} \and
+Janek Spaderna\inst{2} \and
+Peter Thiemann\inst{2} \and
+Vasco T. Vasconcelos\inst{1}
+}
+
+\authorrunning{A. Mordido, J. Spaderna, P. Thiemann, and V.T. Vasconcelos}
+
+\institute{LASIGE, Faculdade de Ciências, Universidade de Lisboa, Lisbon, Portugal \and
+University of Freiburg, Freiburg, Germany}
+
+\maketitle
+
+\input{abstract}
+\input{introduction}
+\input{motivation}
+% \input{action}
+\input{types}
+\input{processes}
+\input{metatheory}
+%\input{algorithmic} % distribute between expressions and processes
+%\input{cfst-vs-algst}
+\input{implementation}
+\input{related}
+\input{conclusion}
+
+\section*{Acknowledgements}
+We thank the reviewers for their suggestions that greatly
+contributed to a more solid version of the paper. Support for this research was provided by the
+Fundação para a Ciência e a Tecnologia through project SafeSessions, ref.\
+PTDC/CCI-COM/6453/2020, and the LASIGE Research Unit, ref.\ UIDB/00408/2020 and
+ref.\ UIDP/00408/2020, and by the COST Action EuroProofNet (CA20111).
+
+\input{artifact}
+
+% \input{questions}
+\bibliographystyle{plainnat}
+\bibliography{biblio}
+
+\newpage
+\appendix
+\input{appendix-faq}
+\input{appendix-motivation}
+\input{appendix-types}
+\input{appendix-procs}
+\input{appendix-cfst}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

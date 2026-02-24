@@ -1,0 +1,30 @@
+\declrel{Types for constants}{$\termc x\colon \typec T$}
+%
+\begin{align*}
+  \typeof \sendk &: \TForall\alpha\kindtl{\TForall\sigma\kindsl {\alpha \to_{\un} {!\alpha}. \sigma \to_{\lin} \sigma}}
+  \\
+  \typeof \receivek &: \TForall\alpha\kindtl{\TForall\sigma\kindsl
+                      {?\alpha. \sigma \to_{\un} \TPair\alpha\sigma}}
+  \\
+  \typeof \newk & : \TForall\alpha\kindsl
+                  {\TFun[\un]\TUnit{\TPair\alpha{\TDual \alpha}}}
+                  \\
+  \typeof \forkk & : \TForall\alpha\kindt
+                  {\TFun[\un]\alpha{\TUnit}}
+%   \\
+%   \ESelect{C_i} &: \TBForall {(\overline{\alpha\colon\kind})(\tbind\sigma\kinds)}
+%                   {\oplus(\TPApp P{\overline{\alpha}}). \sigma \to  {\overline{!T_i^\pm}. \sigma}}
+% &
+%   \offerk &: \TBForall {(\overline{\alpha}\colon K)(\tbind\sigma\kinds)} {\&
+%             (\TPApp P {\overline{\alpha}}).\sigma \to 
+%   \TVariant C {{\overline{?T^\pm}}.\sigma}}
+%   \\ 
+%   & \text{if } \protocols
+  \\ \dots
+\end{align*}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

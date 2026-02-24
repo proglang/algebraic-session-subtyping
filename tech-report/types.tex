@@ -1,0 +1,409 @@
+\section{Types}
+\label{sec:types}
+
+The type structure underlying \algst comprises three parts: the kind
+structure, the type language and protocol definitions. The type
+language and protocol definitions are mutually recursive.  To
+simplify the exposition, the formalized language is based on linear
+System~F. While we formalize protocol
+definitions, we do not formalize the standard treatment of (linear)
+algebraic datatypes and pattern matching, although we use it in examples.
+
+The type language encompasses types with different features
+(as illustrated in \cref{sec:algebr-sess-types}). 
+For a correct type abstraction, we need to endow the system with a classification 
+of types through kinds.
+%
+% \paragraph{Kinds}
+% \label{sec:kinds}
+% \label{sec:what-your-kind}
+%
+\algst distinguishes three kinds.
+\begin{description}
+\item[$\kinds$] classifies session types, which in turn classify
+  endpoints of communication channels.
+% \item Kind $\kindm$ classifies types whose serialization is hard coded. These are
+%   primarily primitive types like $\TInt$ and $\TBool$. We also
+%   include session types.
+\item[$\kindt$] classifies all types that classify run-time
+  values.
+\item[$\kindp$] classifies protocol types. The kind $\kindp$ subsumes any other
+  kind by an implicit lifting that associates a type with a protocol
+  suitable to transmit it. A protocol type per se classifies pure
+  behavior, but no run-time values.
+\end{description}
+
+Kinds are linearly ordered in a subkinding relation, which is the
+reflexive transitive closure of the strict ordering $\kinds
+< \kindt < \kindp$. Type formation includes a standard kind
+subsumption rule.
+
+% The subsumption $\kindt < \kindp$ allows us to write types like
+% $\TIn{(\TFun[] TU)}S$ or $\TOut{(\TForall\alpha\kind T)}S$. Such
+% protocols are currently empty because they cannot be implemented in
+% \algst. Alternatively, we could define another kind, $\kindl$, say,
+% such that $\kindl < \kindp$, $\kindl < \kindt$, and $\kindt \not<
+% \kindp$, but we chose to keep kinding simple.
+
+% \paragraph{Functional types, session types, and protocol types}
+% \label{sec:session-types}
+
+% TYPES
+
+% \Cref{fig:grammar-of-types} contains the grammar of types.
+
+Here is the grammar of types:
+%
+% \begin{figure}[tp]
+\begin{align*}
+  \typec S, \typec T, \typec U \grmeq&
+  \TUnit \grmor \TFun[] T U \grmor \TPair{T}{U} \grmor
+  \TForall \alpha \kind T \grmor \typec{\alpha} \grmor
+  && \text{functional types}
+  \\
+  & \TIn TS \grmor \TOut TS \grmor \TEndW \grmor \TEndT \grmor \TDual S \grmor
+  && \text{session types}
+  % \\
+  % & \typec{\alpha} \grmor
+  % & \text{functional and session types}
+  \\
+  & \TPApp \proto {\overline{T}} \grmor \pneg T 
+  && \text{protocol types}
+\end{align*}
+%   \caption{Grammar of types}
+%   \label{fig:grammar-of-types}
+% \end{figure}
+%
+We mostly use the metavariable $\typec S$ to range over session
+types (kind $\kinds$). Metavariables $\typec T, \typec U$ range over functional types
+(kind $\kindt$) and protocol types (kind $\kindp$).
+Functional types comprise the usual types of linear System F: unit,
+function, product, universal quantification, and type variables.
+% The handling of the unit type serves as blueprint for other primitive types.
+The session type operators are receiving, sending,
+passive and active termination, and the dual operator. The dual
+operator swaps the direction of all communications in the spine of a
+session type. Thus, a session type is a
+sequence of communications either terminated by $\TEndW$ or by
+$\TEndT$, or extensible with a type variable $\typec\alpha$ of kind $\kinds$.
+
+
+The protocol type
+$\TPApp \proto {\overline{T}}$ refers to the protocol declared as
+$\proto$ with parameters $\typec{\overline{T}}$. The
+operator ``\typec{$-$}'' reverses the direction of communication of its
+protocol parameter. While duality transforms session types
+outside-in, the reverse operator transforms protocols inside-out.
+
+%
+% Unlike in previous work on context-free session types
+% \cite{DBLP:conf/icfp/ThiemannV16,DBLP:journals/toplas/Padovani19},
+% there is no sequencing operator $\TSeq\_\_$, but sending and receiving
+% types have their traditional prefix form,
+
+A kind context $\Delta$ maps type variables to kinds and protocol
+names to first-order arrow kinds that determine the
+number of parameters of the  protocol.
+Formally, we should write $\kindas\varepsilon\kindp$ for the kind of a
+protocol constructor without parameters, but we often abbreviate it to $\kindp$.
+% In informal settings, we just write $\kind$.
+\begin{align*}
+  \Delta & \grmeq \Empty
+           \grmor \Delta, \tbind\alpha\kind
+           \grmor \Delta, \tbind\proto{\kinda\kindp\kindp}
+  % \\
+  % \Pi & ::= M
+  %       \grmor \protocolsfull; \Pi
+\end{align*}
+
+% TYPE FORMATION
+
+\input{fig-alg-type-formation}
+%\input{fig-type-formation}
+
+\Cref{fig:type-formation} contains the type formation rules. We
+present them in algorithmic form from the beginning. The judgment
+$\typeSynth T \kind$ assigns  to type $\typec T$ its minimal kind $\kind$ under kind
+context $\Delta$.  The corresponding checking judgment $\typeAgainst T \kind$ takes
+inputs $\typec T$ and $\kind$ and checks if the synthesized kind is a
+subkind of the expected one.
+
+The types for unit (\rulenametypeUnit),  functions
+(\rulenametypeArrow), pairs (\rulenametypePair), and universal
+polymorphism (\rulenametypePoly)
+have kind $\kindt$ like their constituents. Variables have any kind
+that has been assigned to them (\rulenametypeVar).
+%
+\algst's notion of session type distinguishes passive $\TEndW$ and active
+$\TEndT$ termination of a session (\rulenametypeEndW, \rulenametypeEndT), and the
+dual operator (\rulenametypeDual). Conventional session types require types for
+the values exchanged in messages; here we ask for protocols instead
+(\rulenametypeDotIn and \rulenametypeDotOut).
+%
+Rule {\rulenametypeProtocol} builds a protocol type from a protocol name
+$\proto$. We assume that the kind context contains a binding for $\proto$ that
+determines its arity. All parameters to a protocol must be protocols
+themselves. The latter constitutes no restriction because any type can be
+lifted to a protocol. % We omit empty parameter lists.
+A protocol type can change direction using the reverse operator (rule {\rulenametypeMsgNeg}).
+
+% \begin{lemma}[Subsumption] If $\typeAgainst T\kind$ and $\isSubKind \kind
+%   \kind'$, then $\typeAgainst T{\kind'}$.
+% \end{lemma}
+% \begin{proof}
+%   Immediate from \rulenametypeSub and transitivity of subkinding.
+% \end{proof}
+
+% \paragraph{Protocol definitions}
+% \label{sec:protocol-definitions}
+% \label{sec:decl-spec-prot}
+
+Algebraic protocol types $\TPApp \proto {\overline{\alpha}}$ are defined analogously to algebraic
+datatypes.
+\begin{gather*}
+  \protocolsfull
+  % \qquad
+  % \protocolsdata
+\end{gather*}
+This declaration defines the protocol type constructor $\proto$ that takes as
+many parameters as indicated by $\typec{\overline\alpha}$. The protocol has choices
+indexed by $i\in I$. Each choice is tagged by a \emph{selector tag} $\termc{\constr_i}$
+that guards a sequence of subprotocols $\typec{\overline{T_i}}$, to be processed in that
+order. We assume that selector tags are globally unique. Program may use any
+full application $\TPApp \proto {\overline U}$ as a protocol type.
+%
+% For a data protocol, we can indicate our intent by using the $\datak$
+% keyword instead of $\protocolk$. Moreover, all parameters must be
+% proper types, not protocols.
+% \begin{gather*}
+%   \protocolsdata
+% \end{gather*}
+%
+%
+% We start with a declarative rule set to determine well-formedness of a
+% protocol definition.
+%
+We check a single protocol declaration using the formation rules where $\Delta$ may
+refer to previously defined protocols:\footnote{For mutually
+  recursive protocols $\typec{\overline\proto}$, we add the
+  assumptions for all $\typec{\overline\proto}$ when checking each individual $\typec{\proto_i}$.}
+\begin{mathpar}
+  \inferrule{
+    \protocolsfull \\
+    \typeAgainst[\Delta, \tbind\proto{\kinda\kindp\kindp},
+    \tbind{\overline{\alpha}}{\overline{\kindp}}]
+    {\overline{T_i}}{\kindp}\\
+    (\forall i\in I)
+  }{
+    \typeSynth{\proto}{\kinda\kindp\kindp}
+  }
+  % \\
+  % \inferrule{
+  %   \protocolsdata \\
+  %   \typeAgainst[\Delta, \tbind\data{\kinda\kindt\kindt},
+  %   \tbind{\overline{\alpha}}{\overline{\kindt}}]
+  %   {\overline{T_i}}{\kindt}\\
+  %   (\forall i\in I)
+  % }{
+  %   \typeSynth{\data}{\kinda\kindt\kindt}
+  % }
+\end{mathpar}
+
+% \paragraph{Type conversion}
+% \label{sec:type-conversion}
+
+% TYPE CONVERSION
+
+\input{fig-type-conversion}
+
+Types obey a kind-indexed conversion
+relation. \Cref{fig:type-conversion} presents the declarative
+rules. Conversion is reflexive, symmetric, and transitive
+(\rulenametconvReflex, \rulenametconvSymm, \rulenametconvTrans).
+%
+We define duality as a conversion on session types. The rules entail
+that duality changes the direction of transmissions from the outside
+(\rulenametconvDualEndW, \rulenametconvDualEndT,
+\rulenametconvDualInM, \rulenametconvDualOutM)
+and that duality is involutory (\rulenametconvDoubleS). Kind subsumption is lifted to conversion (\rulenametconvSub). The last line
+governs the interaction between the reverse operator and the session
+type constructors: reverse flips the direction from the inside
+(\rulenametconvNegIn, \rulenametconvNegOut). Reverse is
+also involutory (\rulenametconvNegInv). We omit the standard congruence rules.
+
+
+%%% TYPE OPS _ Moved to expression typing
+
+% The following two type operators are used to \emph{polarize} the protocol's invocation.
+% \pt{extended the metafunctions ``!'' and ``?'' to $O$ by making them
+%   act correctly on guards.}
+
+% \input{fig-polarized-constructors}
+
+% Rather obvious
+% \begin{lemma}[Duality is for sessions]
+%   \label{lem:duailty-st}
+%   If $\typeSynth{\TDual{T}}{\kind}$, then $\typeAgainst{\TDual{T}}{\kinds}$ and
+%   $\typeAgainst{T}{\kinds}$.
+% \end{lemma}
+
+While type formation is algorithmic, the declarative definition of
+type conversion is more perspicuous. For the
+upcoming algorithmic expression typing relation we define a normalization
+algorithm for types, which is sound and complete with respect to the
+declarative rules.
+
+% We start by specifying the syntax of normal forms. Normal forms for well-formed types
+% are $\typec{Q}$ as defined by the following grammar:
+% %
+% \begin{align*}
+%   \typec{Q} &\grmeq \typec{R} \grmor \pneg{R}
+%   \\
+%   \typec{R} &\grmeq
+%   % functional types
+%   \TUnit \grmor \TFun[]{R}{R} \grmor \TPair{R}{R} \grmor
+%   \TForall \alpha \kind {R} \grmor \typec\alpha
+%   % session types
+%   \grmor \TIn{R}{R} \grmor \TOut{R}{R}
+%   \grmor \TEndW \grmor \TEndT  \grmor
+%   \TDual{\alpha}
+%   % protocol and data types
+%   \grmor \TPApp \proto {\overline{Q}}
+% \end{align*}
+In a type in normal form,  the reverse operator can only occur at most once at the top level (of
+a type of kind $\kindp$) and at the top level of the parameters of a protocol type. The
+$\dualk$ operator only appears on type variables, at the end of
+the spine of a session type. Thus an algorithm to compute normal forms
+must push all $\dualk$ operators down the spine of a session type
+by applying the conversion rules \rulenametconvDualInM, \rulenametconvDualOutM,
+\rulenametconvDualEndW, and \rulenametconvDualEndT from left to
+right. If it encounters another $\dualk$ operator along the
+spine, it applies rule \rulenametconvDoubleS. We cannot further resolve
+$\TDual\alpha$, hence it is a normal form.
+
+The reverse operator only applies to protocol types. So it can only
+occur in a message type like $\TIn{(-T)}S$ and in the parameter of a
+protocol type. In a message type, normalization must apply rules
+\rulenametconvNegIn and \rulenametconvNegOut exhaustively from left to
+right, which removes the reverse operator from message types. In the
+parameter of a protocol type, normalization applies rule
+\rulenametconvNegInv exhaustively. Starting with an odd number of
+reverse operators, a single operator remains; starting with an even
+number, all reverse operators are removed.
+
+
+%\input{fig-polarized-constructors}
+\input{fig-normalisation}
+
+Following this intuition normalization is defined in \cref{fig:normalisation} by two mutually
+recursive functions $\Normal[+]\_$ and $\Normal[-]\_$ along with three
+auxiliary functions. % also  in \cref{fig:type-polarized-operator}.
+Positive normalization $\Normal[+]\_$ traverses and reconstructs all
+non-session type constructs. It also gets invoked on the type of the
+transmitted value for session types, i.e., on $\typec T$ in type
+$\TOut TS$.
+Normalizing the $\dualk$ operator switches forth and back  between
+positive and negative normalization, $\Normal[+]\_$ and $\Normal[-]\_$.
+
+Negative normalization with superscript
+$^-$ indicates a pending $\dualk$ type constructor, so that
+the function $\Normal[-]\_$ is only used for session
+types. Normalization pushes the pending dual constructor along the spine of a session type to
+implement rules \rulenametconvDualInM, \rulenametconvDualOutM,
+\rulenametconvDualEndW, and \rulenametconvDualEndT. The pending dualization gets reified on
+a type variable.
+
+Normalizing a reversed protocol $\TMinus T$ invokes the negative directional
+function $\polarizedparam - {T'}$ on $\typec
+T$'s normal form to enforce the
+conversion rule \rulenametconvDoubleS.
+
+% As an example for the
+% normalization of session types, we consider $\Normal{\TIn TS}$. In each case, we invoke $\Normal S$ on
+% the continuation session and invoke $\Normal[+]T$ on the transmitted type
+% $\typec T$. For sending (receiving), we invoke the positive (negative) directional function
+% on the result. Materialization $\tosession TS$ expects a normal form for
+% $\typec T$ and ``materializes'' the direction of the session type. It returns an input $\TIn{T'}S$ if the normal form is
+% negative and an output $\TOut{T'}S$ if it is positive.
+%
+Here is an example of a step-by-step computation of the positive normal form of
+ $\TDual{(\TIn{(-\TInt)}{\alpha})}$.
+%\Cref{fig:example-computation-normal-form} goes through a concrete normalization step by step.
+%
+% \begin{figure}
+  \begin{align*}
+    & \Normal[+]{\TDual{(\TIn{(-\TInt)}{\alpha})}} \\
+    ={}& \Normal[-]{{\TIn{(-\TInt)}{\alpha}}}  && \text{negative
+                                                  normalization
+                                                  remembers pending $\dualk$}\\
+    ={}& \TFOut{\Normal[+]{-\TInt}}{\Normal[-]\alpha}  &&
+                                                          \text{$\Normal[+]\_$
+                                                          on the
+                                                          payload,
+                                                          $\Normal[-]\_$
+                                                          on the spine}\\
+    ={}& \TFOut{\TFMinus{\Normal[+]{\TInt}}}{\TDual\alpha} &&
+                                                              \text{negative
+                                                              normalization
+                                                              reifies
+                                                              $\dualk$
+                                                              on type variable}\\
+    % ={}& \TFOut{\TFMinus{\TInt}}{\TDual\alpha} \\
+    % ={}& \TFOut{-{\TInt}}{\TDual\alpha} \\
+    ={}& \tosession{\TMinus\TInt}{\TDual\alpha} &&
+                                                   \text{materialization
+                                                   applied to normal
+                                                   form \dots}\\
+    ={}& \TIn{{\TInt}}{\TDual\alpha} && \text{\dots{} fixes the direction}
+  \end{align*}
+%   \caption{Example: Step-by-step computation of the positive normal form of
+%   $\TDual{(\TIn{(-\TInt)}{\alpha})}$}
+%   \label{fig:example-computation-normal-form}
+% \end{figure}
+
+
+To test whether a type equivalence goal $\isConv TU\kind$ holds, we
+compute
+\emph{algorithmic type equivalence}, notation $\isEquiv TU$, which is
+defined by comparision of normal forms: $\Normal[+]T = \Normal[+]U$  up to  $\alpha$-equivalence.
+% We write $\typec T =_\alpha \typec U$ if types $\typec T$ and $\typec U$ are
+% $\alpha$-equivalent.
+% 
+The following propositions establish soundness and
+completeness of the normalization algorithm, as well as its worst case running
+time.
+% , which is linear in the size of the input type.
+
+% Every type is convertible to its normal form.
+%
+\begin{theorem}[Soundness]
+  \label{thm:soundness-type-equiv}
+  Let $\typeSynth T\kind$ and $\typeSynth U\kind$.
+  \begin{enumerate}
+  \item\label{it:soundness-type-equiv-t} If $\Normal[+] T =_\alpha \Normal[+] U$,
+    then $\isConv TU\kind$.
+  \item\label{it:soundness-type-equiv-s} If $\kind = \kinds$ and  $\Normal[-] T =_\alpha \Normal[-]
+    U$, then $\isConv TU\kinds$.
+  \end{enumerate}
+\end{theorem}
+
+% If two types are convertible, then their normal forms are equal.
+\begin{theorem}[Completeness]
+  \label{thm:completeness-type-equiv}
+  Let $\isConv TU\kind$.
+  \begin{enumerate}
+  \item  $\Normal[+]T =_\alpha \Normal[+]U$.
+  \item    If $\kind=\kinds$, then $\Normal[-]T =_\alpha \Normal[-]U$.
+  \end{enumerate}
+\end{theorem}
+
+\begin{theorem}[Time complexity of type equivalence]
+  \label{thm:complexity}
+  The test for\/ $\isEquiv TU$ runs in $O(|\typec T|+|\typec U|)$.
+\end{theorem}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

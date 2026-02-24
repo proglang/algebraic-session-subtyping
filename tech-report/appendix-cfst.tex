@@ -1,0 +1,310 @@
+\section{Embedding context-free session types}
+\label{sec:appendix-cfst-algst}
+
+This section presents an informal investigation of two questions that relate \algst and
+context-free session types (CFST
+\cite{DBLP:journals/corr/abs-2106-06658}): can we map any \algst
+program into an equivalent CFST program? And: can we map any CFST program to an
+equivalent \algst program?
+
+This investigation is necessarily informal because the features of
+\algst and CFST do not line up. \algst is a minimalist mostly linear
+version of System~F with products, sessions, and algebraic
+protocols. CFST is also based on System~F, but has a richer kind
+structure that enables unrestricted as well as linear features,
+variant and record types, and the full slate of context-free session
+primitives.
+
+To enable a meaningful comparison,  we focus on the linear fragment of
+CFST~\cite{DBLP:journals/corr/abs-2106-06658}
+using the notation of \citet{DBLP:journals/corr/abs-2203-12877},
+restricted to pairs and ignoring De Bruijn indices.
+In \algst, we only consider types that are not polymorphic in
+protocols because CFST has no equivalent. We add linear algebraic
+datatypes to cope with variant types in CFST.
+
+% We decided to 
+% present the theory of algebraic session types in a simplified form: all types are linear, 
+% we do not have records and we omitted the definition of $\datak$type definitions in 
+% the formalization of our system (despite the obvious similarities with $\protocolk$ definitions). 
+% For that reason, this comparison should 
+% be considered in a loose, rather than in a strict, sense. In the context-free side, we 
+% consider pairs instead of records as well.
+
+% and ignore De Bruijn 
+%indices (as used by Costa et al.~\cite{DBLP:journals/corr/abs-2203-12877}) because they would 
+%unnecessarily burden the analysis.
+
+%\input{fig-algst-vs-cfst}
+
+\paragraph{Non-parameterized algebraic sessions into (linear) context-free sessions} 
+The translation from 
+algebraic session types that do not parameterize over protocol types
+(AlgST${}_0$) to context-free session types 
+(CFST)  is  given by $\algsttocfst{\typec T}$, which is defined on
+types in normal form, only:
+\begin{mathpar}
+    \algsttocfst{\TUnit} = \syntax{unit} \quad
+    \algsttocfst{\TFun[]TU} = \algsttocfst {\typec{T}} \rightarrow \algsttocfst {\typec{U}} \quad
+    \algsttocfst{\TPair TU} = \algsttocfst {\typec{T}} \times \algsttocfst {\typec{U}}\quad
+    \algsttocfst{\TForall{\alpha}{\kindt} T} = \forall \alpha:\kindtl. \algsttocfst {\typec{T}}\\
+	\algsttocfst{\typec{\alpha}} = \alpha\qquad
+	%% sessions
+	\algsttocfst{\TIn{T}{U}}= ?\algsttocfst{\typec{T}}; \algsttocfst{\typec U} \qquad
+	\algsttocfst{\TOut{T}{U}}= !\algsttocfst{\typec T}; \algsttocfst{\typec U} \qquad 
+	\algsttocfst{\TEndT} = \syntax{skip} \qquad 
+	\algsttocfst{\TEndW} = \syntax{skip}\\
+	\algsttocfst{\TIn{\TPApp{P}{\overline U}}{S}}= P_U; \algsttocfst{\typec S} 
+	\text{ where } 
+	P_U \doteq \&\{ C_i\colon
+	\algsttocfst{\TFIn {\overline{T_i[\overline U/\overline\alpha]}}{\TEndT}} \}_{i\in I}
+	\text{ for }
+\protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I} } \\
+	\algsttocfst{\TOut{\TPApp{P}{\overline U}}{S}}= P_U; \algsttocfst{\typec S} 
+	\text{ where } 
+	%% \algsttocfst{\polarizedparam{-}{T}} = \syntax{dual}\, \algsttocfst{\typec T} \\
+	P_U \doteq \oplus\{ C_i\colon
+        \algsttocfst{\TFOut {\overline{T_i[\overline U/\overline\alpha]}}{\TEndT}} \}_{i\in I}
+        \text{ for }
+	\protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I} }
+    \end{mathpar}
+
+Functional types and 
+message exchanges are naturally mapped onto their counterparts. The end of a session is mapped 
+to $\syntax{skip}$, whereas algebraic protocols are translated to
+type names defined as internal choices or branches, depending on whether they appear 
+in sending or receiving positions. The choice labels coincide with the protocol
+constructors. 
+
+We claim that if $\isEquiv{T}{U}$, then $\algsttocfst{\typec T}\simeq\algsttocfst{\typec U}$.
+
+\input{fig-cfst-vs-algst}
+
+\paragraph{Linear context-free sessions embedded into algebraic sessions} 
+In this direction, we omit polymorphism to obtain a lighter, more
+perspicuous notation. Our comparative approach scales to the
+polymorphic setting, but at the price of high notational overhead. 
+
+The translation of the \emph{linear} and \emph{monomorphic} fragment of CFST 
+to AlgST is split between the functional and the session typed fragments,
+which are mutually defined and presented in~\cref{fig:cfst-vs-algst-f}. The translation of a
+context-free session type $T$ to the algebraic setting is given by $\cfsttoalgst T$. 
+The functional operators have natural counterparts in the algebraic side.
+When translated to the isorecursive setting, functional recursive types are represented 
+by a datatype enclosed with an explicit unfold. Variant types are mapped to datatypes whose 
+constructors are the respective labels. Session types are materialized by protocol definitions:
+each session type originates a protocol emerging from the conversion of a sequential composition of 
+types into a sequence of (algebraic) types with kind $\kindp$. 
+This conversion is governed by function $\cfsttoprot{\cdot}$ that maps $\syntax{skip}$
+to the empty sequence and uses polarities to enforce the direction of communication.
+In the session typed fragment, recursive types and choices are represented by protocol definitions.
+Type names are considered generative and we relax \algst to admit 
+overloaded constructor names that can be reused across protocol definitions.
+
+%\input{table-iso-cfst-to-algst}
+
+It remains to define suitable adapters in the places where CFST relies
+on type equivalence of equirecursive types. To this end we generate
+isomorphisms as witnesses of equivalence proofs using the rule system
+proposed by \citet{DBLP:journals/corr/abs-2203-12877}. 
+The tricky part of constructing such an isomorphism is its extension
+into session types. 
+For simplicity, we consider just one side of the isomorphism
+$\mathsf{iso} : \cfsttoalgst{T} \rightarrow \cfsttoalgst{U}$ 
+where $T \simeq U$ are session types:
+\begin{lstlisting}
+iso t = let (u, u') = new [|U|] in fork $ delta t u' |> u
+\end{lstlisting} %$
+This definition relies on a process $\delta : \cfsttoalgst{T} \to
+\TDual{\cfsttoalgst{U}} \to \TUnit$ that consumes two (dual) channel
+ends and implements a forwarder that compensates for the differences
+between $T$ and $U$. The witness processes $\delta$ are 
+defined for each pair of equivalent session types, according 
+to the rules. We sketch some witness 
+processes in \cref{tab:iso-witness-sessions} and provide a more detailed analysis of the isomorphism. 
+
+%Other cases and a more thorough analysis can be found in \cref{sec:appendix-cfst-algst}. 
+
+ 
+% In the case of $!T; V \simeq !U;W$, we are provided not only with a witness $\delta_1$ to consume the remainder
+% of channels $v$ and $w$, but also with a function $\theta \colon \cfsttoalgst{T} \rightarrow \cfsttoalgst{U}$
+% that witnesses the isomorphism resulting from $T\simeq U$. The functions witnessing the isomorphism 
+% between types in the functional fragment are presented in~\cref{tab:iso-cfst-to-algst-f}.
+% Given $\delta_1$ and $\theta$, process $\delta$ \lstinline|receive|s $u$ on channel $w$, 
+% transforms $u$ with $\theta^{-1}$ and sends the result through channel $v$. Process
+% $\delta_1$ consumes the remainder of $v$ and $w$.
+
+% To witness the isomorphism corresponding to $!T; V \simeq !U$ where $V$ is a 
+% terminated session (see \citet{DBLP:journals/corr/abs-2203-12877} for further details), we are given
+% a process $\sigma$ that consumes the explicit unfolds resulting from the isorecursive interpretation of $V$. The 
+% \emph{consumer} processes $\sigma$ for terminated sessions are presented in \cref{tab:iso-is-terminated}.
+
+% The other cases in \cref{tab:iso-cfst-to-algst-f,tab:iso-witness-sessions,tab:iso-is-terminated} follow
+% a similar reasoning. The omitted cases for monomorphic types also fit the same approach. For the polymorphic 
+% fragment, we would need to consider a \emph{reader monad} where one could store a map from type
+% variables to the processes that consume the corresponding channels or transform the 
+% corresponding values, depending on whether the type variables are of kind $\kinds$ or not. 
+% In the axiom for polymorphic (non-session typed) variables $n\simeq n$, for instance,
+% %\begin{mathpar}
+% %\axiom{}{\isodecl{\theta} n}\simeq n}
+% %\end{mathpar}
+% we could think of $\theta$ as the identity function, but we wouldn't know which type to 
+% assign to the bound variable: $\theta = \abse{x}{?}{x}$. Whereas to consume two channels 
+% typed with a polymorphic session-typed variable, we would need to know how to consume both
+% endpoints.
+% %
+% %$\inferrule{\isodecl{\sigma} T\checkmark}{\isodecl{\delta} n;T \simeq n}$
+% %
+% Processes to consume or transform values typed with polymorphic variables would need to 
+% be provided to $\delta$. For the translation of types in the polymorphic fragment, we would need to collect the free
+% variables occurrig in the type and use a parametrized $\datak$ or $\protocolk$ definition:
+% \begin{mathpar}
+% \cfsttoalgst{X\colon \kappa} = \typec{X\ \overline{\alpha}}
+% 	\text{ for } X \doteq T \text{ and } \kappa \neq \mathsf{S^{lin}}
+% 	\text{ where } \datak\ \typec{X\ \overline{\alpha}}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoalgst{T}} \text{ and }\FVL{T} = \overline\alpha
+% 	\and 
+% 	\cfsttoprot{X\colon \mathsf{S^{lin}}} = \typec{X\ \overline{\alpha}}
+% 	\text{ for } X \doteq T
+% 	\text{ where }
+% 	\protocolk\ \typec{X\ \overline{\alpha}}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoprot{T}} 
+% 	\text{ and }\FVL{T} = \overline\alpha
+% \end{mathpar}
+% %
+% Although we believe that polymorphic types
+% do not pose any problem to this analysis, we decided to keep the notation simple and
+% focus on the monomorphic fragment.
+
+% In this analysis we only provided witnesses for the "isomorphism" in one direction.
+% For the other direction, we could follow a similar approach and then prove that 
+% they are inverses of each other.
+
+% Capitalizing in the type translation presented in
+% \cref*{sec:cfst-vs-algst},\vv{Which section is this?}
+% we now proceed with a thorough analysis of the embedding of the linear fragment of
+% context-free session types into algebraic session types. 
+
+% Although we cannot guarantee that equivalence is preserved by the translation, we now analyze 
+% the existence of an isomorphism $\mathsf{iso} : \cfsttoalgst{T} \rightarrow \cfsttoalgst{U}$ 
+% whenever $T \simeq U$. The isomorphism is defined by:
+% \begin{lstlisting}
+% iso : [|T|] -> [|U|]
+% iso t = let (u, u') = new [|U|] in 
+% 	    fork $ delta t u'
+% 	    |> u
+% \end{lstlisting}
+% and relies on a process $\delta$ that consumes two (dual) channel ends governed by types 
+% $\cfsttoalgst{T}$ and $\TDual{\cfsttoalgst{U}}$. The witness processes $\delta$ are 
+% defined for each pair of equivalent session types, according 
+% to the rules proposed by \citet{DBLP:journals/corr/abs-2203-12877}.
+% We sketch some of the witness processes in~\cref{tab:iso-witness-sessions}. 
+
+For the sake of simplicity, in all cases in \cref{tab:iso-witness-sessions}, we elide an initial administrative \lstinline|match| 
+and \lstinline|select| step resulting from the definition of $\cfsttoalgst{T\colon \mathsf{S^{lin}}}$. 
+%
+The case for $T\simeq U$ where $T = \syntax{Skip}$ and $U = \syntax{Skip}$ would be 
+formally defined by:
+\begin{lstlisting}
+delta t u = match u with {
+  XU u -> let t = select XT t in 
+          wait u 
+          |> terminate t }
+\end{lstlisting}
+Process $\delta$ \lstinline|match|es with $X_U$ on channel $u$ and \lstinline|select|s $X_T$ on channel $t$, as prescribed by the
+protocol definitions resulting from $\cfsttoalgst{\syntax{Skip}}$ (see~\cref{fig:cfst-vs-algst-f}). According
+to the definition of $\cfsttoalgst{\syntax{Skip}}$ and \rulenameexpMatch, we are left with type $\TEndW$ 
+on $u$ and $\TEndT$ on $t$, so we \lstinline|wait| on $u$ and \lstinline|terminate| on $t$. 
+
+In general, $\delta$ inserts the explicit unfolds imposed by the translation to the isorecursive setting.
+We showcase our approach for the equivalence $Y \simeq U$ where type $Y$ is defined by $T$, $Y \doteq T$.
+The definition of $\delta$ follows the equivalence rule of \citet{DBLP:journals/corr/abs-2203-12877}
+as shown below.
+%
+A witness process $\delta$ for the embedding $\mathsf{iso} : \cfsttoalgst{Y} \rightarrow \cfsttoalgst{U}$  
+builds on a process $\delta_1$ witnessing $T \simeq U$ and is defined by:
+
+\begin{minipage}{0.6\textwidth}
+\begin{lstlisting}
+delta y u = match u with {
+   XU u -> let y = select XY y in 
+           let t = select UnfoldY y in
+           delta1 t u }
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+	$$\inferrule{Y\doteq T \\ T\,\mathsf{contr}\\\isodecl{\delta_1} T \simeq U}{\isodecl{\delta} Y \simeq U}$$
+\end{minipage}
+%
+As a result of the definition of $\cfsttoalgst{Y\colon \mathsf{S^{lin}}}$, 
+process $\delta$ \lstinline|match|es with $X_U$ on channel $u$ and \lstinline|select|s $X_Y$ on channel $y$, as prescribed by the
+protocol definitions resulting from $\cfsttoalgst{\syntax{Y}}$ (see~\cref{fig:cfst-vs-algst-f}). Then, 
+ \lstinline|select|s the explicit $\termc{\mathsf{Unfold}_Y}$ introduced by $\cfsttoprot{Y}$ and 
+uses $\delta_1$ to consume the leftovers at $t$ and $u$.
+%
+In the case $X \simeq U$ where $X \doteq T$, we are provided with a witness $\delta_1$ for $T \simeq U$.
+We \lstinline|select| the explicit $\termc{\mathsf{Unfold}_X}$ introduced by $\cfsttoprot{X}$ and then 
+use $\delta_1$ to consume the leftovers at $t$ and $u$.
+
+For the case of $!T; V \simeq{} !U;W$, we are provided not only with a witness $\delta_1$ to consume the remainder
+of channels $v$ and $w$, but also with a function $\theta \colon \cfsttoalgst{T} \rightarrow \cfsttoalgst{U}$
+that witnesses the isomorphism resulting from $T\simeq U$. The functions witnessing the isomorphism 
+between types in the functional fragment are presented in~\cref{tab:iso-cfst-to-algst-f}.
+Given $\delta_1$ and $\theta$, after the initial administrative \lstinline|match| and \lstinline|select|,
+ process $\delta$ \lstinline|receive|s $u$ on channel $w$, 
+transforms $u$ with $\theta^{-1}$ and sends the result through channel $v$. Process
+$\delta_1$ consumes the remainder of $v$ and $w$.
+
+To witness the isomorphism corresponding to $!T; V \simeq{} !U$ where $V$ is a 
+terminated session (see \citet{DBLP:journals/corr/abs-2203-12877} for further details), we are given
+a process $\sigma$ that consumes the explicit unfolds resulting from the isorecursive interpretation of $V$. The 
+\emph{consumer} processes $\sigma$ for terminated sessions are presented in \cref{tab:iso-is-terminated}.
+
+The other cases in \cref{tab:iso-cfst-to-algst-f,tab:iso-witness-sessions,tab:iso-is-terminated} follow
+a similar reasoning. The omitted cases for monomorphic types also fit the same approach. For the polymorphic 
+fragment, we would need to consider a \emph{reader monad} where one could store a map from type
+variables to the processes that consume the corresponding channels or transform the 
+corresponding values, depending on whether the type variables are of kind $\kinds$ or not. 
+In the axiom for polymorphic (non-session typed) variables $n\simeq n$, for instance,
+%\begin{mathpar}
+%\axiom{}{\isodecl{\theta} n}\simeq n}
+%\end{mathpar}
+we could think of $\theta$ as the identity function, but we wouldn't know which type to 
+assign to the bound variable: $\theta = \abse{x}{?}{x}$. Whereas to consume two channels 
+typed with a polymorphic session-typed variable, we would need to know how to consume both
+endpoints.
+%
+%$\inferrule{\isodecl{\sigma} T\checkmark}{\isodecl{\delta} n;T \simeq n}$
+%
+Processes to consume or transform values typed with polymorphic variables would need to 
+be provided to $\delta$. For the translation of types in the polymorphic fragment, we would need to collect the free
+variables occurrig in the type and use a parametrized $\datak$ or $\protocolk$ definition:
+\begin{mathpar}
+\cfsttoalgst{X\colon \kappa} = \typec{X\ \overline{\alpha}}
+	\text{ for } X \doteq T \text{ and } \kappa \neq \mathsf{S^{lin}}
+	\text{ where } \datak\ \typec{X\ \overline{\alpha}}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoalgst{T}} \text{ and }\FVL{T} = \overline\alpha
+	\and 
+	\cfsttoprot{X\colon \mathsf{S^{lin}}} = \typec{X\ \overline{\alpha}}
+	\text{ for } X \doteq T
+	\text{ where }
+	\protocolk\ \typec{X\ \overline{\alpha}}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoprot{T}} 
+	\text{ and }\FVL{T} = \overline\alpha
+\end{mathpar}
+%
+Although we believe that polymorphic types
+do not pose any problem to this analysis, we decided to keep the notation simple and
+focus on the monomorphic fragment.
+
+In this analysis we only provided witnesses for the isomorphism in one direction.
+% For the
+% other direction of the isomorphism, we could follow a similar approach for defining 
+% $\mathsf{iso}^{-1} : \cfsttoalgst{U} \rightarrow \cfsttoalgst{T}$ 
+% and then prove that $\mathsf{iso}$ (presented in \cref*{sec:cfst-vs-algst}) and $\mathsf{iso}^{-1}$ compose giving the identity.
+For the
+other direction of the isomorphism, we could follow a similar approach for defining 
+$\mathsf{iso}^{-1} : \cfsttoalgst{U} \rightarrow \cfsttoalgst{T}$ 
+and then prove that $\mathsf{iso}$ and $\mathsf{iso}^{-1}$ compose giving the identity.
+
+\input{table-iso-cfst-to-algst}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

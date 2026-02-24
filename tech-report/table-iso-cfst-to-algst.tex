@@ -1,0 +1,173 @@
+\begin{table}
+\begin{tabular}{| c | l |}
+\hline
+Equivalence rule & Isomorphism witness\\
+$T\simeq U \colon \mathsf{S^{lin}}$&$\cfsttoalgst{T} \to
+\TDual{\cfsttoalgst{U}} \to \TUnit$\\\hline
+%% E-Skip
+$\axiom{}{\isodecl{\delta} \mathsf{Skip}\simeq \mathsf{Skip}}$ & 
+\begin{lstlisting}
+delta t u = wait u 
+        |> terminate t  
+\end{lstlisting}
+\\\hline
+ %% E-IdL
+$\inferrule{X\doteq T \\ T\,\mathsf{contr}\\\isodecl{\delta_1} T \simeq U}{\isodecl{\delta} X \simeq U}$ & 
+\begin{lstlisting}
+delta x u = let t = select UnfoldX x in 
+        delta1 t u
+\end{lstlisting}
+ \\\hline
+ %% E-IDSeqL
+$\inferrule{X\doteq T \\ T\,\mathsf{contr}\\\isodecl{\delta_1} T;V \simeq U}{\isodecl{\delta} X;V \simeq U}$ & 
+\begin{lstlisting}
+delta x u = let t = select UnfoldX x in 
+        delta1 t u
+\end{lstlisting}
+ \\\hline
+ %% E-MsgSeq2
+$\inferrule{\isodecl{\theta} T \simeq U\\\isodecl{\delta_1} V \simeq W}{\isodecl{\delta} !T; V \simeq !U;W}$ & 
+\begin{lstlisting}
+delta v w = let (u, w) = receive w in 
+        let t = theta^-1 u 
+        let v = send t v in 
+        delta1 v w
+\end{lstlisting}
+ \\\hline
+ %% E-MsgSeq1L
+$\inferrule{\isodecl{\theta} T \simeq U\\\isodecl{\sigma} V \checkmark}{\isodecl{\delta} !T; V \simeq !U}$ & 
+\begin{lstlisting}
+delta t u = let (u', u) = receive u in 
+        let t' = theta^-1 u'
+        let v = send t' t in
+        let v = sigma v in
+        wait u 
+        |> terminate v
+\end{lstlisting}
+ \\\hline
+%% E-Msg
+$\inferrule{\isodecl{\theta} T \simeq U }{\isodecl{\delta} !T \simeq !U}$ & 
+\begin{lstlisting}
+delta t u = let (u', u) = receive u in
+        let t' = theta^-1 u' in
+        let t = send t' t in
+        wait u 
+        |> terminate t
+\end{lstlisting}
+ \\\hline
+%% E-Choice
+$\inferrule{\isodecl{\delta_\ell} T_\ell \simeq U_\ell\\ (\forall \ell \in L)}{\isodecl{\delta} \oplus\{\ell\colon T_\ell\}_{\ell \in L} \simeq \oplus\{\ell\colon U_\ell\}_{\ell \in L}}$ & 
+\begin{lstlisting}
+delta t u = match u with {
+          k u -> let t = select k t in 
+                 deltak t u }
+\end{lstlisting}
+ \\\hline
+%% E-ChoiceSeqL
+$\inferrule{\isodecl{\delta_1} \oplus\{\ell\colon T_\ell;U\}_{\ell \in L} \simeq V}{\isodecl{\delta} \oplus\{\ell\colon T_\ell\}_{\ell \in L};U \simeq V}$ & 
+\begin{lstlisting}
+delta t u = delta1 t u
+\end{lstlisting}
+ \\\hline
+ %% E-SkipSeqL
+$\inferrule{\isodecl{\delta_1} T \simeq U}{\isodecl{\delta} \mathsf{Skip}; T \simeq U}$ & 
+\begin{lstlisting}
+delta t u = delta1 t u
+\end{lstlisting}
+ \\\hline
+% %% E-IndexSeq1L
+%$\inferrule{\isodecl{\sigma} T\checkmark}{\isodecl{\delta} n;T \simeq n}$ & 
+%\begin{lstlisting}
+%delta t u = ?
+%\end{lstlisting}
+% \\\hline
+    %%
+\end{tabular}
+\caption{Processes that consume two dual session endpoints.}
+\label{tab:iso-witness-sessions}
+\end{table}
+
+\begin{table}
+\begin{tabular}{| c | l |}
+\hline
+Equivalence rule & Isomorphism witness\\
+$T\simeq U \colon \kappa$ with $\kappa\neq \mathsf{S^{lin}}$&$\theta \colon \cfsttoalgst{T} \rightarrow \cfsttoalgst{U}$\\\hline
+%% E-Unit
+$\axiom{}{\isodecl{\theta} ()_{\mathsf{lin}}\simeq ()_{\mathsf{lin}}}$ & 
+\begin{lstlisting}
+theta = lambda x:Unit.x
+\end{lstlisting}
+\\\hline
+%%% E-Index
+%$\axiom{}{\isodecl{\theta} n}\simeq n}$ & 
+%\begin{lstlisting}
+%theta = lambda x:Unit.x
+%\end{lstlisting}
+%\\\hline
+%% E-Arrow
+$\inferrule{\isodecl{\theta_1} T \simeq U\\\isodecl{\theta_2} V \simeq W}{\isodecl{\theta} T\rightarrow V \simeq U \rightarrow W}$ & 
+\begin{lstlisting}
+theta t = lambda x:[|U|].theta2 $ t $ theta^-1 x
+\end{lstlisting}
+ \\\hline
+%% E-Rcd
+$\inferrule{\isodecl{\theta_1} T \simeq U\\\isodecl{\theta_2} V \simeq W}{\isodecl{\theta} T\otimes V \simeq U \otimes W}$&
+\begin{lstlisting}
+theta t = <theta1 $ fst t,theta2 $ snd t> 
+\end{lstlisting}
+ \\\hline
+  %% E-IdL
+$\inferrule{X\doteq T \\ T\,\mathsf{contr}\\\isodecl{\theta_1} T \simeq U}{\isodecl{\theta} X \simeq U}$ & 
+\begin{lstlisting}
+theta x = let t = select UnfoldX x in 
+      let u = theta1 t in
+      u
+\end{lstlisting}
+%  \\\hline
+%  %% E-Quant
+% $\inferrule{\isodecl{\theta_1} T \simeq U}{\isodecl{\theta} \forall T \simeq \forall U}$&
+% \begin{lstlisting}
+% theta t = Lambda alpha: T. theta1 $ t alpha
+% \end{lstlisting}
+ \\\hline
+    %%
+\end{tabular}
+\caption{Transformation of non-session typed expressions.}
+\label{tab:iso-cfst-to-algst-f}
+\end{table}
+
+\begin{table}
+\begin{tabular}{| c | l |}
+\hline
+Is terminated predicate & Witness\\
+$T \colon \mathsf{S^{lin}}$&$\sigma \colon \cfsttoalgst{T} \rightarrow \TEndT$\\\hline
+%% E-Unit
+$\axiom{}{\isodecl{\sigma} \mathsf{Skip}\checkmark}$ & 
+\begin{lstlisting}
+sigma t = t
+\end{lstlisting}
+\\\hline
+%% E-Arrow
+$\inferrule{\isodecl{\sigma_1} T \checkmark\\\isodecl{\sigma_2} U \checkmark}{\isodecl{\sigma} T;U \checkmark}$ & 
+\begin{lstlisting}
+sigma t = let t' = sigma1 t in
+      sigma2 t'
+\end{lstlisting}
+ \\\hline
+%% E-Rcd
+$\inferrule{T\doteq U\\ \isodecl{\sigma_1} T \checkmark}{\isodecl{\sigma} X \checkmark}$&
+\begin{lstlisting}
+sigma x = let t = select UnfoldX x in
+      sigma1 t
+\end{lstlisting}
+ \\\hline
+    %%
+\end{tabular}
+\caption{Processes that consume the explicit unfolds created by the translation.}
+\label{tab:iso-is-terminated}
+\end{table}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

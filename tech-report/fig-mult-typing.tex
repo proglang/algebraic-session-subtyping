@@ -1,0 +1,48 @@
+\declrel{Typing}{$\isExpr\Gamma eT$}
+%
+\begin{mathpar}
+  \infrule{\rulenameexpCase}{
+    \protocolsfull \\
+    \isExpr \Gamma M {?(\TPApp P {\overline{T}}).S} \\
+    \isExpr {\Gamma,\termc{x}\colon {
+    \polarizedparams{?}{\overline{O_i\tsubs{ \overline
+          T}{ \overline\alpha}}^i}{S}
+    %?(\typec{\overline{T_i^\pm\tsubs{\overline G}{\overline\alpha}}.S}
+    })
+    } {N_i} U
+  }{
+    \isExpr \Gamma {\casee{M}{\{C_i \,x \rightarrow N_i\}_{i\in I}}} U
+  }
+
+  \infrule{\rulenameexpSelect}{
+    \protocolsfull 
+  }{
+    \isExpr \Gamma {\ESelect{C_i}}
+    {\TBForall{(\overline{\alpha\colon\kind})}
+      {
+        {\TForall S \kindsl {\TFun
+          {\typeconstr{!}(\TPApp P {\overline\alpha}).S}
+          {\polarizedparams{!}{\overline{O_i}}{S}}
+%          {\overline{\blk{!}T_i^\pm}}.S}
+          }}}} 
+  }\\
+  \infrule{\color{red}{\rulenameexpSelect (suggestion)}}{
+    \protocolk\ \typec{\proto\
+    (\overline{\alpha}\colon \overline\kind)}~\blk{=}~\typec{\{\constr_i : \overline{O_i}\}_{i\in I}}
+    \and (k \in I)
+  }{
+    \isExpr \Gamma {\ESelect{C_k}}
+    {\TBForall{(\overline{\alpha\colon\kind})}
+      {
+        {\TForall S \kindsl {\TFun
+          {\typeconstr{!}(\TPApp P {\overline\alpha}).S}
+          {\polarizedparams{!}{\overline{O_i}}{S}}
+%          {\overline{\blk{!}T_i^\pm}}.S}
+          }}}} 
+  } 
+\end{mathpar}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

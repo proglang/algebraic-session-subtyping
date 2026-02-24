@@ -1,0 +1,101 @@
+\begin{figure}[t!]
+  \declrel{Type conversion}{$\isConv T T \kind$}
+  % 
+  \begin{mathpar}
+    % EQUIVALENCE
+    \infrule{\rulenametconvReflex}{\typeAgainst T \kind}{\isConv T T \kind}
+
+    \infrule{\rulenametconvSymm}{\isConv {T_1} {T_2} \kind}{\isConv {T_2} {T_1} \kind}
+
+    \infrule{\rulenametconvTrans}{\isConv {T_1} {T_2} \kind \\ \isConv {T_2} {T_3} \kind}{\isConv {T_1} {T_3} \kind}
+
+    \infrule{\rulenametconvDualEndW}{}{\isConv{\TDual\TEndW}\TEndT\kinds}
+    
+    \infrule{\rulenametconvDualEndT}{}{\isConv{\TDual\TEndT}\TEndW\kinds}
+    
+    \infrule{\rulenametconvDualInM}{\typeAgainst T \kindp \\ \typeAgainst S {\kinds}}{
+      \isConv{\TDual{(\TIn TS)}} {\TOut T{(\TDual S)}} \kinds}
+
+    \infrule{\rulenametconvDualOutM}{\typeAgainst T \kindp \\ \typeAgainst S {\kinds}}{
+      \isConv{\TDual{(\TOut TS)}} {\TIn T{(\TDual S)}} \kinds}
+
+    \infrule{\rulenametconvDoubleS}{\typeAgainst S {\kinds}}{\isConv{\TDual{(\TDual S)}} S {\kinds}}
+
+    \infrule{\rulenametconvSub}{
+      \isConv {T_1}{T_2} {\kind} \\ \isSubKind\kind{\kind'}
+    }{
+      \isConv {T_1}{T_2} {\kind'}
+    }
+    
+    \infrule{\rulenametconvNegIn}{\typeAgainst T \kindp \\ \typeAgainst S \kinds}{\isConv
+      {\TIn{(-T)}S}{\TOut TS} \kinds}
+
+    \infrule{\rulenametconvNegOut}{\typeAgainst T \kindp \\ \typeAgainst S \kinds}{\isConv
+      {\TOut{(-T)}S}{\TIn TS} \kinds}
+    
+    \infrule{\rulenametconvNegInv}{\typeAgainst T \kindp}{\isConv {-(-T)}T \kindp}
+  \end{mathpar}
+  \caption{Type conversion (congruence rules omitted)}
+  \label{fig:type-conversion}
+\end{figure}
+
+    % \infrule{\rulenametconvDoubleG}{\isType G \kindg}{\isConv{\TDual{(\TDual G)}} G \kindg}
+    % 
+    % \infrule{\rulenametconvDualDot}{
+    % \isType G \kindg \\ \isType S {\kinds}
+    % }{
+    %   \isConv{\TDual{(G.S)}}{\TDual G . \TDual S} \kinds
+    % }
+    %   
+    %   \infrule{}{ \isType{\forall
+    %   (\typec{\alpha}\colon\kindc{\kind}) \typec{T_1}}{\kindc{\kind'}} \\ \kindc{\kind'} = \kinds,\kindg }
+    %   { \isConv {\TDual{(\forall
+    %   (\typec{\alpha}\colon\kindc{\kind}) \typec{T_1} })} {\forall
+    %   (\typec{\alpha}\colon\kindc{\kind}) \typec{(\TDual{T_1})}}  { \kind' }}
+    %   
+    %   \\
+    % \infrule{\rulenametconvDualOutP}{\typeAgainst T \kindp }{ \isConv{\TDual{(!T)}} {?(\TDual{T}) } \kindg}
+    % 
+    % \infrule{\rulenametconvDualInP}{\typeAgainst T \kindp}{ \isConv{\TDual{(?T)}} {!(\TDual{T})} \kindg}
+    % 
+    % \infrule{\rulenametconvDualProto}{
+    % % \protocols \\ 
+    % \typeAgainst{P\ \overline{T}}\kindp }{
+    % \isConv{\TDual{(P\ \overline{T}) }}{P\ \overline{T} }{\kindp} }
+    % 
+    % \infrule}
+    % { \typeAgainst{T} {\kinds,\kindg} }
+    % {\TDualInner{T} = \TDual{T} }
+    % 
+    % \infrule{}
+    % { \typeAgainst{T} {\kindm,\kindp} }
+    % {\TDualInner{T} = \typec{T} }
+    %
+    % \infrule{\rulenametconvPosOut}{\typeAgainst T \kindp \\ \typeAgainst S \kinds}{\isConv {!{+T}.S}{!T.S} \kinds}
+
+    % \infrule{\rulenametconvPosIn}{\typeAgainst T \kindp \\ \typeAgainst S \kinds}{\isConv {?{+T}.S}{?T.S} \kinds}
+    % \\
+    % \infrule{\rulenametconvPos}{\typeAgainst T \kindp}{\isConv {+T}T \kindp}
+    % \infrule{\rulenametconvReflex}{\typeAgainst T \kind}{\isConv T T \kind}
+    %
+    % \textcolor{red}{
+    %   \infrule{\rulenametconvSemiOut}{
+    %     \typeAgainst T \kindp \\ \typeAgainst U \kindp \\ \typeAgainst S \kinds
+    %   }{
+    %     \isConv{!(T;U).S}{!T.!U.S} \kinds
+    %   }
+    % }
+    %   
+    % \textcolor{red}{
+    %   \infrule{\rulenametconvSemiIn}{
+    %     \typeAgainst T \kindp \\ \typeAgainst U \kindp \\ \typeAgainst S \kinds
+    %   }{
+    %     \isConv{?(T;U).S}{?T.?U.S} \kinds
+    %   }
+    % }
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

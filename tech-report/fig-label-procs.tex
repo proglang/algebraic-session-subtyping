@@ -1,0 +1,71 @@
+\begin{figure}[t!]
+    \declrel{Labelled transition system for processes}{$\trans p \pi p$}
+    % 
+\begin{mathpar}
+	% structural rules
+	% \emph{Structural rules}\hfill\\
+	\inferrule[Act-Session]{
+      \trans{\termc{e_1}}{\sigma}{\termc{e_2}}}
+      % \and \lambda\neq \forkl{v}, \newl xyT}
+	{\trans{\expp{e_1}}{\sigma}{\expp{e_2}}}	
+
+	\inferrule[Act-Beta]{
+      \trans{\termc{e_1}}{\beta}{\termc{e_2}}}
+      % \and \lambda\neq \forkl{v}, \newl xyT}
+	{\trans{\expp{e_1}}{\tau}{\expp{e_2}}}	
+
+    \inferrule[Act-Fork]{\termc{e_1}\lts{\forkl{v}}{\termc{e_2}}}
+	{\expp{e_1}\lts{\tau}\parp{\expp{e_2}}{\expp{\appe v\unitk}}}
+    
+    \inferrule[Act-New]{\termc{e_1}\lts{\newl xyT}{\termc{e_2}}}
+	{\expp{e_1}\lts{\tau}{\newp{x}{y}{\expp{e_2}}}}
+	
+	\inferrule[Act-JoinL]{\trans{p_1}{\pi_1}{q_1} \and
+      \trans{p_2}{\pi_2}{q_2}}
+	{\trans{\parp{p_1}{p_2}}{\parl{\pi_1}{\pi_2}}{\parp{q_1}{q_2}}} 
+	
+	\inferrule[Act-JoinR]{\trans{p_1}{\pi_1}{q_1} \and
+      \trans{p_2}{\pi_2}{q_2}}
+	{\trans{\parp{p_1}{p_2}}{\parl{\pi_2}{\pi_1}}{\parp{q_1}{q_2}}} 
+	
+	\inferrule[Act-Msg]{\trans{p_1}{\parl{\receivel xv}{\sendl yv}}{p_2}}
+	{\trans{\newp xy{p_1}}{\tau}{\newp xy{p_2}}}
+
+	\inferrule[Act-Bra]{\trans{p_1}{\parl{\receivel xC}{\sendl yC}}{p_2}}
+	{\trans{\newp xy{p_1}}{\tau}{\newp xy{p_2}}}
+
+	\inferrule[Act-Wait]{\trans{p_1}{\parl{\closel x}{\openl y}}{p_2}}
+	{\trans{\newp xy{p_1}}{\tau}{p_2}}
+
+	\inferrule[Act-ParL]{\trans{p_1}{\pi}{p_2}}
+	{\trans{\parp{p_1}{q_1}}{\pi}{\parp{p_2}{q_1}}}
+	
+	\inferrule[Act-ParR]{\trans{q_1}{\pi}{q_2}}
+	{\trans{\parp{p_1}{q_1}}{\pi}{\parp{p_1}{q_2}}}
+	
+	\inferrule[Act-Res]
+    {\trans{p_1}{\pi}{p_2} \and \termc x,\termc y\not\in\FVL\pi}
+	{\trans{\newp{x}{y}{p_1}}{\pi}{\newp{x}{y}{p_2}}}
+
+	\inferrule[Act-OpenL]{\trans{p_1}{\sendl xa}{p_2} \and \termc x\neq \termc
+      a,\termc b}
+	{\trans{\newp{a}{b}{p_1}}{\scopel abxa}{p_2}} % FIX LTS MACRO
+
+	\inferrule[Act-OpenR]{\trans{p_1}{\sendl xb}{p_2} \and \termc x\neq \termc
+      a,\termc b}
+	{\trans{\newp{a}{b}{p_1}}{\scopel abxb}{p_2}}
+
+	\inferrule[Act-CloseL]{\trans{p_1}{\parl{\receivel xa}{\scopel abya}}{p_2}}
+	{\trans{\newp{x}{y}{p_1}}{\tau}{\newp{x}{y}{\newp{a}{b}{p_2}}}}
+
+	\inferrule[Act-CloseR]{\trans{p_1}{\parl{\receivel xb}{\scopel abyb}}{p_2}}
+	{\trans{\newp{x}{y}{p_1}}{\tau}{\newp{x}{y}{\newp{a}{b}{p_2}}}}
+\end{mathpar}
+\caption{Labelled transition system for processes}
+\label{fig:lts-procs}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

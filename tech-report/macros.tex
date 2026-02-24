@@ -1,0 +1,431 @@
+% Glorious technicolour
+
+\newcommand{\kindc}[1]{{\color{ForestGreen}{#1}}} % c for colour
+\newcommand{\typec}[1]{{\color{RoyalBlue}{#1}}}
+\newcommand{\termc}[1]{{\color{RedOrange}{#1}}}
+\newcommand{\blk}[1]{{\color{black}{#1}}}
+\newcommand{\gray}[1]{{\color{gray}{#1}}}
+\newcommand{\pic}[1]{{\color{ACMLightBlue}{#1}}}
+
+% abbreviation of the calculus
+\newcommand\algst{AlgST\xspace}
+\newcommand\fuse{FuSe$^{\{\}}$\xspace}
+
+% Grammars
+\newcommand{\grmeq}{\; ::= \;\;}
+\newcommand{\grmor}{\;\mid\;}
+
+% KEYWORDS
+\newcommand{\syntax}{\texttt}
+\newcommand{\Keyword}[1]{\mathsf{#1}}
+
+\newcommand{\link}{\Keyword{lin}}
+\newcommand{\unk}{\Keyword{un}}
+
+% KINDS
+% \newcommand{\kindstyle}[1]{\kindc{\textsc{\textbf{\upshape #1}}}}
+\newcommand{\kindstyle}[1]{\kindc{\textbf{\textsc{#1}}}}
+\newcommand{\kindm}{\kindstyle m}
+\newcommand{\kindp}{\kindstyle p}
+\newcommand{\kinds}{\kindstyle s}
+\newcommand{\kindf}{\kindstyle f}
+\newcommand{\kindl}{\kindstyle l}
+\newcommand{\kindg}{\kindstyle g}
+\newcommand{\kindt}{\kindstyle t}
+\newcommand{\kind}{\kindc{\kappa}}
+% \newcommand{\kind}{\kindc K}
+\newcommand{\prekind}{\kindc J}
+\newcommand{\kinda}[2]{\kindc{\overline{#1}}\rightarrow\kindc{#2}}
+\newcommand{\kindas}[2]{\kindc{#1}\rightarrow\kindc{#2}} % simple, no overline
+
+% MULTIPLICITY
+\newcommand\mult{\kindc{m}}
+\newcommand\lin{\kindstyle{lin}}
+\newcommand\un{\kindstyle{un}}
+
+\newcommand{\kindtu}{\kindt^\un}
+\newcommand{\kindtl}{\kindt^\lin}
+\newcommand{\kindtm}{\kindt^\mult}
+\newcommand{\kindsu}{\kinds^\un}
+\newcommand{\kindsl}{\kinds^\lin}
+\newcommand{\kindmu}{\kindm^\un}
+\newcommand{\kindml}{\kindm^\lin}
+\newcommand{\kindfu}{\kindf^\un}
+\newcommand{\kindfl}{\kindf^\lin}
+
+\newcommand{\kindgu}{\kindg^\un}
+\newcommand{\kindgl}{\kindg^\lin}
+\newcommand{\kindpu}{\kindp^\un}
+\newcommand{\kindpl}{\kindp^\lin}
+
+% OPERATORS
+\newcommand{\operator}[1]{\blk{\operatorname{#1}}}
+\newcommand\klub{\sqcup}
+\newcommand{\polarizedparam}[2]{\blk{#1}\blk(\typec{#2}\blk)}
+% \newcommand{\polarizeminus}[2]{\tosession{\polarizedparam - {#1}}{#2}} % Use \TFIn
+% \newcommand{\polarizeplus}[2]{\tosession{\polarizedparam + {#1}}{#2}}  % Use TFOut
+\newcommand{\tosessionop}{\mathsection}
+\newcommand{\tosession}[2]{\blk{\tosessionop(}\typec{#1}\blk{).}\typec{#2}} % imaginative syntax
+%\newcommand{\tosession}[2]{\blk{\tosessionop(}\typec{#1}\blk,\typec{#2}\blk)} % explicit binary
+\newcommand\ppos[1]{\typec{+#1}} % was {1^+}
+\newcommand\pneg[1]{\typec{-#1}} % was {#1^-}
+\newcommand\ppm[1]{\typec{\pm#1}}
+
+% TYPES
+\newcommand{\types}[1]{\typec{\syntax{#1}}} % s for syntax
+\newcommand\TEndW{\ensuremath{\types{End}_{\typec ?}}} % wait
+\newcommand\TEndT{\ensuremath{\types{End}_{\typec !}}} % terminate
+% \newcommand\TEnd{\types{End}}
+\newcommand{\TG}[2]{\typec{{#1}.{#2}}} % DEPRECATED, no guards anymore
+\newcommand{\TIn}[2]{\TG{?#1}{#2}}
+\newcommand{\TOut}[2]{\TG{!#1}{#2}}
+\newcommand{\TGIn}[1]{\typec{?#1}}
+\newcommand{\TGOut}[1]{\typec{!#1}}
+\newcommand{\TSkip}{\types{Skip}}
+\newcommand{\TSeq}[2]{\typec{#1;#2}}
+\newcommand{\TChoice}[2]{\typec{#1\oplus#2}}
+\newcommand{\TBranch}[2]{\typec{#1\mathbin{\&} #2}}
+\newcommand{\TOne}{\types{1}}
+\newcommand\TFIn[2]{\tosession{\polarizedparam - {#1}}{#2}}
+\newcommand\TFOut[2]{\tosession{\polarizedparam + {#1}}{#2}}
+\newcommand\TFMinus[1]{\blk{-(}\typec{#1}\blk)}
+\newcommand\protocolk{\types{protocol}}
+\newcommand\datak{\types{data}}
+\newcommand{\TUp}[1]{\typec{\ensuremath{{\uparrow}{#1}}}}
+\newcommand{\TUnit}{\types{Unit}}
+\newcommand{\TInt}{\types{Int}}
+\newcommand{\TBool}{\types{Bool}}
+\newcommand\TFun[3][\mult]{\typec{#2 \to_{#1} #3}}
+\newcommand{\TPair}[2]{\typec{#1 \otimes #2}}
+% \newcommand{\TPair}[2]{\typec{\langle #1, #2\rangle}}
+\newcommand{\TSum}[2]{\typec{#1 + #2}}
+\newcommand{\TRecord}[2]{\typec{\{\overline{\termc{#1}\colon{#2}}\}}}
+\newcommand{\TVariant}[2]{\typec{[\overline{\termc{#1}\colon{#2}}]}}
+\newcommand{\dualk}{\types{Dual}}
+% \newcommand{\dualinnerk}{\operator{dual'}}
+\newcommand{\TDual}[1]{\typec{\dualk~{#1}}}
+% \newcommand{\TDualInner}[1]{\dualinnerk~\typec{#1}}
+\newcommand{\TMinus}[1]{\typec{-{#1}}}
+\newcommand{\tbind}[2]{\typec{{#1}\blk\colon\kindc{#2}}}
+\newcommand{\TForall}[3]{\typec{\forall\tbind{#1}{#2}{.#3}}}
+% \newcommand{\TForall}[3]{\typec{\forall(\tbind{#1}{#2}){\,#3}}}
+\newcommand{\TBForall}[2]{\typec{\forall{#1}{#2}}}
+% \newcommand{\TMForall}[2]{\typec{\forall{#1}{#2}}} # multiple
+\newcommand{\TPApp}[2]{\typec{{#1}~{#2}}}
+\newcommand{\matchin}[1][i]{\TFIn   {\overline{T_{#1}}\tsubs{\overline U}{\overline\alpha}}{S}}
+\newcommand{\matchout}[1][i]{\TFOut {\overline{T_{#1}}\tsubs{\overline U}{\overline\alpha}}{S'}}
+\newcommand{\protocols}{\protocolk\ \typec{\proto\
+    \overline{\alpha}\colon\overline\kindg}~\blk{=}~\typec{\overline{\constr\
+      \overline{\ppm T}}}
+}
+% \newcommand{\protocolsfullobsolete}{\protocolk\ \typec{\proto\
+%     (\overline{\alpha}\colon \overline\kind)}~\blk{=}~\typec{\{{\constr_i : \overline{P_i}}\}_{i\in I}}
+% }
+\newcommand{\protocolsfull}{\protocolk\ \typec{\proto\ \overline{\alpha}}~\typec{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I}}
+}
+
+\newcommand{\protocolsdataobsolete}{
+  \datak\ \typec{D\
+    (\overline{\alpha}\colon\overline{\kindc{\kindt}})}~\blk{=}~
+  \typec{\{{\constr_i : \overline{T_i}}\}_{i\in I}}
+}
+\newcommand{\protocolsdata}{
+  \datak\ \typec{D\ \overline{\alpha}}~\blk{=}~
+  \typec{\{{\constr_i\ \overline{T_i}}\}_{i\in I}}
+}
+
+% EXPRESSIONS
+\newcommand{\exps}[1]{\termc{\syntax{#1}}}
+
+\newcommand{\casek}{\exps{case}}
+\newcommand{\ofk}{\exps{of}}
+\newcommand{\sendIntk}{\exps{sendInt}}
+\newcommand{\receiveIntk}{\exps{receiveInt}}
+\newcommand{\sendk}{\exps{send}}
+%\newcommand{\selectk}{\exps{select}} % Use C_i alone
+\newcommand{\receivek}{\exps{receive}}
+\newcommand{\offerk}{\exps{offer}}
+\newcommand{\letk}{\exps{let}}
+\newcommand{\ink}{\exps{in}}
+\newcommand{\newk}{\exps{new}}
+\newcommand{\reck}{\exps{rec}}
+\newcommand{\forkk}{\exps{fork}}
+\newcommand{\matchk}{\exps{match}}
+\newcommand{\withk}{\exps{with}}
+\newcommand{\terminatek}{\exps{terminate}}
+\newcommand{\waitk}{\exps{wait}}
+\newcommand{\unitk}{\exps{*}} % {\exps{unit}}
+\newcommand{\selectk}{\exps{select}}
+
+% \newcommand{\ESelect}[1]{\termc{\selectk\,{#1}}} % Use C_1 alone
+\newcommand{\constr}{\termc C} % constructor
+\newcommand{\protodata}{\typec X} % protocoland constructor
+% protocol names
+\newcommand{\proto}{\typec{\ensuremath{\rho}}}%{\typec P} % protocol
+\newcommand{\data}{\typec D} % dtaa
+
+\newcommand{\abse}[3]{\termc{\lambda{#1}\colon{\typec #2}.{#3}}}
+\newcommand{\absne}[3]{\termc{\lambda{#1}.{#3}}}
+\newcommand{\tabse}[3]{\termc{\Lambda}\,\typec{{#1}\colon{#2}}\termc{. #3}}
+\newcommand{\rece}[3]{\termc{\reck\ {#1}\colon{\typec #2}.{#3}}}
+% \newcommand{\rece}[5]{\appe{\appe{\tappe{\tappe \reck {#1}}{#2}} {#3}}{(\abse {#4}{#1}{#5})}}
+\newcommand{\appe}[2]{\termc{#1\,#2}}
+\newcommand{\letu}[2]{\termc{\letk\,\unitk = #1\,\ink\,#2}}
+\newcommand{\lete}[4]{\termc{\letk\,\langle #1, #2\rangle = #3\,\ink\,{#4}}}
+\newcommand{\inje}[2]{\termc {{#1}\,{#2}}}
+\newcommand{\paire}[2]{\termc{\langle #1, #2\rangle}}
+\newcommand{\newe}[1]{\tappe{\newk}{\typec{#1}}}
+\newcommand{\forke}[1]{\forkk\,\termc{#1}}
+\newcommand{\casee}[2]{\casek\;\termc #1\;\withk\;\termc{#2}}
+\newcommand{\caseofe}[6]{\casee{#1}{\{{#2}_{#5}\;\overline{#3}_{#5}\rightarrow{#4}_{#5}\}_{{#5}\in{#6}}}}
+\newcommand{\matche}[2]{\matchk\;\termc #1\;\withk\;\termc{#2}}
+\newcommand{\matchwithe}[6]{\termc{\matche{#1}{\{{#2}_{#5}\;{#3}_{#5}\rightarrow{#4}_{#5}\}_{{#5}\in{#6}}}}}
+\newcommand{\selecte}[1]{\selectk\,\termc{#1}} % Use C_i alone
+\newcommand{\sendee}[2]{\sendk\;\termc{#1}\;\termc{#2}}
+\newcommand{\receivee}[1]{\receivek\;\termc{#1}}
+\newcommand{\closee}[1]{\terminatek\;\termc{#1}}
+\newcommand{\waite}[1]{\waitk\;\termc{#1}}
+\newcommand{\tappe}[2]{\termc{#1[}\typec{#2}\termc{]}}
+
+\newcommand{\ebind}[2]{\termc{{#1}\blk\colon\typec{#2}}}
+\newcommand{\eubind}[2]{\termc{{#1}\blk{\colon^{\!\!\!\star}}\typec{#2}}} % unrestricted
+
+\newcommand\Normal[2][\pm]{\operator{nrm}^{\blk #1}\blk(\typec{#2}\blk)}
+
+\newcommand\FVT[1]{\operator{fv} ({#1})} % in types
+\newcommand\FVE[1]{\FVT{#1}} % in terms (exps and procs)
+\newcommand\FVL[1]{\FVT{#1}} % in labels
+
+% PROCESSES
+\newcommand{\expp}[1]{\termc{\langle{#1}\rangle}}
+\newcommand{\PAR}{\mid}
+\newcommand{\parp}[2]{\termc{#1 \PAR #2}}
+\newcommand{\newp}[3]{\termc{(\nu{#1}{#2})\,{#3}}}
+
+% LABELLED TRANSITIONS
+\newcommand{\lts}[1]{\xrightarrow{#1}}
+\newcommand{\trans}[3]{\termc{#1}\lts{#2}\termc{#3}}
+\newcommand{\transCtx}[3]{{#1}\lts{#2}{#3}}
+\newcommand{\valueprocess}[1]{\termc{#1} \; \textsf{value}}
+\newcommand{\forkl}[1]{\syntax{fork}\,{#1}}
+\newcommand{\sendl}[2]{{#1}!{#2}}
+\newcommand{\receivel}[2]{{#1}?{#2}}
+\newcommand{\openl}[1]{{#1}!}
+\newcommand{\closel}[1]{{#1?}}
+\newcommand{\newl}[3]{(\nu{#1}{#2})\colon{#3}}
+\newcommand{\scopel}[4]{(\nu{#1}{#2}){#3}!{#4}}
+% \newcommand{\scopell}[3]{(\nu {#1}{#2}) {#3}!{#1}}
+% \newcommand{\scoperl}[3]{(\nu {#1}{#2}) {#3}!{#2}}
+\newcommand{\parl}[2]{{#1}\PAR{#2}}
+
+% Translation of CFST to AlgST
+\newcommand{\cfsttoalgst}[1]{\blk{\llbracket {#1} \rrbracket}}
+\newcommand{\cfsttoprot}[1]{\blk{\llparenthesis {#1} \rrparenthesis}}
+\newcommand{\algsttocfst}[1]{\blk{\Lbag {#1} \Rbag}}
+\newcommand{\emptyseq}[0]{\varepsilon}
+\newcommand{\iso}[1]{\gray{{#1}}}
+\newcommand{\isodecl}[1]{\iso{#1}\gray{\colon}}
+\newcommand{\isodef}[1]{\iso{#1}\gray{\,=\,}}
+
+% JUDGMENTS
+% \newcommand\isExpr[4][\Delta]{\twoCtx{#1}{#2} \vdash \termc{#3} : \typec{#4}} %deprecated
+\newcommand\hasType[3][\Delta]{#1 \vdash {\typec{#2}} : {\kindc{#3}}} %deprecated
+\newcommand\isConv[4][\Delta]{#1 \vdash \typec{#2} \equiv \typec{#3} : {\kindc
+    {#4}}}
+%\newcommand{\isEquiv}[2]{\Normal[+]{#1} =_\alpha \Normal[+]{#2}}
+\newcommand{\isEquiv}[2]{\typec{#1}\equiv_A\typec{#2}} % Abbreviated version
+\newcommand{\isEquivCtx}[2]{{#1}\equiv_\alpha{#2}}
+% \newcommand{\isEquivCtx}[2]{{#1}\equiv_a{#2}} % Abbreviated version
+\newcommand\isProc[2][\Gamma]{{#1} \vdash \termc{#2}}
+
+\newcommand\isCtx[3][\Delta]{{#1} \vdash {#2}  \Leftarrow {#3}}
+\newcommand\twoCtx[2]{#1 \mid #2}
+\newcommand\typeSynth[3][\Delta]{#1 \vdash {\typec{#2}} \Rightarrow {#3}}
+\newcommand\typeAgainst[3][\Delta]{#1 \vdash {\typec{#2}} \Leftarrow {#3}}
+
+\newcommand\expSynth[5][\Delta]{\twoCtx{#1}{#2} \vdash \termc{#3} \Rightarrow
+  \twoCtx{\typec{#4}}{#5}}
+\newcommand\expAgainst[5][\Delta]{\twoCtx{#1}{#2} \vdash {\termc{#3}} \Leftarrow
+  \twoCtx{\typec{#4}}{#5}}
+
+
+% Operators
+\newcommand{\tsubs}[2]{\blk[\typec{#1}\blk/\typec{#2}\blk]} % term substitution
+\newcommand{\esubs}[2]{\blk[\termc{#1}\blk/\termc{#2}\blk]} % expression substitution
+
+\newcommand{\declrel}[2]{\emph{#1}\hfill\fbox{{#2}}}
+\newcommand{\Empty}{\cdot}
+
+\newcommand\isSubKind[2]{\kindc{#1} \le \kindc{#2}}
+\newcommand{\typeofop}{\operator{typeof}}
+\newcommand\typeof[1]{\typeofop\operator{(}\termc{#1}\blk{)}}
+
+\newcommand{\spec}{\operator{spec}}
+
+%% Rules and axioms
+\newcommand{\infrule}[3]{\inferrule[#1]{#2}{#3}}
+\newcommand{\axiom}[2]{\infrule{#1}{}{#2}}
+\newcommand{\infderiv}[3]{\inferrule*[lab=#1]{#2}{#3}}
+
+% RULE NAMES
+\newcommand{\rulename}[2]{\textsc{{#1}-{#2}}\xspace}
+
+\newcommand{\rulenametype}[1]{\rulename{T}{#1}}  % T- for type formation
+\newcommand{\rulenametconv}[1]{\rulename{C}{#1}}  % C- for type conversion
+\newcommand{\rulenameexp}[1]{\rulename{E}{#1}}   % E- for expressions
+
+% T- rule names
+\newcommand{\rulenametypeEndW}{\rulenametype{End?}}
+\newcommand{\rulenametypeEndT}{\rulenametype{End!}}
+% \newcommand{\rulenametypeEnd}{\rulenametype{End}}
+\newcommand{\rulenametypeDot}{\rulenametype{Dot}}
+\newcommand{\rulenametypeDotIn}{\rulenametype{In}}
+\newcommand{\rulenametypeDotOut}{\rulenametype{Out}}
+\newcommand{\rulenametypeMsgPos}{\rulenametype{MsgPos}}
+\newcommand{\rulenametypeMsgNeg}{\rulenametype{MsgNeg}}
+\newcommand{\rulenametypeMsg}{\rulenametype{Msg}}
+\newcommand{\rulenametypeMsgP}{\rulenametype{Msg2}}
+%\newcommand{\rulenametypeDualG}{\rulenametype{DualG}}
+\newcommand{\rulenametypeDualS}{\rulenametype{Dual}}
+\newcommand{\rulenametypeDual}{\rulenametype{Dual}}
+\newcommand{\rulenametypeInt}{\rulenametype{Int}}
+\newcommand{\rulenametypeBool}{\rulenametype{Bool}}
+\newcommand{\rulenametypeUnit}{\rulenametype{Unit}}
+\newcommand{\rulenametypeUp}{\rulenametype{Up}}
+\newcommand{\rulenametypePlus}{\rulenametype{Plus}}
+\newcommand{\rulenametypeSemi}{\rulenametype{Semi}}
+\newcommand{\rulenametypeMinus}{\rulenametype{Minus}}
+\newcommand{\rulenametypeAssume}{\rulenametype{Assume}}
+\newcommand{\rulenametypeArrow}{\rulenametype{Arrow}}
+\newcommand{\rulenametypeGuarded}{\rulenametype{Guarded}}
+\newcommand{\rulenametypeProtocol}{\rulenametype{Protocol}}
+\newcommand{\rulenametypeVar}{\rulenametype{Var}}
+\newcommand{\rulenametypePoly}{\rulenametype{Poly}}
+\newcommand{\rulenametypeSub}{\rulenametype{Sub}}
+\newcommand{\rulenametypePair}{\rulenametype{Pair}}
+
+% C- rule names
+\newcommand{\rulenametconvReflex}{\rulenametconv{Refl}}
+\newcommand{\rulenametconvSymm}{\rulenametconv{Sym}}
+\newcommand{\rulenametconvTrans}{\rulenametconv{Trans}}
+\newcommand{\rulenametconvSub}{\rulenametconv{Sub}}
+\newcommand{\rulenametconvDot}{\rulenametconv{Dot}}
+\newcommand{\rulenametconvDoubleS}{\rulenametconv{DualInv}}
+\newcommand{\rulenametconvDoubleG}{\rulenametconv{DoubleDual2}}
+\newcommand{\rulenametconvDualEndW}{\rulenametconv{DualEnd?}}
+\newcommand{\rulenametconvDualEndT}{\rulenametconv{DualEnd!}}
+% \newcommand{\rulenametconvDualEnd}{\rulenametconv{DualEnd}}
+\newcommand{\rulenametconvDualDot}{\rulenametconv{DualDot}}
+\newcommand{\rulenametconvDualOutM}{\rulenametconv{DualOut}}
+\newcommand{\rulenametconvDualOutP}{\rulenametconv{DualOut2}}
+\newcommand{\rulenametconvDualInM}{\rulenametconv{DualIn}}
+\newcommand{\rulenametconvDualInP}{\rulenametconv{DualIn2}}
+\newcommand{\rulenametconvDualProto}{\rulenametconv{Protocol}}
+\newcommand{\rulenametconvAll}{\rulenametconv{All}}
+
+\newcommand{\rulenametconvNegOut}{\rulenametconv{NegOut}}
+\newcommand{\rulenametconvNegIn}{\rulenametconv{NegIn}}
+\newcommand{\rulenametconvPosOut}{\rulenametconv{PosOut}}
+\newcommand{\rulenametconvPosIn}{\rulenametconv{PosIn}}
+\newcommand{\rulenametconvPos}{\rulenametconv{Pos}}
+\newcommand{\rulenametconvNegInv}{\rulenametconv{NegInv}}
+\newcommand{\rulenametconvSemiIn}{\rulenametconv{SemiIn}}
+\newcommand{\rulenametconvSemiOut}{\rulenametconv{SemiOut}}
+
+% E- rule names
+\newcommand{\rulenameexpConst}{\rulenameexp{Const}}
+\newcommand{\rulenameexpUVar}{\rulenameexp{Var$\star$}}
+\newcommand{\rulenameexpVar}{\rulenameexp{Var}}
+% \newcommand{\rulenameexpUnVar}{\rulenameexp{UnVar}}
+\newcommand{\rulenameexpAbs}{\rulenameexp{Abs}}
+\newcommand{\rulenameexpAbsn}{\rulenameexp{Abs'}}
+% \newcommand{\rulenameexpUnAbs}{\rulenameexp{UnAbs}}
+\newcommand{\rulenameexpRec}{\rulenameexp{Rec}}
+\newcommand{\rulenameexpApp}{\rulenameexp{App}}
+\newcommand{\rulenameexpAppn}{\rulenameexp{App'}}
+\newcommand{\rulenameexpTAbs}{\rulenameexp{TAbs}}
+\newcommand{\rulenameexpTApp}{\rulenameexp{TApp}}
+\newcommand{\rulenameexpAppAll}{\rulenameexp{AppAll}}
+\newcommand{\rulenameexpNew}{\rulenameexp{New}}
+\newcommand{\rulenameexpPair}{\rulenameexp{Pair}}
+\newcommand{\rulenameexpLetUnit}{\rulenameexp{Let*}}
+\newcommand{\rulenameexpLet}{\rulenameexp{Let}}
+\newcommand{\rulenameexpCtor}{\rulenameexp{Ctor}}
+
+\newcommand{\rulenameexpSelect}{\rulenameexp{Select}}
+\newcommand{\rulenameexpCase}{\rulenameexp{Case}}
+\newcommand{\rulenameexpMatch}{\rulenameexp{Match}}
+% \newcommand{\rulenameexpSel}{\rulenameexp{Sel}}
+\newcommand{\rulenameexpCheck}{\rulenameexp{Check}}
+
+% Writing
+\newcommand{\ie}{i.e.,\xspace} % comma
+\newcommand{\eg}{e.g.\xspace}  % no comma, according to the Handbook for Scholars
+\newcommand{\cf}{cf.\xspace}
+\newcommand{\Cf}{Cf.\xspace}
+\newcommand{\etal}{et al.\xspace} % al abbreviates aliae, no need for am \emph,
+% but you may added if you feel like, according to the Handbook for Scholars
+\renewcommand{\bibsection}{\section*{References}}
+
+% listings
+
+\lstset{
+  language=Haskell,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{RedOrange}\ttfamily,
+  commentstyle=\color{blue!50}\ttfamily,
+  emphstyle=\color{RoyalBlue}\ttfamily, % types
+  deletekeywords={repeat,List,Int,String,Char,Maybe,Either,Just,Nothing,Left,Right,seq,either,maybe,flip},
+  morekeywords=[1]{protocol,select,send,receive,match,with,new,fork,wait,terminate},
+  emph={Dual,Unit,Skip,Char,Int,String},
+  numbers=none,
+  keepspaces=true,
+  literate=
+  %{^}{$\uparrow$}1
+  {^-1}{${}^{-1}$}2
+  {|-}{$\vdash$}2
+  {-|}{$\dashv$}2
+  {->}{$\rightarrow$\,}2
+  {|>}{$\rhd$}1
+  {-o}{$\multimap$}2
+  {=>}{$\Rightarrow$}2
+  {[|}{$\llbracket$}1
+  {|]}{$\rrbracket$}1
+  {forall}{$\forall$}1
+  {Lambda}{$\Lambda$}1
+  {lambda}{$\lambda$}1
+  {theta}{$\theta$}1
+  {delta}{$\delta$}1
+  {mu}{$\mu$}1
+  {alpha}{$\alpha$}1
+  {oplus}{$\oplus$}1
+  {times}{$\times$}1
+  {otimes}{$\otimes$}1
+  {sigma}{$\sigma$}1
+  {+\{}{$\oplus$\{}2
+  {:P}{:\kindc{P}}2
+  {:SL}{:\kindc{S}}2
+  {:S}{:\kindc{S}}2
+  {:M}{:\kindc{M}}2
+  {:T}{:\kindc{T}}2
+  {KP}{\kindc{P}}1
+  {KS}{\kindc{S}}1
+  {KM}{\kindc{M}}1
+  {KT}{\kindc{T}}1
+  {EndW}{\TEndW}3
+  {EndT}{\TEndT}3
+}
+
+\mprset{lineskip=0ex}
+
+% notes
+\newcommand{\todo}[2][TODO]{[{\color{red}{#1}}: {#2}]}
+\newcommand{\pt}[1]{\todo[pt]{#1}}
+\newcommand{\vv}[1]{\todo[vv]{#1}}
+\newcommand{\ba}[1]{\todo[ba]{#1}}
+\newcommand{\am}[1]{\todo[am]{#1}}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

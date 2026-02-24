@@ -1,0 +1,194 @@
+\section{Frequently Asked Questions}
+\label{sec:freq-asked-quest}
+
+\subsection{Session types vs.\ protocol types}
+\label{sec:what-diff-betw-1}
+ A session type can be assigned to a channel end to describe
+the entire communication behavior of this channel up to its closing. Thus, a
+session type classifies a run-time value, namely a channel end.
+A protocol type does not correspond to any run-time value.  It
+describes composable behavior for bidirectional communication. A protocol
+type becomes part of a session type by binding it to a particular
+direction with the $!$ and $?$ operators.
+
+In a sense, a protocol type describes a composable part of a
+communication protocol or the difference between two session
+types. This view is emphasized by our pervasive use of channel passing
+style. 
+
+\subsection{Negated recursion}
+\label{sec:what-about-protocol}
+It is possible to define an algebraic protocol that negates the polarity of its recursive use.
+Such a protocol is fine, though unusual as it changes
+direction with every unfolding of the recursion. Here is an example:
+\begin{lstlisting}
+protocol Flipper = Flipper -Int -Flipper
+\end{lstlisting}
+A server for \lstinline+Flipper+ can be implemented with a pair of
+mutually recursive functions or even with just one function:
+\begin{lstlisting}
+flipper : !Flipper.EndT -> Unit
+flipper c = let c = select Flipper [EndT] c in
+            let (x, c) = receive [Int, ?Flipper.EndT] c in
+	    match c with {
+	      Flipper c -> send [Int, !Flipper.EndT] x c |> flipper }
+\end{lstlisting}
+
+\subsection{Mutual recursion}
+\label{sec:do-you-support}
+Mutually recursive protocols pose no problem. In general, the server
+would be implemented by mutually recursive functions.
+% In our recoding of the example in
+% \cref{sec:what-about-protocol}, a single recursive function is sufficient:
+% \begin{lstlisting}
+% protocol Flip = Flip -Int Flop
+% protocol Flop = Flop Int Flip
+
+% flipflop : !Flip.End -> End
+% flipflop c = let c = select Flip [End] c in
+%             let (x, c) = receive [Int, !Flop.End] c in
+% 	    select Flop [End] c
+% 	    |> send [Int, !Flip.End] x []
+%             |> flipflop
+% \end{lstlisting}
+\begin{lstlisting}
+protocol Flip = Flip -Int Flop
+protocol Flop = Flop Int Flip
+
+flip : !Flip.EndT -> Unit
+flip c = select Flip [EndT] c |> receive [Int, !Flop.EndT] |> flop
+
+flop : (Int, !Flop.EndT) -> Unit
+flop p = let (x, c) = p in
+         select Flop [EndT] c |> send [Int, !Flip.EndT] x |> flip
+\end{lstlisting}
+\subsection{Duality vs.\ polarities}
+\label{sec:what-diff-betw}
+The \lstinline+Dual+ operator works on \emph{session types} and it inverts
+the direction of communication from the outside. Intuitively, the
+\lstinline+Dual+ operator traverses the spine of a session type and
+flips all $!$ to $?$ and vice versa. It does \textbf{not} enter the
+type of the message ``payload''. For example (with $\typec T$ the
+payload type and $\typec S$ the continuation session):
+\begin{align*}
+  \TDual{(\TIn TS)} &\equiv \TOut T{\TDual S} &   \TDual{(\TOut TS)} &\equiv \TIn T{\TDual S}
+\end{align*}
+In contrast, the polarity operator \lstinline+-+ works on
+\emph{protocol types} and inverts the direction of communication from
+the inside. This inversion happens at the boundary where a protocol
+type $\proto$ is turned into a payload type for a session:
+\begin{align*}
+  \TIn {(\TMinus P)}S &\equiv \TOut P S &\TOut {(\TMinus P)}S &\equiv \TIn P S
+\end{align*}
+The soundness of the type system guarantees that the direction of communication is
+finally settled by the time we get to a primitive sending or receiving operation.
+
+Like \lstinline+Dual+, the \lstinline+-+ operator is involutory:
+\begin{align*}
+  \TDual{(\TDual{S})} &\equiv \typec{S} &   \TMinus{(\TMinus T)} &\equiv \typec{T}
+\end{align*}
+
+\subsection{Recursion and duality}
+\label{sec:what-about-inter}
+\citet{BernardiH14,BernardiH16} discovered a problem in the interaction
+between duality and recursive session types, which is exposed most
+concisely by the recursive type $\typec{T =\mu X. !X.X}$.
+The dual of this type is $\TDual{(\mu X. !X.X)} = \typec{\mu
+  X.\TIn{(\mu X. !X.X)}X}$, which can be seen by dualizing the type's
+expansion
+\begin{equation*}
+  \TDual{(\mu X. !X.X)} = \TDual{(!(\mu X.!X.X). (\mu X.!X.X))} \\
+                        = \TIn{(\mu X.!X.X)}{\TDual{(\mu X.!X.X)}}
+\end{equation*}
+Using equations we could define the type $\typec T$ by $\typec{T = \TOut{T}T}$.
+Translated to algebraic session types, the protocol underlying $\typec T$ is as follows:
+\begin{lstlisting}
+protocol X = Mu T X
+type T = !X.EndT
+
+selectMu : T -> !T.T
+selectMu c = select Mu [EndT] c
+
+dualT : Dual T -> ?X.EndT
+dualT c = c
+
+matchMu : Dual T -> ?T.(Dual T)
+matchMu c' = match c' with { Mu c' -> c' }
+\end{lstlisting}
+This behavior matches exactly the outcome for $\typec T$ according to
+\citet{BernardiH16}. The function \lstinline+selectMu+ performs the
+unfolding of $\typec T$ whereas \lstinline+matchMu+ performs the
+unfolding of $\TDual T$. The type of the identity function
+\lstinline+dualT+ shows that \lstinline+Dual T = ?X.EndT+. 
+
+\subsection{Efficiency of generic servers}
+\label{sec:are-generic-servers}
+In \cref{sec:toolb-gener-serv}, we explore an example with generic servers 
+to showcase the expressivity of the proposed parametric protocols.
+The example has a significant overhead as there are many tagging
+operations compared to a manually crafted version.  
+
+The present work is a first step and does not offer a solution
+supported by formal theorems. But, let us call a protocol $\proto$
+\emph{tagless} if it is non-recursive and declares a  single
+constructor tag $\constr\ T_1\dots T_n$. In analogy to Haskell's
+\texttt{newtype}, an implementation can reduce the
+run-time cost of a tagless protocol to zero by omitting the select and
+match operations. 
+
+\subsection{Equirecursive vs. isorecursive session types}
+\label{sec:this-session-types}
+Most work on session types is using equirecursive types for two reasons. One is historic:
+\citet{DBLP:conf/esop/GayH99,DBLP:journals/acta/GayH05} were the first
+to study coinductively defined relations on (tail-) recursive session types. They defined the (by now)
+standard notion of subtyping and showed that it is
+decidable. Subsequent work has built on top of their results. The
+other reason is that ``The equirecursive interpretation of a session type guarantees that no
+message is required for the unfolding of a recursive type.'' (\citet{DBLP:journals/pacmpl/BalzerP17})
+
+Algebraic protocols conflate the unfolding of the recursion with
+the branching, just like algebraic datatypes do.
+For protocols that have finite runs, algebraic protocol do not cause extra messages.
+As such protocols use recursion guarded by branching, a
+message to decide the branching is needed anyway.
+
+The protocol \lstinline+Stream a+ in \cref{sec:param-prot} does cause
+extra messages as it (roughly) corresponds to an isorecursive reading of the type $\mu X. !a.X$.
+
+\subsection{Subtyping, type classes, type inference}
+\label{sec:can-you-do}
+
+Subtyping is undecidable for context-free session types
+\cite{DBLP:journals/toplas/Padovani19}. However, as \algst's session
+typing relies mostly on nominal types, there is scope for decidable
+subtyping. We have a concrete proposal, but it is not implemented
+and its metatheory has not been checked, yet.
+
+The types \lstinline+Send a+ and \lstinline+Recv a+ for sending and
+receiving data of type \lstinline+a+ in \cref{sec:transm-param-data}
+look like types for a dictionary in a language with type classes or
+traits
+\cite{DBLP:journals/toplas/HallHJW96,steve18:_rust_progr_languag}. 
+%
+In future work we plan to explore the addition of implicit arguments as
+in Scala \cite{DBLP:journals/pacmpl/OderskyBLBMS18}. 
+
+Type inference is future work.
+
+\subsection{Settling of direction}
+\label{sec:settling-direction}
+It might be confusing to see a type like $\TIn TS$ and $\TOut TS$, but
+with the possibility that the direction changes later on. However,
+this behavior is completely predictable. As long as $\typec T$ is a
+protocol type variable  $\alpha : \kindp$, the direction can change
+because $\alpha$ could be substituted by some protocol $\TMinus {T'}$. 
+As soon as $\typec T$ is an ordinary type of kind $\kindt$ (even if
+$\typec T$ is a variable), the direction is fixed. For example, in the
+type of primitive send
+\lstinline+forall(a:M). forall(s:S).  a -> !a.s -> s+, the payload type
+\lstinline+a+ has kind $\kindm$, so the direction is fixed. \\
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

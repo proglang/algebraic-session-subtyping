@@ -1,0 +1,23 @@
+\begin{figure}[t!]
+  \declrel{Typing rules for processes}{$\isProc p$}
+  \begin{mathpar}
+    \infrule{P-Exp}
+    {\expAgainst[\Empty]{\Gamma} e {\TUnit} {\Empty}}
+    {\isProc{\expp{e}}}
+
+    \infrule{P-Par}
+    {\isProc[\Gamma_1]{p_1} \and \isProc[\Gamma_2]{p_2} }
+    {\isProc[\Gamma_1,\Gamma_2]{\parp{p_1}{p_2}} }
+
+    \infrule{P-New}
+    {\typeAgainst[\Empty]{T}{\kinds} \\ \isProc[\Gamma, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p}}
+    {\isProc{\newp{x}{y}{p}} }
+  \end{mathpar}
+  \caption{Typing rules for processes}
+  \label{fig:proc-formation}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

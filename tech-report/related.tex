@@ -1,0 +1,309 @@
+\section{Related Work}
+\label{sec:related}
+
+This survey of related work concentrates on binary session types and their
+treatment of recursion. Many works in the area concentrate on different aspects
+and treat recursion informally as an add-on. In particular, the early work of
+\citet{DBLP:conf/parle/TakeuchiHK94,DBLP:conf/concur/Honda93} did not consider
+recursive types.
+%
+The school of session types that takes its foundations from the
+sequent calculus for dual intuitionistic logic
+\cite{DBLP:conf/concur/CairesP10,DBLP:journals/mscs/CairesPT16}
+initially focuses on finite behaviors. While
+recursion would break the logical consistency of their system, they
+consider dependently typed variants that include replication
+\cite{DBLP:conf/cpp/PfenningCT11}. 
+
+\smallskip
+\emph{Session type systems with recursion.}
+Generally, recursive types come in two flavors, equirecursive and
+isorecursive \cite{DBLP:conf/lics/AbadiF96}, and the impact of
+these different approaches on type checking is well-studied
+\cite{DBLP:books/daglib/0005958}. They have been found to be equally 
+expressive \cite{DBLP:journals/pacmpl/PatrignaniMD21}. Most
+session type systems in the literature support equirecursive session
+types restricted to tail recursion and treat them informally.
+
+Recursive types have first been introduced to session types by
+\citet{DBLP:conf/esop/HondaVK98} in the context of $\pi$-calculus. Their
+system relies on equirecursion and is syntactically restricted to
+tail recursion.
+\citet{DBLP:conf/esop/GayH99,DBLP:journals/acta/GayH05} study
+subtyping in the same setting using a coinductive definition. 
+% They
+% define an algorithm for subtyping and develop a sound type checker.
+% Most subsequent work refers to this treatment and the algorithm
+% extends to their setting.
+%
+\citet{DBLP:conf/ppdp/CastagnaDGP09} consider recursive session types
+as infinite regular trees. Their types are tagless in the sense that
+choices are made according to the set of accepted values and the viability
+of the continuation.
+%
+The functional session type calculus of
+\citet{DBLP:journals/jfp/GayV10} includes subtyping and equirecursive
+types, but the latter are restricted to tail-recursive session types.
+%
+Fundamentals of session types \cite{DBLP:journals/iandc/Vasconcelos12}
+proposes a range of $\pi$-calculus-based systems with increasing
+complexity. One particular focus is the treatment of replication and unrestricted
+channel ends, which requires recursive types. In this work, recursive
+types are modeled by infinite regular trees, represented using the
+familiar $\mu$ notation with contractive, tail recursive bodies.
+% no subtyping
+
+\citet{DBLP:conf/esop/ToninhoCP13} extend the linear-logic based line
+of work and focus on the combination of functions and processes
+including recursive processes and consequently recursive
+types for processes and functions. The examples indicate the equirecursive variant.
+Apparently, there is no restriction in the use of recursion and
+sequencing is implemented using the tensor $\otimes$.
+% Saving some space; also I do not quite understand the restriction
+% However, linearity stops them to write a type
+% like $\alpha\otimes\alpha$ when $\alpha$ is a session type:
+% operationally, it would mean that a process spawns a copy of itself,
+% which is not possible in their system (unless via replication, which
+% is modeled with a different logical connective).
+%
+\citet{DBLP:conf/tgc/ToninhoCP14} cover a different aspect of
+equirecursion. They consider corecursive protocol definitions and
+analyze their productivity. The main question they pursue is when a
+corecursive protocol produces the next value after finitely many
+internal steps.
+%
+SILL \cite{DBLP:conf/fossacs/PfenningG15} is a process-based language design that
+integrates linear and affine types as well as synchronous and
+asynchronous communication. It builds directly on the linear logic interpretation of session
+types. Its examples make use of polymorphism and equirecursive types in the form of tail
+recursive type equations, neither of which are reflected in the type
+theoretical presentation.
+% Subsequent work on manifest sharing also
+% takes polymorphism and equirecursion for granted \cite{DBLP:journals/pacmpl/BalzerP17}.
+%
+\citet{DBLP:conf/concur/BartolettiSZ14} offer a semantic analysis of
+session types on the basis of labeled transition systems. Their
+system features equirecursion in tail position.
+
+
+% \begin{itemize}
+% \item X equi, regular, pi-calculus \cite{DBLP:conf/esop/HondaVK98},
+%   first with recursion?
+% \item X equi, regular, pi-calculus, subtyping \cite{DBLP:conf/esop/GayH99}
+% \item X equi, regular \cite{DBLP:journals/jfp/GayV10}
+% \item X equi, regular, pi-calculus ``fundamentals''
+%   \cite{DBLP:journals/iandc/Vasconcelos12}
+% \item X equi, regular, process and functional
+%   \cite{DBLP:conf/esop/ToninhoCP13}
+% \item X equiv, regular, process \cite{DBLP:conf/tgc/ToninhoCP14}: this
+%   is really corecursion, focuses on productivity where a process is
+%   guaranteed to take finitely many internal steps and then engages in
+%   the next communication
+% \item equi, regular, pi-calculus \cite{DBLP:journals/corr/Dardha14}
+%   (focus on encoding of recursive sessions in recursive linear pi
+%   calculus, duality and recursion)
+% \item X equi, regular, lts \cite{DBLP:conf/concur/BartolettiSZ14}
+% \item X SILL: implicit use of regular equirecursion \cite{DBLP:conf/fossacs/PfenningG15}
+% \item X iso(?), regular \cite{DBLP:conf/icfp/LindleyM16}
+% \item X equi, regular \cite{DBLP:journals/pacmpl/BalzerP17}
+% \item equi, regular \cite{lindley17:_light_funct_session_types}
+% \item Padovani's FUSE with OCaml implementation. 
+% \item equi, regular \cite{DBLP:conf/esop/VasconcelosCAM20}
+% \item infinite regular trees \cite{DBLP:journals/pacmpl/CicconeP22}
+% \item X defined by different kinds of systems of equations \cite{DBLP:conf/fossacs/GayPV22}
+% \end{itemize}
+
+
+\citet{DBLP:conf/icfp/LindleyM16} define two
+functional session type systems with recursion, $\mu$GV and $\mu$CP, and show that
+they are related by typing- and semantics-preserving translations. So
+we only compare to $\mu$GV in the following. $\mu$GV is based on
+a simply-typed linear lambda calculus extended with notions of recursion and
+corecursion. These are defined as least and greatest (respectively) fixed points of
+strictly positive functors --- analogous to a logically
+meaningful version of algebraic (co-) datatypes --- with generic fold and
+unfold operators. Finally, they lift this isorecursive treatment of
+recursive data to the level of session types by encoding branching and
+recursion, mapping the corresponding data functors over session
+types and wrapping them in promises.
+We conclude that $\mu$GV features session types with isorecursion and
+that it could be used to encode the simply-typed fragment of \algst,
+but without parameterized data types and without the over
+direction. Where $\mu$GV uses promises (i.e., a separate channel) to encode the argument to the
+fold of the recursive type (i.e., the constructor arguments of an
+algebraic datatype), \algst transmits the body of the fold on the same
+channel, thus avoiding the overhead of channel creation.
+Moreover, $\mu$GV is mainly a theoretical contribution
+whereas a full implementation of \algst is available.
+
+\smallskip
+\emph{Context-free and nested session type systems.}
+\citet{DBLP:conf/icfp/ThiemannV16} proposed
+context-free session types to enable the type-safe encoding of
+non-regular protocols like the serialization of tree structures or the
+stack protocol from the introduction without encurring the overhead of
+session initiation. They changed the asymmetric structure of the
+traditional session type syntax $\TIn TS$ and $\TOut TS$, where an
+item of type $\typec T$ is communicated and the session continues with
+$\typec S$,
+to a symmetric structure where session types can be built from the
+atomic transmissions, $\TGIn T$ and $\TGOut T$, choice and branching,
+$\TChoice{S_1}{S_2}$ and $\TBranch{S_1}{S_2}$,  and a monoidal sequential
+composition operator $\TSeq{S_1}{S_2}$ with unit $\TSkip$. 
+% For example, here
+% is the type for transmitting a binary tree
+% (\cf \cref{sec:algebr-datatyp-as}) in their system:
+% $ \typec{\mu X.} \TChoice{\TGOut\TInt}{(\TSeq XX)}$.
+This design,
+together with equirecursive sessions, leads to a number of technical
+problems. First, types come with a non-trivial equational theory:
+sequential composition forms a monoid with unit $\TSkip$ and it
+distributes over choice and branching. Second, polymorphic recursion
+is needed as a recursive call may have to be instantiated with
+different continuation sessions. Third, the interaction between
+equirecursion and the omission of the restriction to tail recursion
+gives rise to a difficult, but decidable, type equivalence relation.
+%
+Subsequent work investigated tractable algorithms for type
+equivalence
+\cite{DBLP:journals/corr/abs-1904-01284,DBLP:conf/tacas/AlmeidaMV20}.
+\citet{DBLP:journals/corr/abs-2106-06658} integrate context-free
+session types with explicit polymorphism in the style of
+System~F. Recent work extends this approach with higher-order types
+\cite{DBLP:journals/corr/abs-2203-12877}.
+
+\citet{DBLP:conf/esop/Padovani17,DBLP:journals/toplas/Padovani19}
+proposes a different approach to context-free session types embodied
+in a functional session calculus called \fuse. This calculus uses the
+type language of context-free session types, but
+sidesteps the problems with the sequencing operator and type
+equivalence by introducing a resumption operator $\{e\}_c$ that
+deconstructs a sequence of sessions on channel $c :
+\TSeq{S_1}{S_2}$. It does so by retyping the channel to $c : \typec{S_1}$ for
+evaluating $e$, which must return the same channel after finishing
+$\typec{S_1}$.
+More formally, the resumption obeys some kind of frame rule: if  $c :
+\typec{S_1} \vdash e : \typec{T \times \TOne}$, then
+$c : \TSeq{S_1}{S_2} \vdash \{e\}_c : \typec{T \times S_2}$. The
+resumption temporarily removes the continuation
+$\typec{S_2}$ from the session type and sticks it back on
+afterwards. The type system has means to make sure that the channel returned by $e$ is
+identical to $c$, which is required for soundness. The type $\TOne$
+does not signify the end of the session, but rather that some known
+part of the session has been processed and the session will be
+continued in the context (of the resumption).
+%
+The management of the choice and branch operations is very close to
+\algst. \fuse implements choice by transmitting the constructor tag in
+a variant type that selects the different continuations. Its branch
+operator matches on the received constructor and thus selects the
+desired continuation. However, the handling of protocol constructors
+in \algst includes the construction of the continuation type from the
+types and directions given in the protocol declaration. \fuse has no
+equivalent to a protocol declaration nor to the type operator
+\lstinline+-+ to swap the direction of a transmission.
+%
+\citet{DBLP:journals/toplas/Padovani19} implements
+\fuse in OCaml and demonstrates that context-free session types
+are amenable to type inference, if the programmer helps with judicious
+placement of resumptions. Support for equirecursion is already built into  OCaml's type inference
+engine. It is also shown that subtyping is undecidable.
+
+\citet{DBLP:conf/esop/DasDMP21} propose the metatheory of 
+nested session types featuring parametrized definitions of session types
+with nested polymorphic recursion. 
+At first glance, the nested session type 
+$\syntax{List}[\alpha] = \oplus\{\syntax{nil}\colon \syntax{end}, \syntax{cons}\colon \alpha \otimes \syntax{List}[\alpha]\}$
+is very similar to the algebraic protocol
+$\protocolk\ \TPApp{\syntax{List}}\alpha = \termc{\syntax{Nil}}\ |\
+\termc{\syntax{Cons}}\ \alpha\ (\typec{\syntax{List}}\ \alpha)$, but
+there are significant differences. On the
+algebraic side, we can materialize the \typec{\syntax{List}} protocol in a type  
+that sends or receives a list of integers, while the nested type $\syntax{List}$ is 
+already committed to a concrete direction.
+%
+Although type nesting enables to capture the modularity characterizing 
+algebraic sessions, there are several features that distinguish AlgST from 
+nested session types:
+Das et al. propose a structural and equirecursive, rather than a
+nominal, view of type definitions, and interpret types coinductively, rather than inductively.
+These features have significant impact on the complexity of the 
+equivalence problem for nested session types and on its implementation:
+Das et al. present a sound but incomplete algorithm for type equivalence.
+By considering a nominal interpretation of algebraic session types, we reduced the 
+complexity of the equivalence problem from 
+doubly-exponential~\cite{DBLP:conf/esop/DasDMP21} to 
+linear and designed a sound and complete algorithm to verify type
+equivalence. The examples in section~2 of
+\citet{DBLP:conf/esop/DasDMP21} translate into \algst and type check with our implementation.
+
+\citet{DBLP:conf/fossacs/GayPV22} consider equirecursive protocols
+defined by different kinds of systems of equations (with and without
+parameters). Imposing different restrictions on the parameterization
+yields different classes of protocols with decision problems for type
+equivalence ranging from polytime to undecidable. Their largest
+decidable class of pushdown session types is shown to be equivalent to
+nested session types, which we can model with \algst.
+
+Compared to all competiting systems \cite{DBLP:journals/pacmpl/ThiemannV20,DBLP:journals/corr/abs-2106-06658,DBLP:journals/toplas/Padovani19,DBLP:conf/esop/DasDMP21}, \algst's materialization and
+directional operators are unique. These
+operators enable the construction of protocols without committing to a
+particular direction. 
+
+%%% MPST:
+%%% (equi, regular) Less is more: multiparty session types revisited
+
+% \paragraph{Protocol composition}
+% \label{sec:protocol-composition}
+
+% \citet{DBLP:journals/corr/abs-2203-02461} define a notion of protocol
+% composition which interleaves two or more protocols. To
+% restrict this liberal approach to sensible interleavings, protocols
+% are extended with an assertion language that specifies safe
+% interleavings. Interleaving composition is complementary to our
+% modular approach to protocol construction: we combine subprotocols
+% rather than interleave them.
+
+\input{related-lin-unrestricted}
+
+% \paragraph{Further work on duality and recursion}
+
+% The problem with duality and recursion mentioned in
+% \cref{sec:what-about-inter} was first reported by
+% \citet{DBLP:journals/corr/abs-1202-2086}. % (Bono and Padovani, 2012)
+% It was further studied and fixed by \citet{BernardiH14, BernardiH16}. %(Bernardi Hennessy, 2014)
+% \citet{DBLP:conf/icfp/LindleyM16} propose a different solution using
+% covariables. A recent study closes the matter \cite{DBLP:journals/corr/abs-2004-01322}.
+
+
+
+% (Gay and Thiemann and Vasconcelos, 2020)
+% \cite{DBLP:journals/corr/Dardha14}
+
+% \paragraph{Not recursive}
+% \begin{itemize}
+% \item Towards Races in Linear Logic (Kokke, Morris, Wadler)
+% \item Exceptional GV (Fowler etal)
+% \item Gradual Session Types 
+% \item Bernardo Toninho, Nobuko Yoshida: Interconnectability of
+%   Session-Based Logical Processes
+% \item Bernardo Toninho, Nobuko Yoshida: Depending on Session-Typed
+%   Processes
+% \item Sam Lindley, J. Garrett Morris: Embedding session types in Haskell.
+% \item Lindley and Morris, Semantics for Propositions as Sessions, ESOP
+%   2015
+% \item Mazurak and Zdancewic, Lolliproc: to Concurrency from Classical
+% Linear Logic via Curry-Howard and Control, ICFP 2010
+% \item Perez and Caires and Pfenning and Toninho, Linear logical
+%   relations and observational equivalences for session-based
+%   concurrency, I\&C 2014
+% \item Riccardo Pucella and Jesse A. Tov, Haskell Session Types with
+%   (Almost) No Class, 2008
+% \item X An interaction-based language and its typing system
+% Kaku Takeuchi, Kohei Honda \& Makoto Kubo, PARLE 1994 \cite{DBLP:conf/parle/TakeuchiHK94}
+% \end{itemize}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

@@ -1,0 +1,162 @@
+\begin{figure}[t!]
+\declrel{Type synthesis}{$\expSynth\Gamma eT\Gamma$}
+\begin{mathpar}
+  \axiom{\rulenameexpConst}{\expSynth{\Gamma}{c}{\typeof{\termc c}}{\Gamma}}
+  
+  \infrule{\rulenameexpVar}{\typeAgainst{T}{\kindt}}
+  {\expSynth{\Gamma,\ebind xT}{x}{\typec T}{\Gamma}}
+
+  \infrule{\rulenameexpUVar}{\typeAgainst{T}{\kindt}}
+  {\expSynth{\Gamma,\eubind xT}{x}{\typec T}{\Gamma,\eubind xT}}
+
+  \infrule{\rulenameexpLetUnit}
+  {\expAgainst{\Gamma_1}{e_1}{\TUnit}{\Gamma_2} \\\\
+    \expSynth{\Gamma_2}{e_2}{\typec T}{\Gamma_3}
+  }
+  {\expSynth{\Gamma_1}{\letu {e_1}{e_2}}{\typec T}{\Gamma_3}}
+  
+  \infrule{\rulenameexpAbs}
+  {\typeAgainst{T}{\kindt} \\ \Normal[+]T = \typec V \\\\
+    \expSynth{\Gamma_1, \ebind x{V}}{e}{U}{\Gamma_2} \\ \termc{x}\not\in\Gamma_2}
+  {\expSynth{\Gamma_1}{\abse xTe}{\TFun[]{V}{U}}{\Gamma_2}}
+
+  \infrule{\rulenameexpApp}
+  {\expSynth{\Gamma_1}{e_1}{\TFun[]{T}{U}}{\Gamma_2}\\
+    \expAgainst{\Gamma_2}{e_2}{T}{\Gamma_3}} 
+  {\expSynth{\Gamma_1}{\appe {e_1}{e_2}}{\typec U}{\Gamma_3}}
+  \quad
+  \infrule{\rulenameexpPair}{\expSynth{\Gamma_1}{e_1}{T}{\Gamma_2} \\
+  \expSynth{\Gamma_2}{e_2}{U}{\Gamma_3}} 
+  {\expSynth{\Gamma_1}{\paire {e_1}{e_2}}{\TPair {\typec T} {U}}{\Gamma_3}}
+
+  \infrule{\rulenameexpRec}
+  {\typeAgainst{T}{\kindt} \\
+    \Normal[+]{\TFun[]TU}=\typec V \\
+    \expAgainst{\Gamma, \eubind x{V}}{v}{{V}}{\Gamma, \eubind x{V}}}
+  {\expSynth{\Gamma}{\rece x{{\TFun[]TU}}v}{V}{\Gamma}}
+
+  \infrule{\rulenameexpTAbs}
+  {\expSynth[\Delta, \typec{\alpha\colon \kind}]{\Gamma_1}{v}{\typec T}{\Gamma_2}} 
+  {\expSynth{\Gamma_1}{\tabse \alpha\kind v}{\TForall \alpha\kind T}{\Gamma_2}}
+
+  \infrule{\rulenameexpTApp}
+  {\expSynth{\Gamma_1}{e}{\TForall \alpha\kind U}{\Gamma_2} \\ \typeAgainst{T}{\kind}} 
+  {\expSynth{\Gamma_1}{\tappe e T}{\Normal[+]{\typec U\tsubs{T}{\alpha}}}{\Gamma_2}}
+
+  % \infrule{\rulenameexpPair}{\expSynth{\Gamma_1}{e_1}{T}{\Gamma_2} \\
+  %   \expSynth{\Gamma_2}{e_2}{U}{\Gamma_3}} 
+  % {\expSynth{\Gamma_1}{\paire {e_1}{e_2}}{\TPair {\typec T} {U}}{\Gamma_3}}
+
+  \infrule{\rulenameexpLet}
+  {\expSynth{\Gamma_1}{e_1}{\TPair TU}{\Gamma_2}\\
+    \expSynth{\Gamma_2, \ebind x{\Normal[+]T}, \ebind y{\Normal[+]U}}{e_2}{V}{\Gamma_3}\\
+    \termc{x},\termc{y}\not\in\Gamma_3} 
+  {\expSynth{\Gamma_1}{\lete xy{e_1}{e_2}}{\typec V}{\Gamma_3}}
+
+  \infrule{\rulenameexpMatch}{
+    %\Normal[+]{S}={\TIn{(\TPApp \proto {\overline U})}{S'}} \\
+    \protocolsfull \\
+    \expSynth {\Gamma_1} e {\TIn{(\TPApp \proto {\overline U})}{S}} {\Gamma_2} \\
+    \forall i\in I: \\ \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i} \\
+    \termc{x_i}\not\in\Gamma_i \\
+    \typec{V} =_\alpha \typec{V_i} \\
+    % \isEquiv{\Gamma_3}{\Gamma_i}
+    {\Gamma_3}=_\alpha{\Gamma_i}
+  }{
+    \expSynth {\Gamma_1} {\matchwithe eCxeiI} {V} {\Gamma_3}
+  }
+\end{mathpar}
+\declrel{Type against}{$\expAgainst\Gamma eT\Gamma$}
+\begin{mathpar}
+  \infrule{\rulenameexpCheck}
+  {\expSynth{\Gamma_1} e U {\Gamma_2} \\ \typec T =_\alpha\typec U}
+  {\expAgainst{\Gamma_1} e T {\Gamma_2}}  
+\end{mathpar}
+\caption{Algorithmic typing rules for expressions}
+\label{fig:alg-typing}
+\end{figure}
+
+  % \infrule{\rulenameexpSelect}{
+  %   \protocolsfull
+  % }{
+  %   \expSynth \Gamma {\ESelect{C_i}}
+  %   {\TForall{\overline{\alpha}}{\overline\kindp}
+  %     {
+  %       {\TForall \sigma \kinds {\TFun[]
+  %         {\TOut{(\TPApp \proto {\overline\alpha})}\sigma}
+  %         {\polarizedparam{!}{\overline{T_i}}\sigma}
+  %       }}}}
+  %   \Gamma
+  % }
+
+  % \infrule{\rulenameexpNew}
+  % {\typeAgainst{T}{\kinds}} 
+  % {\expSynth{\Gamma}{\newe T}{\TPair {\typec T} {\TDual T}}{\Gamma}}
+  
+  % \infrule{\rulenameexpUnVar}
+  % {\typeSynth{T}{\kindc{v}^\un}}
+  % {\expSynth{\Gamma,\termc{x}\colon\typec{T}}{x}{T}{\Gamma, \termc{x}\colon\typec{T}}}
+  % 
+  % \infrule{\rulenameexpUnAbs}
+  % {\typeAgainst{T}{\kindt}
+  %   \\ \expSynth{\Gamma_1, \termc{x}\colon\typec{T}}{e}{U}{\Gamma_2}
+  %   \\ \Gamma_1 = \Gamma_2 \div \termc{x}}
+  % {\expSynth{\Gamma_1}{\abse[\un]xTe}{\TFun[\un]{T}{U}}{\Gamma_1}}
+  % 
+% \pt{Potentially obsolete rules}
+% \begin{mathpar}
+%     \infrule{\rulenameexpCtor}
+%   {\protocolsdata }
+%   {\expSynth{\Gamma}{\constr_i}{\TForall{\overline{\alpha}}{\overline{\kindt}}
+%       {\TFun[]{T_{i1}}{\dots \TFun[]{T_{ik}}{\typec{D\
+%               \overline{\alpha}}}}}}{\Gamma}}
+
+%   \infrule{\rulenameexpCase1}
+%   {
+%     \expSynth\Gamma e {\typec{D\ \overline{U}}} {\Gamma_0} \\
+%     \protocolsdata \\
+%     \expSynth{\Gamma_0, \termc{\overline{x_i}}\colon
+%       \typec{\overline{T_i\tsubs{\overline{U}}{\overline{\beta}}}}}{e_i}{\typec V_i}{\Gamma_i}
+%     \\
+%     \typec V =_\alpha \Normal[+]{V_i}
+%     \\
+%     \Gamma' =_\alpha \Normal[+]{\Gamma_i \div \overline{x_i}}
+%   }
+%   {\expSynth{\Gamma}{\casee e {\{\constr_i\ \overline{x_i} \rightarrow
+%         e_i\}}}{\typec V}{\Gamma'}}
+% \end{mathpar}
+%   \infrule{\rulenameexpCase1}{
+%     \expSynth \Gamma e {S_0} {\Gamma_0} \\
+%     % \typec{S_0} \neq \typec{\proto\ \overline{U}} \\
+%     \Normal[+]{S_0} = \typec{?(\TPApp \proto {\overline{U}}).S} \\
+%     \protocolsdata \\
+%     \expSynth {\Gamma_0,\termc{x_i}\colon {
+%     \polarizedparams{?}{\overline{T_i\tsubs{\overline U}{\overline\alpha}}}{S}
+%     %?(\typec{\overline{T_i^\pm\tsubs{\overline G}{\overline\alpha}}.S}
+%     })
+%   } {e_i} {V_i} {\Gamma_i} \\
+%   \Normal[+]{V_1} =_\alpha \Normal[+]{V_i} \\
+%   \Normal[+]{\Gamma_1} =_\alpha \Normal[+]{\Gamma_i}
+%   }{
+%     \expSynth \Gamma {\casee e {C_i\,x_i \to e_i, \dots}} {\Normal[+]V} {\Normal[+]{\Gamma'}}
+%   }
+
+%   \infrule{\rulenameexpSelect}{
+%     \protocolsdata
+%   }{
+%     \expSynth \Gamma {\ESelect{C_i}}
+%     {\TForall{\overline{\alpha}}{\overline\kind}
+%       {
+%         {\TForall \sigma \kinds {\TFun[]
+%           {\typec{!}(\TPApp \proto {\overline\alpha}).\sigma}
+%           {\polarizedparam{!}{\overline{O_i}}.\sigma}
+% %          {\overline{\blk{!}T_i^\pm}}.S
+%         }}}}
+%     \Gamma
+%   }
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

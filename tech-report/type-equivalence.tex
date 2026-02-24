@@ -1,0 +1,128 @@
+\section{Deciding type equivalence}
+\label{sec:type-equiv}
+
+Type equivalence is decidable. 
+\cref{fig:normalisation} contains the normalization algorithm. Its definition comprises two mutually
+recursive functions $\Normal[+]{\cdot}$ and $\Normal[-]{\cdot}$. The 
+superscript  is a polarity $+$ or $-$.
+Function $\Normal[+]T$ is defined on all types, but 
+function $\Normal[-]T$ is restricted to session types.
+The negative polarity $-$ indicates that there is a pending $\TDual{\cdot}$
+operation on the argument type, which is propagated by normalization.
+
+Normalization leaves functional types unaffected. On session types,
+the negative polarity is reified on type variables, it is propagated
+to the session component of sending and receiving types, and each
+traversal of a $\TDual\cdot$ inverts the polarity. Negative polarity also
+inverts the direction of transmissions. However, the final direction is
+determined by the polarity of the protocol.
+
+\begin{example}
+  Let's compute the positive normal form of
+  $\TDual{(\TIn{(-\TInt)}{\alpha})}$ step by step.
+  \begin{align*}
+    & \Normal[+]{\TDual{(\TIn{-\TInt}{\alpha})}} \\
+    ={}& \Normal[-]{{\TIn{-\TInt}{\alpha}}} \\
+    ={}& \TFOut{\Normal[+]{-\TInt}}{\Normal[-]\alpha} \\
+    ={}& \TFOut{\TFMinus{\Normal[+]{\TInt}}}{\TDual\alpha} \\
+    ={}& \TFOut{\TFMinus{\TInt}}{\TDual\alpha} \\
+    ={}& \TFOut{-{\TInt}}{\TDual\alpha} \\
+    ={}& \TFIn{\TInt}{\TDual\alpha} \\
+    ={}& \TIn{{\TInt}}{\TDual\alpha}
+  \end{align*}
+  In calculating $\Normal[-]{\typec{\TIn{-\TInt}{\alpha}}}$, the normal form of the
+  protocol $\Normal[+]{-\TInt} = \typec{-\TInt}$ has negative polarity,
+  which inverts the direction once more from output $\typec !$ to 
+  input $\typec ?$.
+\end{example}
+
+To test whether type equivalence $\isConv TU\kind$ holds, we compute
+the normal forms $\Normal[+]T$ and $\Normal[-]U$ and compare them
+modulo $\alpha$ convertibility. 
+We write $\typec T =_\alpha \typec U$ if types $\typec T$ and $\typec U$ are
+$\alpha$-equivalent. The following propositions establish soundness and
+completeness of this algorithm.
+
+Every type is convertible to its normal form.
+\begin{proposition}[Kind preservation]~\label{lemma:kind-preservation}
+  \begin{enumerate}
+  \item For all $\typeSynth T\kind$,  $\isConv{\Normal[+] T}T\kind$.
+  \item For all $\typeSynth T\kinds$,  $\isConv{\Normal[-] T}{\TDual T}\kinds$.
+  \end{enumerate}
+\end{proposition}
+\begin{proof}
+  See Agda development \texttt{nf-sound+} and \texttt{nf-sound-}.
+\end{proof}
+
+\begin{corollary}[Soundness] Let $\typeSynth T\kind$ and $\typeSynth U\kind$.
+  \begin{enumerate}
+  \item If $\Normal[+] T =_\alpha \Normal[+] U$, 
+    then $\isConv TU\kind$.
+  \item If $\kind = \kinds$ and  $\Normal[-] T =_\alpha \Normal[-]
+    U$, then $\isConv TU\kinds$.
+  \end{enumerate}
+\end{corollary}
+\begin{proof}
+  Item~1. Suppose that $\Normal[+] T =_\alpha \Normal[+] U$. By
+  Lemma~\ref{lemma:kind-preservation}, we have  $\isConv{\Normal[+]
+    T}T\kind$ and  $\isConv{\Normal[+] U}U\kind$. Conclude by symmetry
+  and transitivity of conversion as ${=_\alpha} \subseteq {\equiv}$.
+
+  The proof for item~2 is analogous.
+\end{proof}
+
+If two types are convertible, then their normal forms are equal.
+\begin{proposition}[Completeness]   Let $\isConv TU\kind$. 
+  \begin{enumerate}
+  \item  $\Normal[+]T =_\alpha \Normal[+]U$.
+  \item    If $\kind=\kinds$, then $\Normal[-]T =_\alpha \Normal[-]U$. 
+  \end{enumerate}
+\end{proposition}
+\begin{proof}
+  See Agda development \texttt{nf-complete} and \texttt{nf-complete-}.
+\end{proof}
+
+To obtain a complexity bound for the computation of a normal form, we
+characterize the output of the function $\Normal T$, that is, the
+syntax of normal forms. 
+Normal forms for well formed types are $\typec{R^-}$ such that:
+%
+\begin{align*}
+  \typec R^- \grmeq\;& \typec{R} \grmor \pneg{R}
+  \\
+  \typec{R} \grmeq\;&
+  % functional types
+  \TUnit \grmor \TFun[]{R}{R} \grmor \TPair{R}{R} \grmor
+  \typec{\alpha} \grmor \TForall \alpha \kind {R}
+  % session types
+  \grmor \TEndW \grmor \TEndT \grmor \TIn{R}{R} \grmor \TOut{R}{R} \grmor \TDual{\alpha}
+  % protocol and data types
+  \grmor \TPApp X {\overline{R^-}}
+\end{align*}
+Essentially, the negative polarity can only occur at most once at the top level (of
+a type of kind $\kindp$) and in the parameters of a protocol type. The
+$\TDual\cdot$ operator only appears on type variables.
+\begin{lemma}\label{lemma:syntax-of-type-normal-forms}
+  If $\Normal[\pm]T = \typec{T'}$, then $\typec{T'}$ is described by $\typec{R^-}$.
+\end{lemma}
+\begin{proof}
+  See Agda development \texttt{nf-normal}.
+\end{proof}
+\begin{proposition}
+  For each $\typeSynth T\kind$, 
+  the run time of $\Normal[\pm]T$ is in $O(|\typec{T}|)$.
+\end{proposition}
+\begin{proof}
+  A run of $\Normal T$ visits each of the $|\typec{T}|$ nodes in
+  the input type once. At each node, it either reconstructs the type
+  from the normal forms of the sub-types in $O(1)$ time, or (in the transmission rules) it applies polarity
+  correction to normal forms. By
+  Lemma~\ref{lemma:syntax-of-type-normal-forms}, a normal form  
+  starts with at most one negative polarity, so  correction
+  takes at most two steps, that is $O(1)$. 
+\end{proof}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:
