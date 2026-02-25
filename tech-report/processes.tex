@@ -157,12 +157,17 @@ the arguments $\typec{\overline U}$ to produce a sequence of types
 $\typec{\overline{T_i}\tsubs{\overline U}{\overline \alpha}}$. This sequence of
 types is converted to a normalized session type as described in \cref{sec:types},
 which is assigned to variable $\termc{x_i}$. Now, each branch synthesizes a type
-$\typec{V_i}$ and context $\Gamma_i$, for $i\in I$. In all branches,
-the output types and the contexts must coincide (up to $\alpha$
-equivalence) with the output type 
-and context of the $\matchk$, i.e., $\typec V$ and $\Gamma_3$. In practice,
-the implementation selects one branch, say $k\in I$, and compares all
-other output types and contexts with $\typec{V_k}$ and $\Gamma_k$.
+$\typec{V_i}$ and context $\Gamma_i$, for $i\in I$. 
+\hl{[\text{MW}]:} The output type $\typec V$ is the least upper bound of the branch types. 
+Similarly, the context $\Gamma_3$ is computed via a pointwise join: $\forall x \in \Gamma_3$, 
+$\Gamma_3(x) = \bigsqcup_{i \in I} \Gamma_i(x)$.
+% OLD:
+% In all branches,
+% the output types and the contexts must coincide (up to $\alpha$
+% equivalence) with the output type 
+% and context of the $\matchk$, i.e., $\typec V$ and $\Gamma_3$. In practice,
+% the implementation selects one branch, say $k\in I$, and compares all
+% other output types and contexts with $\typec{V_k}$ and $\Gamma_k$.
 In this rule, and also in the type for $\selectk$ in \cref{fig:type-constants}, we extend the
 directional operators and  materialization (from \cref{fig:type-polarized-operator}) 
 to sequences
@@ -172,11 +177,17 @@ $\polarizedparam{\pm}{\overline{T}}{} =
 $\tosession {\varepsilon}S = \typec S$ and $\tosession {T\overline T}S =
 \tosession{T}{\tosession {\overline T}S}$.
 
-Rule \rulenameexpCheck relies on the previous judgement to check expression $\termc e$ against 
-type $\typec T$, up to $\alpha$-equivalence. This simple comparison is
-sufficient because synthesis outputs $\typec U$ in normal form and
+\hl{[\text{MW}]:} Rule \rulenameexpCheck relies on the previous judgement to check expression $\termc e$ against 
+type $\typec T$, up to subtyping.
+Both types can be assumed to have normal form, because synthesis outputs $\typec U$ in normal form and
 checking must be invoked with $\typec T$ in normal form.
-%
+
+% OLD:
+% Rule \rulenameexpCheck relies on the previous judgement to check expression $\termc e$ against 
+% type $\typec T$, up to $\alpha$-equivalence. This simple comparison is
+% sufficient because synthesis outputs $\typec U$ in normal form and
+% checking must be invoked with $\typec T$ in normal form.
+
 % \begin{lemma}\
 %      \label{lem:synth-against-nf}
 %      \begin{enumerate}
