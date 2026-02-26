@@ -1,5 +1,5 @@
 \PassOptionsToPackage{dvipsnames}{xcolor}
-\documentclass[runningheads]{llncs}
+\documentclass[acmsmall,screen,review,anonymous]{acmart}
 
 \usepackage{geometry}
 \geometry{
@@ -9,20 +9,19 @@
 
 % \usepackage{natbib}
 \usepackage{babel}
-\usepackage[sort&compress,square,comma,authoryear]{natbib}
+% \usepackage[sort&compress,square,comma,authoryear]{natbib}
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{gensymb}
 \usepackage{latexsym}
-\usepackage{amssymb}
+% \usepackage{amssymb}
 \usepackage{mathpartir}
 \usepackage{tikz}
 \usepackage{xspace}
 \usepackage{listings}
 \usepackage{stmaryrd}
 \usepackage{subcaption}
-% \usepackage[capitalise]{cleveref}
-\usepackage{cleveref}
+\usepackage[capitalize,noabbrev]{cleveref}
 \usepackage{xcolor}
 \usepackage{array}
 \renewcommand\appendixname{Supplement}
@@ -35,19 +34,30 @@
 \begin{document}
 \title{Subtyping Algebraic Protocols}
 
-\author{
-Janek Spaderna \and
-Peter Thiemann \and
-Marius Weidner
-}
+\author{Janek Spaderna}
+\email{spadernj@cs.uni-freiburg.de}
+\orcid{0000-0002-9000-1239}
 
-\authorrunning{J. Spaderna, P. Thiemann, and M. Weidner}
+\author{Peter Thiemann}
+\email{thiemann@acm.org}
+\orcid{0000-0002-9000-1239}
 
-\institute{University of Freiburg, Freiburg, Germany}
+\author{Marius Weidner}
+\email{weidner@cs.uni-freiburg.de}
+\affiliation{%
+  \institution{University of Freiburg}
+  % \city{Hekla}
+  \country{Germany}}
+\orcid{0009-0008-1152-165X}
+
+% \authorrunning{J. Spaderna, P. Thiemann, and M. Weidner}
+
+% \institute{University of Freiburg, Freiburg, Germany}
+
+\input{abstract}
 
 \maketitle
 
-\input{abstract}
 \input{introduction}
 \input{motivation}
 % \input{action}
