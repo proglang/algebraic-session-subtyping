@@ -1,6 +1,87 @@
 \section{Introduction}
 \label{sec:introduction}
 
+Session types \cite{DBLP:conf/concur/Honda93,DBLP:conf/parle/TakeuchiHK94,DBLP:conf/esop/HondaVK98} have become a quasi-standard for defining and
+reasoning about stateful communication protocols. A (binary) session
+type specifies a protocol as a set of sequences of typed messages going forth
+and back between two participants. Many interesting protocols are
+recursive, which means they admit an infinite set of sequences or even
+infinite sequences of messages. Such protocols are modeled using equirecursive session
+types like \lstinline{IntListS} (session type for sending finitely many integers and then
+close) and \lstinline{IntStreamS} (send infinitely many integers):
+\begin{lstlisting}
+  type IntListS   = mualpha. oplus{Cons: !Int.alpha, Nil: EndT} -- finite sequences
+  type IntStreamS = mualpha. !Int.alpha                    -- infinite sequence
+\end{lstlisting}
+
+Using recursive types directly is somewhat difficult as equivalence of
+equirecursive types\footnote{An equirecursive type is considered
+  \emph{equal} to its unfoldings.} amounts to comparing infinite regular trees or
+reasoning up to unfolding of the recursive types. While equivalence is
+tractable for traditional, end-recursive session types ($O(n^2)$ where $n$ corresponds to the size of the type),
+the difficulty increases when considering context-free session types
+\cite{DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/Padovani17,DBLP:journals/toplas/Padovani19,DBLP:journals/corr/abs-2106-06658,
+  DBLP:conf/esop/DasDMP21} where the first equivalence test was double
+exponential, though recent work has shown it to be polynomial
+($O(n^{12})$) \cite{DBLP:journals/corr/abs-2407-04063}.
+
+Prior work proposed parameterized algebraic
+protocols \cite{DBLP:journals/pacmpl/MordidoS0V23}, where recursive
+protocols are defined analogously to algebraic datatypes (ADTs). In this framework, we
+can define \lstinline{IntListP}, the algebraic protocol analogous
+to \lstinline{IntListS}, and \lstinline{IntStreamP}, analogous to
+\lstinline{IntStreamS}, as follows:
+\begin{lstlisting}
+  protocol IntListP   = Nil | Cons Int IntListP
+  protocol IntStreamP = Next Int IntStreamP
+\end{lstlisting}
+As with ADTs, the combination of recursive types with sum-of-product
+types is ``shrink wrapped'' into a nominal type. In consequence,
+deciding equivalence of protocol types takes time linear in the size
+of the type, regardless of whether the underlying protocol is
+end-recursive or context free.
+
+The prior work also gave an informal outline of an embedding of
+algebraic protocols into context-free session types, but did not offer
+a comparison with traditional, end-recursive session types. The
+present work fills this gap as follows.
+
+We define a subtyping relation of parameterized algebraic
+protocols. This subtyping relation is inspired by prior work on
+restrictable variants \cite{DBLP:conf/ecoop/MadsenSL23}, where a
+subtype of an algebraic data type is defined by a non-empty subset of the
+constructors. In our framework, the protocol \lstinline{IntListP} comes in
+three variants: \lstinline{IntListP[Nil]}, \lstinline{IntListP[Cons]},
+and \lstinline{IntListP[Nil,Cons]} which roughly correspond to the
+session type \lstinline|oplus{Nil: EndT}|,
+\lstinline|mualpha. oplus{Cons: !Int.alpha}|, and
+\lstinline{IntListS}. To define the subtyping relation on these
+variants, we have to give the protocol a \emph{direction}: the type
+\lstinline{!IntListP} interprets the protocol in the send direction
+(corresponding exactly to \lstinline{IntListS}), whereas
+\lstinline{?IntListP} interprets the protocol in the receive direction
+(corresponding exactly to \lstinline{dual IntListS}). Taking
+directionality into account, we obtain the following non-reflexive subtypings:
+\begin{lstlisting}
+!IntListP <: !IntListP[Nil]                ?IntListP[Nil]  <: ?IntListP
+!IntListP <: !IntListP[Cons]               ?IntListP[Cons] <: ?IntListP
+\end{lstlisting}
+The resulting subtyping relation on restrictable algebraic protocols
+is also decidable in linear time in the size of the type under the
+assumption that comparing two sets of constructors takes constant
+time\footnote{This assumption is reasonable because the number of
+  constructors is usually bounded by a small constant and a set of
+  constructors can be represented by a bit set.}. In comparison,
+subtyping for end-recursive session types is decidable in $O(n^2)$ and
+subtyping for context-free session types is undecidable
+\cite{DBLP:journals/toplas/Padovani19}. That is, restrictable
+algebraic protocols constitute a subset of context-free session types
+with an efficiently decidable subtyping relation.
+
+
+OLD-OLD-OLD
+
+
 The advantages of modeling data with algebraic datatypes (ADTs) 
 have been recognised since the 80s 
 \cite{Burstall1977a,DBLP:conf/lfp/BurstallMS80}. 

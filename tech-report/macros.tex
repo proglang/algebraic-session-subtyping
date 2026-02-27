@@ -75,7 +75,7 @@
 \newcommand{\types}[1]{\typec{\syntax{#1}}} % s for syntax
 \newcommand\TEndW{\ensuremath{\types{End}_{\typec ?}}} % wait
 \newcommand\TEndT{\ensuremath{\types{End}_{\typec !}}} % terminate
-% \newcommand\TEnd{\types{End}}
+\newcommand\TEnd{\types{End}}
 \newcommand{\TG}[2]{\typec{{#1}.{#2}}} % DEPRECATED, no guards anymore
 \newcommand{\TIn}[2]{\TG{?#1}{#2}}
 \newcommand{\TOut}[2]{\TG{!#1}{#2}}
@@ -412,8 +412,8 @@
   {KS}{\kindc{S}}1
   {KM}{\kindc{M}}1
   {KT}{\kindc{T}}1
-  {EndW}{\TEndW}3
-  {EndT}{\TEndT}3
+  {EndW}{\TEnd}3
+  {EndT}{\TEnd}3
 }
 
 \mprset{lineskip=0ex}
