@@ -40,7 +40,8 @@ The labelled transitions convey behaviour in their labels. Because we use an
 algorithmic typing system with leftovers, we require a labelled transition
 system for typing contexts to account for the impact of the behaviour of labels
 in the contexts. The statement of preservation relies on the labelled transition
-system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx}).
+system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx}) 
+\hl{[\text{MW}]:} and subtyping lifted to contexts where elements in the context are compared pairwise.
 
 % \hl{[\text{MW}]:} Because our type system incorporates subtyping and pointwise joins for contexts, 
 % type preservation for synthesis no longer guarantees strict type equivalence. 
@@ -57,8 +58,8 @@ system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx}).
     % MW TODO: Changed \isEquiv{T'}{T} to \typec{T'} \subt \typec{T}.
     % NOTE: You may also need to update \Gamma_3 to \Gamma_3' where \Gamma_3' \subt \Gamma_3 
     % depending on how your leftover context subtyping is defined.
-    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\Gamma_3}$ and
-    % $\typec{T'} \subt \typec{T}$.
+    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\hl{\Gamma_3'}}$ and
+    $\hl{\typec{T'} \subt \typec{T}}$ and $\hl{\Gamma_3' \subt \Gamma_3}$.
   \item\label{it:pres-against} If $\trans{e_1}{\lambda}{e_2}$ and
     $\expAgainst{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
