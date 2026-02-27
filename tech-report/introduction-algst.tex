@@ -1,0 +1,259 @@
+\section{Introduction}
+\label{sec:introduction}
+
+The advantages of modeling data with algebraic datatypes (ADTs) 
+have been recognised since the 80s 
+\cite{Burstall1977a,DBLP:conf/lfp/BurstallMS80}. 
+% ADTs are easy to define, 
+% promote abstraction, and are less prone to errors.
+ADTs are easy to define and use, they enable the construction of
+domain-specific types, and are amenable to efficient nominal type checking.
+Functional programming languages quickly embraced ADTs along
+with the concept of pattern matching which is still gaining momentum.  
+
+Algebraic datatypes integrate recursive types, sum types, product
+types, and generativity (each ADT definition creates a new type) in a
+single declaration. The smooth integration of different typing concepts
+makes ADTs easy to learn and use. It also simplifies the 
+implementation of type checkers because they can elide superlinear algorithms for checking
+equivalence of equirecursive types (where recursive types are
+considered equal to their unfolding) in favor of a linear comparison of nominal types.
+%  and efficient to handle in a language
+% implementation. ADTs are popular among programmers as they have to learn just a single mechanism
+% for type definition.
+
+We show that the ADT approach for defining recursive
+datatypes can be carried over to 
+\emph{algebraic protocols} (AP), a novel method for defining a large class
+of recursive protocols. Analogous to ADTs, APs integrate 
+concepts from the theory of session types
+\cite{DBLP:conf/concur/Honda93,DBLP:conf/parle/TakeuchiHK94}
+(recursive types, choice types, and sequence types) and generativity
+in a single declaration. Analogous to ADTs, APs are easy to use and
+are amenable to efficient type checking. 
+
+We develop APs by analogy to ADTs. Consider the following ADT for lists of
+integers.
+\begin{lstlisting}
+  data IntList = Nil | Cons Int IntList
+\end{lstlisting}
+The datatype \lstinline+IntList+  comes with two data constructors,
+\lstinline+Nil+  to construct an 
+empty list and \lstinline+Cons+ to construct a list from an element
+of type \lstinline+Int+ and a list of type \lstinline+IntList+. The
+alternative between the constructors corresponds to a sum type and the
+two arguments of \lstinline+Cons+ give rise to a product
+type. Clearly, \lstinline+IntList+ is a recursive type. Moreover, its
+definition introduces \lstinline+IntList+ as a new type, different
+from any other. Type equivalence is simple: we just compare ADTs
+by name.
+
+Although \lstinline+IntList+ specifies a (static) data type, 
+it carries an implicit dynamics and it should be 
+quite natural for the reader to imagine elements of this type as
+finite sequences of messages between two communication partners: if
+there are  further elements, the sender selects the  
+constructor \lstinline+Cons+, sends a value of type 
+\lstinline+Int+ and then recurses. If there are no further elements,
+the sender selects \lstinline+Nil+ and stops the transmission. 
+On the other end, the receiver awaits a constructor. On receiving a
+\lstinline+Cons+ it receives an \lstinline+Int+ and recurses. It stops
+on receiving a \lstinline+Nil+. 
+
+% perhaps, we could rather \emph{receive} a value of type \lstinline+a+ 
+% and then receive the rest of the stream. In this paper we 
+% interpret algebraic datatypes as protocols and reformulate 
+% the theory of session types, now presented as a natural 
+% extension of algebraic datatypes -- materialised in our
+% theory of \emph{algebraic session types}. 
+
+This view has striking parallels to the theory of binary session
+types~\cite{DBLP:conf/concur/Honda93,DBLP:conf/esop/HondaVK98,DBLP:conf/parle/TakeuchiHK94}.
+Session types provide a rich type discipline for communication channels that
+statically guarantees protocol fidelity as well as type soundness across
+communication channels. Here is a session type for the protocol associated to
+the \lstinline+IntList+ ADT, written in the syntax of existing
+systems~\cite{DBLP:journals/corr/abs-2106-06658,lindley17:_light_funct_session_types,DBLP:journals/jfp/GayV10}
+and as seen from the sender's perspective:\footnote{Writing
+  \lstinline+IntListS+ for the session type corresponding to
+  \lstinline+IntList+.}
+%
+\begin{lstlisting}
+  type IntListS = mualpha. oplus{Cons: !Int.alpha, Nil: EndT}
+\end{lstlisting}
+%
+The leading $\mu\alpha\dots$ constructs an equirecursive type. The body is
+an internal choice type $\oplus$ with two alternatives indicated by the tags
+\lstinline+Cons+ and \lstinline+Nil+. If the sender selects
+\lstinline+Cons+, it must continue according to
+\lstinline+!Int.alpha+, which means it must send an integer and then
+recurse. If the sender selects \lstinline+Nil+, then the protocol
+comes to an end as indicated by the type \lstinline+EndT+.
+%
+Type \lstinline+EndT+ represents a channel endpoint ready to be closed. The dual
+type, \lstinline+EndW+, represents the other endpoint, waiting to be closed.
+%
+As the name
+suggests, a session type describes a full session of interactions
+between the communication partners up to the end.
+
+Like this example, most session type systems 
+rely on structural typing and equirecursion; 
+this way, unfolding does not give rise to communication.
+Traditional session type systems restrict 
+recursion to the tail position (as in \lstinline/IntListS/), so that types are effectively finite
+automata with regular trace languages. Consequently, type equivalence
+and subtyping for such systems are decidable in polynomial time.  Recently, richer forms of recursion
+have been considered that lift the restriction to tail recursion, so
+that types are akin to, e.g.,  deterministic context-free grammars
+\cite{DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/Padovani17,DBLP:journals/toplas/Padovani19,DBLP:journals/corr/abs-2106-06658,
+  DBLP:conf/esop/DasDMP21}.  
+Unfortunately, when types are endowed with richer forms 
+of recursion, type equivalence gets more complex 
+(doubly-exponential \cite{DBLP:conf/esop/DasDMP21}). 
+The implementation of a type equivalence algorithm for these systems is nontrivial
+\cite{DBLP:conf/tacas/AlmeidaMV20}; incomplete algorithms have been
+used to speed up type equivalence \cite{DBLP:conf/esop/DasDMP21};
+annotations have been proposed~\cite{DBLP:journals/toplas/Padovani19}
+that make type checking effective. But the algorithms for
+type equivalence remain asymptotically superlinear in all these works.
+% type checking by exploiting programmer annotations and
+% showed that subtyping is undecidable. 
+
+The sad truth is that structural session types are quite verbose and
+too complex for the average programmer, thus hampering their adoption. While equirecursive types are
+expressive, understanding their equivalence is hard for programmers
+and inefficient in language implementations.
+
+What if programming with expressive recursive protocols were as easy as
+programming with ADTs? The theory and practice of algebraic protocols
+that we propose in this paper delivers exactly such an
+approach. Enhanced with parameters and polymorphism in the style of
+System~F, APs provide a uniquely simple and efficient approach to modularity and abstraction
+when defining and implementing communication protocols.
+
+%Continuing the \lstinline+IntList+ example,
+Here is the declaration of an algebraic
+protocol corresponding to the session type \lstinline+IntListS+:\footnote{Writing
+  \lstinline+IntListP+ for the protocol type corresponding to
+  \lstinline+IntList+.}
+\begin{lstlisting}
+  protocol IntListP = Nil | Cons Int IntListP
+\end{lstlisting}
+% In this paper, we propose a paradigm shift. We revisit the 
+% guidelines that constituted the basis of the functional languages 
+% that we use today 
+% \cite{Burstall1977a,DBLP:conf/lfp/BurstallMS80}
+% and reformulate the theory of session types 
+% by favouring modularity, code abstraction, the extensive use of 
+% user-defined types and overloaded operators.
+% Algebraic session types now enable the definition of protocol 
+% templates that are \emph{not} committed to a direction (of communication)
+% until they are \emph{materialized}. The protocol template for 
+% streams reads like:
+% \begin{lstlisting}
+%     protocol StreamP a = Cons a (StreamP a)
+% \end{lstlisting}
+The keyword \lstinline+protocol+, in place of \lstinline+data+, denotes an
+algebraic \emph{protocol} type rather than an algebraic \emph{data} type. A
+protocol type is like a template that describes a composable segment of a
+session. It neither describes a full session, nor is it committed to a
+particular direction of communication. Rather, a protocol type has to be
+\emph{materialized} into a session type by assigning a direction and specifying
+a continuation session: we write \lstinline+!IntListP.S+ to send a sequence of
+integers and continue with session type \lstinline+S+ or \lstinline+?IntListP.S+
+to receive a sequence of integers and continue with \lstinline+S+, so that the
+session type \lstinline/IntListS/ corresponds to \lstinline/!IntListP.EndT/.
+Hence, protocol types relate to session types just like composable continuations
+relate to continuations \cite{DBLP:conf/popl/Felleisen88,DanvyFilinski1992}: the
+former describe a segment of interaction (execution) while the latter describe
+interaction (execution) to the end.
+
+Just like ADTs, we can equip APs with parameters as in
+\lstinline+ListP a+:
+\begin{lstlisting}
+  protocol ListP a = Nil | Cons a ListP
+\end{lstlisting}
+While parameters range over types in ADT definitions, they
+range over \emph{protocols} in AP definitions! This facility is key to
+the modularity of APs. For example, the protocol
+\lstinline+ListP Q+ repeats the protocol \lstinline+Q+. It is
+also possible to flip the direction of \lstinline+Q+ by considering the protocol
+\lstinline+ListP -Q+: repeat the protocol \lstinline+Q+ but with reversed roles
+of sender and receiver (more in \cref{sec:simple-protocols-add}). With this
+modular design, we can define finite streams of
+anything expressible as an algebraic protocol. The
+external and internal choices in previous session type systems are
+captured by the sum-of-product nature of algebraic types---the sum
+type replaced by internal/external choice and the product type
+replaced by sequencing as in the linear logic
+interpretation of session types \cite{DBLP:journals/mscs/CairesPT16}.
+
+Algebraic protocol types are nominal and isorecursive. 
+This combination of features reduces the complexity of type equivalence from
+asymptotically doubly-exponential \cite{DBLP:conf/tacas/AlmeidaMV20,DBLP:conf/esop/DasDMP21} 
+to linear. Notably, the expressivity of algebraic protocols 
+is on par with that of session types with non-regular recursion
+\cite{DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/DasDMP21}, 
+so all protocols expressible in such theories can be adapted 
+to algebraic protocols (without paying the price of hosting complex or 
+incomplete algorithms in the compiler). Interestingly, types 
+are now also iso-associative, thus saving us from defining 
+hard-coded associativity laws, due to the basic properties 
+of sequential composition 
+\cite{DBLP:conf/icfp/ThiemannV16,DBLP:journals/corr/abs-2106-06658}.
+
+\subsection*{Contributions}
+\label{sec:contributions}
+
+\begin{itemize}
+\item Algebraic protocols (AP). We propose a new approach for defining
+  recursive protocols compositionally inspired by parameterized algebraic
+  datatypes. This approach combines naming, recursion, and
+  choice-of-sequence types analogously to algebraic
+  datatypes. It adds a novel notion of direction to the component
+  protocols of a tag. Checking type equivalence becomes simple and efficient
+  (worst case linear in the size of the types) as APs are nominal. 
+\item Algebraic session types (\algst). We define a core calculus that is based
+  on linear System~F with (non-linear) recursion and features session types
+  based on APs. Type checking for \algst is specified by bidirectional typing
+  rules that have a direct algorithmic reading.
+  % 
+  % The operational semantics is presented as a labelled transition relation,
+  % inspired by Fowler \etal and Montesi and
+  % Peressotti~\cite{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996,DBLP:journals/corr/abs-2106-11818}
+  % for double binders and the open/close scheme for the free output of the
+  % $\pi$-calculus. %~\cite{DBLP:journals/iandc/MilnerPW92b}.
+  We prove type soundness via preservation and
+  progress.% , where our approach offers a
+  % rather elegant statement (\cref{thm:progress} on \cpageref{thm:progress}).
+\item Full implementation as a publicly available artifact
+  \cite{artifact}, including practical extensions (cf.\ \cref{sec:implementation}).
+\end{itemize}
+
+\subsection*{Overview}
+\label{sec:overview}
+
+\Cref{sec:algebr-sess-types} contains an informal introduction of algebraic
+protocols with examples; we illustrate the gain in
+expressivity and modularity with respect to other work in
+\cref{sec:param-prot}. \Cref{sec:types} discusses the type structure
+of \algst and establishes key results for efficient type checking: correctness of type normalization and
+worst case complexity of type equivalence. \Cref{sec:processes} defines
+statics and dynamics of expressions 
+and processes % . \Cref{sec:metatheory}
+followed by a presentation of the metatheoretical results.
+% \Cref{sec:cfst-vs-algst} gives an informal outline of
+% an embedding of context-free session types to \algst.
+\Cref{sec:implementation} discusses the implementation; since all rules are
+algorithmic, their appropriate reading leads directly to a type checker and an interpreter.
+\Cref{sec:related,sec:conclusion} discuss related work and conclude.
+%
+Proofs, auxiliary results, further examples, an informal outline of an embedding
+of context-free session types to \algst, and further discussion are provided as supplementary material. The
+implementation is publicly available \cite{artifact}.
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

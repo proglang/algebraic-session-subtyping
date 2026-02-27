@@ -1,0 +1,199 @@
+\section{Introduction}
+\label{sec:introduction-old}
+
+Session types
+\cite{DBLP:conf/concur/Honda93,DBLP:conf/parle/TakeuchiHK94} provide a
+rich type discipline for communication channels that guarantees
+protocol fidelity statically. Many typing features have been
+translated to the setting of session types, among them subtyping
+\cite{DBLP:journals/acta/GayH05}, polymorphism
+\cite{lindley17:_light_funct_session_types}, dependent types
+\cite{DBLP:conf/ppdp/ToninhoCP11,DBLP:conf/fossacs/ToninhoY18,DBLP:journals/pacmpl/ThiemannV20},
+and gradual types \cite{DBLP:journals/jfp/IgarashiTTVW19}. Recursive
+types have been added at a very early stage
+\cite{DBLP:conf/esop/HondaVK98} in a tail-recursive and equirecursive
+fashion. Tail recursion was dictated by the asymmetric sequential manner of type
+formation, inherited from the $\pi$-calculus. Equirecursion, where a
+recursive type is considered equal to its unfoldings (or even to its
+infinite unfolding), was likely chosen because unfolding should not
+give rise to communication.  Moreover, there are efficient algorithms
+for deciding equivalence and subtyping of recursive session types in
+this form because these problems can be reduced to decision problems
+on regular languages. 
+
+However, there are protocols that cannot easily be described with
+regular, tail-recursive structures. Examples are the serialization of
+tree structures, stack-based protocols, non-regular protocols for
+components \cite{DBLP:conf/soco/Sudholt05}, and typestate structures expressed
+using fluent interfaces
+\cite{DBLP:conf/ecoop/GilL16,DBLP:conf/oopsla/Xie17}.
+Context-free and nested session types have been developed to  describe
+these protocols
+\cite{DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/Padovani17,DBLP:journals/toplas/Padovani19,DBLP:journals/corr/abs-2106-06658, DBLP:conf/esop/DasDMP21}. These
+systems either equip the syntax of session types with a symmetric monoidal structure,
+thus freeing them from the asymmetry of previous systems or allow
+nesting of type constructors. Adding
+equirecursion to such a system gives rise to context-free protocol
+structures. Unfortunately, for context-free as well as nested
+session types, this combination of features complicates type equivalence
+significantly (doubly exponential \cite{DBLP:conf/esop/DasDMP21}) and
+renders subtyping undecidable \cite{DBLP:journals/toplas/Padovani19}.
+
+The following code example \cite{DBLP:conf/icfp/ThiemannV16} sends a
+serialized binary tree using a context-free session type:
+\begin{lstlisting}
+data Ast = Con Int | Add Ast Ast
+sendAst : Ast -> forall(s:S). mua. +{PCon: !Int, PAdd: a; a}; s -> s
+sendAst t [s] c = case t of {
+  Con x     -> select PCon [s] c
+             |> send [Int, s] x,
+  Add tl tr -> select PAdd [s] c
+             |> sendAst tl [mua. +{PCon: !Int, PAdd: a; a};s]
+             |> sendAst tr [s] }
+\end{lstlisting}
+The reading of \lstinline+data+ and \lstinline+case+ is inspired by
+Haskell. The key for sending the serialized tree is the recursive session type
+\lstinline_mua. +{PCon: !Int, PAdd: a; a}_. The choice operator $\oplus$
+indicates a choice of sending one of the tags \lstinline+PCon+ and
+\lstinline+PAdd+ and then continuing according to the session type
+after the colon. For \lstinline+PCon+,
+it sends the payload as determined by \lstinline+!Int+. For \lstinline+PAdd+, it recursively runs the
+session type twice: \lstinline+a; a+. The semicolon operator
+$\TSeq\_\_$  stands for sequential composition of session types. The operations on the
+type are the usual ones: \lstinline+select+ chooses one of the tags and
+sends it on the channel, \lstinline+send+ takes a number and sends it.
+The operator \lstinline+|>+ is reversed function application and the
+square brackets indicate type abstraction and type application.
+
+Type checking this code in the system of \citet{DBLP:conf/icfp/ThiemannV16} is
+already quite demanding. It requires unfolding of the recursion,
+associativity of the $\TSeq\_\_$ operator, and distributivity of
+$\TSeq\_\_$ over the choice operator. Moreover, the type checker
+incorporates an expensive algorithm for type equivalence. 
+
+A similar situation with recursive types promoted the invention of algebraic datatypes
+\cite{Burstall1977a,DBLP:conf/lfp/BurstallMS80}, in a time when the decision problem
+underlying type equivalence (equivalence of deterministic pushdown systems) was still open.
+Algebraic datatypes combine sum-of-product types with recursion in a
+way that makes type equivalence easy. In fact, the \lstinline+Ast+
+datatype is isomorphic to the equirecursive type
+\lstinline_mua.Int + atimesa_ where the body is a sum of product
+types. Type equivalence for recursive types like this one runs into
+similar difficulties with type equivalence as context-free session
+types. The contribution of algebraic datatypes is the ``shrink
+wrapping'' of recursion with sum-of-product types in combination with
+naming the type. This combination makes type checking for algebraic datatypes
+nominal and thus sidesteps all difficulties arising from recursive
+types. 
+
+The innovation of algebraic protocols consists of introducing a
+shrink wrapping of recursion with choice/branch-of-sequence types combined
+with naming. Compared with algebraic datatypes, we move from sum to
+choice/branch and from product to sequence, which fits precisely with
+the linear logic interpretation of session types \cite{DBLP:journals/mscs/CairesPT16}. 
+% They implement isorecursion by reusing the
+% choice tags for folding and the branch tags for driving unfolding. 
+As an example, we review the serialization of binary trees using an
+algebraic protocol. Like an algebraic datatype, we name the protocol,
+we tag the alternatives, and we define the payload as a sequence:
+\begin{lstlisting}
+protocol PAst = PCon Int | PAdd PAst PAst
+\end{lstlisting}
+This definition only introduces two alternatives and fixes the
+sequencing, but it does not indicate a direction of communication,
+yet. To this end, we reuse the standard session type notation:
+\begin{itemize}
+\item \lstinline/!PAst/ declares sending: send a tag followed by the payload;
+\item \lstinline/?PAst/ declares receiving: receive a tag, branch
+  accordingly, and receive the payload.
+\end{itemize}
+Now we can revisit the function to send the binary tree:
+\begin{lstlisting}
+sendAst : Ast -> forall (s:S). !PAst.s -> s
+sendAst t [s] c = case t of {
+  Con x     -> select PCon [s] c
+             |> send [Int, s] x,
+  Add tl tr -> select PAdd [s] c
+             |> sendAst tl [!PAst.s] |> sendAst tr [s] }
+\end{lstlisting}
+Perhaps shockingly, the code remains the same. But the types change in
+several respects.
+\begin{itemize}
+\item The symmetric sequencing operator $\TSeq\_\_$ disappears from the syntax along with all
+  problems posed by its associativity and distributivity. The
+  \emph{syntax} of session types is tail-recursive as in $\TIn TS$,
+  again. The context-free behavior is achieved by the typing of
+  \lstinline/select PAdd/. Its type \lstinline/forall(s:S).!PAst.s -> !PAst.!PAst.s/
+  ``rewrites'' a single occurrence of \lstinline/!PAst/ in front of
+  the session type to two occurrences corresponding to the payload of
+  the tag \lstinline/PAdd/, like a pushdown automaton operating on
+  the session type.
+\item Checking equivalence of algebraic protocol types is efficient:
+  it is achieved by comparing their names.
+\item The type \lstinline/!PAst.s/ implies that after selecting a tag,
+  the payload is also sent. This mode extends to the recursive uses of
+  \lstinline/PAst/ in the protocol. We would use \lstinline/?PAst.s/
+  to receive a binary tree. 
+\end{itemize}
+This example gives a taste of the power of algebraic protocols.
+In \cref{sec:algebr-sess-types} we explain how to change direction in
+a protocol and how to write modular protocols by exploiting parametric
+protocols.
+
+
+
+\subsection*{Contributions}
+\label{sec:contributions}
+
+\begin{itemize}
+\item Algebraic protocols (AP). We propose a new approach for defining
+  recursive protocols compositionally inspired by parameterized algebraic
+  datatypes. This approach combines naming, recursion, and
+  choice/branch-of-sequence types analogously to algebraic
+  datatypes. It adds a novel notion of direction to the payload of a
+  tag. Checking type equivalence becomes simple and efficient
+  (linear in the size of the types) as APs are nominal. 
+\item Algebraic session types (\algst). We define a (mostly) linearly typed core calculus that
+  is based on linear System~F with recursion and features session
+  types based on APs. Type checking for \algst is specified  using bidirectional
+  typing rules. 
+
+  The operational semantics is presented as a labelled transition relation, adapted
+  from Fowler \etal and Montesi and
+  Peressotti~\cite{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996,DBLP:journals/corr/abs-2106-11818}
+  for double binders and the open/close scheme for free output of the
+  $\pi$-calculus~\cite{DBLP:journals/iandc/MilnerPW92b}.
+  We prove type soundness via preservation and progress, where our approach offers a
+  rather elegant statement (\cref{thm:progress} on \cpageref{thm:progress}). 
+\item Implementation. The proposed system is fully implemented
+  including several practical extensions that are documented in
+  \cref{sec:implementation}. All examples in
+  \cref{sec:algebr-sess-types} are checked on the implementation.
+\end{itemize}
+
+\subsection*{Overview}
+\label{sec:overview}
+
+\Cref{sec:algebr-sess-types} contains an informal introduction of
+algebraic protocols with examples. \Cref{sec:types} formally
+introduces kinds and types of \algst and \cref{sec:processes} defines
+the statics and dynamics of expression and
+processes. \Cref{sec:metatheory} presents the metatheoretical
+results.
+% \Cref{sec:cfst-vs-algst} gives an informal outline of
+% an embedding of context-free session types to \algst.
+\Cref{sec:implementation} discusses additional features of the
+implementation. \Cref{sec:related,sec:conclusion} discuss related
+work and conclude.
+
+The proofs and auxiliary results are provided as supplementary material. 
+The implementation is available for review in an anonymous repository
+and will be submitted for artifact evaluation:
+\begin{center}
+  \url{https://gitlab.com/algst/algst}
+\end{center}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:
