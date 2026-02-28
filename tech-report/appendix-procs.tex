@@ -287,11 +287,11 @@ checking.
 
     \item  
     Inversion of \rulenameexpCheck on the second hypothesis yields 
-    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and \hl{$\typec U \subt \typec T$}.
+    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and $\hl{\typec U \subt \typec T}$.
     By induction hypothesis on~\cref*{it:pres-synth} we know that 
     $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\hl{\Gamma_3'}}$ with 
-    $\hl{\typec{U'} \subt \typec{U}}$ and $\Gamma_3' \subt \Gamma_3$}. By \hl{transitivity of subtyping} 
-    we know that \hl{$\typec{U'} \subt \typec{T}$}. Using \rulenameexpCheck
+    $\hl{\typec{U'} \subt \typec{U}}$ and $\hl{\Gamma_3' \subt \Gamma_3}$. By transitivity of subtyping 
+    we know that $\hl{\typec{U'} \subt \typec{T}}$. Using \rulenameexpCheck
     we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\hl{\Gamma_3'}}$.
     % We detail the case for rule Act-Rcv. In this case, we have 
     % $\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}$.
