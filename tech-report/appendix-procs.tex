@@ -248,7 +248,7 @@ checking.
     (c) $\hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}}$ and $\hl{\Gamma_3 = \bigsqcup_{i \in I} \Gamma_i}$.
     By L-Match we know that $\Gamma_2' = \ebind{x}{\matchin[k]}$.
     Applying \rulenameexpVar and \rulenameexpCheck we get (d) $\expAgainst{\ebind{x}{\matchin[k]}}x{\matchin[k]}{\Empty}$.
-    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using \hl{\rulenameexpCheck} with the definition of the least upper bound.
+    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using \hl{\rulenameexpCheck} together with the definition of the least upper bound.
 
     Rule Act-Sel. We have $\trans{\appe{\tappe{\selecte{C}}{\overline U}}{x}}{\sendl x{C}}{x}$.
     Using L-Sel, we know that
