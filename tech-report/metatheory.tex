@@ -55,9 +55,9 @@ system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx})
     $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
     $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
-    % MW TODO: Changed \isEquiv{T'}{T} to \typec{T'} \subt \typec{T}.
-    % NOTE: You may also need to update \Gamma_3 to \Gamma_3' where \Gamma_3' \subt \Gamma_3 
-    % depending on how your leftover context subtyping is defined.
+    % MW 
+    % Note: I think we need the \Gamma_3' \subt \Gamma_3.
+    % Also, wouldnt it have need to be \Gamma_3' \equiv_\alpha \Gamma_3 before?
     $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\hl{\Gamma_3'}}$ and
     $\hl{\typec{T'} \subt \typec{T}}$ and $\hl{\Gamma_3' \subt \Gamma_3}$.
   \item\label{it:pres-against} If $\trans{e_1}{\lambda}{e_2}$ and

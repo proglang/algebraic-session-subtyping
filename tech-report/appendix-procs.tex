@@ -21,7 +21,7 @@
   \begin{enumerate}
        \item By rule induction on the first hypothesis.
        \item Using \cref{it:synth-nf} and observing that a type $\typec U$ such that 
-       $\typec U =_\alpha \typec T$ is also in normal form.
+       $\hl{\typec U \subt \typec T}$ is also in normal form.
   \end{enumerate}         
   \end{proof}
 \end{lemma}
@@ -193,18 +193,16 @@ checking.
     Rule Act-Let*. In this case, $\trans{\letu{\unitk}{e}}{\beta}{\termc{e}}$ and $\Gamma_2 = \Gamma_2' = \Empty$.
     Using inversion of \rulenameexpConst and \rulenameexpCheck for $\unitk$, we know that premises 
     to \rulenameexpLetUnit include 
-    $\expSynth{\Gamma_1,\Gamma_3}{e}{\typec T}{\Gamma_3}$, which is what we want to prove, since $\isEquiv TT$.
+    $\expSynth{\Gamma_1,\Gamma_3}{e}{\typec T}{\Gamma_3}$, which is what we want to prove, since $\hl{\typec{T} \subt \typec{T}}$.
     
     Rule Act-Rec. Again, $\Gamma_2 = \Gamma_2' = \Empty$. Premises to rule \rulenameexpApp 
     are $\expSynth{\Gamma_1,\Gamma_3}{{\rece xVv}}{\TFun[]{U}{T}}{\Gamma_1,\Gamma_3}$
     and $\expAgainst{\Gamma_1,\Gamma_3}uU{\Gamma_3}$. Applying inversion of \rulenameexpRec on the former, conclude 
     that $\Normal[+]V= \TFun[]{U}{T}$ and then apply inversion of \rulenameexpCheck and the substitution lemma (\cref{lem:substitution}) to 
     get $\expSynth{\Gamma_1,\Gamma_3}{v\esubs{\rece xVv}x}{\TFun[]{U}{T}}{\Gamma_1,\Gamma_3}$. Conclude
-    applying \rulenameexpApp and using the fact that $\isEquiv TT$.
+    applying \rulenameexpApp and using the fact that $\hl{\typec{T} \subt \typec{T}}$.
 
-    Rule Act-Fork. %By L-Fork, we know that $\Gamma_2$ is such that 
-    %$\expAgainst[\Empty]{\Gamma_2}{v}{\TFun[]\TUnit\TUnit}{\Empty}$. 
-    Inversion of \rulenameexpApp
+    Rule Act-Fork. Inversion of \rulenameexpApp
     yields $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{\forkk}{\TFun[]UT}{\Gamma'}$ and
     $\expAgainst{\Gamma'}vU{\Gamma_3}$. Applying \rulenameexpConst on the former we know that
     $\Gamma' = \Gamma_1,\Gamma_2,\Gamma_3$, $\typec U= \TFun[]{\TUnit}{\TUnit}$ and $\typec T=\TUnit$.
@@ -230,7 +228,7 @@ checking.
     conclude that $\Gamma_1 = \Empty$ and $\typec{T}=\TPair{U}{S}$. Using L-Rcv, \rulenameexpCheck and
     weakening we know that $\expSynth{\ebind{x}{S},\Gamma,\Gamma_3}vU{\ebind{x}{S},\Gamma_3}$, using \rulenameexpVar
     and weakening we get $\expSynth{\ebind{x}{S},\Gamma_3}xS{\Gamma_3}$. Conclude applying \rulenameexpPair and
-    recalling that $\isEquiv{\TPair{U}{S}\,\blk{=}\,T}{T}$.
+    recalling that $\hl{\typec{\TPair{U}{S}} \subt \typec{T}}$.
 
     Rule Act-Send. In this case, $\trans{\appe{\appe{\tappe{\tappe \sendk U}{S}}{v}}{x}}{\sendl xv}{x}$.
     By L-Send, $\Gamma_2 = \Gamma, \ebind{x}{\TOut{U}{S}}$ where $\Gamma$ is 
@@ -240,27 +238,17 @@ checking.
     \rulenameexpVar and L-Send with weakening applied to the other premises to conclude that 
     $\Gamma_1 = \Empty$. 
     The result follows applying \rulenameexpVar and weakening with $\Gamma_2' = \ebind{x}{T}$,
-    and knowing that $\isEquiv TT$.
+    and knowing that $\hl{\typec{T} \subt \typec{T}}$.
 
     Rule Act-Match. In this case, $\trans{\matchwithe xCyeiI}{\receivel
     x{C_k}}{e_k\esubs x{y_k}}$. By L-Match, we have $\Gamma_2 = \ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}$
     for $\protocolsfull$. Premises to \rulenameexpMatch include
     (a) $\expSynth {\Gamma_1,\ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}, \Gamma_3} x {\TIn{(\TPApp P{\overline{U}})}{S'}} {\Gamma_1,\Gamma_3}$,
-    (b) $\expSynth {\Gamma_1,\Gamma_3,\ebind{y_i}{\matchin}} {e_i} {V_i} {\Gamma_3}$ and
-    (c) ${T}=_\alpha{V_i}$.
+    (b) $\expSynth {\Gamma_1,\Gamma_3,\ebind{y_i}{\matchin}} {e_i} {V_i} {\Gamma_i}$ and
+    (c) $\hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}}$ and $\hl{\Gamma_3 = \bigsqcup_{i \in I} \Gamma_i}$.
     By L-Match we know that $\Gamma_2' = \ebind{x}{\matchin[k]}$.
     Applying \rulenameexpVar and \rulenameexpCheck we get (d) $\expAgainst{\ebind{x}{\matchin[k]}}x{\matchin[k]}{\Empty}$.
-    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d). 
-  %   {
-  %   \expSynth {\Gamma_1} e {S} {\Gamma_2} \\
-  %   \Normal[+]{S}={\TIn{(\TPApp P {\overline U})}{S'}} \\
-  %   \protocolsfull \\
-  %   \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i} \\
-  %   \termc{x_i}\not\in\Gamma_i\\
-  %   \isEquiv{V_k}{V_i} \\
-  %   \isEquivCtx{\Gamma_k}{\Gamma_i}%  \\
-  %   % k \in I
-  % }
+    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using the definition of the least upper bound.
 
     Rule Act-Sel. We have $\trans{\appe{\tappe{\selecte{C}}{\overline U}}{x}}{\sendl x{C}}{x}$.
     Using L-Sel, we know that
@@ -296,14 +284,15 @@ checking.
     Apply E-App to conclude that $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{\appe{v}{e_2}}{T}{\Gamma_3}$.
 
     Rules Act-AppL, Act-TAppE, Act-LetE, Act-LetE*, Act-PairL, Act-PairR, Act-MatchE are similar.
+
     \item  
     Inversion of \rulenameexpCheck on the second hypothesis yields 
-    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and ${U}=_\alpha{T}$.
+    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and \hl{$\typec U \subt \typec T$}.
     By induction hypothesis on~\cref*{it:pres-synth} we know that 
-    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\Gamma_3'}$ with 
-    $\isEquiv{U'}{U}$. By \rulenametconvSymm
-    and \rulenametconvTrans we know that $\isEquiv{T}{U'}$. Using \rulenameexpCheck
-    we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3'}$.
+    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\hl{\Gamma_3'}}$ with 
+    $\hl{\typec{U'} \subt \typec{U}}$ and $\Gamma_3' \subt \Gamma_3$}. By \hl{transitivity of subtyping} 
+    we know that \hl{$\typec{U'} \subt \typec{T}$}. Using \rulenameexpCheck
+    we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\hl{\Gamma_3'}}$.
     % We detail the case for rule Act-Rcv. In this case, we have 
     % $\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}$.
     % Applying rule \rulenameexpCheck to the first hypothesis, we get 
