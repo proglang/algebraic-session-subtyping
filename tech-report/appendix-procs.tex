@@ -248,7 +248,7 @@ checking.
     (c) $\hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}}$ and $\hl{\Gamma_3 = \bigsqcup_{i \in I} \Gamma_i}$.
     By L-Match we know that $\Gamma_2' = \ebind{x}{\matchin[k]}$.
     Applying \rulenameexpVar and \rulenameexpCheck we get (d) $\expAgainst{\ebind{x}{\matchin[k]}}x{\matchin[k]}{\Empty}$.
-    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using the definition of the least upper bound.
+    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using \hl{\rulenameexpCheck} with the definition of the least upper bound.
 
     Rule Act-Sel. We have $\trans{\appe{\tappe{\selecte{C}}{\overline U}}{x}}{\sendl x{C}}{x}$.
     Using L-Sel, we know that
@@ -289,10 +289,10 @@ checking.
     Inversion of \rulenameexpCheck on the second hypothesis yields 
     $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and $\hl{\typec U \subt \typec T}$.
     By induction hypothesis on~\cref*{it:pres-synth} we know that 
-    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\hl{\Gamma_3'}}$ with 
-    $\hl{\typec{U'} \subt \typec{U}}$ and $\hl{\Gamma_3' \subt \Gamma_3}$. By transitivity of subtyping 
+    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\Gamma_3}$ with 
+    $\hl{\typec{U'} \subt \typec{U}}$. By transitivity of subtyping 
     we know that $\hl{\typec{U'} \subt \typec{T}}$. Using \rulenameexpCheck
-    we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\hl{\Gamma_3'}}$.
+    we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3}$.
     % We detail the case for rule Act-Rcv. In this case, we have 
     % $\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}$.
     % Applying rule \rulenameexpCheck to the first hypothesis, we get 

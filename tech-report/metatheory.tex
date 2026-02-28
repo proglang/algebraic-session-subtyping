@@ -56,10 +56,10 @@ system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx})
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
     $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
     % MW 
-    % Note: I think we need the \Gamma_3' \subt \Gamma_3.
-    % Also, wouldnt it have need to be \Gamma_3' \equiv_\alpha \Gamma_3 before?
-    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\hl{\Gamma_3'}}$ and
-    $\hl{\typec{T'} \subt \typec{T}}$ and $\hl{\Gamma_3' \subt \Gamma_3}$.
+    % Note: Do we need \Gamma_3' \subt \Gamma_3?
+    % No.. should be left untouched by all branches..
+    $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\hl{\Gamma_3}}$ and
+    $\hl{\typec{T'} \subt \typec{T}}$. % and $\hl{\Gamma_3' \subt \Gamma_3}$.
   \item\label{it:pres-against} If $\trans{e_1}{\lambda}{e_2}$ and
     $\expAgainst{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
