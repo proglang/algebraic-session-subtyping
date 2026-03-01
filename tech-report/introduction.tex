@@ -16,13 +16,13 @@ are assigned to one end of a communication channel:
   type IntListS   = mualpha. oplus{Cons: !Int.alpha, Nil: EndT} -- finite sequences
   type IntStreamS = mualpha. !Int.alpha                    -- infinite sequence
 \end{lstlisting}
-(The $\oplus$ constructor stands for selection: send a label like
+In session types, the $\oplus$ constructor stands for selection: send a label like
 \lstinline|Cons| or \lstinline|Nil| and continue according to the
 chosen branch; the $!T.S$ constructor stands for sending a value of
 type $T$ and continuing the protocol according to $S$. The other end
 of the channel has the \emph{dual type} where sending and receiving ($?T.S$)
 is flipped, as well as selection and branching indicated by
-$\&\{l_i:S_i\}$: if we receive a label $l_i$, then continue with $S_i$. )
+$\&\{l_i:S_i\}$: if we receive a label $l_i$, then continue with $S_i$.
 
 Using recursive types directly is somewhat tedious as equivalence of
 equirecursive types\footnote{An equirecursive type is considered
@@ -63,9 +63,9 @@ restrictable variants \cite{DBLP:conf/ecoop/MadsenSL23}, where a
 subtype of an algebraic data type is defined by a non-empty subset of its
 constructors. In our framework, the protocol \lstinline{IntListP} comes in
 three variants: \lstinline{IntListP[Nil]}, \lstinline{IntListP[Cons]},
-and \lstinline{IntListP[Nil,Cons]} which roughly correspond to the
+and \lstinline{IntListP[Nil,Cons]} ($=$ \lstinline{IntListP}). They roughly correspond to the
 session types \lstinline|oplus{Nil: EndT}|,
-\lstinline|mualpha. oplus{Cons: !Int.alpha}|, and
+\lstinline|mualpha.oplus{Cons: !Int.alpha}|, and
 \lstinline{IntListS}. To define the subtyping relation on these
 variants, we have to give the protocol a \emph{direction}: the type
 \lstinline{!IntListP} interprets the protocol in the send direction
@@ -78,8 +78,8 @@ directionality into account, we obtain the following non-reflexive subtypings:
 !IntListP <: !IntListP[Cons]               ?IntListP[Cons] <: ?IntListP
 \end{lstlisting}
 The resulting subtyping relation on restrictable algebraic protocols
-is still decidable in linear time in the size of the type under the
-assumption that comparing two sets of constructors takes constant
+is still decidable in linear time in the size of the type if comparing
+two sets of constructors takes constant 
 time\footnote{This assumption is reasonable because the number of
   constructors is usually bounded by a small constant and a set of
   constructors can be represented by a bit set.}. In comparison,
@@ -89,6 +89,35 @@ subtyping for context-free session types is undecidable
 algebraic protocols carve out a subset of context-free session types
 with an efficiently decidable subtyping relation.
 
+This subtyping relation is key in defining a mapping from traditional,
+tail-recursive session types to algebraic protocols. To construct this
+mapping, we first define a normal form for recursive types such that
+recursive $\mu$ binders only occur directly on top of selection
+$\oplus$ or branch $\&$ types, if the type contains finite
+sequences. From this normal form, we construct a single
+unified algebraic protocol, from which we define subtypes by
+restriction that correspond to the traditional types.
+
+
+To cover subtyping in the traditional setting, we represent all types
+in a program by a system $\mathcal{E}$ of equations between flat types. A flat type
+consists of a type constructor applied to type variables as in
+\lstinline{alpha->beta} or \lstinline{?alpha.beta}. 
+For example, here are the equation systems for our running examples.
+\begin{lstlisting}
+IntStreamS  alpha = !beta.alpha                   beta = Int
+IntListS    alpha = (+){Cons: beta, Nil: delta}   beta = !gamma.alpha    gamma = Int   delta = End
+\end{lstlisting}
+A type is then a pair $\langle\alpha, \mathcal{E}\rangle$ where $\alpha$ is the left
+hand side of an equation in $\mathcal{E}$. Subsumption keeps the
+variable $\alpha$; it only changes $\mathcal{E}$ where the standard
+subsumption may be applied to any suitable equation. For instance,
+here is a subsumption  of \lstinline{IntListS} where we eliminate the constructor \lstinline{Cons}:
+\begin{lstlisting}
+IntListS[Nil]    alpha = (+){Nil: delta}   beta = !gamma.alpha    gamma = Int   delta = End
+\end{lstlisting}
+Importantly, we keep the domain of $\mathcal{E}$, i.e., all left hand
+sides stay the same. 
 
 OLD-OLD-OLD
 
@@ -299,26 +328,31 @@ of sequential composition
 \label{sec:contributions}
 
 \begin{itemize}
-\item Algebraic protocols (AP). We propose a new approach for defining
-  recursive protocols compositionally inspired by parameterized algebraic
-  datatypes. This approach combines naming, recursion, and
-  choice-of-sequence types analogously to algebraic
-  datatypes. It adds a novel notion of direction to the component
-  protocols of a tag. Checking type equivalence becomes simple and efficient
-  (worst case linear in the size of the types) as APs are nominal. 
-\item Algebraic session types (\algst). We define a core calculus that is based
-  on linear System~F with (non-linear) recursion and features session types
-  based on APs. Type checking for \algst is specified by bidirectional typing
+\item A subtyping relation for algebraic session types which is generated
+  by selecting a non-empty subset of protocol constructors.
+
+  This subtyping relation is defined such that its symmetric kernel is
+  the equivalence relation in prior work
+  \cite{DBLP:journals/pacmpl/MordidoS0V23}. It is decidable in linear
+  time and the prior type soundness proof extends to the system with
+  subtyping. 
+
+\item The core calculus \algst which is based
+  on linear System~F with (non-linear) recursion and session types
+  based on algebraic protocols is an extension of prior work. Type
+  checking for \algst is specified by bidirectional typing 
   rules that have a direct algorithmic reading.
-  % 
-  % The operational semantics is presented as a labelled transition relation,
-  % inspired by Fowler \etal and Montesi and
-  % Peressotti~\cite{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996,DBLP:journals/corr/abs-2106-11818}
-  % for double binders and the open/close scheme for the free output of the
-  % $\pi$-calculus. %~\cite{DBLP:journals/iandc/MilnerPW92b}.
-  We prove type soundness via preservation and
-  progress.% , where our approach offers a
-  % rather elegant statement (\cref{thm:progress} on \cpageref{thm:progress}).
+  We prove type soundness via preservation and progress.
+  
+\item Traditional, tail-recursive session types \emph{without subtyping} can
+  be mapped to \algst. The mapping preserves typing and gives rise to
+  a reduction correspondence. 
+\item Traditional, tail-recursive session types \emph{with subtyping}
+  can be mapped to \algst if all session types in a program can be
+  expressed by a system of recursive type equations in a certain
+  form. The mapping preserves typing and gives rise to a reduction
+  correspondence. 
+  
 \item Full implementation as a publicly available artifact
   \cite{artifact}, including practical extensions (cf.\ \cref{sec:implementation}).
 \end{itemize}
