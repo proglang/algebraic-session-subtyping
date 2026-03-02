@@ -245,7 +245,7 @@ checking.
     for $\protocolsfull$. Premises to \rulenameexpMatch include
     (a) $\expSynth {\Gamma_1,\ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}, \Gamma_3} x {\TIn{(\TPApp P{\overline{U}})}{S'}} {\Gamma_1,\Gamma_3}$,
     (b) $\expSynth {\Gamma_1,\Gamma_3,\ebind{y_i}{\matchin}} {e_i} {V_i} {\Gamma_i}$ and
-    (c) $\hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}}$ and $\hl{\Gamma_3 = \bigsqcup_{i \in I} \Gamma_i}$.
+    (c) $\hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}}$. % and $\hl{\Gamma_3 = \bigsqcup_{i \in I} \Gamma_i}$.
     By L-Match we know that $\Gamma_2' = \ebind{x}{\matchin[k]}$.
     Applying \rulenameexpVar and \rulenameexpCheck we get (d) $\expAgainst{\ebind{x}{\matchin[k]}}x{\matchin[k]}{\Empty}$.
     Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using \hl{\rulenameexpCheck} together with the definition of the least upper bound.

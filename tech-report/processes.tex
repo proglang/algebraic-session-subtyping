@@ -158,9 +158,13 @@ $\typec{\overline{T_i}\tsubs{\overline U}{\overline \alpha}}$. This sequence of
 types is converted to a normalized session type as described in \cref{sec:types},
 which is assigned to variable $\termc{x_i}$. Now, each branch synthesizes a type
 $\typec{V_i}$ and context $\Gamma_i$, for $i\in I$. 
-\hl{[\text{MW}]:} The output type $\typec V$ is the least upper bound of the branch types. 
-Similarly, the context $\Gamma_3$ is computed via a pointwise join: $\forall x \in \Gamma_3$, 
-$\Gamma_3(x) = \bigsqcup_{i \in I} \Gamma_i(x)$.
+\hl{[\text{MW}]:} In all branches,
+the contexts must coincide (up to $\alpha$
+equivalence) with the output context of the $\matchk$. 
+The output type $\typec V$ is the least upper bound of the branch types. 
+
+% Similarly, the context $\Gamma_3$ is computed via a pointwise join: $\forall x \in \Gamma_3$, 
+% $\Gamma_3(x) = \bigsqcup_{i \in I} \Gamma_i(x)$.
 % OLD:
 % In all branches,
 % the output types and the contexts must coincide (up to $\alpha$
