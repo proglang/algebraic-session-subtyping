@@ -1,0 +1,199 @@
+\section{Modelling Recursive Session Types via Algebraic Protocols}
+
+\newcommand*\lab{\mathscr{L}}
+\newcommand*\LSend{{!}}
+\newcommand*\LRecv{{?}}
+\newcommand*\LFunc{{\to}}
+\newcommand*\LEnd{\syntax{End}}
+\newcommand*\LBranch{{\&}}
+\newcommand*\LChoice{{+}}
+\newcommand*\LSet{\{\LBranch,\LChoice,\LSend,\LRecv,\LFunc,\LEnd\}}
+\newcommand*\LS{L^S}
+\newcommand*\Lone{1}
+\newcommand*\Ltwo{2}
+\newcommand*\ConSet{\mathcal{C}}
+\NewDocumentCommand\sttrans{o m}{\IfNoValueTF{#1}{\xrightarrow{\;#2\;}}{\xrightarrow{\;#2\;}_{#1}}}
+\newcommand*\stlts{(V,L,\longrightarrow,v_0,\lab)}
+\newcommand*\stty[2][\eta]{\llbracket #2 \rrbracket_{#1}}
+
+\newcommand\sublts{<:}
+\newcommand\subnode[1]{\textsc{Sub}_{#1}}
+
+\NewDocumentCommand\SBranchChoice{m s m}{{#1} \IfBooleanT{#2}{\!\left} \langle #3 \IfBooleanT{#2}{\right} \rangle}
+\NewDocumentCommand\SSendRecv{m m}{#1#2.}
+
+\newcommand*\SBranch{\SBranchChoice{\&}}
+\newcommand*\SChoice{\SBranchChoice{+}}
+
+\newcommand*\SSend{\SSendRecv{!}}
+\newcommand*\SRecv{\SSendRecv{?}}
+
+Recursive session types are represented as a labelled transition system (LTS)
+$\stlts$ where $V$ is a set of nodes or states, $L=\{\Lone,\Ltwo\}\cup\ConSet$
+is the set of transition labels, and ${\sttrans{~}} \subseteq V\times L\times
+V$ the transition relation. We may write $v\sttrans\ell v'$ for
+$(v,\ell,v')\in{\sttrans{~}}$. There is a designated initial state $v_0\in V$.
+The labelling function $\lab:V\to \LSet$ assigns a label to every state. The
+subset $\LS = \{\LBranch,\LChoice,\LSend,\LRecv,\LEnd\}$ is called the set of
+session type labels. A node $v\in V$ with $\lab(v)\in\LS$ is called a session
+type node. The transition relation must be consistent with the transition
+relation. Every node $v\in V$ must satisfy the conditions below.
+%
+\begin{itemize}
+  %
+  \item If $\lab(v) = \LEnd$ there are no $\ell\in L, v'\in V$ such that $v
+    \sttrans\ell v'$.
+  %
+  \item If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there are $v_1,v_2\in V$ with
+    $v \sttrans\Lone v_1$ and $v \sttrans\Ltwo v_2$, and for all $v'\in
+    V,\ell\in L$ with $v \sttrans\ell v'$ it holds that
+    $(\ell,v')\in\{(\Lone,v_1),(\Ltwo,v_2)\}$.
+  %
+  \item If $\lab(v)\in\{\LChoice,\LBranch\}$ all transitions $v \sttrans\ell
+    v'$ with $v'\in V, \ell\in L$ must be labelled by an element from
+    $\ConSet$, i.\,e. $\ell\in\ConSet$.
+  %
+  \item If $\lab(v)\in\LS$ every node $v'\in V$ with $v \sttrans\ell v'$ for
+    $\ell\in\{\Lone\}\cup\ConSet$ must be a session type node, i.\,e.
+    $\lab(v')\in\LS$.
+  %
+\end{itemize}
+
+Furthermore, we restrict the set of all valid LTS by imposing an additional
+requirement on the set of cycles the underlying graph structure may contain.
+For every cycle $v_1 \sttrans{\ell_1} v_2 \cdots v_n \sttrans{\ell_n} v_1$ the
+states $v_1,\dotsc,v_n\in V$ it consists of must be labelled from the set $\LS
+\supseteq \{ \lab(v_1), \dotsc, \lab(v_n) \}$. All transition labels part of
+the cycle must be from the set $\{\Ltwo\}\cup\ConSet \supseteq
+\{\ell_1,\dotsc,\ell_n\}$. The restriction achieves two goals: the set of
+recursive types is restricted to session types and we avoid the dualization
+paradox \citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}. The effect will
+become more obvious once we define how every node in an LTS describes a type.
+
+Given an LTS $(V,L,\sttrans{~},v_0)$ the function $\stty{{\,\cdot\,}}$ produces
+a type with the grammar below. In particular, if $\lab(v)\in\LS$ for some $v\in
+V$, the result of $\stty{v}$ is a type according to the grammar $S$.
+%
+\begin{align*}
+  %
+  T &\grmeq \dots \\
+  %
+  S &\grmeq \dots
+  %
+\end{align*}
+%
+$\eta$ is a partial function from nodes to recursion variables. We write
+$\eta(v)\downarrow$ if $\eta$ is defined at $v$, and $\eta(v)\uparrow$ if not.
+$\emptyset$ denotes the function that is not defined at any point and
+$\eta[v\mapsto\alpha]$ the partial function defined as $\alpha$ at point $v$
+and defined according to $\eta$ at any other point.
+
+\[
+  \stty{v} = \begin{cases*}
+    \eta(v) & if
+      $\eta(v)\downarrow$
+    \\
+    \mu\alpha. \SBranchChoice\star*{\overline{\ell: \stty[{\eta[v \mapsto \alpha]}]{v'}}} & if
+      $\eta(v)\uparrow$,
+      $\star = \lab(v) \in \{\LBranch,\LChoice\}$,
+      $\alpha$ fresh,
+      for all $\ell,v'$ with $v \sttrans{\ell} v'$
+    \\
+    \mu\alpha. \SSendRecv\sharp{\stty[\emptyset]{v_1}} \stty[{\eta[v \mapsto \alpha]}]{v_2} & if
+      $\eta(v)\uparrow$,
+      $\sharp = \lab(v) \in \{\LSend,\LRecv\}$,
+      $\alpha$ fresh,
+      $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
+    \\
+    \stty[\emptyset]{v_1} \to \stty[\emptyset]{v_2} & if
+      $\lab(v) = \LFunc$,
+      $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
+    \\
+    \TEnd & if
+      $\lab(v) = \LEnd$
+  \end{cases*}
+\]
+
+\begin{lemma}
+  %
+  The types produced by $\stty{\,\cdot\,}$ are well-formed, that is every type
+  is contractive and formed according to the grammar $T$. An argument with a
+  label in $\LS$ forms a type according to the grammar $S$.
+ %
+\end{lemma}
+%
+\begin{proof}
+  %
+  By inspection of $\stty{\,\cdot\,}$ every produced type is contractive.
+  \js{incomplete}
+  %
+\end{proof}
+%
+\begin{lemma}
+  %
+  The types produced by $\stty{\,\cdot\,}$ contain recursion variables only in
+  tail recursive positions of session types.
+  %
+\end{lemma}
+%
+\begin{proof}
+  %
+  \js{incomplete}
+  %
+\end{proof}
+
+\js{Circle back to the cycle restriction?}\bigbreak
+
+We define a subtyping relation on the LTS representation and prove it sound
+with respect to the classical subtyping relation for session types
+\citep{DBLP:journals/acta/GayH05,DBLP:journals/jfp/GayV10}. 
+
+Subtyping is defined on the transition relation of the LTS. Given two recursive
+processes $T = (V, L, \sttrans[T]{~}, v_0, \lab)$ and $U = (V, L,
+\sttrans[U]{~}, v_0, \lab)$ over the same set of nodes and labels, and with the
+same labelling function, we define $T \sublts U$ by
+$\subnode{v_0}(\sttrans[T]{~}, \sttrans[U]{~})$, where $v_0$ is the
+initial node. The binary relation $\subnode{v}(\sttrans[A]{~},
+\sttrans[B]{~})$ with parameter $v \in V$ is defined via a case split on the
+label of $v$.
+%
+\begin{itemize}
+
+  \item \textbf{Case $\lab(v) = \LBranch$:} For every transition $v \sttrans[A]\ell v'$,
+        there must be a matching transition $v \sttrans[B]\ell v'$ such that
+        $\subnode{v'}(\sttrans[A]{~}, \sttrans[B]{~})$.
+
+  \item \textbf{Case $\lab(v) = \LChoice$:} For every transition $v \sttrans[B]\ell v'$,
+        there must be a matching transition $v \sttrans[A]\ell v'$ such that
+        $\subnode{v'}(\sttrans[A]{~}, \sttrans[B]{~})$.
+
+  \item \textbf{Case $\lab(v) = \LSend$:} There must be matching transitions
+        $v \sttrans[A]\Lone v'_1$, $v \sttrans[B]\Lone v'_1$ and
+        $v \sttrans[A]\Ltwo v'_2$, $v \sttrans[B]\Ltwo v'_2$ such that
+        $\subnode{v'_1}(\sttrans[B]{~}, \sttrans[A]{~})$ and
+        $\subnode{v'_2}(\sttrans[A]{~}, \sttrans[B]{~})$.
+
+  \item \textbf{Case $\lab(v) = \LRecv$:} There must be matching transitions
+        $v \sttrans[A]\Lone v'_1$, $v \sttrans[B]\Lone v'_1$ and
+        $v \sttrans[A]\Ltwo v'_2$, $v \sttrans[B]\Ltwo v'_2$ such that
+        $\subnode{v'_1}(\sttrans[A]{~}, \sttrans[B]{~})$ and
+        $\subnode{v'_2}(\sttrans[A]{~}, \sttrans[B]{~})$.
+
+  \item \textbf{Case $\lab(v) = \LFunc$:} There must be matching transitions
+        $v \sttrans[A]\Lone v'_1$, $v \sttrans[B]\Lone {v'_1}$ and
+        $v \sttrans[A]\Ltwo v'_2$, $v \sttrans[B]\Ltwo {v'_2}$ such that
+        $\subnode{v'_1}(\sttrans[B]{~}, \sttrans[A]{~})$ and
+        $\subnode{v'_2}(\sttrans[A]{~}, \sttrans[B]{~})$.
+
+  \item \textbf{Case $\lab(v) = \LEnd$:} The relation holds trivially.
+\end{itemize}
+
+For $\LChoice$, the direction of the implication requires the subtype to
+provide at least all the transitions offered by the supertype, meaning the
+smaller type can support more labels. Conversely, for $\LBranch$, the subtype
+is restricted to taking only transitions permitted by the supertype, meaning
+the smaller type must have fewer or an equal amount of labels. Furthermore, for
+$\LSend$ and $\LRecv$, the continuation of the first argument (label $\Lone$)
+is contravariant and covariant, respectively. Similarly, the argument (label
+$\Lone$) for $\LFunc$ is contravariant. Finally, $\LEnd$ holds trivially
+because it admits no transitions.
