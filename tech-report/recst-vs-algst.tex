@@ -5,16 +5,21 @@
 \newcommand*\LRecv{{?}}
 \newcommand*\LFunc{{\to}}
 \newcommand*\LEnd{\syntax{End}}
+\newcommand*\LUnit{\syntax{Unit}}
 \newcommand*\LBranch{{\&}}
 \newcommand*\LChoice{{+}}
-\newcommand*\LSet{\{\LBranch,\LChoice,\LSend,\LRecv,\LFunc,\LEnd\}}
+\newcommand*\LSet{\{\LBranch,\LChoice,\LSend,\LRecv,\LEnd,\LUnit,\LFunc\}}
 \newcommand*\LS{L^S}
 \newcommand*\Lone{1}
 \newcommand*\Ltwo{2}
 \newcommand*\ConSet{\mathcal{C}}
-\NewDocumentCommand\sttrans{o m}{\IfNoValueTF{#1}{\xrightarrow{\;#2\;}}{\xrightarrow{\;#2\;}_{#1}}}
+\newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
+\newcommand*\notrans{\,{\nrightarrow}}
 \newcommand*\stlts{(V,L,\longrightarrow,v_0,\lab)}
 \newcommand*\stty[2][\eta]{\llbracket #2 \rrbracket_{#1}}
+\newcommand*\algty{\mathcal{T}}
+
+\newcommand*\typeset[1]{\mathscr{T}(#1)}
 
 \newcommand\SubLTS{<:}
 \newcommand\SubNode[1]{\textsc{Sub}_{#1}}
@@ -41,50 +46,52 @@ corresponding functional types.
 
 \subsection{A graph representation for recursive types}
 
-Recursive session types are represented as a labelled transition system (LTS)
-$\stlts$ where $V$ is a set of nodes or states, $L=\{\Lone,\Ltwo\}\cup\ConSet$
-is the set of transition labels, and ${\sttrans{~}} \subseteq V\times L\times
-V$ the transition relation. We may write $v\sttrans\ell v'$ for
-$(v,\ell,v')\in{\sttrans{~}}$. There is a designated initial state $v_0\in V$.
-The labelling function $\lab:V\to \LSet$ assigns a label to every state. The
-subset $\LS = \{\LBranch,\LChoice,\LSend,\LRecv,\LEnd\}$ is called the set of
-session type labels. A node $v\in V$ with $\lab(v)\in\LS$ is called a session
-type node. The transition relation must be consistent with the transition
-relation. Every node $v\in V$ must satisfy the conditions below.
+Recursive session types are represented as a deterministic labelled transition
+system (LTS) $\stlts$ where $V$ is a set of nodes or states, $L$ is the set of
+transition labels containing at least $\Lone,\Ltwo\in L$, and ${\sttrans{}}
+\subseteq V\times L\times V$ the transition relation. We may write
+$v\sttrans\ell v'$ for $(v,\ell,v')\in{\sttrans{}}$, and $v\notrans$ if there
+are no $\ell,v'$ such that $v\sttrans\ell v'$. There is a designated initial
+state $v_0\in V$. The labelling function $\lab:V\to \LSet$ assigns a label to
+every state. The subset $\LS = \{\LBranch,\LChoice,\LSend,\LRecv,\LEnd\}$ is
+called the set of session type labels. A node $v\in V$ with $\lab(v)\in\LS$ is
+called a session type node. The transition relation must be consistent with the
+transition relation. Every node $v\in V$ must satisfy the conditions below.
 %
-\begin{itemize}
+\begin{enumerate}
   %
-  \item If $\lab(v) = \LEnd$ there must not be any $\ell\in L, v'\in V$ with
-    $v\sttrans\ell v'$.
+  \item \label{tylts:arity0} If $\lab(v) \in \{\LEnd,\LUnit\}$ it must hold
+    that $v\notrans$.
   %
-  \item If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there must be $v_1,v_2\in V$
-    with $v \sttrans\Lone v_1$ and $v \sttrans\Ltwo v_2$, and for all $v'\in
-    V,\ell\in L$ with $v \sttrans\ell v'$ it must hold that
+  \item \label{tylts:arity2} If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there
+    must be $v_1,v_2\in V$ with $v \sttrans\Lone v_1$ and $v \sttrans\Ltwo
+    v_2$, and for all $v \sttrans\ell v'$ it must hold that
     $(\ell,v')\in\{(\Lone,v_1),(\Ltwo,v_2)\}$.
   %
-  \item If $\lab(v)\in\{\LChoice,\LBranch\}$ all transitions $v \sttrans\ell
-    v'$ with $v'\in V, \ell\in L$ must be labelled by an element from
-    $\ConSet$, i.\,e. $\ell\in\ConSet$.
+  \item If $\lab(v)\in\{\LChoice,\LBranch\}$ there must be at least one
+    transition $v\sttrans\ell v'$, and for all transitions $v \sttrans{\ell'}
+    v''$ it must hold that $\ell'\not\in\{1,2\}$.
   %
-  \item If $\lab(v)\in\LS$ every node $v'\in V$ with $v \sttrans\ell v'$ for
-    $\ell\in\{\Ltwo\}\cup\ConSet$ must be a session type node, i.\,e.
-    $\lab(v')\in\LS$.
+  \item If $\lab(v)\in\LS$, for all $v\sttrans\ell v'$ with $\ell \ne \Lone$ it
+    must hold that $\lab(v')\in\LS$.
   %
-\end{itemize}
+  \item \label{tylts:cycles} If there is a cycle $v \sttrans{\ell} v_1
+    \sttrans{\ell_1} \cdots v_n \sttrans{\ell_n} v_1$ it must hold that
+    $\lab(v)\in\LS$ and $\ell\ne\Lone$.
+  %
+  \item If $v\sttrans\ell v'$ and $v\sttrans\ell v''$ it must hold that
+    $v'=v''$.
+  %
+\end{enumerate}
+%
+Requirement (\ref{tylts:cycles}) restricts the kind of cycles that may appear.
+The only cycles that are allowed must consists solely of session type nodes and
+the transition labels must not be $\Lone$. The restriction serves two goals:
+only sessions types are allowed to be recursive and we avoid the dualization
+paradox where recursive session types use recursion variables in the payload of
+messages~\citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}.
 
-Furthermore, we restrict the set of all valid LTS by imposing a requirement on
-the kind of cycles the underlying graph structure may contain. For every cycle
-$v_1 \sttrans{\ell_1} v_2 \cdots v_n \sttrans{\ell_n} v_1$ the states
-$v_1,\dotsc,v_n\in V$ must be labelled from the set $\LS \supseteq \{
-\lab(v_1), \dotsc, \lab(v_n) \}$, and all transition labels part of the cycle
-must be from the set $\{\Ltwo\}\cup\ConSet \supseteq \{\ell_1,\dotsc,\ell_n\}$.
-The restriction serves two goals: the set of recursive types is restricted to
-session types and we avoid the dualization paradox when recursive session types
-use recursion variables in the payload of messages
-\citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}. The effect will become
-more obvious once we define how every node in an LTS describes a type.
-
-Given an LTS $(V,L,\sttrans{~},v_0)$ the function $\stty{{\,\cdot\,}}$ produces
+Given an LTS $(V,L,\sttrans{},v_0)$ the function $\stty{{\,\cdot\,}}$ produces
 a type with the grammar below. In particular, if $\lab(v)\in\LS$ for some $v\in
 V$, the result of $\stty{v}$ is a type according to the grammar $S$.
 %
@@ -105,14 +112,14 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
 \[
   \stty{v} = \begin{cases*}
     v & if
-      $ v \in \eta
+      $v \in \eta$
     \\
     \mu v. \SBranchChoice\star*{{\ell: \stty[\eta\cup\{v\}]{v'}}}_{\ell\in\ConSet'} & if
       %$\eta(v)\uparrow$,
       $v \not\in \eta$,
       $\star = \lab(v) \in \{\LBranch,\LChoice\}$,
       %$\alpha$ fresh,
-      %for all $\ell,v'$ with $v \sttrans{\ell} v'$
+      %for all $\ell,v'$ with $v \sttrans\ell v'$
       $\ConSet' = \{ \ell\in\ConSet \mid \exists v'\!.\, v \sttrans\ell v' \}$
     \\
     \mu v. \SSendRecv\sharp{\stty[\emptyset]{v_1}} \stty[\eta\cup\{v\}]{v_2} & if
@@ -131,8 +138,9 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
   \end{cases*}
 \]
 %
-To differentiate the translation for two different LTS $A$ and $B$ we may write
-$\stty{{\,\cdot\,}}^A$ and $\stty{{\,\cdot\,}}^B$ respectively.
+To differentiate the translation functions for two transition systems $A$ and
+$B$ we may write $\stty{{\,\cdot\,}}^A$ and $\stty{{\,\cdot\,}}^B$
+respectively.
 
 \begin{lemma}
   %
@@ -170,41 +178,41 @@ with respect to the classical subtyping relation for session types
 \citep{DBLP:journals/acta/GayH05,DBLP:journals/jfp/GayV10}.
 
 Subtyping is defined on the transition relation of the LTS. Given two recursive
-processes $T = (V, L, \sttrans[T]{~}, v_0, \lab)$ and $U = (V, L,
-\sttrans[U]{~}, v_0, \lab)$ over the same set of nodes and labels, and with the
+processes $T = (V, L, \sttrans{}_T, v_0, \lab)$ and $U = (V, L,
+\sttrans{}_U, v_0, \lab)$ over the same set of nodes and labels, and with the
 same labelling function, we define $T \SubLTS U$ by
-$\SubNode{v_0}(\sttrans[T]{~}, \sttrans[U]{~})$, where $v_0$ is the
-initial node. The binary relation $\SubNode{v}(\sttrans[A]{~},
-\sttrans[B]{~})$ with parameter $v \in V$ is defined via a case split on the
+$\SubNode{v_0}(\sttrans{}_{T}, \sttrans{}_{U})$, where $v_0$ is the
+initial node. The binary relation $\SubNode{v}(\sttrans{~}_{A},
+\sttrans{~}_{B})$ with parameter $v \in V$ is defined via a case split on the
 label of $v$.
 %
 \begin{itemize}
 
-  \item \textbf{Case $\lab(v) = \LBranch$:} For every transition $v \sttrans[A]\ell v'$,
-        there must be a matching transition $v \sttrans[B]\ell v'$ such that
-        $\SubNode{v'}(\sttrans[A]{~}, \sttrans[B]{~})$.
+  \item \textbf{Case $\lab(v) = \LBranch$:} For every transition $v \sttrans{\ell}_{A} v'$,
+        there must be a matching transition $v \sttrans{\ell}_{B} v'$ such that
+        $\SubNode{v'}(\sttrans{}_{A}, \sttrans{}_{B})$.
 
-  \item \textbf{Case $\lab(v) = \LChoice$:} For every transition $v \sttrans[B]\ell v'$,
-        there must be a matching transition $v \sttrans[A]\ell v'$ such that
-        $\SubNode{v'}(\sttrans[A]{~}, \sttrans[B]{~})$.
+  \item \textbf{Case $\lab(v) = \LChoice$:} For every transition $v \sttrans{\ell}_{B} v'$,
+        there must be a matching transition $v \sttrans{\ell}_{A} v'$ such that
+        $\SubNode{v'}(\sttrans{}_{A}, \sttrans{}_{B})$.
 
   \item \textbf{Case $\lab(v) = \LSend$:} There must be matching transitions
-        $v \sttrans[A]\Lone v'_1$, $v \sttrans[B]\Lone v'_1$ and
-        $v \sttrans[A]\Ltwo v'_2$, $v \sttrans[B]\Ltwo v'_2$ such that
-        $\SubNode{v'_1}(\sttrans[B]{~}, \sttrans[A]{~})$ and
-        $\SubNode{v'_2}(\sttrans[A]{~}, \sttrans[B]{~})$.
+        $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} v'_1$ and
+        $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} v'_2$ such that
+        $\SubNode{v'_1}(\sttrans{}_{B}, \sttrans{}_{A})$ and
+        $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
 
   \item \textbf{Case $\lab(v) = \LRecv$:} There must be matching transitions
-        $v \sttrans[A]\Lone v'_1$, $v \sttrans[B]\Lone v'_1$ and
-        $v \sttrans[A]\Ltwo v'_2$, $v \sttrans[B]\Ltwo v'_2$ such that
-        $\SubNode{v'_1}(\sttrans[A]{~}, \sttrans[B]{~})$ and
-        $\SubNode{v'_2}(\sttrans[A]{~}, \sttrans[B]{~})$.
+        $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} v'_1$ and
+        $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} v'_2$ such that
+        $\SubNode{v'_1}(\sttrans{}_{A}, \sttrans{}_{B})$ and
+        $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
 
   \item \textbf{Case $\lab(v) = \LFunc$:} There must be matching transitions
-        $v \sttrans[A]\Lone v'_1$, $v \sttrans[B]\Lone {v'_1}$ and
-        $v \sttrans[A]\Ltwo v'_2$, $v \sttrans[B]\Ltwo {v'_2}$ such that
-        $\SubNode{v'_1}(\sttrans[B]{~}, \sttrans[A]{~})$ and
-        $\SubNode{v'_2}(\sttrans[A]{~}, \sttrans[B]{~})$.
+        $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} {v'_1}$ and
+        $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} {v'_2}$ such that
+        $\SubNode{v'_1}(\sttrans{}_{B}, \sttrans{}_{A})$ and
+        $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
 
   \item \textbf{Case $\lab(v) = \LEnd$:} The relation holds trivially.
 \end{itemize}
@@ -223,7 +231,7 @@ because it admits no transitions.
   %
   Given two typing LTS $A,B$ defined over the same set of nodes $V$ and with
   the same labelling function $\lab\!$, if
-  $\SubNode{v}(\sttrans[A]{~},\sttrans[B]{~})$ for $v\in V$ then $\stty{v}^A
+  $\SubNode{v}(\sttrans{}_{A},\sttrans{}_{B})$ for $v\in V$ then $\stty{v}^A
   \SubST \stty{v}^B$.
   %
 \end{lemma}
@@ -281,10 +289,49 @@ protocol Dispatch = ...
                   | Result -Int Eps
 \end{lstlisting}
 
+We define $\typeset\kind$ as the set of types $\typec T$ where
+$\typeAgainst T \kind$ is derivable and with $\Delta=\dots$. \js{TODO}
+
+The function $\textsc{seq}^\sharp : (\{!,?\} \times \typeset\kindt)^* \to
+\typeset\kindp$ where $\sharp \in \{!,?\}$ turns a sequence of types to send or
+receive into a protocol type using the $\PSeq$ and $\PEps$ protocols.
+%
+\[
+  \textsc{seq}^\sharp(x) = \begin{cases*}
+    \PEps & if $x$ is the empty sequence \\
+    \TPApp{\TPApp \PSeq {\phantom{\pneg{}}T}}{\textsc{seq}^\sharp(x')}
+      & if $x=(\sharp,\typec T)x'$ \\
+    \TPApp{\TPApp \PSeq {\pneg T}}{\textsc{seq}^\sharp(x')}
+      & if $x=(\sharp',\typec T)x'$ where $\sharp\ne\sharp'$
+  \end{cases*}
+\]
+
+\[
+  \algty(v) = \begin{cases*}
+    \TFun[] {\algty(v_1)} {\algty(v_2)} & if
+      $\lab(v) = \LFunc$,
+      $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$,
+    \\
+    \typec{\sharp \TPApp\PRep T.\TEnd} & if
+      $v_1 \sttrans\Ltwo \cdots v_n \sttrans\Ltwo v_1$ with $v=v_1, \sharp=\lab(v)$
+    \\& \quad and for all $1 \leq i \leq n$: $v_i\sttrans\Lone v'_i$
+    \\& \quad such that $\typec T = \cramped{\textsc{seq}^\sharp}((\lab(v_1), \algty(v'_1))\dots(\lab(v_n), \algty(v'_n)))$
+    \\
+    \typec{\sharp \algty(v_1) . \algty(v_2)} & if
+      $\sharp = \lab(v) \in \{\LSend,\LRecv\}$,
+      $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
+    \\
+    \typec{\sharp \PDispatch[I].\TEnd} & if
+      $\lab(v) \in \{\LChoice,\LBranch\}$ with
+        $\sharp=\typec ! \Leftrightarrow \lab(v) = \LChoice$,
+        $\sharp=\typec ? \Leftrightarrow \lab(v) = \LBranch$
+    \\& \quad where $I = \{\ell\in L \mid \exists v'. v\sttrans\ell v'\}$
+  \end{cases*}
+\]
+
 A further complication in the translation to algebraic types arises from the
 need to preserve duality. Take, for example, the recursive session type
 $S_\rightleftharpoons$ from before again. \js{TODO}
-
 
 Given an LTS $\stlts$ to determine the type of some node $v\in V$ we
 differentiate three major cases. If $v$ is part of a cycle $v \sttrans\Ltwo v_1
