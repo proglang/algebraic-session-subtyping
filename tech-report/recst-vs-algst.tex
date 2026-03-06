@@ -17,7 +17,7 @@
 \newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
 \newcommand*\notrans{\,{\nrightarrow}}
 \newcommand*\stlts[1][]{(V,L,\longrightarrow_{#1},\lab)}
-\newcommand*\stty[2][\eta]{\llbracket #2 \rrbracket_{#1}}
+\newcommand*\stty[2][\eta]{\blk{\llbracket #2 \rrbracket_{#1}}}
 
 \newcommand*\ToAlgName[1]{\textup{\scshape #1}}
 \newcommand*\ToAlgPM{\BlkFunction{\ToAlgName{pol}}}
@@ -41,15 +41,17 @@
 \newcommand\SubNode[1]{\textsc{Sub}_{#1}}
 \newcommand\SubST{\leq}
 
-\NewDocumentCommand\SBranchChoice{m s m}{{#1} \IfBooleanT{#2}{\!\left} \langle #3 \IfBooleanT{#2}{\right} \rangle}
-\NewDocumentCommand\SSendRecv{m m}{#1#2.}
+\NewDocumentCommand\SBranchChoice{m s m}{\recc{{#1} \IfBooleanT{#2}{\!\left} \langle #3 \IfBooleanT{#2}{\right} \rangle}}
+\NewDocumentCommand\SSendRecv{m m}{\recc{#1#2.}}
 
 \newcommand*\SBranch{\SBranchChoice{\&}}
 \newcommand*\SChoice{\SBranchChoice{+}}
-
 \newcommand*\SSend{\SSendRecv{!}}
 \newcommand*\SRecv{\SSendRecv{?}}
-
+\newcommand*\SRec[1][\alpha]{\recc{\mu #1.}}
+\newcommand*\SEnd{{\let\typec\recc\TEnd}}
+\newcommand*\SUnit{{\let\typec\recc\TUnit}}
+\newcommand*\SInt{{\let\typec\recc\TInt}}
 
 This section describes how recursive session types \`a la
 \citet{DBLP:journals/jfp/GayV10} can be embedded in algebraic protocols. To
@@ -127,10 +129,10 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
 
 \[
   \stty{v} = \begin{cases*}
-    v & if
+    \recc v & if
       $v \in \eta$
     \\
-    \mu v. \SBranchChoice\star*{{\ell: \stty[\eta\cup\{v\}]{v'}}}_{\ell\in I} & if
+    \SRec[v] \SBranchChoice\star*{{\ell: \stty[\eta\cup\{v\}]{v'}}}_{\recc{\ell\in I}} & if
       %$\eta(v)\uparrow$,
       $v \not\in \eta$,
       $\star = \lab(v) \in \{\LBranch,\LChoice\}$,
@@ -138,19 +140,19 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
       %for all $\ell,v'$ with $v \sttrans\ell v'$
       $I = \{ \ell\in L \mid \exists v'\!.\, v \sttrans\ell v' \}$
     \\
-    \mu v. \SSendRecv\sharp{\stty[\emptyset]{v_1}} \stty[\eta\cup\{v\}]{v_2} & if
+    \SRec[v] \SSendRecv\sharp{\stty[\emptyset]{v_1}} \stty[\eta\cup\{v\}]{v_2} & if
       %$\eta(v)\uparrow$,
       $v \not\in \eta$,
       $\sharp = \lab(v) \in \{\LSend,\LRecv\}$,
       %$\alpha$ fresh,
       $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
     \\
-    \stty[\emptyset]{v_1} \to \stty[\emptyset]{v_2} & if
+    \recc{\stty[\emptyset]{v_1} \to \stty[\emptyset]{v_2}} & if
       $\lab(v) = \LFunc$,
       $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
     \\
-    \TEnd & if $\lab(v) = \LEnd$ \\
-    \TUnit & if $\lab(v) = \LUnit$ \\
+    \SEnd & if $\lab(v) = \LEnd$ \\
+    \SUnit & if $\lab(v) = \LUnit$ \\
   \end{cases*}
 \]
 %
@@ -228,7 +230,7 @@ end we define the notion of duality relations.
 \end{definition}
 
 \begin{lemma}
-  Given two dual nodes $u,v$ then $\overline{\stty{u}} = \stty{v}$.
+  Given two dual nodes $u,v$ then $\recc{\overline{\stty{u}}} = \stty{v}$.
 \end{lemma}
 \begin{proof}
   \js{TODO}
@@ -320,7 +322,7 @@ $\typec{!P.\TEnd}$.
 
 \begin{lstlisting}[
   float,
-  caption={Supporting protocols used in the translation to algebraic protocols.},
+  caption={Auxiliary protocols used in the translation to algebraic protocols.},
   label=lst:translation-protocols,
   emph={Eps,Seq,Rep},
   frame=single
@@ -336,7 +338,7 @@ $\TPApp{\TPApp{\PSeq}{p}}{q}$ sequences two protocols $\typec p$ and $\typec
 q$, and $\TPApp\PRep p$ repeats protocol $\typec p$ ad infinitum. They are used
 to encode recursive session types that do not contain branch or choice
 constructors. For example, the session type the session type
-$S_{\rightleftharpoons} = \mu\alpha.\SSend\TInt\SRecv\TInt\alpha$ will be
+$S_{\rightleftharpoons} = \recc{\SRec\SSend\TInt\SRecv\TInt\alpha}$ will be
 encoded as
 $\typec{!\TPApp\PRep{(\TPApp{\TPApp\PSeq{\ppos\TInt}}{(\TPApp{\TPApp\PSeq{\pneg\TInt}}{\PEps})})}.\TEnd}$.
 
@@ -372,6 +374,8 @@ is suitably labelled.
 \end{align*}
 
 \begin{figure}
+  \newcommand\ToAlgTyProtoClause{\typec{! \ppm{} \ToAlgProto{v,\{v'\mapsto 0\mid v'\in V\}} .\TEnd}}
+  \small
   \begin{align*}
     \ToAlgTy{v} &= \begin{cases*}
       \TUnit & if
@@ -381,19 +385,22 @@ is suitably labelled.
         $\lab(v) = \LFunc$,
         $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$,
       \\
-      \typec{! \ppm{} \ToAlgProto{v,\{v'\mapsto 0\mid v'\in V\}} .\TEnd}
+      \TEnd & if
+        $\lab(v) = \LEnd$
+      \\
+      \ToAlgTyProtoClause
         & if $\lab(v)\in\LS$, ${\ppm{}} = \ToAlgPM{v}$
       \\
     \end{cases*}
-    \\
+    \\[\abovedisplayskip]
     \ToAlgProto{v,\ToAlgSeen} &= \begin{cases*}
       \ToAlgStep{v,\ToAlgUpdate v 1} & if $\ToAlgSeen(v) = 0$ \\
       \PRep\ \ToAlgStep{v,\ToAlgUpdate v 2} & if $\ToAlgSeen(v) = 1$ \\
-      \PEps & if $\ToAlgSeen(v) = 2$
+      \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause} & if $\ToAlgSeen(v) = 2$
     \end{cases*}
-    \\
+    \\[\abovedisplayskip]
     \ToAlgStep{v,\ToAlgSeen} &= \begin{cases*}
-      \PEps
+      \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause}
         & if $\lab(v) = \LEnd$ \\
       \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgProto{v_2,\ToAlgSeen}
         & if $\lab(v) \in \{\LSend,\LRecv\}$,
@@ -452,3 +459,23 @@ The protocol $\PDispatch$ is defined as
   For all pairs of session type nodes $u,v$ it holds that $u$ and $v$ are dual
   nodes if and only if $\Normal[-]{\ToAlgTy{u}}=\Normal[+]{\ToAlgTy{v}}$.
 \end{lemma}
+
+
+\subsection{Expressions and processes}
+
+After having specified how the type language of end-recursive session types can
+be embedded in algebraic protocols we now tackle the translation of expressions
+and processes. The translation mainly needs to insert additional $\selectk$ and
+$\matchk$ statements to handle the auxiliary protocols introduced by the type
+translation.
+
+Due to the way session types are translated a $\appe \selectk \CSeq$ or
+corresponding $\matchk$ must be inserted in front of each $\sendk$ and
+$\receivek$. Already existing $\selectk$ and $\matchk$ operations correspond
+directly to their counterparts on the $\PDispatch$ protocol. Since $\SEnd$ is
+translated to itself but $\SSend\SInt\SEnd$ is translated to
+$\typec{!\TPApp{\TPApp\PSeq\TInt}{\PEps}.\TEnd}$ which leaves
+$\typec{!\PEps.\TEnd}$ after the communication step $\selectk$ and $\matchk$
+statements must be introduced to deal with $\PEps$ protocols. Similar handling
+is necessary for non-branching recursive session types like
+$\SRec\SSend\SInt\recc\alpha$.
