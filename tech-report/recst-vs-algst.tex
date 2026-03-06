@@ -1,5 +1,7 @@
 \section{Modelling Recursive Session Types via Algebraic Protocols}
 
+\newcommand*\BlkFunction[2]{\blk{#1\ifstrempty{#2}{}{(#2)}}}
+
 \newcommand*\lab{\mathscr{L}}
 \newcommand*\LSend{{!}}
 \newcommand*\LRecv{{?}}
@@ -12,12 +14,26 @@
 \newcommand*\LS{L^S}
 \newcommand*\Lone{1}
 \newcommand*\Ltwo{2}
-\newcommand*\ConSet{\mathcal{C}}
 \newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
 \newcommand*\notrans{\,{\nrightarrow}}
-\newcommand*\stlts{(V,L,\longrightarrow,v_0,\lab)}
+\newcommand*\stlts[1][]{(V,L,\longrightarrow_{#1},\lab)}
 \newcommand*\stty[2][\eta]{\llbracket #2 \rrbracket_{#1}}
-\newcommand*\algty{\mathcal{T}}
+
+\newcommand*\ToAlgName[1]{\textup{\scshape #1}}
+\newcommand*\ToAlgPM{\BlkFunction{\ToAlgName{pol}}}
+\newcommand*\ToAlgTy[1][]{\BlkFunction{\ToAlgName{ty}_{#1}}}
+\newcommand*\ToAlgProto[1][\ppm{}]{\BlkFunction{\ToAlgName{proto}^{#1}}}
+\newcommand*\ToAlgStep[1][\ppm{}]{\BlkFunction{\ToAlgName{step}^{#1}}}
+
+\newcommand*\ToAlgSeen{\uptheta}
+\newcommand*\ToAlgUpdate[3][\ToAlgSeen]{#1[#2 \coloneq #3]}
+
+\newcommand*\centeronequals[1]{\ooalign{%
+    \hfil #1\hfil\cr
+    \phantom{${}={}$}%
+}}
+
+\newcommand*\DualRel{\mathrel{\mathcal{D}}}
 
 \newcommand*\typeset[1]{\mathscr{T}(#1)}
 
@@ -51,12 +67,12 @@ system (LTS) $\stlts$ where $V$ is a set of nodes or states, $L$ is the set of
 transition labels containing at least $\Lone,\Ltwo\in L$, and ${\sttrans{}}
 \subseteq V\times L\times V$ the transition relation. We may write
 $v\sttrans\ell v'$ for $(v,\ell,v')\in{\sttrans{}}$, and $v\notrans$ if there
-are no $\ell,v'$ such that $v\sttrans\ell v'$. There is a designated initial
-state $v_0\in V$. The labelling function $\lab:V\to \LSet$ assigns a label to
-every state. The subset $\LS = \{\LBranch,\LChoice,\LSend,\LRecv,\LEnd\}$ is
-called the set of session type labels. A node $v\in V$ with $\lab(v)\in\LS$ is
-called a session type node. The transition relation must be consistent with the
-transition relation. Every node $v\in V$ must satisfy the conditions below.
+are no $\ell,v'$ such that $v\sttrans\ell v'$. The labelling function
+$\lab:V\to \LSet$ assigns a label to every state. The subset $\LS =
+\{\LBranch,\LChoice,\LSend,\LRecv,\LEnd\}$ is called the set of session type
+labels. A node $v\in V$ with $\lab(v)\in\LS$ is called a session type node. The
+transition relation must be consistent with the transition relation. Every node
+$v\in V$ must satisfy the conditions below.
 %
 \begin{enumerate}
   %
@@ -84,14 +100,14 @@ transition relation. Every node $v\in V$ must satisfy the conditions below.
   %
 \end{enumerate}
 %
-Requirement (\ref{tylts:cycles}) restricts the kind of cycles that may appear.
+Requirement (\ref{tylts:cycles}) restricts the kind of cycles that may occur.
 The only cycles that are allowed must consists solely of session type nodes and
 the transition labels must not be $\Lone$. The restriction serves two goals:
 only sessions types are allowed to be recursive and we avoid the dualization
 paradox where recursive session types use recursion variables in the payload of
 messages~\citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}.
 
-Given an LTS $(V,L,\sttrans{},v_0)$ the function $\stty{{\,\cdot\,}}$ produces
+Given an LTS $\stlts$ the function $\stty{{\,\cdot\,}}$ produces
 a type with the grammar below. In particular, if $\lab(v)\in\LS$ for some $v\in
 V$, the result of $\stty{v}$ is a type according to the grammar $S$.
 %
@@ -114,13 +130,13 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
     v & if
       $v \in \eta$
     \\
-    \mu v. \SBranchChoice\star*{{\ell: \stty[\eta\cup\{v\}]{v'}}}_{\ell\in\ConSet'} & if
+    \mu v. \SBranchChoice\star*{{\ell: \stty[\eta\cup\{v\}]{v'}}}_{\ell\in I} & if
       %$\eta(v)\uparrow$,
       $v \not\in \eta$,
       $\star = \lab(v) \in \{\LBranch,\LChoice\}$,
       %$\alpha$ fresh,
       %for all $\ell,v'$ with $v \sttrans\ell v'$
-      $\ConSet' = \{ \ell\in\ConSet \mid \exists v'\!.\, v \sttrans\ell v' \}$
+      $I = \{ \ell\in L \mid \exists v'\!.\, v \sttrans\ell v' \}$
     \\
     \mu v. \SSendRecv\sharp{\stty[\emptyset]{v_1}} \stty[\eta\cup\{v\}]{v_2} & if
       %$\eta(v)\uparrow$,
@@ -133,8 +149,8 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
       $\lab(v) = \LFunc$,
       $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
     \\
-    \TEnd & if
-      $\lab(v) = \LEnd$
+    \TEnd & if $\lab(v) = \LEnd$ \\
+    \TUnit & if $\lab(v) = \LUnit$ \\
   \end{cases*}
 \]
 %
@@ -171,6 +187,60 @@ respectively.
 \end{proof}
 
 
+\subsection{Duality}
+
+We need a way to identify nodes in the LTS that represent dual types. To this
+end we define the notion of duality relations.
+
+\begin{definition}
+  Given an LTS $\stlts$ a relation ${\DualRel} \subseteq V\times V$ is a
+  \emph{duality relation} if for any two nodes $u,v \in V$ with $u\DualRel v$
+  it holds that
+
+  \begin{enumerate}
+    \item\label{dual-rel/labels} $\{\lab(u),\lab(v)\} \in \{ \{\LSend,\LRecv\},
+      \{\LChoice,\LBranch\} \}$
+    \item\label{dual-rel/u2v} $u \sttrans\ell u'$ for $\ell\in
+      L\setminus\{\Lone\}$ implies $v \sttrans\ell v'$ such that $u' \DualRel
+      v'$
+    \item\label{dual-rel/v2u} $v \sttrans\ell v'$ for $\ell\in
+      L\setminus\{\Lone\}$ implies $u \sttrans\ell u'$ such that $u' \DualRel
+      v'$
+    \item\label{dual-rel/one} $u\sttrans\Lone w$ if and only if $v\sttrans\Lone
+      w$ \js{this formulation requires a form of uniqueness for nodes}
+  \end{enumerate}
+\end{definition}
+
+\begin{lemma}
+  Any duality relation ${\DualRel}$ is symmetric.
+\end{lemma}
+\begin{proof}
+  If requirements (\ref{dual-rel/labels}) and
+  (\ref{dual-rel/one}) are satisfied they will also be trivially satisfied in
+  the symmetric case. Condition (\ref{dual-rel/u2v}) guarantees the condition
+  (\ref{dual-rel/v2u}) is satisfied for the symmetric case and vice versa.
+\end{proof}
+
+\begin{definition}
+  Given an LTS $\stlts$, two nodes session type nodes $u,v\in V$ are called
+  \emph{dual} if there exists a duality relation ${\DualRel}$ such that
+  $u\DualRel v$.
+\end{definition}
+
+\begin{lemma}
+  Given two dual nodes $u,v$ then $\overline{\stty{u}} = \stty{v}$.
+\end{lemma}
+\begin{proof}
+  \js{TODO}
+\end{proof}
+
+\begin{definition}
+  An LTS is called \emph{uniquely labelled} if for every pair of nodes $u,v$
+  ($u\ne v$) the existence of a transition label $\ell\not\in \{\Lone,\Ltwo\}$
+  such that $u \sttrans\ell u'$ and $v\sttrans\ell v'$ implies that $u$ and $v$
+  are dual nodes.
+\end{definition}
+
 \subsection{Subtyping}
 
 We define a subtyping relation on the LTS representation and prove it sound
@@ -178,13 +248,11 @@ with respect to the classical subtyping relation for session types
 \citep{DBLP:journals/acta/GayH05,DBLP:journals/jfp/GayV10}.
 
 Subtyping is defined on the transition relation of the LTS. Given two recursive
-processes $T = (V, L, \sttrans{}_T, v_0, \lab)$ and $U = (V, L,
-\sttrans{}_U, v_0, \lab)$ over the same set of nodes and labels, and with the
-same labelling function, we define $T \SubLTS U$ by
-$\SubNode{v_0}(\sttrans{}_{T}, \sttrans{}_{U})$, where $v_0$ is the
-initial node. The binary relation $\SubNode{v}(\sttrans{~}_{A},
-\sttrans{~}_{B})$ with parameter $v \in V$ is defined via a case split on the
-label of $v$.
+processes $T = \stlts[T]$ and $U = \stlts[U]$ over the same set of nodes and
+labels, and with the same labelling function, we define $T \SubLTS U$ by
+$\SubNode{v_0}(\sttrans{}_{T}, \sttrans{}_{U})$, where $v_0$ is the initial
+node. The binary relation $\SubNode{v}(\sttrans{~}_{A}, \sttrans{~}_{B})$ with
+parameter $v \in V$ is defined via a case split on the label of $v$.
 %
 \begin{itemize}
 
@@ -289,55 +357,98 @@ protocol Dispatch = ...
                   | Result -Int Eps
 \end{lstlisting}
 
-We define $\typeset\kind$ as the set of types $\typec T$ where
-$\typeAgainst T \kind$ is derivable and with $\Delta=\dots$. \js{TODO}
+The function $\ToAlgPM{}$ maps a subset of node labels into type polarities. It
+is lifted to nodes such that $\ToAlgPM{v}=\ToAlgPM{\lab(v)}$ assuming that $v$
+is suitably labelled.
+%
+\begin{align*}
+  \ToAlgPM{} &\centeronequals{$:$} \{\LSend,\LRecv,\LChoice,\LBranch\} \to \{\ppos{},\pneg{}\} \\
+  \ToAlgPM{} & = \left\{
+    \!\!\begin{array}{l@{}l@{{}\mapsto{}}l}
+      \LSend,&\LChoice & \ppos{} \\
+      \LRecv,{}&\LBranch & \pneg{} \\
+    \end{array}
+  \right.
+\end{align*}
 
-The function $\textsc{seq}^\sharp : (\{!,?\} \times \typeset\kindt)^* \to
-\typeset\kindp$ where $\sharp \in \{!,?\}$ turns a sequence of types to send or
-receive into a protocol type using the $\PSeq$ and $\PEps$ protocols.
+\begin{figure}
+  \begin{align*}
+    \ToAlgTy{v} &= \begin{cases*}
+      \TUnit & if
+        $\lab(v) = \LUnit$
+      \\
+      \TFun[] {\ToAlgTy{v_1}} {\ToAlgTy{v_2}} & if
+        $\lab(v) = \LFunc$,
+        $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$,
+      \\
+      \typec{! \ppm{} \ToAlgProto{v,\{v'\mapsto 0\mid v'\in V\}} .\TEnd}
+        & if $\lab(v)\in\LS$, ${\ppm{}} = \ToAlgPM{v}$
+      \\
+    \end{cases*}
+    \\
+    \ToAlgProto{v,\ToAlgSeen} &= \begin{cases*}
+      \ToAlgStep{v,\ToAlgUpdate v 1} & if $\ToAlgSeen(v) = 0$ \\
+      \PRep\ \ToAlgStep{v,\ToAlgUpdate v 2} & if $\ToAlgSeen(v) = 1$ \\
+      \PEps & if $\ToAlgSeen(v) = 2$
+    \end{cases*}
+    \\
+    \ToAlgStep{v,\ToAlgSeen} &= \begin{cases*}
+      \PEps
+        & if $\lab(v) = \LEnd$ \\
+      \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgProto{v_2,\ToAlgSeen}
+        & if $\lab(v) \in \{\LSend,\LRecv\}$,
+           $v \sttrans{\Lone} v_1$,
+           $v \sttrans{\Ltwo} v_2$
+        \\
+      \ppm{}\ToAlgPM{v}\PDispatch[I]
+        & if $\lab(v) \in \{\LChoice,\LBranch\}$,
+          $ I = \{\ell\in L \mid \exists v'\!.\,v \sttrans\ell v'\}$
+    \end{cases*}
+  \end{align*}
+  \caption{Translation functions}
+  \label{fig:translation-functions}
+\end{figure}
+
+Nodes in the LTS are translated to algebraic types through the three mutually
+recursive functions $\ToAlgTy{}$, $\ToAlgProto{}$, $\ToAlgStep{}$ defined in
+\cref{fig:translation-functions}. $\ToAlgTy{}$ is the main entry point. The
+latter two functions translate session types to algebraic protocols. A call to
+$\ToAlgTy{}$ always terminates because the only cycles in the LTS must be
+through session types nodes. The call to $\ToAlgProto{}$ always terminates
+because it terminates at the latest when a node is encountered for the third
+time.
+
+The protocol $\PDispatch$ is defined as
 %
 \[
-  \textsc{seq}^\sharp(x) = \begin{cases*}
-    \PEps & if $x$ is the empty sequence \\
-    \TPApp{\TPApp \PSeq {\phantom{\pneg{}}T}}{\textsc{seq}^\sharp(x')}
-      & if $x=(\sharp,\typec T)x'$ \\
-    \TPApp{\TPApp \PSeq {\pneg T}}{\textsc{seq}^\sharp(x')}
-      & if $x=(\sharp',\typec T)x'$ where $\sharp\ne\sharp'$
-  \end{cases*}
+  \protocolk\ \PDispatch = \left\{
+    \termc{\constr_\ell}\ \cramped{\ToAlgProto[\ToAlgPM{v}]{v'}} \;\middle|\;
+    v,v' \in V,\ \ell\in L\setminus\{\Lone,\Ltwo\},\ %
+    v\sttrans\ell v'
+  \right\}
 \]
 
-\[
-  \algty(v) = \begin{cases*}
-    \TFun[] {\algty(v_1)} {\algty(v_2)} & if
-      $\lab(v) = \LFunc$,
-      $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$,
-    \\
-    \typec{\sharp \TPApp\PRep T.\TEnd} & if
-      $v_1 \sttrans\Ltwo \cdots v_n \sttrans\Ltwo v_1$ with $v=v_1, \sharp=\lab(v)$
-    \\& \quad and for all $1 \leq i \leq n$: $v_i\sttrans\Lone v'_i$
-    \\& \quad such that $\typec T = \cramped{\textsc{seq}^\sharp}((\lab(v_1), \algty(v'_1))\dots(\lab(v_n), \algty(v'_n)))$
-    \\
-    \typec{\sharp \algty(v_1) . \algty(v_2)} & if
-      $\sharp = \lab(v) \in \{\LSend,\LRecv\}$,
-      $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
-    \\
-    \typec{\sharp \PDispatch[I].\TEnd} & if
-      $\lab(v) \in \{\LChoice,\LBranch\}$ with
-        $\sharp=\typec ! \Leftrightarrow \lab(v) = \LChoice$,
-        $\sharp=\typec ? \Leftrightarrow \lab(v) = \LBranch$
-    \\& \quad where $I = \{\ell\in L \mid \exists v'. v\sttrans\ell v'\}$
-  \end{cases*}
-\]
+\begin{lemma}[Well-formedness of generated types]\
+  \begin{enumerate}
+    \item For all $v\in V$ it is derivable that $\typeAgainst {\ToAlgTy{v}}
+      \kindt$. In particular, $\lab(v) \in \LS$ implies $\typeAgainst
+      {\ToAlgTy{v}} \kinds$ is derivable.
+    \item For all $v\in V$ where $\lab(v)\in\LS$ and all $\ToAlgSeen : V \to
+      \{0,1,2\}$ it is derivable that $\typeAgainst {\ToAlgProto{v,\ToAlgSeen}}
+      \kindp$ and $\typeAgainst {\ToAlgStep{v,\ToAlgSeen}} \kindp$.
+  \end{enumerate}
+  In either case it is assumed that $\Delta$ contains at least the protocol
+  definitions for $\PEps$, $\PSeq$, $\PRep$, $\PDispatch$.
+\end{lemma}
 
-A further complication in the translation to algebraic types arises from the
-need to preserve duality. Take, for example, the recursive session type
-$S_\rightleftharpoons$ from before again. \js{TODO}
+\begin{lemma}
+  Given two LTS $A=\stlts[A]$ and $B=\stlts[B]$ defined over the same set of
+  nodes, transition labels, and the same labelling function, for all $v\in V$
+  it holds that $\SubNode v(\sttrans{}_A,\sttrans{}_B)$ if and only if
+  $\ToAlgTy[A]{v} \subt \ToAlgTy[B]{v}$.
+\end{lemma}
 
-Given an LTS $\stlts$ to determine the type of some node $v\in V$ we
-differentiate three major cases. If $v$ is part of a cycle $v \sttrans\Ltwo v_1
-\sttrans\Ltwo \cdots v_n \sttrans\Ltwo v$ all nodes must be labelled by
-elements from $\{\LSend,\LRecv\}$. The translation uses the $\PRep$ protocol
-in combination with $\PSeq$ to encode the recursive session type. If $v$ is
-part of some other cycle at least one node must be labelled either $\LBranch$
-or $\LChoice$. The recursive nature is encoded through a global $\PDispatch$
-protocol synthesized by the translation. If $v$ is not part of a cycle \dots
+\begin{lemma}
+  For all pairs of session type nodes $u,v$ it holds that $u$ and $v$ are dual
+  nodes if and only if $\Normal[-]{\ToAlgTy{u}}=\Normal[+]{\ToAlgTy{v}}$.
+\end{lemma}

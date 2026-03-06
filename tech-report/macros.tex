@@ -137,7 +137,7 @@
 \newcommand\PRep{\types{Rep}}
 \newcommand\PSeq{\types{Seq}}
 \newcommand\PEps{\types{Eps}}
-\newcommand\PDispatch{\types{Dispatch}}
+\NewDocumentCommand\PDispatch{o}{\typec{\types{Dispatch}\IfValueT{#1}{[#1]}}}
 
 % EXPRESSIONS
 \newcommand{\exps}[1]{\termc{\syntax{#1}}}
