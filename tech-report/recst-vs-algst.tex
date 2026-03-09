@@ -8,16 +8,18 @@
 \newcommand*\LFunc{{\to}}
 \newcommand*\LEnd{\syntax{End}}
 \newcommand*\LUnit{\syntax{Unit}}
+\newcommand*\LInt{\syntax{Int}}
 \newcommand*\LBranch{{\&}}
 \newcommand*\LChoice{{+}}
-\newcommand*\LSet{\{\LBranch,\LChoice,\LSend,\LRecv,\LEnd,\LUnit,\LFunc\}}
-\newcommand*\LS{L^S}
+\newcommand*\labset{\mathcal{L}}
+\newcommand*\labsetS{\labset^S}
+\newcommand*\labsetB{\labset^B}
 \newcommand*\Lone{1}
 \newcommand*\Ltwo{2}
 \newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
 \newcommand*\notrans{\,{\nrightarrow}}
 \newcommand*\stlts[1][]{(V,L,\longrightarrow_{#1},\lab)}
-\newcommand*\stty[2][\eta]{\blk{\llbracket #2 \rrbracket_{#1}}}
+\newcommand*\stty[2][\eta]{\blk{\llbracket #2 \rrbracket}_{\blk{#1}}}
 
 \newcommand*\ToAlgName[1]{\textup{\scshape #1}}
 \newcommand*\ToAlgPM{\BlkFunction{\ToAlgName{pol}}}
@@ -70,16 +72,18 @@ transition labels containing at least $\Lone,\Ltwo\in L$, and ${\sttrans{}}
 \subseteq V\times L\times V$ the transition relation. We may write
 $v\sttrans\ell v'$ for $(v,\ell,v')\in{\sttrans{}}$, and $v\notrans$ if there
 are no $\ell,v'$ such that $v\sttrans\ell v'$. The labelling function
-$\lab:V\to \LSet$ assigns a label to every state. The subset $\LS =
-\{\LBranch,\LChoice,\LSend,\LRecv,\LEnd\}$ is called the set of session type
-labels. A node $v\in V$ with $\lab(v)\in\LS$ is called a session type node. The
-transition relation must be consistent with the transition relation. Every node
-$v\in V$ must satisfy the conditions below.
+$\lab:V\to\labset$ assigns a label to every state. The set of state labels must
+comprise at least the so called set of session type labels $\labset \supset
+\labsetS = \{\LSend,\LRecv,\LChoice,\LBranch,\LEnd\}$ and the function arrow
+$\LFunc\in\labset$. The set of base type labels $\labsetB$ is defined as the
+set of remaining labels $\labsetB = \labset \setminus \labsetS \setminus
+\{\LFunc\}$. Typical candidates for the set of base types are, for example
+$\LUnit$ or $\LInt$. Every node $v\in V$ must satisfy the conditions below.
 %
 \begin{enumerate}
   %
-  \item \label{tylts:arity0} If $\lab(v) \in \{\LEnd,\LUnit\}$ it must hold
-    that $v\notrans$.
+  \item \label{tylts:arity0} If $\lab(v) = \LEnd$ or $\lab(v) \in \labsetB$
+    it must hold that $v\notrans$.
   %
   \item \label{tylts:arity2} If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there
     must be $v_1,v_2\in V$ with $v \sttrans\Lone v_1$ and $v \sttrans\Ltwo
@@ -90,12 +94,12 @@ $v\in V$ must satisfy the conditions below.
     transition $v\sttrans\ell v'$, and for all transitions $v \sttrans{\ell'}
     v''$ it must hold that $\ell'\not\in\{1,2\}$.
   %
-  \item If $\lab(v)\in\LS$, for all $v\sttrans\ell v'$ with $\ell \ne \Lone$ it
-    must hold that $\lab(v')\in\LS$.
+  \item If $\lab(v)\in\labsetS$, for all $v\sttrans\ell v'$ with $\ell \ne
+    \Lone$ it must hold that $\lab(v')\in\labsetS$.
   %
   \item \label{tylts:cycles} If there is a cycle $v \sttrans{\ell} v_1
     \sttrans{\ell_1} \cdots v_n \sttrans{\ell_n} v_1$ it must hold that
-    $\lab(v)\in\LS$ and $\ell\ne\Lone$.
+    $\lab(v)\in\labsetS$ and $\ell\ne\Lone$.
   %
   \item If $v\sttrans\ell v'$ and $v\sttrans\ell v''$ it must hold that
     $v'=v''$.
@@ -109,9 +113,11 @@ only sessions types are allowed to be recursive and we avoid the dualization
 paradox where recursive session types use recursion variables in the payload of
 messages~\citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}.
 
-Given an LTS $\stlts$ the function $\stty{{\,\cdot\,}}$ produces
-a type with the grammar below. In particular, if $\lab(v)\in\LS$ for some $v\in
-V$, the result of $\stty{v}$ is a type according to the grammar $S$.
+Given an LTS $\stlts$ the function $\stty{{\,\cdot\,}}$ produces a type with
+the grammar below. In particular, if $\lab(v)\in\labsetS$ for some $v\in V$,
+the result of $\stty{v}$ is a type according to the grammar $S$. To
+differentiate the translation functions for two transition systems $A$ and $B$
+we may write $\stty{{\,\cdot\,}}^A$ and $\stty{{\,\cdot\,}}^B$ respectively.
 %
 \begin{align*}
   %
@@ -122,8 +128,8 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
 \end{align*}
 %
 % $\eta$ is a partial function from nodes to recursion variables. We write
-% $\eta(v)\downarrow$ if $\eta$ is defined at $v$, and $\eta(v)\uparrow$ if not.
-% $\emptyset$ denotes the function that is not defined at any point and
+% $\eta(v)\downarrow$ if $\eta$ is defined at $v$, and $\eta(v)\uparrow$ if
+% not. $\emptyset$ denotes the function that is not defined at any point and
 % $\eta[v\mapsto\alpha]$ the partial function defined as $\alpha$ at point $v$
 % and defined according to $\eta$ at any other point.
 
@@ -152,19 +158,19 @@ V$, the result of $\stty{v}$ is a type according to the grammar $S$.
       $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
     \\
     \SEnd & if $\lab(v) = \LEnd$ \\
-    \SUnit & if $\lab(v) = \LUnit$ \\
+    \lab(v) & if $\lab(v) \in \labsetB$ \\
   \end{cases*}
 \]
 %
-To differentiate the translation functions for two transition systems $A$ and
-$B$ we may write $\stty{{\,\cdot\,}}^A$ and $\stty{{\,\cdot\,}}^B$
-respectively.
+In the last clause of we assume that every base type label corresponds to a
+valid base type. This assumption is reasonable for choices like $\LUnit$ or
+$\LInt$.
 
 \begin{lemma}
   %
   The types produced by $\stty{\,\cdot\,}$ are well-formed, that is every type
   is contractive and formed according to the grammar $T$. An argument with a
-  label in $\LS$ forms a type according to the grammar $S$.
+  label in $\labsetS$ forms a type according to the grammar $S$.
  %
 \end{lemma}
 %
@@ -316,8 +322,8 @@ because it admits no transitions.
 This section describes how a recursive session type is translated to a valid
 protocol type. The types are assumed to be available in their LTS
 representation described previously. A node in the LTS labelled by an element
-of $\LS$ is translated to a protocol type. Other nodes are translated to types
-of kind $\kindm$ by embedding protocol type $\typec P$ as session types
+of $\labsetS$ is translated to a protocol type. Other nodes are translated to
+types of kind $\kindt$ by embedding protocol type $\typec P$ as session types
 $\typec{!P.\TEnd}$.
 
 \begin{lstlisting}[
@@ -378,8 +384,8 @@ is suitably labelled.
   \small
   \begin{align*}
     \ToAlgTy{v} &= \begin{cases*}
-      \TUnit & if
-        $\lab(v) = \LUnit$
+      \lab(v) & if
+        $\lab(v) \in \labsetB$
       \\
       \TFun[] {\ToAlgTy{v_1}} {\ToAlgTy{v_2}} & if
         $\lab(v) = \LFunc$,
@@ -389,7 +395,7 @@ is suitably labelled.
         $\lab(v) = \LEnd$
       \\
       \ToAlgTyProtoClause
-        & if $\lab(v)\in\LS$, ${\ppm{}} = \ToAlgPM{v}$
+            & if $\lab(v)\in\labsetS\setminus\{\LEnd\}$, ${\ppm{}} = \ToAlgPM{v}$
       \\
     \end{cases*}
     \\[\abovedisplayskip]
@@ -438,9 +444,9 @@ The protocol $\PDispatch$ is defined as
 \begin{lemma}[Well-formedness of generated types]\
   \begin{enumerate}
     \item For all $v\in V$ it is derivable that $\typeAgainst {\ToAlgTy{v}}
-      \kindt$. In particular, $\lab(v) \in \LS$ implies $\typeAgainst
+      \kindt$. In particular, $\lab(v) \in \labsetS$ implies $\typeAgainst
       {\ToAlgTy{v}} \kinds$ is derivable.
-    \item For all $v\in V$ where $\lab(v)\in\LS$ and all $\ToAlgSeen : V \to
+    \item For all $v\in V$ where $\lab(v)\in\labsetS$ and all\/ $\ToAlgSeen : V \to
       \{0,1,2\}$ it is derivable that $\typeAgainst {\ToAlgProto{v,\ToAlgSeen}}
       \kindp$ and $\typeAgainst {\ToAlgStep{v,\ToAlgSeen}} \kindp$.
   \end{enumerate}
@@ -451,7 +457,7 @@ The protocol $\PDispatch$ is defined as
 \begin{lemma}
   Given two LTS $A=\stlts[A]$ and $B=\stlts[B]$ defined over the same set of
   nodes, transition labels, and the same labelling function, for all $v\in V$
-  it holds that $\SubNode v(\sttrans{}_A,\sttrans{}_B)$ if and only if
+  it holds that $\SubNode v(\sttrans{}_A,\sttrans{}_B)$ if and only if\/
   $\ToAlgTy[A]{v} \subt \ToAlgTy[B]{v}$.
 \end{lemma}
 
