@@ -56,14 +56,12 @@
   \infrule{\rulenameexpMatch}{
     %\Normal[+]{S}={\TIn{(\TPApp \proto {\overline U})}{S'}} \\
     \protocolsfull \\
+    \forall i\in I: \ \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i} \\\\
     \expSynth {\Gamma_1} e {\TIn{(\TPApp \proto {\overline U})}{S}} {\Gamma_2} \\
-    \forall i\in I: \ \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i} \text{  with  }
     \termc{x_i}\not\in\Gamma_i \\
+    \Gamma_3 =_\alpha \Gamma_i \\
     % MW
-    \hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}} \\
-    % \isEquiv{\Gamma_3}{\Gamma_i}
-    % MW
-    % \hl{{\Gamma_3} = \bigsqcup_{i \in I} {\Gamma_i}}
+    \hl{\textstyle \typec{V} = \bigsqcup_{i \in I} \typec{V_i}} \\
   }{
     \expSynth {\Gamma_1} {\matchwithe eCxeiI} {V} {\Gamma_3}
   }
