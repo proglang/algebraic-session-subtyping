@@ -16,9 +16,10 @@ are assigned to one end of a communication channel:
   type IntListS   = mualpha. oplus{Cons: !Int.alpha, Nil: EndT} -- finite sequences
   type IntStreamS = mualpha. !Int.alpha                    -- infinite sequence
 \end{lstlisting}
-In session types, the $\oplus$ constructor stands for selection: send a label like
-\lstinline|Cons| or \lstinline|Nil| and continue according to the
-chosen branch; the $!T.S$ constructor stands for sending a value of
+In session types, the $\oplus\{l_i:S_i\}$ constructor stands for
+selection: send a label $l_i$, like
+\lstinline|Cons| or \lstinline|Nil|, and continue according to the
+chosen branch $S_i$; the $!T.S$ constructor stands for sending a value of
 type $T$ and continuing the protocol according to $S$. The other end
 of the channel has the \emph{dual type} where sending and receiving ($?T.S$)
 is flipped, as well as selection and branching indicated by
@@ -28,13 +29,14 @@ Using recursive types directly is somewhat tedious as equivalence of
 equirecursive types\footnote{An equirecursive type is considered
   \emph{equal} to its unfoldings.} amounts to comparing infinite regular trees or
 reasoning up to unfolding of the recursive types. While equivalence is
-decidable in $O(n^2)$ for traditional, end-recursive session types
+decidable in $O(n^2)$ for traditional, tail-recursive session types
 (where $n$ corresponds to the size of the type), 
 the difficulty increases when considering context-free session types
 \cite{DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/Padovani17,DBLP:journals/toplas/Padovani19,DBLP:journals/corr/abs-2106-06658,
   DBLP:conf/esop/DasDMP21} where the first equivalence test was doubly
-exponential\cite{DBLP:conf/tacas/AlmeidaMV20}, though recent work indicates it might be polynomial
-($O(n^{12})$) \cite{DBLP:journals/corr/abs-2407-04063}.
+exponential\cite{DBLP:conf/tacas/AlmeidaMV20}, though recent work
+indicates it might be polynomially decidable in
+$O(n^{12})$ \cite{DBLP:journals/corr/abs-2407-04063}.
 
 Prior work proposed parameterized algebraic
 protocols \cite{DBLP:journals/pacmpl/MordidoS0V23}, where recursive
@@ -50,12 +52,74 @@ As with ADTs, the combination of recursive types with sum-of-product
 types is ``shrink wrapped'' into a nominal type. In consequence,
 deciding equivalence of protocol types takes time linear in the size
 of the type, regardless of whether the underlying protocol is
-end-recursive or context free.
+tail-recursive or context free.
 
-The prior work also gave an informal outline of an embedding of
-algebraic protocols into context-free session types, but did not offer
-a comparison with traditional, end-recursive session types. The
+The prior work gave an informal outline of an embedding of
+algebraic protocols into context-free session types, but it did not offer
+a comparison with traditional, tail-recursive session types. The
 present work fills this gap as follows.
+
+\subsection{Traditional Session Types to Algebraic Protocols}
+\label{sec:trad-sess-types}
+
+The main difficulty in translating a program with traditional session
+types (TST) to algebraic session types (AST) lies in managing the unfolding of
+equirecursive types. That is, at every point in a TST typing
+derivation we may silently apply a type conversion that unrolls a
+recursive session type $\mu\alpha.S \approx S[\mu\alpha.S /
+\alpha]$. Our translation to AST proceeds as follows.
+First, we translate \emph{all} types in a TST program in a system of
+type equations where all left hand sides are type variables and
+equations are flat, i.e., they consist of a type constructor applied
+to type variables. Here are the equation systems for our running
+examples.
+\begin{lstlisting}
+IntStreamS  alpha = !beta.alpha                   beta = Int
+IntListS    alpha = (+){Cons: beta, Nil: delta}   beta = !gamma.alpha    gamma = Int   delta = End
+\end{lstlisting}
+Such an equation system can be considered a finite automaton or a
+labeled transition system (LTS), so in a second step, we minimze this
+automaton. This minimization corresponds to equating bisimilar type
+variables, where bisimilarity corresponds to type equivalence of
+equirecursive types. Thus, after minimization two types are bisimilar
+iff they are represented by the \emph{same} type
+variable. Consequently, we can eliminate the conversion rule from
+typing as two types are now equivalent iff they are represented by the
+same type variable.
+
+The final step of the translation reads off algebraic protocols from
+the equations. To this end, we generate a decision protocol for each
+type variable with a select type or branch type (like $\alpha$ for
+\lstinline|IntListS|) and use predefined protocols for sequence, empty
+protocol, and repetition to translate sending or receiving session
+types. For \lstinline|IntListS| and \lstinline|IntStreamS|, we obtain the following algebraic protocols.
+\begin{lstlisting}
+  protocol ConsNil a b = Cons a | Nil b
+  protocol Seq a b = Seq a b              -- first a then b
+  protocol Eps = Eps                      -- empty protocol
+  protocol Repeat a = Repeat a (Repeat a) -- infinitely often a
+
+  IntListSP   = Repeat (ConsNil (Seq Int Eps) End)
+  IntStreamSP = Repeat (Seq Int Eps)
+\end{lstlisting}
+Interestingly, the resulting algebraic protocols are
+\emph{interoperable} with their TST origins. We take that to mean that
+the types are bisimilar when considered as LTS. Interoperability results
+from an innocuous change that was hinted at, but not executed in the
+prior work \cite{DBLP:journals/pacmpl/MordidoS0V23}: single
+constructor protocols do not send or receive their constructor. That
+is, the protocols \lstinline|Seq|, \lstinline|Eps|, and
+\lstinline|Repeat| are tagfree as they do not transmit a tag.
+In our example, it even holds that all three representations of the
+types are bisimilar.
+\begin{lstlisting}
+  IntListS   ~ IntListSP   ~ IntListP
+  IntStreamS ~ IntStreamSP ~ IntStreamP
+\end{lstlisting}
+
+\subsection{Subtyping for Algebraic Protocols}
+\label{sec:subtyp-algebr-prot}
+
 
 We define a subtyping relation on parameterized algebraic
 protocols. This subtyping relation is inspired by prior work on
@@ -83,7 +147,7 @@ two sets of constructors takes constant
 time\footnote{This assumption is reasonable because the number of
   constructors is usually bounded by a small constant and a set of
   constructors can be represented by a bit set.}. In comparison,
-subtyping for end-recursive session types is decidable in $O(n^2)$ and
+subtyping for tail-recursive session types is decidable in $O(n^2)$ and
 subtyping for context-free session types is undecidable
 \cite{DBLP:journals/toplas/Padovani19}. That is, restrictable
 algebraic protocols carve out a subset of context-free session types
@@ -104,10 +168,9 @@ in a program by a system $\mathcal{E}$ of equations between flat types. A flat t
 consists of a type constructor applied to type variables as in
 \lstinline{alpha->beta} or \lstinline{?alpha.beta}. 
 For example, here are the equation systems for our running examples.
-\begin{lstlisting}
-IntStreamS  alpha = !beta.alpha                   beta = Int
-IntListS    alpha = (+){Cons: beta, Nil: delta}   beta = !gamma.alpha    gamma = Int   delta = End
-\end{lstlisting}
+
+XXX
+
 A type is then a pair $\langle\alpha, \mathcal{E}\rangle$ where $\alpha$ is the left
 hand side of an equation in $\mathcal{E}$. Subsumption keeps the
 variable $\alpha$; it only changes $\mathcal{E}$ where the standard
