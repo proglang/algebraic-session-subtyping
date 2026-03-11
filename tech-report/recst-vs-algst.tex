@@ -54,6 +54,10 @@
 \newcommand*\SEnd{{\let\typec\recc\TEnd}}
 \newcommand*\SUnit{{\let\typec\recc\TUnit}}
 \newcommand*\SInt{{\let\typec\recc\TInt}}
+\newcommand*\SDual[1]{\recc{\overline{#1}}}
+
+\newcommand*\VLeq{\leq_V}
+\newcommand*\seqrotate[2]{\sigma^{#1}(#2)}
 
 This section describes how recursive session types \`a la
 \citet{DBLP:journals/jfp/GayV10} can be embedded in algebraic protocols. To
@@ -236,7 +240,7 @@ end we define the notion of duality relations.
 \end{definition}
 
 \begin{lemma}
-  Given two dual nodes $u,v$ then $\recc{\overline{\stty{u}}} = \stty{v}$.
+  Given two dual nodes $u,v$ then $\SDual{\stty{u}} = \stty{v}$.
 \end{lemma}
 \begin{proof}
   \js{TODO}
@@ -323,7 +327,7 @@ This section describes how a recursive session type is translated to a valid
 protocol type. The types are assumed to be available in their LTS
 representation described previously. A node in the LTS labelled by an element
 of $\labsetS$ is translated to a protocol type. Other nodes are translated to
-types of kind $\kindt$ by embedding protocol type $\typec P$ as session types
+types of kind $\kindt$ by embedding protocol types $\typec P$ as session types
 $\typec{!P.\TEnd}$.
 
 \begin{lstlisting}[
@@ -354,8 +358,8 @@ $\PDispatch$ protocol synthesized by the translation, and terminated by
 $\TEnd$. In this case, any recursion is ``hidden'' inside the $\PDispatch$
 protocol. The translation of whole programs only synthesizes one such protocol.
 Protocol subtyping is used to restrict the set of constructors that are
-actually valid. For example the session type $\SSend\TInt\mu\alpha. \SChoice{
-\textsf{Add}:{\SSend\TInt\alpha}, \textsf{Result}:{\SRecv\TInt\TEnd} }$ is
+actually valid. For example the session type $\SSend\SInt\SRec\SChoice{
+\textsf{Add}:{\SSend\SInt\alpha}, \textsf{Result}:{\SRecv\SInt\SEnd} }$ is
 encoded as $\typec{!\TInt.!\PDispatch[\textsf{Add},\textsf{Result}].\TEnd}$
 where $\PDispatch$ has at least the following constructors:
 %
@@ -365,9 +369,16 @@ protocol Dispatch = ...
                   | Result -Int Eps
 \end{lstlisting}
 
+For a sequence of of nodes $s = v_1,v_2,\dotsc,v_n$ the $i$-th rotation ($1\leq
+i\leq n$), written as $\seqrotate i s$, denotes the sequence
+$v_i,v_{i+1},\dotsc,v_n,v_1,\dotsc,v_{i-1}$. Given a total order on the nodes
+${\VLeq} \subseteq V \times V$ the \emph{minimal rotation} is an $1\leq i\leq
+n$ such that for any $1\leq j\leq n$ it holds that $\seqrotate i s \VLeq
+\seqrotate j s$ by lexicographically extending $\VLeq$ to sequences.
+
 The function $\ToAlgPM{}$ maps a subset of node labels into type polarities. It
-is lifted to nodes such that $\ToAlgPM{v}=\ToAlgPM{\lab(v)}$ assuming that $v$
-is suitably labelled.
+is lifted to nodes such that $\ToAlgPM{v}=\ToAlgPM{\lab(v)}$ under the
+condition that $v$ is suitably labelled.
 %
 \begin{align*}
   \ToAlgPM{} &\centeronequals{$:$} \{\LSend,\LRecv,\LChoice,\LBranch\} \to \{\ppos{},\pneg{}\} \\
