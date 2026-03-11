@@ -1,3 +1,5 @@
+{-# OPTIONS --termination-depth=1 #-}
+
 open import Data.Empty using (⊥-elim)
 -- open import Data.Fin
 open import Data.Nat using (ℕ; zero; suc; _⊔_; _≤_; s≤s; z≤n; s≤s⁻¹)
@@ -352,4 +354,3 @@ subty⇒conv {K = KP} {T₁} {T₂} T₁<:T₂ T₂<:T₁
   using N₂<:N₁ ← complete-algₚ (sizeₚ N₂ ⊔ sizeₚ N₁) T₂<:T₁ {N₁ = N₂} {N₂ = N₁} ≤-refl
   using nfT₁≡nfT₂ ← <:ₚ-pre-antisym N₁<:N₂ N₂<:N₁
   = ≡c-trns (≡c-trns (≡c-symm (nf-sound+ T₁)) (≡c-refl-eq nfT₁≡nfT₂)) (nf-sound+ T₂)
-
