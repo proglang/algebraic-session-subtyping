@@ -310,12 +310,25 @@ protocol Dispatch = ...
                   | Result -Int Eps
 \end{lstlisting}
 
-For a sequence of of nodes $s = v_1,v_2,\dotsc,v_n$ the $i$-th rotation ($1\leq
-i\leq n$), written as $\seqrotate i s$, denotes the sequence
-$v_i,v_{i+1},\dotsc,v_n,v_1,\dotsc,v_{i-1}$. Given a total order on the nodes
-${\VLeq} \subseteq V \times V$ the \emph{minimal rotation} is an $1\leq i\leq
-n$ such that for any $1\leq j\leq n$ it holds that $\seqrotate i s \VLeq
-\seqrotate j s$ by lexicographically extending $\VLeq$ to sequences.
+The translation assumes that some total order on the nodes ${\Vleq} \subseteq V
+\times V$ is given. The order is extended lexicographically to sequences of
+nodes.
+ 
+\begin{definition}[Sequence rotations]
+  %
+  For a sequence of $n$ nodes and $i$ with $1\leq i\leq$ we define
+  %
+  \[ \seqrotate i {v_1 \dots v_n} = v_i v_{i+1} \dots v_n v_1 \dots v_{i-1} \]
+  %
+\end{definition}
+ 
+\begin{definition}[Minimum rotation]
+  %
+  For a sequence $s$ of $n$ nodes the \emph{minimum rotation} is some $i$ with
+  $1 \leq i \leq n$ such that for all $j$ from the same range $\seqrotate i s
+  \Vleq \seqrotate j s$.
+  %
+\end{definition}
 
 The function $\ToAlgPM{}$ maps a subset of node labels into type polarities. It
 is lifted to nodes such that $\ToAlgPM{v}=\ToAlgPM{\lab(v)}$ under the
@@ -332,56 +345,95 @@ condition that $v$ is suitably labelled.
 \end{align*}
 
 \begin{figure}
-  \newcommand\ToAlgTyProtoClause{\typec{! \ppm{} \ToAlgProto{v,\{v'\mapsto 0\mid v'\in V\}} .\TEnd}}
   \small
   \begin{align*}
     \ToAlgTy{v} &= \begin{cases*}
-      \lab(v) & if
-        $\lab(v) \in \labsetB$
+      \lab(v) & if $\lab(v) \in \labsetB$ or $\lab(v) = \LEnd$
       \\
       \TFun[] {\ToAlgTy{v_1}} {\ToAlgTy{v_2}} & if
         $\lab(v) = \LFunc$,
-        $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$,
+        $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
       \\
-      \TEnd & if
-        $\lab(v) = \LEnd$
-      \\
-      \ToAlgTyProtoClause
+      \typec{! \ppm{} \ToAlgSeq{\ToAlgCollect{v,\ToAlgSeenNil}}.\TEnd}
             & if $\lab(v)\in\labsetS\setminus\{\LEnd\}$, ${\ppm{}} = \ToAlgPM{v}$
       \\
     \end{cases*}
     \\[\abovedisplayskip]
-    \ToAlgProto{v,\ToAlgSeen} &= \begin{cases*}
-      \ToAlgStep{v,\ToAlgUpdate v 1} & if $\ToAlgSeen(v) = 0$ \\
-      \PRep\ \ToAlgStep{v,\ToAlgUpdate v 2} & if $\ToAlgSeen(v) = 1$ \\
-      \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause} & if $\ToAlgSeen(v) = 2$
+%   \ToAlgProto{v,\ToAlgSeen} &= \begin{cases*}
+%     \ToAlgStep{v,\ToAlgUpdate v 1} & if $\ToAlgSeen(v) = 0$ \\
+%     \PRep\ \ToAlgStep{v,\ToAlgUpdate v 2} & if $\ToAlgSeen(v) = 1$ \\
+%     \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause} & if $\ToAlgSeen(v) = 2$
+%   \end{cases*}
+%   \\[\abovedisplayskip]
+%   \ToAlgStep{v,\ToAlgSeen} &= \begin{cases*}
+%     \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause}
+%       & if $\lab(v) = \LEnd$ \\
+%     \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgProto{v_2,\ToAlgSeen}
+%       & if $\lab(v) \in \{\LSend,\LRecv\}$,
+%          $v \sttrans{\Lone} v_1$,
+%          $v \sttrans{\Ltwo} v_2$
+%       \\
+%     \ppm{}\ToAlgPM{v}\PDispatch[I]
+%       & if $\lab(v) \in \{\LChoice,\LBranch\}$,
+%         $ I = \{\ell\in L \mid \exists v'\!.\,v \sttrans\ell v'\}$
+%   \end{cases*}
+%   \\[\abovedisplayskip]
+    \ToAlgCollect{v,x} &= \begin{cases*}
+      (xv_1\dots v_{j-1}, v_j\dots v_nv_1\dots v_{j-1})
+        & if $v_1\sttrans\Ltwo \cdots v_n\sttrans\Ltwo v_1$ where $\forall i.\, v_i = v \Leftrightarrow i=1$ \\
+        & where $i$ is the minimal rotation of $v_1\dots v_n$\\
+      (x, \ToAlgSeenNil)
+        & else if $\lab(v) = \LEnd$ \\
+      (xv, \ToAlgSeenNil)
+        & else if $\lab(v) \in \{\LChoice,\LBranch\}$ \\
+      \ToAlgCollect{v_2,xv}
+        & else if $\lab(v) \in \{\LSend,\LRecv\}, v\sttrans\Ltwo v_2$ \\
     \end{cases*}
     \\[\abovedisplayskip]
-    \ToAlgStep{v,\ToAlgSeen} &= \begin{cases*}
-      \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause}
-        & if $\lab(v) = \LEnd$ \\
-      \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgProto{v_2,\ToAlgSeen}
-        & if $\lab(v) \in \{\LSend,\LRecv\}$,
-           $v \sttrans{\Lone} v_1$,
-           $v \sttrans{\Ltwo} v_2$
-        \\
+    \ToAlgSeq{x,y} &= \begin{cases*}
+      \xmathstrut[0]{.1}\PEps
+        & if $x=y=\ToAlgSeenNil$ \\
+      \PRep\ \ToAlgSeq{y,\ToAlgSeenNil}
+        & if $x=\ToAlgSeenNil, y\ne\ToAlgSeenNil$ \\
+      \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgSeq{x',y}
+        & if $x=vx'$, $\lab(v)\in\{\LSend,\LRecv\}$, $v\sttrans\Lone v_1$ \\
       \ppm{}\ToAlgPM{v}\PDispatch[I]
-        & if $\lab(v) \in \{\LChoice,\LBranch\}$,
-          $ I = \{\ell\in L \mid \exists v'\!.\,v \sttrans\ell v'\}$
+        & if $x=vx'$, $\lab(v) \in \{\LChoice,\LBranch\}$,
+          $I = \{\ell\in L \mid \exists v'\!.\,v \sttrans\ell v'\}$
     \end{cases*}
+%   \\[\abovedisplayskip]
+%   \ToAlgCons{v, (x,y)} &= \begin{cases*}
+%     (x,y) & if $v\in y$ \\
+%     (vx, y) & if $v\not\in y$
+%   \end{cases*}
   \end{align*}
   \caption{Translation functions}
   \label{fig:translation-functions}
 \end{figure}
 
-Nodes in the LTS are translated to algebraic types through the three mutually
-recursive functions $\ToAlgTy{}$, $\ToAlgProto{}$, $\ToAlgStep{}$ defined in
-\cref{fig:translation-functions}. $\ToAlgTy{}$ is the main entry point. The
-latter two functions translate session types to algebraic protocols. A call to
-$\ToAlgTy{}$ always terminates because the only cycles in the LTS must be
-through session types nodes. The call to $\ToAlgProto{}$ always terminates
-because it terminates at the latest when a node is encountered for the third
-time.
+Nodes in the LTS are translated to algebraic types through $\ToAlgTy{}$ and its
+mutually recursive helpers defined in \cref{fig:translation-functions}. As with
+the translation of graph nodes to end-recursive session types we assume that
+any base type label corresponds to a valid algebraic base type such as, for
+example, $\TInt$. Nodes labelled $\LEnd$ are translated to $\TEnd$.
+$\LFunc$-labelled nodes are turned into function types by translating domain
+and codomain recursively. Because the LTS may not contain any cycles involving
+non-session type nodes these recursive calls are guaranteed to terminate
+(assuming the last case of $\ToAlgTy{}$, discussed next, is are guaranteed to
+terminate as well).
+
+The translation of session types is more involved. The main complication arises
+from the need to translate recursive session types not involving choice or
+branch constructors into some canonical form. We call recursive session types
+of the form $\recc{\SRec\sharp_1 T_1.\dotsc\sharp_n T_n.\alpha}$ (where
+$\forall i.\,\sharp_i \in \{\recc!, \recc?\}$) \emph{linearly recursive.} A
+linearly recursive session type corresponds to a cycle in the LTS
+representation. The translation must ensure that the type of node $v$ after $n$
+communication operations is equivalent to the type generated for the node $n$
+steps further along the cycle. To this end, the nodes of such linear cycles are
+processed as a sequence into a canonical form through a minimum rotation.
+
+\js{more explanation}
 
 The protocol $\PDispatch$ is defined as
 %

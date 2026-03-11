@@ -279,8 +279,12 @@
 \newcommand*\ToAlgTy[1][]{\BlkFunction{\ToAlgName{ty}_{#1}}}
 \newcommand*\ToAlgProto[1][\ppm{}]{\BlkFunction{\ToAlgName{proto}^{#1}}}
 \newcommand*\ToAlgStep[1][\ppm{}]{\BlkFunction{\ToAlgName{step}^{#1}}}
+\newcommand*\ToAlgCollect{\BlkFunction{\ToAlgName{collect}}}
+\newcommand*\ToAlgSeq[1][\ppm{}]{\BlkFunction{\ToAlgName{seq}^{#1}}}
+\newcommand*\ToAlgCons[1][\ppm{}]{\BlkFunction{\ToAlgName{cons}}}
 
 \newcommand*\ToAlgSeen{\uptheta}
+\newcommand*\ToAlgSeenNil{\varepsilon}
 \newcommand*\ToAlgUpdate[3][\ToAlgSeen]{#1[#2 \coloneq #3]}
 \newcommand*\seqrotate[2]{\sigma^{#1}(#2)}
 
@@ -495,7 +499,7 @@
 % Subtyping between end-recursive session types.
 \newcommand\SubST{\leq}
 % Ordering between nodes in an LTS.
-\newcommand*\VLeq{\leq_V}
+\newcommand*\Vleq{\leq_V}
 
 % Typesets its arguments centered in a box typeset with the width of an equals sign.
 \newcommand*\centeronequals[1]{\ooalign{%
