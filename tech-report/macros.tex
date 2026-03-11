@@ -8,6 +8,9 @@
 \newcommand{\pic}[1]{{\color{ACMLightBlue}{#1}}}
 \newcommand{\recc}{\textcolor{ACMPurple}}
 
+% Utitlity macro to define functions always typeset in black.
+\newcommand*\BlkFunction[2]{\blk{#1\ifstrempty{#2}{}{(#2)}}}
+
 % abbreviation of the calculus
 \newcommand\algst{AlgST\xspace}
 \newcommand\fuse{FuSe$^{\{\}}$\xspace}
@@ -143,6 +146,18 @@
 \newcommand\CEps{\termc{\texttt{Eps}}}
 \NewDocumentCommand\PDispatch{o}{\typec{\types{Dispatch}\IfValueT{#1}{[#1]}}}
 
+\NewDocumentCommand\SBranchChoice{m s m}{\recc{{#1} \IfBooleanT{#2}{\!\left} \langle #3 \IfBooleanT{#2}{\right} \rangle}}
+\NewDocumentCommand\SSendRecv{m m}{\recc{#1#2.}}
+\newcommand*\SBranch{\SBranchChoice{\&}}
+\newcommand*\SChoice{\SBranchChoice{+}}
+\newcommand*\SSend{\SSendRecv{!}}
+\newcommand*\SRecv{\SSendRecv{?}}
+\newcommand*\SRec[1][\alpha]{\recc{\mu #1.}}
+\newcommand*\SEnd{{\let\typec\recc\TEnd}}
+\newcommand*\SUnit{{\let\typec\recc\TUnit}}
+\newcommand*\SInt{{\let\typec\recc\TInt}}
+\newcommand*\SDual[1]{\recc{\overline{#1}}}
+
 % EXPRESSIONS
 \newcommand{\exps}[1]{\termc{\syntax{#1}}}
 
@@ -235,6 +250,39 @@
 \newcommand{\iso}[1]{\gray{{#1}}}
 \newcommand{\isodecl}[1]{\iso{#1}\gray{\colon}}
 \newcommand{\isodef}[1]{\iso{#1}\gray{\,=\,}}
+
+% TYPING LTS
+\newcommand*\lab{\mathscr{L}}
+\newcommand*\LSend{{!}}
+\newcommand*\LRecv{{?}}
+\newcommand*\LFunc{{\to}}
+\newcommand*\LEnd{\syntax{End}}
+\newcommand*\LUnit{\syntax{Unit}}
+\newcommand*\LInt{\syntax{Int}}
+\newcommand*\LBranch{{\&}}
+\newcommand*\LChoice{{+}}
+\newcommand*\labset{\mathcal{L}}
+\newcommand*\labsetS{\labset^S}
+\newcommand*\labsetB{\labset^B}
+\newcommand*\Lone{1}
+\newcommand*\Ltwo{2}
+\newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
+\newcommand*\notrans{\,{\nrightarrow}}
+\newcommand*\stlts[1][]{(V,L,\longrightarrow_{#1},\lab)}
+\newcommand*\stty[2][\eta]{\blk{\llbracket #2 \rrbracket}_{\blk{#1}}}
+
+\newcommand*\DualRel{\mathrel{\mathcal{D}}}
+
+% TRANSLATION
+\newcommand*\ToAlgName[1]{\textup{\scshape #1}}
+\newcommand*\ToAlgPM{\BlkFunction{\ToAlgName{pol}}}
+\newcommand*\ToAlgTy[1][]{\BlkFunction{\ToAlgName{ty}_{#1}}}
+\newcommand*\ToAlgProto[1][\ppm{}]{\BlkFunction{\ToAlgName{proto}^{#1}}}
+\newcommand*\ToAlgStep[1][\ppm{}]{\BlkFunction{\ToAlgName{step}^{#1}}}
+
+\newcommand*\ToAlgSeen{\uptheta}
+\newcommand*\ToAlgUpdate[3][\ToAlgSeen]{#1[#2 \coloneq #3]}
+\newcommand*\seqrotate[2]{\sigma^{#1}(#2)}
 
 % JUDGMENTS
 % \newcommand\isExpr[4][\Delta]{\twoCtx{#1}{#2} \vdash \termc{#3} : \typec{#4}} %deprecated
@@ -439,6 +487,22 @@
 \newcommand{\hl}[1]{\colorbox{violet!15}{$#1$}}
 \newcommand{\hlt}[1]{\colorbox{violet!15}{#1}}
 \newcommand{\subt}{\le}
+
+% Subtyping between two LTS (not needed in this form).
+\newcommand\SubLTS{<:}
+% Subtyping between the transition relations of two LTS.
+\newcommand\SubNode[1]{\textsc{Sub}_{#1}}
+% Subtyping between end-recursive session types.
+\newcommand\SubST{\leq}
+% Ordering between nodes in an LTS.
+\newcommand*\VLeq{\leq_V}
+
+% Typesets its arguments centered in a box typeset with the width of an equals sign.
+\newcommand*\centeronequals[1]{\ooalign{%
+    \hfil #1\hfil\cr
+    \phantom{${}={}$}%
+}}
+
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "main"
