@@ -7,8 +7,14 @@ have become a quasi-standard for defining stateful communication
 protocols and reasoning about them. A (binary) session
 type specifies a protocol as a set of sequences of typed messages going forth
 and back between two participants. Many interesting protocols are
-recursive, which means they admit an infinite set of sequences or even
-infinite sequences of messages. Such protocols are modeled using equirecursive session
+recursive, which requires nontrivial reasoning about equivalence and
+subtyping of session types. For context-free session types
+\cite{DBLP:conf/icfp/ThiemannV16}, equivalence is expensive to decide
+and subtyping is undecidable. This paper studies algebraic representations of session types that
+admit linear time equivalence and subtyping while retaining most of the
+expressivity of context-free session types.
+
+Traditionally, protocols are modeled using equirecursive session
 types like \lstinline{IntListS} (session type for sending finitely many integers and then
 close) and \lstinline{IntStreamS} (send infinitely many integers) that
 are assigned to one end of a communication channel:
@@ -38,9 +44,18 @@ exponential\cite{DBLP:conf/tacas/AlmeidaMV20}, though recent work
 indicates it might be polynomially decidable in
 $O(n^{12})$ \cite{DBLP:journals/corr/abs-2407-04063}.
 
+These results expose a tension between expressivity and
+tractability: richer session type languages lead to expensive
+equivalence and undecidable subtyping. Our goal is to identify a
+representation that retains expressivity close to context-free session
+types while admitting efficient equivalence and subtyping.
+
 Prior work proposed parameterized algebraic
 protocols \cite{DBLP:journals/pacmpl/MordidoS0V23}, where recursive
-protocols are defined analogously to algebraic datatypes (ADTs). In this framework, we
+protocols are defined analogously to algebraic datatypes (ADTs).
+A protocol is defined by a nominal type whose
+constructors describe the possible next actions. 
+In this framework, we
 can define \lstinline{IntListP}, the algebraic protocol analogous
 to \lstinline{IntListS}, and \lstinline{IntStreamP}, analogous to
 \lstinline{IntStreamS}, as follows:
@@ -56,14 +71,16 @@ tail-recursive or context free.
 
 The prior work gave an informal outline of an embedding of
 algebraic protocols into context-free session types, but it did not offer
-a comparison with traditional, tail-recursive session types. The
-present work fills this gap as follows.
+a comparison with traditional, tail-recursive session types. This paper fills this gap.
 
 \subsection{Traditional Session Types to Algebraic Protocols}
 \label{sec:trad-sess-types}
 
-The main difficulty in translating a program with traditional session
-types (TST) to algebraic session types (AST) lies in managing the unfolding of
+We now give an outline of a translation from traditional session types
+(TST) to algebraic session types (AST).
+The translation replaces equirecursive types by explicit
+systems of recursive equations.
+The main difficulty in translating a program with  TST to AST lies in managing the unfolding of
 equirecursive types. That is, at every point in a TST typing
 derivation we may silently apply a type conversion that unrolls a
 recursive session type as in $\mu\alpha.S \approx S[\mu\alpha.S /
@@ -82,14 +99,14 @@ corresponding to our running examples.
 IntStreamS  alpha = !beta.alpha                   beta = Int
 IntListS    alpha = (+){Cons: beta, Nil: delta}   beta = !gamma.alpha    gamma = Int   delta = End
 \end{lstlisting}
-Such an equation system can be considered a finite automaton or a
-labeled transition system (LTS), where each variable on the right is
-reachable by one labeled transition from the left hand side. For
+Such an equation system can be considered as a
+labeled transition system (LTS). Each type variable corresponds to a
+state and each equation induces outgoing labeled transitions. For
 example, in the LTS corresponding to \lstinline{IntListS}, there are
 labeled transitions $\alpha \stackrel{Cons}{\longrightarrow} \beta$ and $\alpha \stackrel{Nil}
 {\longrightarrow} \delta$ and further transitions for $\beta$,
 $\gamma$, and $\delta$. In a second step, we minimize this
-automaton. Minimization corresponds to equating bisimilar type
+LTS. Minimization corresponds to equating bisimilar type
 variables, where bisimilarity corresponds to type equivalence of
 equirecursive types. Thus, after minimization two types are bisimilar
 if and only if they are represented by the \emph{same} type
@@ -115,9 +132,11 @@ the algebraic protocols \lstinline{IntListSP} and
   IntListSP   = Repeat (ConsNil (Seq Int Eps) End)
   IntStreamSP = Repeat (Seq Int Eps)
 \end{lstlisting}
-Interestingly, the resulting algebraic protocols are
-\emph{interoperable} with their TST origins. We take that to mean that
-the types are bisimilar when considered as LTS. Interoperability results
+The resulting algebraic protocols are bisimilar to the
+original session types when both are interpreted as labeled
+transition systems. We consider this outcome as a statement of
+\emph{interoperability} between the original TST program and its AST
+translation.  Interoperability results
 from an innocuous change that was hinted at, but not executed in the
 prior work \cite{DBLP:journals/pacmpl/MordidoS0V23}: single
 constructor protocols do not send or receive their constructor. That
@@ -182,11 +201,11 @@ equations. The second step is also the same: we minimize the
 equations so that each type variable represents an equivalence class
 of bisimilar types.
 
-Stepping back we realize that in our current model, 
+In our model, 
 a type is a pair $\langle\alpha, \mathcal{E}\rangle$ where
 $\mathcal{E}$ is a system of type equations and $\alpha$ is the left
 hand side of an equation in $\mathcal{E}$. To stay in this framework,
-we define subsupmtion on type equations: Subsumption keeps the
+we define subsumption on type equations: Subsumption keeps the
 variable $\alpha$; it only adapts $\mathcal{E} <: \mathcal{E}'$ where
 the standard subsumption may be applied to any suitable equation. For instance,
 here is the subsumption from \lstinline{IntListS} to
@@ -196,8 +215,8 @@ here is the subsumption from \lstinline{IntListS} to
 IntListS         alpha = (+){Cons: beta, Nil: delta}   beta = !gamma.alpha    gamma = Int   delta = End  
 IntListS[Nil]    alpha = (+){Nil: delta}            beta = !gamma.alpha    gamma = Int   delta = End
 \end{lstlisting}
-Importantly, the domains of $\mathcal{E}$ and $\mathcal{E}'$ are the
-same, i.e., all left hand sides stay the same and we do not drop
+The domains of $\mathcal{E}$ and $\mathcal{E}'$ coincide, i.e., all
+left hand sides stay the same and we do not drop 
 unreachable type variables like $\beta$ and $\gamma$. Getting from the
 right hand side of $\alpha$ in the first line to the second line
 consists in applying the standard subsumption rule for selection in
@@ -206,81 +225,78 @@ general case, we may apply subsumption to each equation individually,
 taking care whether the left hand side variable occurs in covariant
 (like in our example) or in contravariant position.
 
-\subsection{Contributions}
-\label{sec:contributions-1}
-
-Prior work stated that algebraic protocol types are nominal and
-isorecursive.
-
-OLD-OLD-OLD
-
-This combination of features reduces the complexity of type equivalence from
-asymptotically doubly-exponential \cite{DBLP:conf/tacas/AlmeidaMV20,DBLP:conf/esop/DasDMP21} 
-to linear. Notably, the expressivity of algebraic protocols 
-is on par with that of session types with non-regular recursion
-\cite{DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/DasDMP21}, 
-so all protocols expressible in such theories can be adapted 
-to algebraic protocols (without paying the price of hosting complex or 
-incomplete algorithms in the compiler). Interestingly, types 
-are now also iso-associative, thus saving us from defining 
-hard-coded associativity laws, due to the basic properties 
-of sequential composition 
-\cite{DBLP:conf/icfp/ThiemannV16,DBLP:journals/corr/abs-2106-06658}.
-
 \subsection*{Contributions}
-\label{sec:contributions}
 
-\begin{itemize}
-\item A subtyping relation for algebraic session types which is generated
-  by selecting a non-empty subset of protocol constructors.
+This paper develops algebraic protocols with constructor
+subtyping and shows that they provide an efficient and expressive
+framework for typing session-based programs.
+Algebraic protocols identify a tractable fragment of context-free
+session types with linear time algorithms for equivalence and subtyping.
 
-  This subtyping relation is defined such that its symmetric kernel is
-  the equivalence relation in prior work
-  \cite{DBLP:journals/pacmpl/MordidoS0V23}. It is decidable in linear
-  time and the prior type soundness proof extends to the system with
-  subtyping. 
 
-\item The core calculus \algst which is based
-  on linear System~F with (non-linear) recursion and session types
-  based on algebraic protocols is an extension of prior work. Type
-  checking for \algst is specified by bidirectional typing 
-  rules that have a direct algorithmic reading.
-  We prove type soundness via preservation and progress.
-  
-\item Traditional, tail-recursive session types \emph{without subtyping} can
-  be mapped to \algst. The mapping preserves typing and gives rise to
-  a reduction correspondence. 
-\item Traditional, tail-recursive session types \emph{with subtyping}
-  can be mapped to \algst if all session types in a program can be
-  expressed by a system of recursive type equations in a certain
-  form. The mapping preserves typing and gives rise to a reduction
-  correspondence. 
-  
-\item Full implementation as a publicly available artifact
-  \cite{artifact}, including practical extensions (cf.\ \cref{sec:implementation}).
-\end{itemize}
+\begin{enumerate}
+
+\item
+We define a subtyping relation for algebraic protocol types based on
+constructor subtyping. Subtyping is obtained by selecting non-empty
+subsets of protocol constructors. The symmetric kernel of this
+relation coincides with the equivalence relation defined in prior work
+\cite{DBLP:journals/pacmpl/MordidoS0V23}.  Subtyping and type
+equivalence are decidable in linear time.
+
+\item
+We define the calculus \algstsub, a core language based on linear
+System~F with non-linear recursion and session types expressed as
+algebraic protocols. It extends \algst from prior work with constructor
+subtyping. Typing rules are presented in bidirectional
+form and admit a direct algorithmic interpretation.
+
+\item
+We establish type soundness for \algstsub via preservation and
+progress.
+
+\item
+We define a translation from traditional tail-recursive session
+types to \algst.  The translation preserves typing and establishes
+a reduction correspondence.
+
+\item
+We extend this translation to session types with subtyping under a
+restriction on the representation of session types as recursive
+equation systems.
+
+\item
+We provide an implementation of the system as a publicly available
+artifact, including practical extensions described in
+\cref{sec:implementation}.
+
+\end{enumerate}
+
+
 
 \subsection*{Overview}
 \label{sec:overview}
 
-\Cref{sec:algebr-sess-types} contains an informal introduction of algebraic
-protocols with examples; we illustrate the gain in
-expressivity and modularity with respect to other work in
-\cref{sec:param-prot}. \Cref{sec:types} discusses the type structure
-of \algst and establishes key results for efficient type checking: correctness of type normalization and
-worst case complexity of type equivalence. \Cref{sec:processes} defines
-statics and dynamics of expressions 
-and processes % . \Cref{sec:metatheory}
-followed by a presentation of the metatheoretical results.
-% \Cref{sec:cfst-vs-algst} gives an informal outline of
-% an embedding of context-free session types to \algst.
-\Cref{sec:implementation} discusses the implementation; since all rules are
-algorithmic, their appropriate reading leads directly to a type checker and an interpreter.
-\Cref{sec:related,sec:conclusion} discuss related work and conclude.
-%
-Proofs, auxiliary results, further examples, an informal outline of an embedding
-of context-free session types to \algst, and further discussion are provided as supplementary material. The
-implementation is publicly available \cite{artifact}.
+TODO
+
+% \Cref{sec:algebr-sess-types} contains an informal introduction of algebraic
+% protocols with examples; we illustrate the gain in
+% expressivity and modularity with respect to other work in
+% \cref{sec:param-prot}. \Cref{sec:types} discusses the type structure
+% of \algst and establishes key results for efficient type checking: correctness of type normalization and
+% worst case complexity of type equivalence. \Cref{sec:processes} defines
+% statics and dynamics of expressions 
+% and processes % . \Cref{sec:metatheory}
+% followed by a presentation of the metatheoretical results.
+% % \Cref{sec:cfst-vs-algst} gives an informal outline of
+% % an embedding of context-free session types to \algst.
+% \Cref{sec:implementation} discusses the implementation; since all rules are
+% algorithmic, their appropriate reading leads directly to a type checker and an interpreter.
+% \Cref{sec:related,sec:conclusion} discuss related work and conclude.
+% %
+% Proofs, auxiliary results, further examples, an informal outline of an embedding
+% of context-free session types to \algst, and further discussion are provided as supplementary material. The
+% implementation is publicly available \cite{artifact}.
 
 %%% Local Variables:
 %%% mode: latex
