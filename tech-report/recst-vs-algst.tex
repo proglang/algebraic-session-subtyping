@@ -27,10 +27,10 @@ $\LUnit$ or $\LInt$. Every node $v\in V$ must satisfy the conditions below.
 %
 \begin{enumerate}
   %
-  \item \label{tylts:arity0} If $\lab(v) = \LEnd$ or $\lab(v) \in \labsetB$
+  \item \label{tylts/arity0} If $\lab(v) = \LEnd$ or $\lab(v) \in \labsetB$
     it must hold that $v\notrans$.
   %
-  \item \label{tylts:arity2} If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there
+  \item \label{tylts/arity2} If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there
     must be $v_1,v_2\in V$ with $v \sttrans\Lone v_1$ and $v \sttrans\Ltwo
     v_2$, and for all $v \sttrans\ell v'$ it must hold that
     $(\ell,v')\in\{(\Lone,v_1),(\Ltwo,v_2)\}$.
@@ -42,7 +42,7 @@ $\LUnit$ or $\LInt$. Every node $v\in V$ must satisfy the conditions below.
   \item If $\lab(v)\in\labsetS$, for all $v\sttrans\ell v'$ with $\ell \ne
     \Lone$ it must hold that $\lab(v')\in\labsetS$.
   %
-  \item \label{tylts:cycles} If there is a cycle $v \sttrans{\ell} v_1
+  \item \label{tylts/cycles} If there is a cycle $v \sttrans{\ell} v_1
     \sttrans{\ell_1} \cdots v_n \sttrans{\ell_n} v_1$ it must hold that
     $\lab(v)\in\labsetS$ and $\ell\ne\Lone$.
   %
@@ -51,11 +51,11 @@ $\LUnit$ or $\LInt$. Every node $v\in V$ must satisfy the conditions below.
   %
 \end{enumerate}
 %
-Requirement (\ref{tylts:cycles}) restricts the kind of cycles that may occur.
-The only cycles that are allowed must consists solely of session type nodes and
-the transition labels must not be $\Lone$. The restriction serves two goals:
-only sessions types are allowed to be recursive and we avoid the dualization
-paradox where recursive session types use recursion variables in the payload of
+Requirement \eref{tylts/cycles} restricts the kind of cycles that may occur.
+All cycles must consists solely of session type nodes and the transition labels
+must not be $\Lone$. The restriction serves two goals: only sessions types are
+allowed to be recursive and we avoid the dualization paradox where recursive
+session types use recursion variables in the payload of
 messages~\citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}.
 
 Given an LTS $\stlts$ the function $\stty{{\,\cdot\,}}$ produces a type with
@@ -168,10 +168,12 @@ end we define the notion of duality relations.
   Any duality relation ${\DualRel}$ is symmetric.
 \end{lemma}
 \begin{proof}
-  If requirements (\ref{dual-rel/labels}) and
-  (\ref{dual-rel/one}) are satisfied they will also be trivially satisfied in
-  the symmetric case. Condition (\ref{dual-rel/u2v}) guarantees the condition
-  (\ref{dual-rel/v2u}) is satisfied for the symmetric case and vice versa.
+  %
+  If requirements \eref{dual-rel/labels} and \eref{dual-rel/one} are satisfied
+  they will also be trivially satisfied in the symmetric case. Condition
+  \eref{dual-rel/u2v} guarantees the condition \eref{dual-rel/v2u} is satisfied
+  for the symmetric case and vice versa.
+  %
 \end{proof}
 
 \begin{definition}
@@ -198,68 +200,129 @@ end we define the notion of duality relations.
 
 We define a subtyping relation on the LTS representation and prove it sound
 with respect to the classical subtyping relation for session types
-\citep{DBLP:journals/acta/GayH05,DBLP:journals/jfp/GayV10}.
+\citep{DBLP:journals/acta/GayH05,DBLP:journals/jfp/GayV10}. As with the duality
+of nodes before, the definition of subtyping is necessarily coinductive.
 
-Subtyping is defined on the transition relation of the LTS. Given two recursive
-processes $T = \stlts[T]$ and $U = \stlts[U]$ over the same set of nodes and
-labels, and with the same labelling function, we define $T \SubLTS U$ by
-$\SubNode{v_0}(\sttrans{}_{T}, \sttrans{}_{U})$, where $v_0$ is the initial
-node. The binary relation $\SubNode{v}(\sttrans{~}_{A}, \sttrans{~}_{B})$ with
-parameter $v \in V$ is defined via a case split on the label of $v$.
-%
-\begin{itemize}
+\begin{definition}[Transition subtyping relation]
 
-  \item \textbf{Case $\lab(v) = \LBranch$:} For every transition $v \sttrans{\ell}_{A} v'$,
-        there must be a matching transition $v \sttrans{\ell}_{B} v'$ such that
-        $\SubNode{v'}(\sttrans{}_{A}, \sttrans{}_{B})$.
+  \newcommand\timplies{\quad $\implies$ \quad}
 
-  \item \textbf{Case $\lab(v) = \LChoice$:} For every transition $v \sttrans{\ell}_{B} v'$,
-        there must be a matching transition $v \sttrans{\ell}_{A} v'$ such that
-        $\SubNode{v'}(\sttrans{}_{A}, \sttrans{}_{B})$.
+  Given a set of states or nodes $V$, a set of transition labels $L$, and a
+  labelling function $\lab$ a relation $\mathcal{R} \subseteq \PowerSet(V\times
+  L\times V) \times V \times \PowerSet(V\times L\times V)$ is a
+  \emph{transition subtyping relation}\footnote{$\PowerSet(A)$ denotes the
+  \emph{power set} of some set $A$.} if for every $\subtriple A v B \in
+  \mathcal{R}$ the conditions enumerated below are met.
 
-  \item \textbf{Case $\lab(v) = \LSend$:} There must be matching transitions
-        $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} v'_1$ and
-        $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} v'_2$ such that
-        $\SubNode{v'_1}(\sttrans{}_{B}, \sttrans{}_{A})$ and
-        $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
+  \begin{enumerate}
+    \item \label{lts-subtyperel/branch}
+      $\lab(v) = \LBranch$ and $v \sttrans\ell_A v_\ell$
+      \timplies
+      $v \sttrans\ell_B v_\ell$ and $(\sttrans{}_A,v_\ell,\sttrans{}_B) \in \mathcal{R}$
 
-  \item \textbf{Case $\lab(v) = \LRecv$:} There must be matching transitions
-        $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} v'_1$ and
-        $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} v'_2$ such that
-        $\SubNode{v'_1}(\sttrans{}_{A}, \sttrans{}_{B})$ and
-        $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
+    \item \label{lts-subtyperel/choice}
+      $\lab(v) = \LChoice$ and $v \sttrans\ell_B v_\ell$
+      \timplies
+      $v \sttrans\ell_A v_\ell$ and $(\sttrans{}_A,v_\ell,\sttrans{}_B) \in \mathcal{R}$
 
-  \item \textbf{Case $\lab(v) = \LFunc$:} There must be matching transitions
-        $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} {v'_1}$ and
-        $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} {v'_2}$ such that
-        $\SubNode{v'_1}(\sttrans{}_{B}, \sttrans{}_{A})$ and
-        $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
+    \item \label{lts-subtyperel/transitions}
+      $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$
+        and ($v \sttrans\ell_A v_\ell$ or $v \sttrans\ell_B v_\ell$)
+      \timplies
+      $v \sttrans\ell_A v_\ell$ and $v \sttrans\ell_B v_\ell$
 
-  \item \textbf{Case $\lab(v) = \LEnd$:} The relation holds trivially.
-\end{itemize}
+    \item \label{lts-subtyperel/send-func}
+      $\lab(v) \in \{\LSend,\LFunc\}$
+        and $v \sttrans\Lone_A v_1, v \sttrans\Ltwo_A v_2$
+      \timplies
+      $\subtriple B {v_1} A \in \mathcal{R}$, $\subtriple A {v_2} B \in \mathcal{R}$
 
-For $\LChoice$, the direction of the implication requires the subtype to
-provide at least all the transitions offered by the supertype, meaning the
-smaller type can support more labels. Conversely, for $\LBranch$, the subtype
-is restricted to taking only transitions permitted by the supertype, meaning
-the smaller type must have fewer or an equal amount of labels. Furthermore, for
-$\LSend$ and $\LRecv$, the continuation of the first argument (label $\Lone$)
-is contravariant and covariant, respectively. Similarly, the argument (label
-$\Lone$) for $\LFunc$ is contravariant. Finally, $\LEnd$ holds trivially
-because it admits no transitions.
+    \item \label{lts-subtyperel/recv}
+      $\lab(v) = \LRecv$ and $v \sttrans\ell v_\ell$
+      \timplies
+      $\subtriple A {v_\ell} B \in \mathcal{R}$
+  \end{enumerate}
+
+\end{definition}
+
+\begin{definition}[Transition system state subtyping]
+
+  Given two transition systems $T$ and $U$ differing only in their transition
+  relations $\sttrans{}_T$ and $\sttrans{}_U$: state $v$ in $T$ is subtype of
+  that same state in $U$ if there exists a transition subtyping relation
+  $\mathcal R$ such that $\subtriple T v U \in \mathcal R$. We write $v : T
+  \SubLTS U$.
+
+\end{definition}
+
+% Subtyping is defined on the transition relation of the LTS. Given two recursive
+% processes $T = \stlts[T]$ and $U = \stlts[U]$ over the same set of nodes and
+% labels, and with the same labelling function, we define $T \SubLTS U$ by
+% $\SubNode{v_0}(\sttrans{}_{T}, \sttrans{}_{U})$, where $v_0$ is the initial
+% node. The binary relation $\SubNode{v}(\sttrans{~}_{A}, \sttrans{~}_{B})$ with
+% parameter $v \in V$ is defined via a case split on the label of $v$.
+% %
+% \begin{itemize}
+% 
+%   \item \textbf{Case $\lab(v) = \LBranch$:} For every transition $v \sttrans{\ell}_{A} v'$,
+%         there must be a matching transition $v \sttrans{\ell}_{B} v'$ such that
+%         $\SubNode{v'}(\sttrans{}_{A}, \sttrans{}_{B})$.
+% 
+%   \item \textbf{Case $\lab(v) = \LChoice$:} For every transition $v \sttrans{\ell}_{B} v'$,
+%         there must be a matching transition $v \sttrans{\ell}_{A} v'$ such that
+%         $\SubNode{v'}(\sttrans{}_{A}, \sttrans{}_{B})$.
+% 
+%   \item \textbf{Case $\lab(v) = \LSend$:} There must be matching transitions
+%         $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} v'_1$ and
+%         $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} v'_2$ such that
+%         $\SubNode{v'_1}(\sttrans{}_{B}, \sttrans{}_{A})$ and
+%         $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
+% 
+%   \item \textbf{Case $\lab(v) = \LRecv$:} There must be matching transitions
+%         $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} v'_1$ and
+%         $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} v'_2$ such that
+%         $\SubNode{v'_1}(\sttrans{}_{A}, \sttrans{}_{B})$ and
+%         $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
+% 
+%   \item \textbf{Case $\lab(v) = \LFunc$:} There must be matching transitions
+%         $v \sttrans{\Lone}_{A} v'_1$, $v \sttrans{\Lone}_{B} {v'_1}$ and
+%         $v \sttrans{\Ltwo}_{A} v'_2$, $v \sttrans{\Ltwo}_{B} {v'_2}$ such that
+%         $\SubNode{v'_1}(\sttrans{}_{B}, \sttrans{}_{A})$ and
+%         $\SubNode{v'_2}(\sttrans{}_{A}, \sttrans{}_{B})$.
+% 
+%   \item \textbf{Case $\lab(v) = \LEnd$:} The relation holds trivially.
+% \end{itemize}
+
+The main point of the subtyping relation $v:T\SubLTS U$ is that a
+$\LBranch$-labelled node may contain additional edges in
+$T$~\eref{lts-subtyperel/branch}, whereas for a $\LChoice$-labelled node there
+may be fewer edges in $T$ than in $U$~\eref{lts-subtyperel/choice}. For any
+label in both transitions systems the type constructors for branch and choice
+are covariant in the target type. Requirement \eref{lts-subtyperel/transitions}
+ensures consistent transitions for nodes labelled, $\LSend,\LRecv,\LFunc$.
+Further labels need not be considered since the requirements for a typing LTS
+ensures that there are no outgoing transitions. A sending session type as well
+as functions are contravariant in their first argument and covariant in their
+second~\eref{lts-subtyperel/send-func}. A receiving session type is covariant
+in both of its arguments~\eref{lts-subtyperel/recv}.
 
 \begin{lemma}[Soundness of subtyping]
   %
-  Given two typing LTS $A,B$ defined over the same set of nodes $V$ and with
-  the same labelling function $\lab\!$, if
-  $\SubNode{v}(\sttrans{}_{A},\sttrans{}_{B})$ for $v\in V$ then $\stty{v}^A
-  \SubST \stty{v}^B$.
+  Given two typing LTS $A,B$ defined over the same set of nodes, transition
+  labels, and shared labelling function, if $v : A \SubLTS B$ then
+  $\stty[\emptyset]{v}^A \SubST \stty[\emptyset]{v}^B$.
   %
 \end{lemma}
 %
 \begin{proof}
   \js{TODO}
 \end{proof}
+
+The subtyping defined above is not complete. In particular, the subtyping for
+end-recursive session types allows mixing partial unfolding of recursion with
+dropping/adding of choice and branch labels. Such subtypings are excluded by
+design since the result is not expressible through the subtyping of algebraic
+protocols described in this work.
 
 
 \subsection{Recursive types as protocols}

@@ -265,14 +265,16 @@
 \newcommand*\labset{\mathcal{L}}
 \newcommand*\labsetS{\labset^S}
 \newcommand*\labsetB{\labset^B}
-\newcommand*\Lone{1}
-\newcommand*\Ltwo{2}
+\newcommand*\Lone{\mathbf{1}}
+\newcommand*\Ltwo{\mathbf{2}}
 \newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
 \newcommand*\notrans{\,{\nrightarrow}}
 \newcommand*\stlts[1][]{(V,L,\longrightarrow_{#1},\lab)}
 \newcommand*\stty[2][\eta]{\blk{\llbracket #2 \rrbracket}_{\blk{#1}}}
 
 \newcommand*\DualRel{\mathrel{\mathcal{D}}}
+\newcommand*\PowerSet{\mathscr{P}}
+\newcommand*\subtriple[3]{({\sttrans{}_{#1}}, #2, {\sttrans{}_{#3}})}
 
 % TRANSLATION
 \newcommand*\ToAlgName[1]{\textup{\scshape #1}}
@@ -428,6 +430,8 @@
 \newcommand{\etal}{et al.\xspace} % al abbreviates aliae, no need for am \emph,
 % but you may added if you feel like, according to the Handbook for Scholars
 \renewcommand{\bibsection}{\section*{References}}
+% Referencing an enumeration item.
+\newcommand*\eref[1]{(\ref{#1})}
 
 % listings
 
@@ -494,7 +498,7 @@
 \newcommand{\subt}{\le}
 
 % Subtyping between two LTS (not needed in this form).
-\newcommand\SubLTS{<:}
+\newcommand\SubLTS{\preceq}
 % Subtyping between the transition relations of two LTS.
 \newcommand\SubNode[1]{\textsc{Sub}_{#1}}
 % Subtyping between end-recursive session types.
