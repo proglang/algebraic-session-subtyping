@@ -44,6 +44,9 @@ data _<:ₜ_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → NormalTy T₂
   <:ₜ-arrow : ∀ {≤pk : KM ≤p pk} {m} {T₁ : Ty Δ _}{U₁}{T₂}{U₂}
                {M₁ : NormalTy T₁}{N₁ : NormalTy U₁}{M₂ : NormalTy T₂}{N₂ : NormalTy U₂}
         → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow{km = ≤pk}{m} M₁ N₁) <:ₜ (N-Arrow{km = ≤pk}{m} M₂ N₂)
+  <:ₜ-pair : ∀ {m} {T₁ : Ty Δ (KV pk₁ m)} {U₁ : Ty Δ (KV pk₂ m)} {T₂ : Ty Δ (KV pk₁ m)} {U₂ : Ty Δ (KV pk₂ m)}
+               {M₁ : NormalTy T₁}{N₁ : NormalTy U₁}{M₂ : NormalTy T₂}{N₂ : NormalTy U₂}
+        → M₁ <:ₜ M₂ → N₁ <:ₜ N₂ → N-Pair M₁ N₁ <:ₜ N-Pair M₂ N₂
   <:ₜ-poly : ∀ {m}{K′}{T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂}
         → N₁ <:ₜ N₂ → N-Poly N₁ <:ₜ N-Poly N₂
   <:ₜ-sub : ∀ {km≤ : KV pk m ≤k KV pk′ m′}{T₁ T₂ : Ty Δ (KV pk m)}{N₁ : NormalTy T₁}{N₂ : NormalTy T₂}
@@ -101,6 +104,7 @@ data _<:ₚ_ where
 <:ₜ-refl (N-Var x) = <:ₜ-var
 <:ₜ-refl N-Base = <:ₜ-base
 <:ₜ-refl (N-Arrow N N₁) = <:ₜ-arrow (<:ₜ-refl N) (<:ₜ-refl N₁)
+<:ₜ-refl (N-Pair N N₁) = <:ₜ-pair (<:ₜ-refl N) (<:ₜ-refl N₁)
 <:ₜ-refl (N-Poly N) = <:ₜ-poly (<:ₜ-refl N)
 <:ₜ-refl (N-Sub N) = <:ₜ-sub (<:ₜ-refl N)
 <:ₜ-refl N-End = <:ₜ-end
@@ -134,6 +138,7 @@ data _<:ₚ_ where
 <:ₜ-trans <:ₜ-var <:ₜ-var = <:ₜ-var
 <:ₜ-trans <:ₜ-base <:ₜ-base = <:ₜ-base
 <:ₜ-trans (<:ₜ-arrow N₁<:N₂ N₁<:N₃) (<:ₜ-arrow N₂<:N₃ N₂<:N₄) = <:ₜ-arrow (<:ₜ-trans N₂<:N₃ N₁<:N₂) (<:ₜ-trans N₁<:N₃ N₂<:N₄)
+<:ₜ-trans (<:ₜ-pair N₁<:N₂ N₁<:N₃) (<:ₜ-pair N₂<:N₃ N₂<:N₄) = <:ₜ-pair (<:ₜ-trans N₁<:N₂ N₂<:N₃) (<:ₜ-trans N₁<:N₃ N₂<:N₄)
 <:ₜ-trans (<:ₜ-poly N₁<:N₂) (<:ₜ-poly N₂<:N₃) = <:ₜ-poly (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 <:ₜ-trans (<:ₜ-sub N₁<:N₂) (<:ₜ-sub N₂<:N₃) = <:ₜ-sub (<:ₜ-trans N₁<:N₂ N₂<:N₃)
 <:ₜ-trans <:ₜ-end <:ₜ-end = <:ₜ-end

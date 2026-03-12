@@ -54,6 +54,10 @@ data _<:_ {Δ} where
   <:-fun : ∀ {pk : PreKind} {≤pk : KM ≤p pk} {m}
     → T₃ <: T₁ → T₂ <: T₄
     → T-Arrow {m = m} ≤pk T₁ T₂ <: T-Arrow ≤pk T₃ T₄
+  <:-pair : ∀ {m}
+    {T₁ T₃ : Ty Δ (KV pk₁ m)} {T₂ T₄ : Ty Δ (KV pk₂ m)}
+    → T₁ <: T₃ → T₂ <: T₄
+    → T-Pair T₁ T₂ <: T-Pair T₃ T₄
   <:-protoD : T₁ <: T₂ → T-ProtoD T₁ <: T-ProtoD T₂
   <:-all : {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ <: T₂ → T-Poly T₁ <: T-Poly T₂
 
@@ -100,6 +104,7 @@ data _<:_ {Δ} where
 <:-refl {T = T-Var x} = <:-var
 <:-refl {T = T-Base} = <:-base
 <:-refl {T = T-Arrow x T T₁} = <:-fun <:-refl <:-refl
+<:-refl {T = T-Pair T T₁} = <:-pair <:-refl <:-refl
 <:-refl {T = T-Poly T} = <:-all <:-refl
 <:-refl {T = T-Sub x T} = <:-sub x <:-refl
 <:-refl {T = T-Dual D-S T} = <:-refl-dual
@@ -325,6 +330,10 @@ conv⇒subty _ _ (≡c-fun T₁≡T₂ T₃≡T₄)
   using T₁<:T₂ , T₂<:T₁ ← conv⇒subty _ _ T₁≡T₂
   using T₃<:T₄ , T₄<:T₃ ← conv⇒subty _ _ T₃≡T₄
   = (<:-fun T₂<:T₁ T₃<:T₄) , <:-fun T₁<:T₂ T₄<:T₃
+conv⇒subty _ _ (≡c-pair T₁≡T₂ T₃≡T₄)
+  using T₁<:T₂ , T₂<:T₁ ← conv⇒subty _ _ T₁≡T₂
+  using T₃<:T₄ , T₄<:T₃ ← conv⇒subty _ _ T₃≡T₄
+  = <:-pair T₁<:T₂ T₃<:T₄ , <:-pair T₂<:T₁ T₄<:T₃
 conv⇒subty T₁ T₂ (≡c-all T₁≡T₂)
   using T₁<:T₂ , T₂<:T₁ ← conv⇒subty _ _ T₁≡T₂
   = <:-all T₁<:T₂ , <:-all T₂<:T₁

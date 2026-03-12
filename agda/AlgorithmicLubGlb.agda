@@ -87,6 +87,13 @@ lub-joinₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁
 ... | Tcod , Ncod , <:₂₁ , <:₂₂ , join≡ , <:₂₃
   rewrite meet≡ | join≡
   = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
+lub-joinₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₁<:N₃ N₁<:N₄) (<:ₜ-pair N₂<:N₃ N₂<:N₄)
+  with lub-joinₜ N₁₁ N₂₁ N₃₁ N₁<:N₃ N₂<:N₃
+... | Tfst , Nfst , <:₁₁ , <:₁₂ , join≡₁ , <:₁₃
+  with lub-joinₜ N₁₂ N₂₂ N₃₂ N₁<:N₄ N₂<:N₄
+... | Tsnd , Nsnd , <:₂₁ , <:₂₂ , join≡₂ , <:₂₃
+  rewrite eq-prekind′ pk₁ | eq-prekind′ pk₂ | join≡₁ | join≡₂
+  = (T-Pair Tfst Tsnd) , ((N-Pair Nfst Nsnd) , ((<:ₜ-pair <:₁₁ <:₂₁) , ((<:ₜ-pair <:₁₂ <:₂₂) , (refl , (<:ₜ-pair <:₁₃ <:₂₃)))))
 lub-joinₜ N₁ N₂ N₃ (<:ₜ-poly {K′ = K′} N₁<:N₃) (<:ₜ-poly N₂<:N₃)
   with lub-joinₜ _ _ _ N₁<:N₃ N₂<:N₃
 ... | ( T , N , <:₁ , <:₂ , join≡ , N<:N₃)
@@ -190,6 +197,13 @@ glb-meetₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁
 ... | Tcod , Ncod , <:₂₁ , <:₂₂ , meet≡ , <:₂₃
   rewrite join≡ | meet≡
   = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
+glb-meetₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₃<:N₁ N₃<:N₂) (<:ₜ-pair N₃<:N₄ N₃<:N₅)
+  with glb-meetₜ N₁₁ N₂₁ N₃₁ N₃<:N₁ N₃<:N₄
+... | Tfst , Nfst , <:₁₁ , <:₁₂ , meet≡₁ , <:₁₃
+  with glb-meetₜ N₁₂ N₂₂ N₃₂ N₃<:N₂ N₃<:N₅
+... | Tsnd , Nsnd , <:₂₁ , <:₂₂ , meet≡₂ , <:₂₃
+  rewrite eq-prekind′ pk₁ | eq-prekind′ pk₂ | meet≡₁ | meet≡₂
+  = (T-Pair Tfst Tsnd) , ((N-Pair Nfst Nsnd) , ((<:ₜ-pair <:₁₁ <:₂₁) , ((<:ₜ-pair <:₁₂ <:₂₂) , (refl , (<:ₜ-pair <:₁₃ <:₂₃)))))
 glb-meetₜ N₁ N₂ N₃ (<:ₜ-poly {K′ = K′} N₃<:N₁) (<:ₜ-poly N₃<:N₂)
   with glb-meetₜ _ _ _ N₃<:N₁ N₃<:N₂
 ... | ( T , N , <:₁ , <:₂ , meet≡ , N₃<:N)

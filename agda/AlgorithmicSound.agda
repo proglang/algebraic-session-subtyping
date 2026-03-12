@@ -55,6 +55,7 @@ sound-<<:ₚ′ {⊙ = ⊘} refl = ≡c-refl
 sound-algₜ <:ₜ-var = <:-refl
 sound-algₜ <:ₜ-base = <:-refl
 sound-algₜ (<:ₜ-arrow M₂<:ₜM₁ N₁<:ₜN₂) = <:-fun (sound-algₜ M₂<:ₜM₁) (sound-algₜ N₁<:ₜN₂)
+sound-algₜ (<:ₜ-pair N₁<:ₜN₂ N₃<:ₜN₄) = <:-pair (sound-algₜ N₁<:ₜN₂) (sound-algₜ N₃<:ₜN₄)
 sound-algₜ (<:ₜ-poly N₁<:ₜN₂) = <:-all (sound-algₜ N₁<:ₜN₂)
 sound-algₜ (<:ₜ-sub {km≤ = km≤} N₁<:ₜN₂) = <:-sub km≤ (sound-algₜ N₁<:ₜN₂)
 sound-algₜ <:ₜ-end = <:-refl
@@ -71,6 +72,7 @@ sound-algₜ (<:ₜ-data N₁<:ₜN₂) = <:-protoD (sound-algₜ N₁<:ₜN₂)
 <:ₜ-pre-antisym <:ₜ-var <:ₜ-var = refl
 <:ₜ-pre-antisym <:ₜ-base <:ₜ-base = refl
 <:ₜ-pre-antisym (<:ₜ-arrow N₁<:N₂ N₁<:N₃) (<:ₜ-arrow N₂<:N₁ N₂<:N₂) rewrite <:ₜ-pre-antisym N₁<:N₂ N₂<:N₁ | <:ₜ-pre-antisym N₁<:N₃ N₂<:N₂ = refl
+<:ₜ-pre-antisym (<:ₜ-pair N₁<:N₂ N₁<:N₃) (<:ₜ-pair N₂<:N₁ N₂<:N₂) rewrite <:ₜ-pre-antisym N₁<:N₂ N₂<:N₁ | <:ₜ-pre-antisym N₁<:N₃ N₂<:N₂ = refl
 <:ₜ-pre-antisym (<:ₜ-poly N₁<:N₂) (<:ₜ-poly N₂<:N₁) rewrite <:ₜ-pre-antisym N₁<:N₂ N₂<:N₁ = refl
 <:ₜ-pre-antisym (<:ₜ-sub N₁<:N₂) (<:ₜ-sub N₂<:N₁) rewrite <:ₜ-pre-antisym N₁<:N₂ N₂<:N₁ = refl
 <:ₜ-pre-antisym <:ₜ-end <:ₜ-end = refl

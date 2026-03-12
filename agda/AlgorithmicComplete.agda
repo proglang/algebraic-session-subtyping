@@ -1,4 +1,4 @@
-{-# OPTIONS --termination-depth=1 #-}
+{-# OPTIONS --termination-depth=5 #-}
 
 open import Data.Empty using (⊥-elim)
 -- open import Data.Fin
@@ -294,6 +294,12 @@ complete-algₜ (suc n) {p = ⊕} (<:-fun T₁<:T₂ T₁<:T₃) {f₁ = f₁} {
 complete-algₜ (suc n) {p = ⊝} (<:-fun {≤pk = ≤p-refl} T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} sz≤
   with () ←  f₁ refl
 complete-algₜ (suc n) {p = ⊝} (<:-fun {≤pk = ≤p-step <p-mt} T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} sz≤
+  with () ← f₁ refl
+complete-algₜ (suc n) {p = ⊕} (<:-pair T₁<:T₂ T₃<:T₄) {f₁ = f₁} {f₂} {N₁ = N-Pair N₁ N₂} {N-Pair N₃ N₄} (s≤s sz≤)
+  rewrite shuffle-⊔ (sizeₜ N₁) (sizeₜ N₂) (sizeₜ N₃) (sizeₜ N₄)
+  = <:ₜ-pair (complete-algₜ n T₁<:T₂ {N₁ = N₁} {N₂ = N₃} (⊔-≤ₗ {sizeₜ N₁ ⊔ sizeₜ N₃} {sizeₜ N₂ ⊔ sizeₜ N₄} sz≤))
+              (complete-algₜ n T₃<:T₄ {N₁ = N₂} {N₂ = N₄} (⊔-≤ᵣ {sizeₜ N₁ ⊔ sizeₜ N₃} {sizeₜ N₂ ⊔ sizeₜ N₄} sz≤))
+complete-algₜ (suc n) {p = ⊝} (<:-pair T₁<:T₂ T₃<:T₄) {f₁ = f₁} {f₂} {N₁ = N-Pair N₁ N₂} {N-Pair N₃ N₄} sz≤
   with () ← f₁ refl
 complete-algₜ (suc n) {p = ⊕} (<:-protoD T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (s≤s sz≤) = <:ₜ-data (complete-algₜ n T₁<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤)
 complete-algₜ (suc n) {p = ⊝} (<:-protoD T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} sz≤

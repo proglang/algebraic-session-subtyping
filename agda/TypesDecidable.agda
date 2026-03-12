@@ -59,6 +59,7 @@ ty-equal : (T₁ T₂ : Ty Δ K) → Dec (T₁ ≡ T₂)
 ty-equal (T-Var x) (T-Var x₁) = map′ (cong T-Var) (λ{refl → refl}) (var-equal x x₁)
 ty-equal (T-Var x) T-Base = no λ()
 ty-equal (T-Var x) (T-Arrow x₁ T₂ T₃) = no λ()
+ty-equal (T-Var x) (T-Pair T₂ T₃) = no λ()
 ty-equal (T-Var x) (T-Poly T₂) = no λ()
 ty-equal (T-Var x) (T-Sub x₁ T₂) = no λ()
 ty-equal (T-Var x) (T-Dual x₁ T₂) = no λ()
@@ -82,13 +83,34 @@ ty-equal (T-Arrow {pk = pk} ≤pk₁ T₁ T₂) (T-Arrow ≤pk₂ T₃ T₄)
   with ty-equal T₂ T₄
 ... | no T₂≢T₄ = no (λ{ refl → T₂≢T₄ refl})
 ... | yes refl = yes refl
+ty-equal (T-Arrow x T₁ T₂) (T-Pair T₃ T₄) = no λ()
 ty-equal (T-Arrow x T₁ T₂) (T-Poly T₃) = no λ()
 ty-equal (T-Arrow x T₁ T₂) (T-Sub x₁ T₃) = no λ()
 ty-equal (T-Arrow x T₁ T₂) (T-Dual x₁ T₃) = no λ()
 ty-equal (T-Arrow x T₁ T₂) T-End = no λ()
 ty-equal (T-Arrow x T₁ T₂) (T-Msg x₁ T₃ T₄) = no λ()
 ty-equal (T-Arrow x T₁ T₂) (T-ProtoD T₃) = no λ()
+ty-equal (T-Pair T₁ T₂) (T-Var x) = no λ()
+ty-equal (T-Pair T₁ T₂) (T-Arrow x T₃ T₄) = no λ()
+ty-equal (T-Pair {pk₁ = pk₁} {pk₂ = pk₂} T₁ T₂) (T-Pair {pk₁ = pk₃} {pk₂ = pk₄} T₃ T₄)
+  with eq-prekind pk₁ pk₃
+... | no pk₁≢pk₃ = no (λ{ refl → pk₁≢pk₃ refl })
+... | yes refl
+  with eq-prekind pk₂ pk₄
+... | no pk₂≢pk₄ = no (λ{ refl → pk₂≢pk₄ refl })
+... | yes refl
+  with ty-equal T₁ T₃
+... | no T₁≢T₃ = no (λ{ refl → T₁≢T₃ refl})
+... | yes refl
+  with ty-equal T₂ T₄
+... | no T₂≢T₄ = no (λ{ refl → T₂≢T₄ refl})
+... | yes refl = yes refl
+ty-equal (T-Pair T₁ T₂) (T-Poly T₃) = no λ()
+ty-equal (T-Pair T₁ T₂) (T-Sub x T₃) = no λ()
+ty-equal (T-Pair T₁ T₂) (T-Dual x T₃) = no λ()
+ty-equal (T-Pair T₁ T₂) (T-ProtoD T₃) = no λ()
 ty-equal (T-Poly T₁) (T-Var x) = no λ()
+ty-equal (T-Poly T₁) (T-Pair T₂ T₃) = no λ()
 ty-equal (T-Poly T₁) (T-Arrow x T₂ T₃) = no λ()
 ty-equal (T-Poly {K′ = K₁} T₁) (T-Poly {K′ = K₂} T₂)
   with eq-kind K₁ K₂
@@ -99,6 +121,7 @@ ty-equal (T-Poly T₁) (T-ProtoD T₂) = no λ()
 ty-equal (T-Sub x T₁) (T-Var x₁) = no λ()
 ty-equal (T-Sub x T₁) T-Base = no λ()
 ty-equal (T-Sub x T₁) (T-Arrow x₁ T₂ T₃) = no λ()
+ty-equal (T-Sub x T₁) (T-Pair T₂ T₃) = no λ()
 ty-equal (T-Sub x T₁) (T-Poly T₂) = no λ()
 ty-equal (T-Sub {pk = pk₁}{m = m₁} ≤k₁ T₁) (T-Sub {pk = pk₂}{m = m₂} ≤k₂ T₂)
   with eq-prekind pk₁ pk₂
@@ -150,6 +173,7 @@ ty-equal (T-Minus T₁) (T-Minus T₂) = map′ (cong T-Minus) (λ{refl → refl
 ty-equal (T-Minus T₁) (T-ProtoP x x₁ T₂) = no λ()
 ty-equal (T-ProtoD T₁) (T-Var x) = no λ()
 ty-equal (T-ProtoD T₁) (T-Arrow x T₂ T₃) = no λ()
+ty-equal (T-ProtoD T₁) (T-Pair T₂ T₃) = no λ()
 ty-equal (T-ProtoD T₁) (T-Poly T₂) = no λ()
 ty-equal (T-ProtoD T₁) (T-Sub x T₂) = no λ()
 ty-equal (T-ProtoD T₁) (T-ProtoD T₂) = map′ (cong T-ProtoD) (λ{refl → refl}) (ty-equal T₁ T₂)

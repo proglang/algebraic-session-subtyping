@@ -39,6 +39,7 @@ module _ where
     T-Var   : K ∈ Δ → Ty Δ K
     T-Base  : Ty Δ MUn
     T-Arrow : KM ≤p pk → Ty Δ TLin → Ty Δ TLin → Ty Δ (KV pk m)
+    T-Pair  : Ty Δ (KV pk₁ m) → Ty Δ (KV pk₂ m) → Ty Δ (KV KT m)
     T-Poly  : Ty (K′ ∷ Δ) (KV KT m) → Ty Δ (KV KT m)
     T-Sub   : KV pk m ≤k KV pk′ m′ → Ty Δ (KV pk m) → Ty Δ (KV pk′ m′)
 
@@ -73,6 +74,7 @@ module _ where
   T-Var x ⋯ ϕ = `/id (ϕ _ x)
   T-Base ⋯ ϕ = T-Base
   T-Arrow x t u ⋯ ϕ = T-Arrow x (t ⋯ ϕ) (u ⋯ ϕ)
+  T-Pair t u ⋯ ϕ = T-Pair (t ⋯ ϕ) (u ⋯ ϕ)
   T-Poly t ⋯ ϕ = T-Poly (t ⋯ (ϕ ↑ _))
   T-Sub x t ⋯ ϕ = T-Sub x (t ⋯ ϕ)
   T-Dual x t ⋯ ϕ = T-Dual x (t ⋯ ϕ)
@@ -87,6 +89,7 @@ module _ where
   ⋯-id (T-Var x) = `/`-is-` x
   ⋯-id T-Base = refl
   ⋯-id (T-Arrow x t u) = cong₂ (T-Arrow x) (⋯-id t) (⋯-id u)
+  ⋯-id (T-Pair t u) = cong₂ T-Pair (⋯-id t) (⋯-id u)
   ⋯-id (T-Poly t) = cong T-Poly (trans (cong (t ⋯_) (~-ext id↑~id)) (⋯-id t))
   ⋯-id (T-Sub x t) = cong (T-Sub x) (⋯-id t)
   ⋯-id (T-Dual x t) = cong (T-Dual x) (⋯-id t)
@@ -113,6 +116,7 @@ module _ where
   fusion (T-Var x) ϕ₁ ϕ₂ = sym (&/⋯-⋯ _ ϕ₂)
   fusion T-Base ϕ₁ ϕ₂ = refl
   fusion (T-Arrow x t u) ϕ₁ ϕ₂ = cong₂ (T-Arrow x) (fusion t ϕ₁ ϕ₂) (fusion u ϕ₁ ϕ₂)
+  fusion (T-Pair t u) ϕ₁ ϕ₂ = cong₂ T-Pair (fusion t ϕ₁ ϕ₂) (fusion u ϕ₁ ϕ₂)
   fusion (T-Poly t) ϕ₁ ϕ₂ = cong T-Poly (trans (fusion t (ϕ₁ ↑ _) (ϕ₂ ↑ _)) (cong (t ⋯_) (sym (~-ext (dist-↑-· _ ϕ₁ ϕ₂)))))
   fusion (T-Sub x t) ϕ₁ ϕ₂ = cong (T-Sub x) (fusion t ϕ₁ ϕ₂)
   fusion (T-Dual x t) ϕ₁ ϕ₂ = cong (T-Dual x) (fusion t ϕ₁ ϕ₂)
@@ -164,6 +168,7 @@ module _ where
     N-Var    : (NV : NormalVar T) → NormalTy T
     N-Base   : NormalTy T-Base
     N-Arrow  : {km : KM ≤p pk}{m : Multiplicity} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Arrow {m = m} km T₁ T₂)
+    N-Pair   : {T₁ : Ty Δ (KV pk₁ m)} {T₂ : Ty Δ (KV pk₂ m)} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Pair T₁ T₂)
     N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → (N : NormalTy T) → NormalTy (T-Poly T)
     N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → (N : NormalTy T) → NormalTy (T-Sub km≤ T)
     N-End    : NormalTy T-End
@@ -180,6 +185,7 @@ module _ where
     (N-Var x) →  zero
     N-Base →  zero
     (N-Arrow N₁ N₂) →  (sizeₜ N₁ ⊔ sizeₜ N₂)
+    (N-Pair N₁ N₂) →  (sizeₜ N₁ ⊔ sizeₜ N₂)
     (N-Poly N) →  (sizeₜ N)
     (N-Sub N) →  (sizeₜ N)
     N-End →  zero
@@ -226,6 +232,9 @@ module _ where
     
     ≡c-fun : ∀ {pk : PreKind} {≤pk : KM ≤p pk} {m} →
              T ≡c T₂ → T₁ ≡c T₃ → T-Arrow {m = m} ≤pk T T₁ ≡c T-Arrow ≤pk T₂ T₃
+    ≡c-pair : {m : Multiplicity}
+             {T₄ : Ty Δ (KV pk₁ m)} {T₅ : Ty Δ (KV pk₂ m)} {T₆ : Ty Δ (KV pk₁ m)} {T₇ : Ty Δ (KV pk₂ m)}
+             → T₄ ≡c T₆ → T₅ ≡c T₇ → T-Pair T₄ T₅ ≡c T-Pair T₆ T₇
     ≡c-all : ∀ {m} {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ ≡c T₂ → T-Poly T₁ ≡c T-Poly T₂
     ≡c-msg : T₁ ≡c T₂ → S₁ ≡c S₂ → T-Msg p T₁ S₁ ≡c T-Msg p T₂ S₂
     ≡c-protoD : T₁ ≡c T₂ → T-ProtoD T₁ ≡c T-ProtoD T₂
@@ -376,6 +385,7 @@ module _ where
   nf p d? (T-Var x) = nf-var p d? x
   nf p d? T-Base = T-Base
   nf p d? (T-Arrow x T U) = T-Arrow x (nf ⊕ d?⊥ T) (nf ⊕ d?⊥ U)
+  nf p d? (T-Pair T U) = T-Pair (nf ⊕ d?⊥ T) (nf ⊕ d?⊥ U)
   nf p d? (T-Poly T) = T-Poly (nf ⊕ d?⊥ T)
   -- nf p d? (T-Sub (≤k-step ≤p-refl ≤m-refl) T) = nf p d? T
   nf p d? (T-Sub x T) = T-Sub x (nf p (λ x₁ → dualizable-sub (d? x₁) x) T)
@@ -417,6 +427,7 @@ module _ where
   nf-normal-type ⊙ d? (T-Var x) = N-Var (nf-normal-type-var ⊙ d? x)
   nf-normal-type ⊙ d? T-Base = N-Base
   nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
+  nf-normal-type ⊙ d? (T-Pair T T₁) =  N-Pair (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
   nf-normal-type ⊙ d? (T-Poly T) = N-Poly (nf-normal-type ⊕ d?⊥ T)
   nf-normal-type ⊙ d? (T-Sub x T) = N-Sub (nf-normal-type ⊙ (λ x₁ → dualizable-sub (d? x₁) x) T)
   nf-normal-type ⊙ d? (T-Dual x T) = nf-normal-type (invert ⊙) (const x) T
@@ -453,6 +464,7 @@ module _ where
   nf-⊕-ignores {T = T-Var x} f g = refl
   nf-⊕-ignores {T = T-Base} f g = refl
   nf-⊕-ignores {T = T-Arrow x T T₁} f g = refl
+  nf-⊕-ignores {T = T-Pair T T₁} f g = cong₂ T-Pair (nf-⊕-ignores {T = T} d?⊥ d?⊥) (nf-⊕-ignores {T = T₁} d?⊥ d?⊥)
   nf-⊕-ignores {T = T-Poly T} f g = refl
   nf-⊕-ignores {T = T-Sub x T} f g = cong (T-Sub x) (nf-⊕-ignores {T = T} (λ x₁ → dualizable-sub (f x₁) x) (λ x₁ → dualizable-sub (g x₁) x))
   nf-⊕-ignores {T = T-Dual x T} f g = refl
@@ -476,6 +488,7 @@ module _ where
   nf-complete f g (≡c-msg-minus {p = p} {T = T} {S = S}) rewrite nf-⊕-ignores{T = S} f g = t-msg-minus {p = p} (nf ⊕ d?⊥ T)
   nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g d?⊥ = t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
+  nf-complete f g (≡c-pair T1=T2 T1=T3) = cong₂ T-Pair (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
   nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete d?⊥ d?⊥ T1=T2)
   nf-complete f g (≡c-msg {p = p} T1=T2 T1=T3) = cong₂ (t-msg (mult ⊕ p)) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete f g T1=T3)
   nf-complete f g (≡c-protoD T1=T2) = cong T-ProtoD (nf-complete d?⊥ d?⊥ T1=T2)
@@ -497,6 +510,7 @@ module _ where
   nf-complete- f ≡c-minus-p with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-refl} t1≡t2 t1≡t3) with () ← f refl
   nf-complete- f (≡c-fun {≤pk = ≤p-step <p-mt} t1≡t2 t1≡t3) with () ← f refl
+  nf-complete- f (≡c-pair t1≡t2 t1≡t3) with () ← f refl
   nf-complete- f (≡c-all t1≡t2) with () ← f refl
   nf-complete- f (≡c-msg {S₂ = S₂} {p = p} t1≡t2 t1≡t3) rewrite nf-complete- f t1≡t3 = cong (λ nft → t-msg (mult ⊝ p) nft (nf ⊝ f S₂)) ( nf-complete d?⊥ d?⊥ t1≡t2)
   nf-complete- f (≡c-protoD t1≡t2) with () ← f refl
@@ -512,6 +526,7 @@ module _ where
   nf-sound+ (T-Var x) = ≡c-refl
   nf-sound+ T-Base = ≡c-refl
   nf-sound+ (T-Arrow x T T₁) = ≡c-fun (nf-sound+ T) (nf-sound+ T₁)
+  nf-sound+ (T-Pair T T₁) = ≡c-pair (nf-sound+ T) (nf-sound+ T₁)
   nf-sound+ (T-Poly T) = ≡c-all (nf-sound+ T)
   nf-sound+ (T-Sub x T) = ≡c-sub x (nf-sound+ T)
   nf-sound+ (T-Dual D-S T) = ≡c-trns (nf-sound- T) (≡c-symm (dual-tinv T))
@@ -555,6 +570,7 @@ module _ where
   nt-unique (N-Var NV₁) (N-Var NV₂) = cong N-Var (nv-unique NV₁ NV₂)
   nt-unique N-Base N-Base = refl
   nt-unique (N-Arrow N₁ N₃) (N-Arrow N₂ N₄) = cong₂ N-Arrow (nt-unique N₁ N₂) (nt-unique N₃ N₄)
+  nt-unique (N-Pair N₁ N₃) (N-Pair N₂ N₄) = cong₂ N-Pair (nt-unique N₁ N₂) (nt-unique N₃ N₄)
   nt-unique (N-Poly N₁) (N-Poly N₂) = cong N-Poly (nt-unique N₁ N₂)
   nt-unique (N-Sub N₁) (N-Sub N₂) = cong N-Sub (nt-unique N₁ N₂)
   nt-unique N-End N-End = refl
@@ -595,6 +611,7 @@ module _ where
   nf-idempotent {T = T-Dual x₁ (T-Var x₂)} (N-Var x) = refl
   nf-idempotent N-Base = refl
   nf-idempotent (N-Arrow N₁ N₂) = cong₂ (T-Arrow _) (nf-idempotent N₁) (nf-idempotent N₂)
+  nf-idempotent (N-Pair N₁ N₂) = cong₂ T-Pair (nf-idempotent N₁) (nf-idempotent N₂)
   nf-idempotent (N-Poly N) = cong T-Poly (nf-idempotent N)
   nf-idempotent {T = T-Sub km≤ T} (N-Sub N) = cong (T-Sub _) (trans (cong (λ d? → nf ⊕ d? T) (dual-all-irrelevant (λ x₁ → dualizable-sub (d?⊥ x₁) km≤) d?⊥)) (nf-idempotent N))
   nf-idempotent N-End = refl
