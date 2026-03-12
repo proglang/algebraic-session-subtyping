@@ -1,159 +1,163 @@
-\section{Algebraic Protocols and session types}
+\section{Algebraic Protocols, Session Types, and Subtyping}
 \label{sec:algebr-sess-types}
 
-This section provides a programmer's view of algebraic session types (\algst). It is driven by examples and
-introduces the concepts of algebraic protocols and session types. Our
-syntax is inspired by Haskell, as implemented in our artifact. Examples make
+This section starts with a brief introduction to algebraic protocols
+driven by examples. Next, it motivates constructor subtyping via
+compatibility for evolving interfaces. The remaining sections discuss
+the translation from TST (traditional, tail-recursive session types)
+to algebraic session types with examples, first without subtyping and
+finally with subtyping. We use a
+syntax inspired by Haskell, as implemented in our artifact. Examples make
 liberal use of practical extensions of the formal system (cf.\ \cref{sec:implementation}).
-%
-% follows.
-% \begin{lstlisting}
-% |> : forall(a:T).forall(b:T).a -> (a -> b) -> b
-% x |> f = f x
-% \end{lstlisting}
 
-
-% The design of \algst is inspired by two assumptions about communication in distributed
-% systems.
-% \begin{itemize}
-% \item The creation of a connection is expensive. It is desirable to limit the number of connections
-%   and to reuse existing connections as much as possible.
-% \item  The built-in  communication operations are limited to primitive types, the serialization of which is
-%   hardcoded. Communication of any other type has to be encoded as a protocol.
-% \end{itemize}
-% We finish this section discussing some frequently asked questions in subsection~\ref{sec:freq-asked-quest}.
-
-\subsection{Algebraic datatypes as protocols}
+\subsection{Algebraic Protocols}
 \label{sec:algebr-datatyp-as}
 
-Suppose we want to transmit abstract syntax trees for a language with integers
-and addition. Their type might be defined by an algebraic datatype definition as
-in Haskell or ML.
-\begin{lstlisting}
-data Ast = Con Int | Add Ast Ast
-\end{lstlisting}
-This declaration defines the type \lstinline+Ast+ along with the types of the constructor
-functions, which can be used to construct \lstinline+Ast+ values as well as for pattern matching
-on them:
-\begin{lstlisting}
-  Con :        Int -> Ast
-  Add : Ast -> Ast -> Ast
-\end{lstlisting}
-The type \lstinline+Ast+ is recursive and its \lstinline+Add+
-constructor takes two \lstinline+Ast+ values as arguments.
-To define a protocol for transmitting values of type \lstinline+Ast+, we merely change the keyword
-\lstinline+data+ to \lstinline+protocol+ as in
-\begin{lstlisting}
-protocol AstP = ConP Int | AddP AstP AstP
-\end{lstlisting}
-This declaration defines the protocol type \lstinline+AstP+ along with tags \lstinline+ConP+
-and \lstinline+AddP+, which serve to introduce and eliminate branching in the protocol.
-% Tags are encoded by small numbers for transmission.
-The resulting \lstinline+AstP+ protocol can be used in
-two directions, \lstinline+!AstP+ for sending and \lstinline+?AstP+ for receiving
-data.\footnote{The implementation allows us to reuse a
-  \lstinline+data+ declaration as a \lstinline+protocol+ declaration,
-  thus overloading the constructors.} 
-Protocol types only describe behavior, they do not classify run-time values. They inhabit a
-dedicated kind \lstinline+KP+.
+% Suppose we want to transmit abstract syntax trees for a language with integers
+% and addition. Their type might be defined by an algebraic datatype definition as
+% in Haskell or ML.
+% \begin{lstlisting}
+% data Ast = Con Int | Add Ast Ast
+% \end{lstlisting}
+% This declaration defines the type \lstinline+Ast+ along with the types of the constructor
+% functions, which can be used to construct \lstinline+Ast+ values as well as for pattern matching
+% on them:
+% \begin{lstlisting}
+%   Con :        Int -> Ast
+%   Add : Ast -> Ast -> Ast
+% \end{lstlisting}
+% The type \lstinline+Ast+ is recursive and its \lstinline+Add+
+% constructor takes two \lstinline+Ast+ values as arguments.
+% To define a protocol for transmitting values of type \lstinline+Ast+, we merely change the keyword
+% \lstinline+data+ to \lstinline+protocol+ as in
+% \begin{lstlisting}
+% protocol AstP = ConP Int | AddP AstP AstP
+% \end{lstlisting}
+% This declaration defines the protocol type \lstinline+AstP+ along with tags \lstinline+ConP+
+% and \lstinline+AddP+, which serve to introduce and eliminate branching in the protocol.
+% % Tags are encoded by small numbers for transmission.
+% The resulting \lstinline+AstP+ protocol can be used in
+% two directions, \lstinline+!AstP+ for sending and \lstinline+?AstP+ for receiving
+% data.\footnote{The implementation allows us to reuse a
+%   \lstinline+data+ declaration as a \lstinline+protocol+ declaration,
+%   thus overloading the constructors.} 
+% Protocol types only describe behavior, they do not classify run-time values. They inhabit a
+% dedicated kind \lstinline+KP+.
 
-We illustrate the \lstinline+AstP+ protocol with a function to send an
-\lstinline+Ast+ value. We write functions
-in \emph{channel passing style}, which takes a channel as its argument
-and returns it after processing some prefix of the channel's session
-type. The function's type is universally quantified over the continuation
-type \lstinline+s+ of the unexplored part of the channel.
-% This quantification must be introduced explicitly using
-% \lstinline+forall(s:S)+ where \lstinline+KS+ is the kind of session
-% types.
-The argument
-type adds some prefix to \lstinline+s+ that describes the part of the
-session performed by the function. In our example the prefix is \lstinline+!AstP+.
+% We illustrate the \lstinline+AstP+ protocol with a function to send an
+% \lstinline+Ast+ value. We write functions
+% in \emph{channel passing style}, which takes a channel as its argument
+% and returns it after processing some prefix of the channel's session
+% type. The function's type is universally quantified over the continuation
+% type \lstinline+s+ of the unexplored part of the channel.
+% % This quantification must be introduced explicitly using
+% % \lstinline+forall(s:S)+ where \lstinline+KS+ is the kind of session
+% % types.
+% The argument
+% type adds some prefix to \lstinline+s+ that describes the part of the
+% session performed by the function. In our example the prefix is \lstinline+!AstP+.
+% \begin{lstlisting}
+% sendAst : Ast -> forall(s:S). !AstP.s -> s
+% sendAst t [s] c = case t of {
+%     Con x   -> select ConP [s] c |> sendInt [s] x,
+%     Add l r -> select AddP [s] c |> sendAst l [!AstP.s] |> sendAst r [s] }
+% \end{lstlisting}
+
+% We use the \lstinline+|>+ operator for reverse function
+% application. Defined by \lstinline+x |> f = f x+, the operator associates
+% to the left and features low priority, so that \lstinline+x |> f |> g+ means \lstinline+g (f x)+.
+% %
+% The square brackets indicate type abstraction (on the left) and type
+% application (in expressions).
+% % By abstracting over a type variable \lstinline+s+ of kind \lstinline+S+
+% % (introduced by \lstinline+forall(s:S)+), we require \lstinline+s+
+% % to be later replaced by a session type.
+% %
+% The predefined \lstinline+sendInt+ operation has type
+% \lstinline+forall(s:S). Int -> !Int.s -> s+.
+% %
+% The use of pattern matching with  \lstinline+case+ on algebraic
+% datatypes is standard.
+% As usual in session type systems, channel values of session type are linear
+% and the \lstinline+select+ operation makes an internal choice between alternatives. Selecting a protocol
+% constructor sends an encoding of the corresponding tag and ``pushes'' the transmission of the
+% fields on the channel type. That is:
+% \begin{lstlisting}
+%   select ConP [s] : !AstP.s -> !Int.s
+%   select AddP [s] : !AstP.s -> !AstP.!AstP.s
+% \end{lstlisting}
+% A function to process the receiver end of this protocol must take an argument of type \lstinline+?AstP.s+.
+% \begin{lstlisting}
+% recvAst : forall(s:S). ?AstP.s -> (Ast, s)
+% recvAst [s] c = match c with {
+%     ConP c -> let (x, c)  = receiveInt [s] c    in (Con x, c),
+%     AddP c -> let (tl, c) = recvAst [?AstP.s] c in
+%               let (tr, c) = recvAst [s] c       in (Add tl tr, c) }
+% \end{lstlisting}
+% The \lstinline+match+ on a session-typed channel receives
+% a tag and branches according to it. Branching also ``pushes'' transmission of the fields on the
+% channel type analogous to the \lstinline+select+ operation:
+% \begin{lstlisting}
+% c : ?AstP.s |- match c with { ConP c -> ...   -- c : ?Int.s
+%                               AddP c -> ... } -- c : ?AstP.?AstP.s
+% \end{lstlisting}
+% Left of the turnstile $\vdash$, we write the typing of
+% \lstinline+c+ before the \matchk. In the body of the \matchk, we write
+% the typing of \lstinline+c+ after matching against the selectors \lstinline+ConP+ and \lstinline+AddP+,
+% respectively.
+% The \lstinline+match c+ (with the type on the left) consumes the linear
+% binding for channel \lstinline+c+. The pattern \lstinline+ConP c+
+% reintroduces variable \lstinline+c+, binds it with the channel
+% after processing the selection and gives it an updated type (on the right) for the body of the
+% corresponding branch. The consideration for pattern \lstinline+AddP c+
+% is analogous. The choice of the branch is external and depends
+% on the received selector tag.
+
+% The protocol in this subsection goes beyond the reach of most session type systems because
+% they only support tail recursive session types.
+% Thus, functions like \lstinline+sendAst+ and \lstinline+recvAst+ have
+% no meaningful type in traditional
+% session type systems \cite{DBLP:journals/jfp/GayV10,lindley17:_light_funct_session_types}.
+% However, they can be written using context-free or nested session
+% types \cite{DBLP:journals/corr/abs-2106-06658,DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/DasDMP21}. We
+% discuss the differences in \cref{sec:related}.
+
+% \subsection{Simple protocols with polarities}
+% \label{sec:simple-protocols-add}
+
+We start with a brief recap of algebraic protocols as presented by \citet{DBLP:journals/pacmpl/MordidoS0V23}.
+As a running example, we choose the arithmetic server, which is a
+standard example from the session type literature (cf.\ 
+\cite{DBLP:conf/esop/GayH99}). The arithmetic server
+accepts two commands, \lstinline+Add+ and \lstinline+Quit+. When it
+receives the \lstinline+Add+ command, it waits for two integer
+arguments, responds with an integer (the result) and loops back to
+accept the next command. When it receives \lstinline+Quit+, it terminates
+the connection.
+
+In the session type literature, the type of the arithmetic server is a
+recursive type like this one.
 \begin{lstlisting}
-sendAst : Ast -> forall(s:S). !AstP.s -> s
-sendAst t [s] c = case t of {
-    Con x   -> select ConP [s] c |> sendInt [s] x,
-    Add l r -> select AddP [s] c |> sendAst l [!AstP.s] |> sendAst r [s] }
+  ArithS = mualpha.&{Add:?Int.?Int.alpha, Quit:end}
 \end{lstlisting}
 
-We use the \lstinline+|>+ operator for reverse function
-application. Defined by \lstinline+x |> f = f x+, the operator associates
-to the left and features low priority, so that \lstinline+x |> f |> g+ means \lstinline+g (f x)+.
-%
-The square brackets indicate type abstraction (on the left) and type
-application (in expressions).
-% By abstracting over a type variable \lstinline+s+ of kind \lstinline+S+
-% (introduced by \lstinline+forall(s:S)+), we require \lstinline+s+
-% to be later replaced by a session type.
-%
-The predefined \lstinline+sendInt+ operation has type
-\lstinline+forall(s:S). Int -> !Int.s -> s+.
-%
-The use of pattern matching with  \lstinline+case+ on algebraic
-datatypes is standard.
-As usual in session type systems, channel values of session type are linear
-and the \lstinline+select+ operation makes an internal choice between alternatives. Selecting a protocol
-constructor sends an encoding of the corresponding tag and ``pushes'' the transmission of the
-fields on the channel type. That is:
+Written as an algebraic protocol, we obtain the definition of \lstinline+ArithP+.
 \begin{lstlisting}
-  select ConP [s] : !AstP.s -> !Int.s
-  select AddP [s] : !AstP.s -> !AstP.!AstP.s
+  protocol ArithP = Add Int Int -Int | Quit
 \end{lstlisting}
-A function to process the receiver end of this protocol must take an argument of type \lstinline+?AstP.s+.
-\begin{lstlisting}
-recvAst : forall(s:S). ?AstP.s -> (Ast, s)
-recvAst [s] c = match c with {
-    ConP c -> let (x, c)  = receiveInt [s] c    in (Con x, c),
-    AddP c -> let (tl, c) = recvAst [?AstP.s] c in
-              let (tr, c) = recvAst [s] c       in (Add tl tr, c) }
-\end{lstlisting}
-The \lstinline+match+ on a session-typed channel receives
-a tag and branches according to it. Branching also ``pushes'' transmission of the fields on the
-channel type analogous to the \lstinline+select+ operation:
-\begin{lstlisting}
-c : ?AstP.s |- match c with { ConP c -> ...   -- c : ?Int.s
-                              AddP c -> ... } -- c : ?AstP.?AstP.s
-\end{lstlisting}
-Left of the turnstile $\vdash$, we write the typing of
-\lstinline+c+ before the \matchk. In the body of the \matchk, we write
-the typing of \lstinline+c+ after matching against the selectors \lstinline+ConP+ and \lstinline+AddP+,
-respectively.
-The \lstinline+match c+ (with the type on the left) consumes the linear
-binding for channel \lstinline+c+. The pattern \lstinline+ConP c+
-reintroduces variable \lstinline+c+, binds it with the channel
-after processing the selection and gives it an updated type (on the right) for the body of the
-corresponding branch. The consideration for pattern \lstinline+AddP c+
-is analogous. The choice of the branch is external and depends
-on the received selector tag.
+Unlike the session type \lstinline+ArithS+, \lstinline+ArithP+ is a
+protocol. Here is
+the crucial difference: 
+The former already fixes the direction of communication, as the
+operators \lstinline+&+ and \lstinline+?+ indicate receiving. The
+latter \lstinline+ArithP+ only fixes the structure of the
+communication, i.e., \lstinline+Add+ and then two \lstinline+Int+
+transmissions in the same direction while the \lstinline+-Int+ indicates a
+transmission in the opposite direction. We materialize the direction
+of a protocol by using it in a session type as in
+\lstinline+&ArithP.End+. This session type corresponds exactly to
+\lstinline+ArithS+. 
 
-The protocol in this subsection goes beyond the reach of most session type systems because
-they only support tail recursive session types.
-Thus, functions like \lstinline+sendAst+ and \lstinline+recvAst+ have
-no meaningful type in traditional
-session type systems \cite{DBLP:journals/jfp/GayV10,lindley17:_light_funct_session_types}.
-However, they can be written using context-free or nested session
-types \cite{DBLP:journals/corr/abs-2106-06658,DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/DasDMP21}. We
-discuss the differences in \cref{sec:related}.
-
-\subsection{Simple protocols with polarities}
-\label{sec:simple-protocols-add}
-
-The protocol type \lstinline+AstP+ from
-\cref{sec:algebr-datatyp-as}  describes unidirectional
-communication. This section extends protocol types with
-\emph{polarities} to model bidirectional communication.
-The protocol type \lstinline+Arith+ of an arithmetic server (cf.\ 
-\cite{DBLP:conf/esop/GayH99}) serves as an example. The server takes a command, \lstinline+Neg+ or
-\lstinline+Add+, accepts one or two inputs to the commands and produces its output.
-\begin{lstlisting}
-protocol Arith = Neg Int -Int | Add Int Int -Int
-\end{lstlisting}
-The new element in this declaration is the \emph{polarity} ``\lstinline+-+'' which indicates a
-reversal of the direction of communication. A client would use this protocol in ``forward
-direction'', that is, in a session type of the form \lstinline+!Arith.s+ whereas the server would
-implement \lstinline+?Arith.t+, for some session type \lstinline+t+ dual to  \lstinline+s+. On \lstinline+!Arith.s+,
-selection of a tag works as in \cref{sec:algebr-datatyp-as}, but negative polarities
-flip the direction:
 \begin{lstlisting}
   select Neg [s] : !Arith.s -> !Int.?Int.s
   select Add [s] : !Arith.s -> !Int.!Int.?Int.s
@@ -163,24 +167,18 @@ Branching operates analogously on types in the assumption:
 c : ?Arith.s |- match c with { Neg c -> ...   -- c : ?Int.!Int.s
                                Add c -> ... } -- c : ?Int.?Int.!Int.s
 \end{lstlisting}
+
 The implementation of the server is straightforward. (We leave the client code to the reader.)
 \begin{lstlisting}
-serveArith : forall(s:S). ?Arith.s -> s
-serveArith [s] c = match c with {
-    Neg c -> let (x, c) = receiveInt [!Int.s] c in
-             sendInt [s] (0-x) c,
-    Add c -> let (x, c) = receiveInt [?Int.!Int.s] c in
-             let (y, c) = receiveInt [!Int.s] c in
-             sendInt [s] (x+y) c }
+serveArith : ?ArithP.end -> unit
+serveArith c = match c with {
+    Quit c -> close c,
+    Add c  -> let (x, c) = receiveInt [?Int.!Int.?ArithP.end] c in
+              let (y, c) = receiveInt [!Int.?ArithP.end] c in
+              let c = sendInt [?ArithP.end] (x+y) c in
+              serveArith c }
 \end{lstlisting}
 
-% This is a good point to reflect on the meaning of the arguments to the
-% tags in a protocol declaration.
-The tag declaration \lstinline+Neg Int -Int+ shows that the tag arguments are protocols themselves, rather than
-plain types. This fact is witnessed by the use of \lstinline+AstP+ in a tag argument for
-\lstinline+AstP+ as well as by the use of \lstinline+-Int+ in a tag argument for
-\lstinline+Arith+.
-Ordinary types like \lstinline+Int+ are promoted to protocol types.
 
 \subsection{Parameterized protocols and modularity}
 \label{sec:param-prot}
