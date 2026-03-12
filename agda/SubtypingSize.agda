@@ -37,6 +37,7 @@ private
     size-<:-aux <:-base = zero
 
     size-<:-aux (<:-fun ddom dcod) = size-<: ddom + size-<: dcod
+    size-<:-aux (<:-pair d₁ d₂) = size-<: d₁ + size-<: d₂
     size-<:-aux (<:-protoD d) = size-<: d
     size-<:-aux (<:-all d) = size-<: d
 
