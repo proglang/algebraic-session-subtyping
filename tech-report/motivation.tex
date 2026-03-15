@@ -129,55 +129,101 @@ We start with a brief recap of algebraic protocols as presented by \citet{DBLP:j
 As a running example, we choose the arithmetic server, which is a
 standard example from the session type literature (cf.\ 
 \cite{DBLP:conf/esop/GayH99}). The arithmetic server
-accepts two commands, \lstinline+Add+ and \lstinline+Quit+. When it
-receives the \lstinline+Add+ command, it waits for two integer
-arguments, responds with an integer (the result) and loops back to
+accepts two commands, \lstinline+Neg+ and \lstinline+Quit+. When it
+receives the \lstinline+Neg+ command, it waits for an integer
+argument, responds with an integer (the result) and loops back to
 accept the next command. When it receives \lstinline+Quit+, it terminates
 the connection.
 
 In the session type literature, the type of the arithmetic server is a
 recursive type like this one.
 \begin{lstlisting}
-  ArithS = mualpha.&{Add:?Int.?Int.alpha, Quit:end}
+  ArithS = mualpha.&{Neg:?Int.!Int.alpha, Quit:end}
 \end{lstlisting}
 
 Written as an algebraic protocol, we obtain the definition of \lstinline+ArithP+.
 \begin{lstlisting}
-  protocol ArithP = Add Int Int -Int | Quit
+  protocol ArithP = Neg Int -Int | Quit
 \end{lstlisting}
 Unlike the session type \lstinline+ArithS+, \lstinline+ArithP+ is a
 protocol. Here is
 the crucial difference: 
-The former already fixes the direction of communication, as the
+The session type \lstinline+ArithS+ already fixes the direction of communication, as the
 operators \lstinline+&+ and \lstinline+?+ indicate receiving. The
-latter \lstinline+ArithP+ only fixes the structure of the
-communication, i.e., \lstinline+Add+ and then two \lstinline+Int+
+protocol \lstinline+ArithP+ only fixes the structure of the
+communication, i.e., \lstinline+Neg+ and then two \lstinline+Int+
 transmissions in the same direction while the \lstinline+-Int+ indicates a
 transmission in the opposite direction. We materialize the direction
 of a protocol by using it in a session type as in
-\lstinline+&ArithP.End+. This session type corresponds exactly to
+\lstinline+?ArithP.End+. This algebraic session type corresponds exactly to
 \lstinline+ArithS+. 
 
+A client implementation would use the select operator as usual, but
+with the following types dictated by the theory of algebraic
+protocols. We generally write type arguments in square brackets.
 \begin{lstlisting}
-  select Neg [s] : !Arith.s -> !Int.?Int.s
-  select Add [s] : !Arith.s -> !Int.!Int.?Int.s
+  select Quit [s] : !ArithP.s -> s
+  select Neg [s]  : !ArithP.s -> !Int.?Int.!ArithP.s
 \end{lstlisting}
 Branching operates analogously on types in the assumption:
 \begin{lstlisting}
-c : ?Arith.s |- match c with { Neg c -> ...   -- c : ?Int.!Int.s
-                               Add c -> ... } -- c : ?Int.?Int.!Int.s
+c : ?ArithP.s |- match c with { Quit c -> ...  -- c : s
+                                Neg c -> ... } -- c : ?Int.!Int.?ArithP.s
 \end{lstlisting}
 
-The implementation of the server is straightforward. (We leave the client code to the reader.)
+The implementation of the server is straightforward.
 \begin{lstlisting}
 serveArith : ?ArithP.end -> unit
 serveArith c = match c with {
     Quit c -> close c,
-    Add c  -> let (x, c) = receiveInt [?Int.!Int.?ArithP.end] c in
-              let (y, c) = receiveInt [!Int.?ArithP.end] c in
-              let c = sendInt [?ArithP.end] (x+y) c in
+    Neg c  -> let (x, c) = receiveInt [!Int.?ArithP.end] c in
+              let c = sendInt [?ArithP.end] (0-x) c in
               serveArith c }
 \end{lstlisting}
+The type arguments to \lstinline+receiveInt+ and \lstinline+sendInt+
+are the types of the respective continuation channels. They specify
+the type of the variable \lstinline+c+ that is bound on the left side.
+
+\begin{lstlisting}
+  arithClient : !ArithP.end -> Int -> Int
+  arithClient c x =
+    let c = select Neg [end] c in
+    let c = sendInt [?Int.!ArithP.end] x c in
+    let (r, c) = receiveInt [!ArithP.end] c in
+    let c = select Quit [end] c in
+    let _ = close c in
+    r
+\end{lstlisting}
+
+The main feature of algebraic protocols that we did not touch, yet, is
+parametric protocols. That means that protocols can be parametric over
+other protocols. This feature enables the definition of protocols like
+\lstinline+Seq+ from the introduction. We introduce it in XXX along
+with the discussion of the translation.
+
+\subsection{Constructor Subtyping for Algebraic Protocols}
+\label{sec:constr-subtyp-algebr}
+
+Imagine an extension of the arithmetic server with a new operation,
+say, addition indicated by the command \lstinline+Add+. The
+traditional session type changes to include the new alternative.
+\begin{lstlisting}
+  ArithS' = mualpha.&{Add:?Int.?Int.!Int.alpha,Neg:?Int.!Int.alpha, Quit:end}
+\end{lstlisting}
+The standard subtyping for session types gives
+\lstinline+ArithS <: ArithS'+ because a channel of type
+\lstinline+ArithS+ can be processed by code that expects the supertype
+\lstinline+ArithS'+: The code has an additional branch that is never
+exercised.
+
+With constructor subtyping for algebraic protocols, we obtain exactly
+the same situation. The extended protocol type becomes
+\begin{lstlisting}
+  protocol ArithP = Add Int Int -Int | Neg Int -Int | Quit
+\end{lstlisting}
+Now,
+\lstinline+ArithP[Neg,Quit]+ is a subtype of \lstinline+ArithP+ which
+corresponds exactly to the previous version. 
 
 
 \subsection{Parameterized protocols and modularity}
