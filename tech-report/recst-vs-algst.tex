@@ -11,44 +11,71 @@ corresponding functional types.
 
 \subsection{A graph representation for recursive types}
 
-Recursive session types are represented as a deterministic labelled transition
-system (LTS) $\stlts$ where $V$ is a set of nodes or states, $L$ is the set of
-transition labels containing at least $\Lone,\Ltwo\in L$, and ${\sttrans{}}
-\subseteq V\times L\times V$ the transition relation. We may write
-$v\sttrans\ell v'$ for $(v,\ell,v')\in{\sttrans{}}$, and $v\notrans$ if there
-are no $\ell,v'$ such that $v\sttrans\ell v'$. The labelling function
-$\lab:V\to\labset$ assigns a label to every state. The set of state labels must
-comprise at least the so called set of session type labels $\labset \supset
-\labsetS = \{\LSend,\LRecv,\LChoice,\LBranch,\LEnd\}$ and the function arrow
-$\LFunc\in\labset$. The set of base type labels $\labsetB$ is defined as the
-set of remaining labels $\labsetB = \labset \setminus \labsetS \setminus
-\{\LFunc\}$. Typical candidates for the set of base types are, for example
-$\LUnit$ or $\LInt$. Every node $v\in V$ must satisfy the conditions below.
+Types are represented via deterministic labelled transition systems $\stlts$
+where $V$ is a set of nodes or states, $L$ is the set of transition labels and
+${\sttrans{}} \subseteq V\times L\times V$ the transition relation. We may
+write $v\sttrans\ell v'$ for $(v,\ell,v')\in{\sttrans{}}$, and $v\notrans$ if
+there are no $\ell,v'$ such that $v\sttrans\ell v'$.
+
+Given a set of base types $B$, and a set of branch and choice labels $C$ the
+transition labels $L$ comprise\footnote{The operator ${\cdot} \uplus {\cdot}$
+denotes disjoint union, i.\,e. we assume the three sets to be distinct.}
 %
+\begin{align*}
+  % Issues a shorter space at the start of the environment. LaTeX environments
+  % like \[...\] do this automatically when the preceding line is short.
+  % amsmath environments, sadly, do not.
+  \SwapAboveDisplaySkip
+  L &= \stltsLDefn \\
+  \labset
+    &= \mathrlap{\stltsLDefnCon} \hphantom{\stltsLDefn}
+        \ \subseteq L
+    \\
+  \labsetS
+    &= \mathrlap{\stltsLDefnS} \hphantom{\stltsLDefn}
+        \ \subseteq \labset
+\end{align*}
+%
+The sets $\labset$ and $\labsetS$ give names to specific subsets of $L$. The
+former denotes the set of transition labels that correspond to type
+constructors. The latter corresponds to the subset corresponding to session
+type constructors.
+
+There needs to be a way to associate the top-level type constructor that
+corresponds with each node in way that is respected by bisimilarity. To this
+end we require one designated node $o\in V$ with $o\notrans$. From every node
+$v\in V$\!,~$v \ne o$ there must be exactly one transition to $o$. That
+transition must be labelled from the set $\labset$. The function $\lab(v)$
+returns the label $\ell$ from the transition $v \sttrans\ell o$. Besides a
+singular transition to $o$, for every nodes $v\in V, v\ne o$ the conditions
+below must be satisfied.
+
 \begin{enumerate}
-  %
-  \item \label{tylts/arity0} If $\lab(v) = \LEnd$ or $\lab(v) \in \labsetB$
-    it must hold that $v\notrans$.
-  %
+
+  \item \label{tylts/arity0} If $\lab(v) = \LEnd$ or $\lab(v) \in B$ it must
+    hold that $v\notrans$.
+
   \item \label{tylts/arity2} If $\lab(v) \in \{\LSend,\LRecv,\LFunc\}$ there
     must be $v_1,v_2\in V$ with $v \sttrans\Lone v_1$ and $v \sttrans\Ltwo
     v_2$, and for all $v \sttrans\ell v'$ it must hold that
-    $(\ell,v')\in\{(\Lone,v_1),(\Ltwo,v_2)\}$.
-  %
-  \item If $\lab(v)\in\{\LChoice,\LBranch\}$ there must be at least one
-    transition $v\sttrans\ell v'$, and for all transitions $v \sttrans{\ell'}
-    v''$ it must hold that $\ell'\not\in\{1,2\}$.
-  %
-  \item If $\lab(v)\in\labsetS$, for all $v\sttrans\ell v'$ with $\ell \ne
-    \Lone$ it must hold that $\lab(v')\in\labsetS$.
-  %
+    $(\ell,v')\in\{(\Lone,v_1),(\Ltwo,v_2),(\LFunc,o)\}$.
+
+  \item \label{tylts/choice-branch} If $\lab(v)\in\{\LChoice,\LBranch\}$ there
+    must be at least one transition $v\sttrans\ell v'$ with $\ell\in C$, and
+    for all transitions $v\sttrans{\ell'} v_\ell$ it must hold that $v_\ell \ne
+    o$ iff $\ell'\in C$.
+
+  \item \label{tylts/well-formed} If $\lab(v)\in\labsetS$, for all
+    $v\sttrans\ell v'$ with $\ell \ne \Lone$ and $v' \ne o$ it must hold that
+    $\lab(v')\in\labsetS$.
+
   \item \label{tylts/cycles} If there is a cycle $v \sttrans{\ell} v_1
     \sttrans{\ell_1} \cdots v_n \sttrans{\ell_n} v_1$ it must hold that
     $\lab(v)\in\labsetS$ and $\ell\ne\Lone$.
-  %
-  \item If $v\sttrans\ell v'$ and $v\sttrans\ell v''$ it must hold that
-    $v'=v''$.
-  %
+
+  \item \label{tylts/det} If $v\sttrans\ell v'$ and $v\sttrans\ell v''$ it must
+    hold that $v'=v''$.
+
 \end{enumerate}
 %
 Requirement \eref{tylts/cycles} restricts the kind of cycles that may occur.
@@ -58,11 +85,39 @@ allowed to be recursive and we avoid the dualization paradox where recursive
 session types use recursion variables in the payload of
 messages~\citep{BernardiH16,DBLP:journals/corr/abs-2004-01322}.
 
-Given an LTS $\stlts$ the function $\stty{{\,\cdot\,}}$ produces a type with
-the grammar below. In particular, if $\lab(v)\in\labsetS$ for some $v\in V$,
-the result of $\stty{v}$ is a type according to the grammar $S$. To
-differentiate the translation functions for two transition systems $A$ and $B$
-we may write $\stty{{\,\cdot\,}}^A$ and $\stty{{\,\cdot\,}}^B$ respectively.
+\begin{definition}
+  The functions $\NodePost{},\NodeCycles{},\NodeNonCycles{} : V \to L \times V$
+  return the set of outgoing transitions and their targets---excluding
+  transitions to $o$. $\NodeCycles{}$ is restricted to transitions that are
+  part of a cycle. $\NodeNonCycles{}$ is its complement with respect to
+  $\NodePost{}$.
+  %
+  \begin{align*}
+    % Issues a shorter space at the start of the environment. LaTeX environments
+    % like \[...\] do this automatically when the preceding line is short.
+    % amsmath environments, sadly, do not.
+    % \SwapAboveDisplaySkip
+    %\NodePost{},\NodeCycles{},\NodeNonCycles{} \centeronequals{:} V \to L \times V \\
+    \NodePost{v} &= \big\{
+      (\ell, v') \in L \times V
+      \,\big|\,
+      v\sttrans\ell v',\ v' \ne o
+    \big\} \\
+    \NodeCycles{v} &= \big\{
+      (\ell, v') \in \NodePost{v}
+      \,\big|\,
+      \exists n \geq 0, v_1 \dots v_n, \ell_1 \dots \ell_{n+1}.
+        v'\sttrans{\ell_1} v_1\sttrans{\ell_2} \cdots v_n\sttrans{\ell_{n+1}} v
+    \big\} \\
+    \NodeNonCycles{v} &= \NodePost{v} \setminus \NodeCycles{v}\vphantom{\big\{}
+  \end{align*}
+\end{definition}
+
+Given an LTS $A=\stlts$ the function $\stty[A]{}$ produces a type with the
+grammar below. In particular, if $\lab(v)\in\labsetS$ for some $v\in V$, the
+result of $\stty[A]{v,\eta}$ is a type according to the grammar $S$. If the LTS
+parameter is obvious from context we may omit the subscript and write
+$\stty{v,\eta}$ instead.
 %
 \begin{align*}
   %
@@ -79,56 +134,60 @@ we may write $\stty{{\,\cdot\,}}^A$ and $\stty{{\,\cdot\,}}^B$ respectively.
 % and defined according to $\eta$ at any other point.
 
 \[
-  \stty{v} = \begin{cases*}
+  \stty{v,\eta} = \begin{cases*}
     \recc v & if
       $v \in \eta$
     \\
-    \SRec[v] \SBranchChoice\star*{{\ell: \stty[\eta\cup\{v\}]{v'}}}_{\recc{\ell\in I}} & if
-      %$\eta(v)\uparrow$,
+    \SRec[v] \SBranchChoice\star*{{\ell: \stty{v',\eta\cup\{v\}}}}_{\recc{(\ell,v')\in I}} & if
       $v \not\in \eta$,
       $\star = \lab(v) \in \{\LBranch,\LChoice\}$,
-      %$\alpha$ fresh,
-      %for all $\ell,v'$ with $v \sttrans\ell v'$
-      $I = \{ \ell\in L \mid \exists v'\!.\, v \sttrans\ell v' \}$
+      $I = \NodePost{v}$
     \\
-    \SRec[v] \SSendRecv\sharp{\stty[\emptyset]{v_1}} \stty[\eta\cup\{v\}]{v_2} & if
-      %$\eta(v)\uparrow$,
+    \SRec[v] \SSendRecv\sharp{\stty{v_1,\emptyset}} \stty{v_2,\eta\cup\{v\}} & if
       $v \not\in \eta$,
       $\sharp = \lab(v) \in \{\LSend,\LRecv\}$,
-      %$\alpha$ fresh,
       $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
     \\
-    \recc{\stty[\emptyset]{v_1} \to \stty[\emptyset]{v_2}} & if
+    \recc{\stty{v_1,\emptyset} \to \stty{v_2,\emptyset}} & if
       $\lab(v) = \LFunc$,
       $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
     \\
-    \SEnd & if $\lab(v) = \LEnd$ \\
-    \lab(v) & if $\lab(v) \in \labsetB$ \\
+    \lab(v) & if $\lab(v) = \LEnd$ or $\lab(v) \in B$ \\
   \end{cases*}
 \]
 %
-In the last clause of we assume that every base type label corresponds to a
-valid base type. This assumption is reasonable for choices like $\LUnit$ or
-$\LInt$.
+The function $\mathcal T$ constructs a type for a node $v\in V,\ v\ne o$. The
+approach is fairly straightforward: the node's label determines the type
+constructor and the subtypes are constructed recursively from the set of
+immediate successors of $v$, excluding $o$. The graph may contain cycles which
+have to be turned into recursive types. This is achieved by keeping track of
+the already seen nodes in the parameter $\eta$. Every node $v$ that may be part
+of a cycle, i.\,e. $\lab(v) \in \labsetS$, binds a type variable $\recc v$ the
+first time it is encountered. The second time round the constructed time refers
+to the now in-scope type variable. In the recursive calls for successors of $v$
+that may not be part of a cycle with $v$ we do not pass $\eta$ on. In the last
+clause of we assume that every base type label corresponds to a valid base
+type. This assumption is reasonable for choices like $\LUnit$ or $\LInt$.
 
 \begin{lemma}
   %
-  The types produced by $\stty{\,\cdot\,}$ are well-formed, that is every type
-  is contractive and formed according to the grammar $T$. An argument with a
-  label in $\labsetS$ forms a type according to the grammar $S$.
+  The types produced by $\stty{}$ are well-formed, that is
+  every type is contractive and formed according to the grammar $T$. An
+  argument with a label in $\labsetS$ forms a type according to the grammar
+  $S$.
  %
 \end{lemma}
 %
 \begin{proof}
   %
-  By inspection of $\stty{\,\cdot\,}$ every produced type is contractive.
+  By inspection of $\stty{}$ every produced type is contractive.
   \js{incomplete}
   %
 \end{proof}
 %
 \begin{lemma}
   %
-  The types produced by $\stty{\,\cdot\,}$ contain recursion variables only in
+  The types produced by $\stty{}$ contain recursion variables only in
   tail recursive positions of session types.
   %
 \end{lemma}
@@ -165,15 +224,23 @@ end we define the notion of duality relations.
 \end{definition}
 
 \begin{lemma}
-  Any duality relation ${\DualRel}$ is symmetric.
+  Any duality relation ${\DualRel}$ is
+
+  \smallskip\begin{tabular}{>{\bfseries\upshape}l>{$}l<{$}}
+    symmetric     & u \DualRel v \implies v \DualRel u            \\
+    right-unique  & u \DualRel v,\ u \DualRel v' \implies v = v'  \\
+    left-unique   & u \DualRel v,\ u' \DualRel v \implies u = u'
+  \end{tabular}
 \end{lemma}
-\begin{proof}
-  %
-  If requirements \eref{dual-rel/labels} and \eref{dual-rel/one} are satisfied
-  they will also be trivially satisfied in the symmetric case. Condition
-  \eref{dual-rel/u2v} guarantees the condition \eref{dual-rel/v2u} is satisfied
-  for the symmetric case and vice versa.
-  %
+\begin{proof}\
+  \begin{enumerate}
+    \item If requirements \eref{dual-rel/labels} and \eref{dual-rel/one} are
+      satisfied they will also be satisfied in the symmetric case. Condition
+      \eref{dual-rel/u2v} guarantees that condition \eref{dual-rel/v2u} is
+      satisfied for the symmetric case and vice versa.
+    \item \js{TODO}
+    \item Follows from symmetricity and right-uniqueness.\qedhere
+  \end{enumerate}
 \end{proof}
 
 \begin{definition}
@@ -183,18 +250,23 @@ end we define the notion of duality relations.
 \end{definition}
 
 \begin{lemma}
-  Given two dual nodes $u,v$ then $\SDual{\stty{u}} = \stty{v}$.
+  Given two dual nodes $u,v$ then $\SDual{\stty{u,\eta}} = \stty{v,\eta}$.
 \end{lemma}
 \begin{proof}
   \js{TODO}
 \end{proof}
 
 \begin{definition}
-  An LTS is called \emph{uniquely labelled} if for every pair of nodes $u,v$
-  ($u\ne v$) the existence of a transition label $\ell\not\in \{\Lone,\Ltwo\}$
-  such that $u \sttrans\ell u'$ and $v\sttrans\ell v'$ implies that $u$ and $v$
-  are dual nodes.
+  For a node $v$ the duals set $\textsf{duals}(v)$ comprises the node $v$
+  itself and, if it exists, the dual node of $v$.
 \end{definition}
+
+% \begin{definition}
+%   An LTS is called \emph{uniquely labelled} if for every pair of nodes $u,v$
+%   ($u\ne v$) the existence of a transition label $\ell\not\in \{\Lone,\Ltwo\}$
+%   such that $u \sttrans\ell u'$ and $v\sttrans\ell v'$ implies that $u$ and $v$
+%   are dual nodes.
+% \end{definition}
 
 \subsection{Subtyping}
 
@@ -246,13 +318,11 @@ of nodes before, the definition of subtyping is necessarily coinductive.
 \end{definition}
 
 \begin{definition}[Transition system state subtyping]
-
   Given two transition systems $T$ and $U$ differing only in their transition
   relations $\sttrans{}_T$ and $\sttrans{}_U$: state $v$ in $T$ is subtype of
   that same state in $U$ if there exists a transition subtyping relation
   $\mathcal R$ such that $\subtriple T v U \in \mathcal R$. We write $v : T
   \SubLTS U$.
-
 \end{definition}
 
 % Subtyping is defined on the transition relation of the LTS. Given two recursive
@@ -310,7 +380,7 @@ in both of its arguments~\eref{lts-subtyperel/recv}.
   %
   Given two typing LTS $A,B$ defined over the same set of nodes, transition
   labels, and shared labelling function, if $v : A \SubLTS B$ then
-  $\stty[\emptyset]{v}^A \SubST \stty[\emptyset]{v}^B$.
+  $\stty[A]{v,\emptyset} \SubST \stty[B]{v,\emptyset}$.
   %
 \end{lemma}
 %
@@ -417,39 +487,20 @@ condition that $v$ is suitably labelled.
         $\lab(v) = \LFunc$,
         $v \sttrans{\Lone} v_1, v \sttrans{\Ltwo} v_2$
       \\
-      \typec{! \ppm{} \ToAlgSeq{\ToAlgCollect{v,\ToAlgSeenNil}}.\TEnd}
+      \typec{! \ppm{} \ToAlgSeq{\ToAlgCollect{\ToAlgSeenNil,v}}.\TEnd}
             & if $\lab(v)\in\labsetS\setminus\{\LEnd\}$, ${\ppm{}} = \ToAlgPM{v}$
       \\
     \end{cases*}
     \\[\abovedisplayskip]
-%   \ToAlgProto{v,\ToAlgSeen} &= \begin{cases*}
-%     \ToAlgStep{v,\ToAlgUpdate v 1} & if $\ToAlgSeen(v) = 0$ \\
-%     \PRep\ \ToAlgStep{v,\ToAlgUpdate v 2} & if $\ToAlgSeen(v) = 1$ \\
-%     \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause} & if $\ToAlgSeen(v) = 2$
-%   \end{cases*}
-%   \\[\abovedisplayskip]
-%   \ToAlgStep{v,\ToAlgSeen} &= \begin{cases*}
-%     \mathrlap{\PEps}\hphantom{\ToAlgTyProtoClause}
-%       & if $\lab(v) = \LEnd$ \\
-%     \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgProto{v_2,\ToAlgSeen}
-%       & if $\lab(v) \in \{\LSend,\LRecv\}$,
-%          $v \sttrans{\Lone} v_1$,
-%          $v \sttrans{\Ltwo} v_2$
-%       \\
-%     \ppm{}\ToAlgPM{v}\PDispatch[I]
-%       & if $\lab(v) \in \{\LChoice,\LBranch\}$,
-%         $ I = \{\ell\in L \mid \exists v'\!.\,v \sttrans\ell v'\}$
-%   \end{cases*}
-%   \\[\abovedisplayskip]
-    \ToAlgCollect{v,x} &= \begin{cases*}
+    \ToAlgCollect{x,v} &= \begin{cases*}
       (xv_1\dots v_{j-1}, v_j\dots v_nv_1\dots v_{j-1})
         & if $v_1\sttrans\Ltwo \cdots v_n\sttrans\Ltwo v_1$ where $\forall i.\, v_i = v \Leftrightarrow i=1$ \\
-        & where $i$ is the minimal rotation of $v_1\dots v_n$\\
+        & where $j$ is the minimal rotation of $v_1\dots v_n$\\
       (x, \ToAlgSeenNil)
         & else if $\lab(v) = \LEnd$ \\
       (xv, \ToAlgSeenNil)
         & else if $\lab(v) \in \{\LChoice,\LBranch\}$ \\
-      \ToAlgCollect{v_2,xv}
+      \ToAlgCollect{xv,v_2}
         & else if $\lab(v) \in \{\LSend,\LRecv\}, v\sttrans\Ltwo v_2$ \\
     \end{cases*}
     \\[\abovedisplayskip]
@@ -460,17 +511,17 @@ condition that $v$ is suitably labelled.
         & if $x=\ToAlgSeenNil, y\ne\ToAlgSeenNil$ \\
       \PSeq\ \ppm{}\ToAlgPM{v}\ToAlgTy{v_1}\ \ToAlgSeq{x',y}
         & if $x=vx'$, $\lab(v)\in\{\LSend,\LRecv\}$, $v\sttrans\Lone v_1$ \\
-      \ppm{}\ToAlgPM{v}\PDispatch[I]
+      \ppm{}\ToAlgPM{v}\ToAlgP{v}\typec{[I]}
         & if $x=vx'$, $\lab(v) \in \{\LChoice,\LBranch\}$,
           $I = \{\ell\in L \mid \exists v'\!.\,v \sttrans\ell v'\}$
     \end{cases*}
-%   \\[\abovedisplayskip]
-%   \ToAlgCons{v, (x,y)} &= \begin{cases*}
-%     (x,y) & if $v\in y$ \\
-%     (vx, y) & if $v\not\in y$
-%   \end{cases*}
+    \\[\abovedisplayskip]
+    \ToAlgP{v} &= \begin{cases*}
+      \typec{P_{v'}} & if $\lab(v) = \LBranch$ and there exists a dual node $v'$ \\
+      \typec{P_v} & else
+    \end{cases*}
   \end{align*}
-  \caption{Translation functions}
+  \caption{Translation functions from LTS nodes to algebraic types}
   \label{fig:translation-functions}
 \end{figure}
 
@@ -489,14 +540,65 @@ The translation of session types is more involved. The main complication arises
 from the need to translate recursive session types not involving choice or
 branch constructors into some canonical form. We call recursive session types
 of the form $\recc{\SRec\sharp_1 T_1.\dotsc\sharp_n T_n.\alpha}$ (where
-$\forall i.\,\sharp_i \in \{\recc!, \recc?\}$) \emph{linearly recursive.} A
-linearly recursive session type corresponds to a cycle in the LTS
-representation. The translation must ensure that the type of node $v$ after $n$
-communication operations is equivalent to the type generated for the node $n$
-steps further along the cycle. To this end, the nodes of such linear cycles are
-processed as a sequence into a canonical form through a minimum rotation.
+$\forall i.\,\sharp_i \in \{\recc!, \recc?\}$) \emph{linearly recursive.} The
+recursion of such types is encoded through the $\PRep$ protocol. It receives as
+an argument the protocol to repeat which we build up nesting multiple instances
+of $\PSeq$. As an example, consider the type
+$\recc{\SRec\SSend\SInt\SRecv\SInt\alpha}$ that is (slightly simplified)
+encoded as $\typec{!\PRep\ (\PSeq\ \TInt\ \pneg\TInt)}$. After one $\sendk$
+(and any necessary $\selectk$ operations) we are left with
+$\SRecv\SInt\recc{\SRec\SSend\SInt\SRecv\SInt\alpha}$ and
+$\typec{?\TInt.!\PRep\ (\PSeq\ \TInt\ \pneg\TInt)}$ respectively. The former is
+equivalent to $\recc{\SRec\SRecv\SInt\SSend\SInt\alpha}$ but the latter is not
+equivalent to $\typec{!\PRep\ (\PSeq\ \pneg\TInt\ \TInt)}$. It is important
+that these equivalences are preserved by the translation.
 
-\js{more explanation}
+Given a node $v$ and a (potentially empty) sequence of nodes $x$
+$\ToAlgCollect{}$ returns a pair of two node sequences. The first component
+contains the sequence of nodes corresponding to send and receives, and
+potentially terminated by a node labelled either $\LBranch$ or $\LChoice$. If
+not empty the second component will contain a sequence of nodes comprising a
+linearly recursive cycle. $x$ is prepended as a prefix to the first component.
+The first clause of $\ToAlgCollect{}$ contains the solution to the problem
+outlined above. Using the total order on the nodes $V$ the minimum rotation $j$
+is determined. In the first component part of the cycle, up to but not
+including node the $j$-th node, is returned. The second component of the result
+consists of the cycle but rotated to start with the $j$-th node.
+
+If the node $v$ given to $\ToAlgCollect{}$ is not part of a linearly recursive
+cycle there are three further cases to consider. If the node's label is
+$\LEnd$, $\LBranch$, or $\LChoice$ the collection is terminated. $v$ is
+included in the result if it is not an $\LEnd$ node. In the final case $v$ is
+appended to $x$ in a recursive call to $\ToAlgCollect{}$ for the node reachable
+via a $\Ltwo$ transition from $v$.
+
+$\ToAlgSeq{}$ assembles the sequences returned from $\ToAlgCollect{}$ into a
+protocol type. If both sequences are empty a base case will have been reached
+and the protocol $\PEps$ is returned. If only the first sequence is empty the
+protocol to be built must correspond to a linearly recursive type. As such, the
+second argument is moved into the first and the result is used as an argument
+to the $\PRep$ protocol. If the first sequence is not empty and starts with a
+node labelled $\LSend$ or $\LRecv$ the payload type is turned into an algebraic
+type and the remainder of the sequence is processed recursively. If the head of
+the sequence is labelled $\LChoice$ or $\LBranch$ instead \js{we use multiple
+protocols}
+
+The polarity parameter $\ppm{}$ to $\ToAlgSeq[]{}$ combined with the polarities
+returned by $\ToAlgPM{v}$ produce dual session types for dual nodes.
+
+The recursion between $\ToAlgTy{}$ and $\ToAlgSeq[]{}$ is guaranteed to
+terminate because every call from $\ToAlgSeq[]{}$ back into $\ToAlgTy{}$ gives
+as input a node that was reached via a $\Lone$ transition. Such transitions
+cannot be part of any cycles.
+
+For every node $v$ labelled $\LChoice$ or $\LBranch$ and a potentially existing
+dual node $v'$ we define a protocol
+%
+\[
+  \protocolk\ \ToAlgP{v} = \left\{
+    \termc{\constr_\ell} 
+  \right\}
+\]
 
 The protocol $\PDispatch$ is defined as
 %
@@ -552,3 +654,16 @@ $\typec{!\PEps.\TEnd}$ after the communication step $\selectk$ and $\matchk$
 statements must be introduced to deal with $\PEps$ protocols. Similar handling
 is necessary for non-branching recursive session types like
 $\SRec\SSend\SInt\recc\alpha$.
+
+\newcommand*\ToAlgE[5][]{#2 \vdash^{#1} \recc{#3} : #4 \leadsto \termc{#5}}
+
+% Expressions are translated by the translation judgement $\ToAlgE[A] \Gamma e v
+% {e'}$ given in \cref{fig:to-algst/expressions}.
+% 
+% \begin{figure}
+%   \begin{mathpar}
+%     \inferrule{A}{B}
+%   \end{mathpar}
+%   \label{fig:to-algst/expressions}
+%   \caption{Translation for expressions}
+% \end{figure}

@@ -254,23 +254,40 @@
 
 % TYPING LTS
 \newcommand*\lab{\mathscr{L}}
-\newcommand*\LSend{{!}}
-\newcommand*\LRecv{{?}}
+\newcommand*\LSend{\textsf{!}}
+\newcommand*\LRecv{\textsf{?}}
 \newcommand*\LFunc{{\to}}
-\newcommand*\LEnd{\syntax{End}}
+\newcommand*\LEnd{\textsf{End}}
 \newcommand*\LUnit{\syntax{Unit}}
 \newcommand*\LInt{\syntax{Int}}
-\newcommand*\LBranch{{\&}}
-\newcommand*\LChoice{{+}}
-\newcommand*\labset{\mathcal{L}}
+\newcommand*\LBranch{\textsf{\&}}
+\newcommand*\LChoice{\textsf{+}}
+\newcommand*\labset{L_{\textit{Con}}}
 \newcommand*\labsetS{\labset^S}
 \newcommand*\labsetB{\labset^B}
-\newcommand*\Lone{\mathbf{1}}
-\newcommand*\Ltwo{\mathbf{2}}
+\newcommand*\Lone{\textsf{1}}
+\newcommand*\Ltwo{\textsf{2}}
 \newcommand*\sttrans[1]{\xlongrightarrow{\smash{\raisebox{-2pt}{$\scriptstyle \cramped{#1}$}}}}
 \newcommand*\notrans{\,{\nrightarrow}}
-\newcommand*\stlts[1][]{(V,L,\longrightarrow_{#1},\lab)}
-\newcommand*\stty[2][\eta]{\blk{\llbracket #2 \rrbracket}_{\blk{#1}}}
+\newcommand*\stlts[1][]{(V,L,{\sttrans{}_{#1}}\!)}
+\newcommand*\stty[1][]{\BlkFunction{\mathcal{T}_{#1}\ifstrempty{#1}{\,}{}}}
+
+\newcommand*\NodePost{\BlkFunction{\operatorname{post}}}
+\newcommand*\NodeCycles{\BlkFunction{\operatorname{cycles}}}
+\newcommand*\NodeNonCycles{\BlkFunction{\operatorname{non-cycles}}}
+
+\newcommand*\stltsLDefn{
+    \{ \LSend, \LRecv, \LBranch, \LChoice, \LEnd, \LFunc, \Lone, \Ltwo \}
+      \uplus B
+      \uplus C
+}
+\newcommand*\stltsLDefnCon{
+    \{ \LSend, \LRecv, \LBranch, \LChoice, \LEnd, \LFunc \}
+      \uplus B
+}
+\newcommand*\stltsLDefnS{
+    \{ \LSend, \LRecv, \LBranch, \LChoice, \LEnd \}
+}
 
 \newcommand*\DualRel{\mathrel{\mathcal{D}}}
 \newcommand*\PowerSet{\mathscr{P}}
@@ -285,6 +302,7 @@
 \newcommand*\ToAlgCollect{\BlkFunction{\ToAlgName{collect}}}
 \newcommand*\ToAlgSeq[1][\ppm{}]{\BlkFunction{\ToAlgName{seq}^{#1}}}
 \newcommand*\ToAlgCons[1][\ppm{}]{\BlkFunction{\ToAlgName{cons}}}
+\newcommand*\ToAlgP{\BlkFunction{\ToAlgName{p}}}
 
 \newcommand*\ToAlgSeen{\uptheta}
 \newcommand*\ToAlgSeenNil{\varepsilon}
