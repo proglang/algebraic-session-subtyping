@@ -10,7 +10,14 @@ finally with subtyping. We use a
 syntax inspired by Haskell, as implemented in our artifact. Examples make
 liberal use of practical extensions of the formal system (cf.\ \cref{sec:implementation}).
 
-\subsection{Algebraic Protocols}
+To avoid confusion, we tag each traditional session type name with a
+trailing \lstinline+S+ and each protocol type name with a trailing \lstinline+P+.
+
+NOTE: we are going to switch to a structural notation for constructor
+subtyping. That is, types can have arbitrary names, but the subtyping
+relation is determined by their constructor signatures.
+
+\subsection{Simple Algebraic Protocols}
 \label{sec:algebr-datatyp-as}
 
 % Suppose we want to transmit abstract syntax trees for a language with integers
@@ -122,78 +129,224 @@ liberal use of practical extensions of the formal system (cf.\ \cref{sec:impleme
 % types \cite{DBLP:journals/corr/abs-2106-06658,DBLP:conf/icfp/ThiemannV16,DBLP:conf/esop/DasDMP21}. We
 % discuss the differences in \cref{sec:related}.
 
-% \subsection{Simple protocols with polarities}
-% \label{sec:simple-protocols-add}
 
 We start with a brief recap of algebraic protocols as presented by \citet{DBLP:journals/pacmpl/MordidoS0V23}.
-As a running example, we choose the arithmetic server, which is a
+As a running example, we choose the simple arithmetic server, which is a
 standard example from the session type literature (cf.\ 
 \cite{DBLP:conf/esop/GayH99}). The arithmetic server
 accepts two commands, \lstinline+Neg+ and \lstinline+Quit+. When it
 receives the \lstinline+Neg+ command, it waits for an integer
-argument, responds with an integer (the result) and loops back to
-accept the next command. When it receives \lstinline+Quit+, it terminates
-the connection.
+argument, responds with an integer (the result) and terminates. When it receives \lstinline+Quit+, it terminates
+the connection directly.
 
-In the session type literature, the type of the arithmetic server is a
-recursive type like this one.
+Here is the type of this server adapted from the literature.
+\begin{lstlisting}
+  Arith0S = &{Neg:?Int.!Int.end, Quit:end}
+\end{lstlisting}
+
+The corresponding algebraic protocol \lstinline+Arith0P+ looks as follows.
+\begin{lstlisting}
+  protocol Arith0P = Quit | Neg Int -Int
+\end{lstlisting}
+Unlike the session type \lstinline+Arith0S+, \lstinline+Arith0P+ is
+just a \emph{protocol}. Here is
+the crucial difference: 
+The session type \lstinline+Arith0S+ already fixes the direction of communication, as the
+operators \lstinline+&+ and \lstinline+?+ indicate receiving. The
+protocol \lstinline+Arith0P+ only fixes the structure of the
+communication, i.e., \lstinline+Neg+ followed by an \lstinline+Int+
+transmission in the same direction while the \lstinline+-Int+ indicates a
+transmission in the opposite direction. We materialize the direction
+of a protocol by using it in a session type as in
+\lstinline+?Arith0P.End+. This algebraic session type corresponds exactly to
+\lstinline+Arith0S+. 
+
+The server implementation would match on the command as usual, but
+with the following types dictated by the theory of algebraic
+protocols.
+% \begin{lstlisting}
+% c : ?ArithP.s |- match c with { Quit c -> ...  -- c : s
+%                                 Neg c -> ... } -- c : ?Int.!Int.?ArithP.s
+% \end{lstlisting}
+\begin{lstlisting}
+c : ?Arith0P.s |- match c with { Quit c -> ...  -- c : s
+                                 Neg c -> ... } -- c : ?Int.!Int.s
+\end{lstlisting}
+The actual implementation of the server is straightforward.
+\begin{lstlisting}
+arith0Server : ?Arith0P.end -> unit
+arith0Server c = match c with {
+    Quit c -> close c,
+    Neg c  -> let (x, c) = receiveInt [!Int.end] c in
+              let c = sendInt [end] (0-x) c in
+              close c }
+\end{lstlisting}
+The type arguments of \lstinline+receiveInt+ and \lstinline+sendInt+
+(in square brackets)
+are the types of the respective continuation channels. They specify
+the type of the variable \lstinline+c+ that is bound in the respective
+let.
+
+
+A client implementation would use the select operator as usual, but
+with the following types prescribed by algebraic protocols. This
+behavior is dual to the one for matching.
+
+% \begin{lstlisting}
+%   select Quit [s] : !ArithP.s -> s
+%   select Neg [s]  : !ArithP.s -> !Int.?Int.!ArithP.s
+% \end{lstlisting}
+\begin{lstlisting}
+  select Quit [s] : !Arith0P.s -> s
+  select Neg [s]  : !Arith0P.s -> !Int.?Int.s
+\end{lstlisting}
+
+A potential client for the protocol would look like this.
+\begin{lstlisting}
+  arith0Client : !Arith0P.end -> Int -> Int
+  arith0Client c x =
+    let c = select Neg [end] c in
+    let c = sendInt [?Int.end] x c in
+    let (r, c) = receiveInt [end] c in
+    let _ = close c in
+    r
+\end{lstlisting}
+
+\subsection{Simple Constructor Subtyping}
+\label{sec:simple-constr-subtyp}
+
+Consider an extension of the arithmetic server with an additional
+operation indicated by the command \lstinline+Add+. The 
+traditional session type changes to include the new alternative.
+% \begin{lstlisting}
+%   ArithS' = mualpha.&{Add:?Int.?Int.!Int.alpha,Neg:?Int.!Int.alpha, Quit:end}
+% \end{lstlisting}
+\begin{lstlisting}
+  Arith0S' = &{Add:?Int.?Int.!Int.end, Neg:?Int.!Int.end, Quit:end}
+\end{lstlisting}
+The standard subtyping for session types yields
+\lstinline+Arith0S <: Arith0S'+ because a channel of type
+\lstinline+Arith0S+ can be processed by code that expects the supertype
+\lstinline+Arith0S'+: The code has an additional branch for \lstinline+Add+ that is never
+exercised.
+
+The corresponding algebraic protocols are
+\begin{lstlisting}
+  protocol Arith0P  = Quit | Neg Int -Int
+  protocol Arith0P' = Quit | Neg Int -Int | Add Int Int -Int
+\end{lstlisting}
+With constructor subtyping for algebraic protocols, we can write
+\lstinline+Arith0P'[Neg,Quit]+ to select the
+constructors \lstinline+Neg+ and \lstinline+Quit+ in
+\lstinline+Arith0P'+. 
+This way, \lstinline+Arith0P'+ is a supertype of 
+\lstinline+Arith0P'[Neg,Quit]+, which corresponds exactly to the
+previous protocol \lstinline+Arith0P+ from
+\cref{sec:algebr-datatyp-as}.
+On the algebraic session type level, we obtain
+\lstinline+?Arith0P'[Neg,Quit].end<:?Arith0P'.end+ and, at the client
+end,
+\lstinline+!Arith0P'.end<:!Arith0P'[Neg,Quit]<:!Arith0P'[Neg]+. The
+last subtyping judgment shows that we can reuse our client implementation
+with an extended server as \lstinline+arith0Client+ is already typable with
+\lstinline+!Arith0P[Neg].end+. 
+
+On the expression level, we extend the match expression in the server
+by the case for the \lstinline+Add+ command, just like we would for \lstinline+Arith0S'+.
+
+
+\subsection{Recursive Algebraic Protocols and Subtyping}
+\label{sec:recurs-algebr-prot}
+
+Next, we move to the recursive
+version of the arithmetic server. It repeatedly accepts commands
+before quitting as indicated by its traditional session type.
 \begin{lstlisting}
   ArithS = mualpha.&{Neg:?Int.!Int.alpha, Quit:end}
 \end{lstlisting}
 
-Written as an algebraic protocol, we obtain the definition of \lstinline+ArithP+.
+The corresponding protocol becomes recursive, too.
 \begin{lstlisting}
-  protocol ArithP = Neg Int -Int | Quit
-\end{lstlisting}
-Unlike the session type \lstinline+ArithS+, \lstinline+ArithP+ is a
-protocol. Here is
-the crucial difference: 
-The session type \lstinline+ArithS+ already fixes the direction of communication, as the
-operators \lstinline+&+ and \lstinline+?+ indicate receiving. The
-protocol \lstinline+ArithP+ only fixes the structure of the
-communication, i.e., \lstinline+Neg+ and then two \lstinline+Int+
-transmissions in the same direction while the \lstinline+-Int+ indicates a
-transmission in the opposite direction. We materialize the direction
-of a protocol by using it in a session type as in
-\lstinline+?ArithP.End+. This algebraic session type corresponds exactly to
-\lstinline+ArithS+. 
-
-A client implementation would use the select operator as usual, but
-with the following types dictated by the theory of algebraic
-protocols. We generally write type arguments in square brackets.
-\begin{lstlisting}
-  select Quit [s] : !ArithP.s -> s
-  select Neg [s]  : !ArithP.s -> !Int.?Int.!ArithP.s
-\end{lstlisting}
-Branching operates analogously on types in the assumption:
-\begin{lstlisting}
-c : ?ArithP.s |- match c with { Quit c -> ...  -- c : s
-                                Neg c -> ... } -- c : ?Int.!Int.?ArithP.s
+  protocol ArithP = Quit | Neg Int -Int ArithP
 \end{lstlisting}
 
-The implementation of the server is straightforward.
-\begin{lstlisting}
-serveArith : ?ArithP.end -> unit
-serveArith c = match c with {
-    Quit c -> close c,
-    Neg c  -> let (x, c) = receiveInt [!Int.?ArithP.end] c in
-              let c = sendInt [?ArithP.end] (0-x) c in
-              serveArith c }
-\end{lstlisting}
-The type arguments to \lstinline+receiveInt+ and \lstinline+sendInt+
-are the types of the respective continuation channels. They specify
-the type of the variable \lstinline+c+ that is bound on the left side.
+The implementations of client and  server are omitted because they
+change insignificantly with respect to \cref{sec:algebr-datatyp-as}.
 
+
+% \begin{lstlisting}
+% arithServer : ?ArithP.end -> unit
+% arithServer c = match c with {
+%     Quit c -> close c,
+%     Neg c  -> let (x, c) = receiveInt [!Int.?ArithP.end] c in
+%               let c = sendInt [?ArithP.end] (0-x) c in
+%               arithServer c }
+% \end{lstlisting}
+% \begin{lstlisting}
+%   arithClient : !ArithP.end -> Int -> Int
+%   arithClient c x =
+%     let c = select Neg [end] c in
+%     let c = sendInt [?Int.!ArithP.end] x c in
+%     let (r, c) = receiveInt [!ArithP.end] c in
+%     let c = select Quit [end] c in
+%     let _ = close c in
+%     r
+% \end{lstlisting}
+
+Instead, we focus on the extension of \lstinline+ArithS+ with
+a new recursive case for \lstinline+Add+ as follows.
 \begin{lstlisting}
-  arithClient : !ArithP.end -> Int -> Int
-  arithClient c x =
-    let c = select Neg [end] c in
-    let c = sendInt [?Int.!ArithP.end] x c in
-    let (r, c) = receiveInt [!ArithP.end] c in
-    let c = select Quit [end] c in
-    let _ = close c in
-    r
+  ArithS' = mualpha.&{Add:?Int.?Int.!Int.alpha,Neg:?Int.!Int.alpha, Quit:end}
 \end{lstlisting}
+The standard subtyping for recursive session types yields
+\lstinline+ArithS <: ArithS'+ because a channel of type
+\lstinline+ArithS+ can be processed by code that expects the supertype
+\lstinline+ArithS'+: The code has an additional branch for \lstinline+Add+ that is never
+exercised.
+
+The corresponding algebraic protocols are
+\begin{lstlisting}
+protocol ArithP  = Quit | Neg Int -Int ArithP
+protocol ArithP' = Quit | Neg Int -Int ArithP' | Add Int Int -Int ArithP'
+\end{lstlisting}
+With constructor subtyping for algebraic protocols, we can write
+\lstinline+ArithP'[Neg,Quit]+ to select the
+constructors \lstinline+Neg+ and \lstinline+Quit+ in
+\lstinline+ArithP'+. 
+This way, \lstinline+ArithP'+ is a supertype of 
+\lstinline+ArithP'[Neg,Quit]+, which corresponds exactly to the
+previous protocol \lstinline+ArithP+ from \cref{sec:algebr-datatyp-as}. 
+
+On the expression level, we extend the match expression in the server
+by the case for the \lstinline+Add+ command, just like we would for \lstinline+ArithS'+.
+
+
+The subtyping \lstinline+ArithS <: ArithS'+ is decidable by an
+$O(n^2)$ algorithm, because the session types involved are traditional
+(i.e., tail-recursive). However, the following protocol for serializing abstract
+syntax trees is not tail-recursive:
+\begin{lstlisting}
+  protocol AstP = Const Int | Add AstP AstP | Mul AstP AstP
+\end{lstlisting}
+Nevertheless, constructor subtyping immediately yields subtypes \lstinline+AstP[Const]+,
+\lstinline+AstP[Const,Add]+, and \lstinline+AstP[Const,Mul]+ of
+\lstinline+AstP+\footnote{Subtypes without the \lstinline{Const} case
+  can also be formed, but they are not very interesting.}. This is remarkable because the non-tail-recursive
+nature of the protocol makes it impossible to use the traditional
+algorithm to check subtyping of the corresponding (context-free)
+recursive types:
+\begin{lstlisting}
+  AstS1 = mualpha.&{Const: ?Int, Add: alpha;alpha, Mul: alpha;alpha}
+  AstS2 = mualpha.&{Const: ?Int, Add: alpha;alpha}
+\end{lstlisting}
+The current knowledge about subtyping for context-free session types
+is that the general problem is undecidable
+\cite{DBLP:journals/toplas/Padovani19}, but there exists a
+sound semi-decision procedure that seems to work satisfactorily in
+practice \cite{DBLP:conf/concur/SilvaMV23}. In our setting, subtyping
+is decidable in linear time.
+
+OLD-OLD-OLD
 
 The main feature of algebraic protocols that we did not touch, yet, is
 parametric protocols. That means that protocols can be parametric over
@@ -201,240 +354,135 @@ other protocols. This feature enables the definition of protocols like
 \lstinline+Seq+ from the introduction. We introduce it in XXX along
 with the discussion of the translation.
 
-\subsection{Constructor Subtyping for Algebraic Protocols}
-\label{sec:constr-subtyp-algebr}
 
-Imagine an extension of the arithmetic server with a new operation,
-say, addition indicated by the command \lstinline+Add+. The
-traditional session type changes to include the new alternative.
-\begin{lstlisting}
-  ArithS' = mualpha.&{Add:?Int.?Int.!Int.alpha,Neg:?Int.!Int.alpha, Quit:end}
-\end{lstlisting}
-The standard subtyping for session types gives
-\lstinline+ArithS <: ArithS'+ because a channel of type
-\lstinline+ArithS+ can be processed by code that expects the supertype
-\lstinline+ArithS'+: The code has an additional branch that is never
-exercised.
-
-With constructor subtyping for algebraic protocols, we obtain exactly
-the same situation. The extended protocol type becomes
-\begin{lstlisting}
-  protocol ArithP = Add Int Int -Int | Neg Int -Int | Quit
-\end{lstlisting}
-Now,
-\lstinline+ArithP[Neg,Quit]+ is a subtype of \lstinline+ArithP+ which
-corresponds exactly to the previous version. 
-
-
-\subsection{Parameterized protocols and modularity}
+\subsection{From Session Types to Algebraic Protocols}
 \label{sec:param-prot}
 
-Algebraic protocols can have protocol parameters,  just like algebraic data
-types have type parameters. This facility provides a powerful and versatile approach for declaring
-modular protocols.
-As a first example, we declare a protocol that repeatedly runs
-another protocol:
-\begin{lstlisting}
-protocol Stream a = Next a (Stream a)
-\end{lstlisting}
-Using this protocol we define a process that sends infinitely many ones on a channel:
-\begin{lstlisting}
-ones : !Stream Int.EndT -> Unit
-ones c = select Next [Int,EndT] c |> sendInt [!Stream Int.EndT] 1 |> ones
-\end{lstlisting}
-When using the \lstinline+Stream+ protocol, the continuation session
-type \lstinline+EndT+ does not matter because the protocol
-never reaches the continuation. For a parameterized protocol,
-\lstinline+select+ takes type parameters corresponding to the protocol
-parameters (\lstinline+Int+) as well as the continuation session (\lstinline+EndT+).
-Algebraic protocols sidestep issues with contractiveness of
-recursive definitions and thus guardedness of the protocols: we always
-have to make explicit progress by selecting the \lstinline+Next+ tag.
+Starting from  this section we discuss the translation from
+traditional, tail-recursive session types to algebraic protocols using
+the implementation of \lstinline+arithServer+ in
+\cref{sec:algebr-datatyp-as} as a running example.
+This code does not use subtyping.
 
-Up to this point, the examples we presented are definable with some
-effort in previous work on session types. The following examples
-exploit features that make \algst stand out:
-\begin{itemize}
-\item Traditional session types lack composability in the sense that
-  abstraction over behavior is only possible in the tail
-  position. Polymorphic context-free session types
-  \cite{DBLP:journals/corr/abs-2106-06658} lift this restriction, but
-  at the price of a type equivalence
-  algorithm that takes doubly exponential time in the
-  worst-case. \algst allows abstraction of any part of a protocol
-  while providing a linear-time algorithm for type equivalence.
-\item The protocol kind is a unique feature of \algst that enables
-  abstraction over entire subprotocols and their orientation at any place in a
-  protocol. This facility enables us to define a toolbox of generic
-  protocol operators, inspired by regular language operations, and
-  flip between client and server views using the negation operator.
-\end{itemize}
+To express all types occurring in \lstinline+arithServer+, we need the
+following system of type equations.
+\begin{align*}
+  \alpha_1 &= \&\{Neg: \alpha_2, Quit: \alpha_3\} & \text{c}\\
+  \alpha_2 &= ?\alpha_4.\alpha_5 \\
+  \alpha_3 &= \TEnd \\
+  \alpha_4 &= \TInt \\
+  \alpha_5 &= !\alpha_6.\alpha_1 \\
+  \alpha_6 &= \TInt \\
+  \alpha_7 &= \alpha_1 \to \alpha_8 & \text{arithServer}\\
+  \alpha_8 &= \TUnit \\
+  \alpha_9 &= \alpha_3 \to \alpha_8 & \text{close} \\
+  \alpha_{10} &= \alpha_2 \to \alpha_{11} & \text{receiveInt}\\
+  \alpha_{11} &= \alpha_4 \times \alpha_5 \\
+  \alpha_{12} &= \alpha_5 \to \alpha_1 \\
+  \alpha_{13} &= \alpha_6 \to \alpha_{12} & \text{sendInt}
+\end{align*}
 
-\subsubsection{Generic servers}
-\label{sec:generic-servers}
+For this system, typing rules have the form $\mathcal{E}\mid \Gamma
+\vdash e : \alpha$ where $\mathcal{E}$ is a system of flat type
+equations, $\Gamma$ is a typing context mapping variables to type
+variables defined in $\mathcal{E}$, $e$ is an expression, and $\alpha$
+is a type variable. Here are some exemplary typing rules for variables,
+function application, and abstraction:
+\begin{mathpar}
+  \inferrule{}{\mathcal{E} \mid \Gamma, x:\alpha \vdash x : \alpha}
 
-Parametric protocols enable the construction of generic servers that abstract over the
-subsidiary protocols. Our first example created a stream of integers,
-but what if we wanted a server for \lstinline+Stream Arith+ that  runs the \lstinline+Arith+ protocol ad infinitum?
-%
-To this end we write a generic server, \lstinline+stream+, that implements
-the \lstinline+Stream a+ protocol, for any \lstinline+a+, and invokes a subsidiary server for the
-sub-protocol \lstinline+a+. We abstract the type of this
-sub-server with a parameterized type alias:
+  \inferrule{
+    \mathcal{E} \mid \Gamma \vdash \termc{e_1} : \alpha_1 \\
+    \mathcal{E} \mid \Gamma \vdash \termc{e_2} : \alpha_2 \\
+    \alpha_1 = \alpha_2 \to \alpha_3 \in \mathcal{E}
+  }{
+    \mathcal{E} \mid \Gamma \vdash \appe{e_1}{e_2} : \alpha_3
+  }
+
+  \inferrule{
+    \mathcal{E} \mid \Gamma, x:\alpha_2 \vdash \termc{e} : \alpha_3 \\
+    \alpha_1 = \alpha_2 \to \alpha_3 \in \mathcal{E} \\
+    \typec{T} \equiv \emph{extract}(\mathcal{E}, \alpha_2)
+  }{
+    \mathcal{E} \mid \Gamma \vdash \abse{x}{T}{e} : \alpha_1
+  }
+\end{mathpar}
+The typing rule for typed lambda abstraction has to extract the type
+from the equation system by traversing it. For each session type
+variable $\alpha_i$, extraction inserts a $\mu\alpha_i$ binder and
+refers back to $\alpha_i$ if it is seen again on the traversal.
+
+Any recursively typed term can be type checked using a system of
+recursive type equations, so nothing is lost in this step.
+
+In our running example, minimization equates variables $\alpha_4$ and
+$\alpha_6$, both of which stand for the type $\TInt$. No further
+simplification is possible.
+
+Next, we focus on the session type variables $\alpha_1$, $\alpha_2$,
+$\alpha_3$, and $\alpha_5$. We start with $\alpha_1$ because it holds
+a branch type and invent a new protocol name, say,
+\lstinline+NegQuit+ with two constructors \lstinline+Neg+ and
+\lstinline+Quit+.  For the \lstinline+Neg+ constructor, we continue
+with $\alpha_2 = ?\alpha_4.\alpha_5$. As this session type has the
+same direction as branching, we extract its payload type $\alpha_4$
+(i.e., $\TInt$) and add it to the constructor with positive
+direction. Continuing with $\alpha_5 = !\alpha_6.\alpha1$, we find a
+session type in the reverse direction, so we extract its payload from
+$\alpha_6$ (i.e., $\TInt$) and add it to the constructor with negative
+direction. Continuing with $\alpha_1$, we realize that we have seen
+this type variable before and conclude the constuctor with a positive
+\lstinline+NegQuit+ argument.
+
+For the \lstinline+Quit+ constructor, we consider $\alpha_3 =
+\TEnd$. However, we cannot add $\TEnd$ as a protocol argument because
+it would mean that we wanted to transmit a \emph{channel} of type $
+TEnd$, so we do not add it as an argument to the constructor, but
+rather finish the constructor without arguments.
+
+The resulting protocol type is
 \begin{lstlisting}
-type Service a = forall(s:S). ?a.s -> s
-\end{lstlisting}
-Thus armed, we can write the generic server and use it to run
-\lstinline+Stream Arith+.
-\begin{lstlisting}
-stream : forall(a:P). Service a -> ?Stream a.EndT -> Unit
-stream [a] serve c = match c with {
-    Next c -> serve [?Stream a.EndT] c |> stream [a] serve }
-
-streamArith : ?Stream Arith.EndT -> Unit
-streamArith = stream [Arith] serveArith
-\end{lstlisting}
-We call the server constructed in this way \emph{passive} as it waits to receive a \lstinline+Next+
-tag before running the subsidiary protocol. Dually, we can define an
-\emph{active} server. 
-
-\subsubsection{Active servers --- an exercise in duality and negation}
-\label{sec:active-servers-an}
-
-
-An active server offers the
-\lstinline+Next+ tag to its client, indicating its readiness to accept a
-request. Such a server generalizes the \lstinline+ones+ server.
-All we need to do is flip two bits in the type:
-\begin{lstlisting}
-streamAct : forall(a:P). Service a -> !Stream -a.EndT -> Unit
-streamAct [a] svc c =
-  select Next [-a, EndT] c |> svc [!Stream -a.EndT] |> streamAct [a] svc
-\end{lstlisting}
-Why do we have to write  \lstinline+!Stream -a+ in the type?
-One might expect the active server to run on a channel
-whose type is the dual of \lstinline+?Stream a.EndT+, which is
-\lstinline+!Stream a.EndW+.
-But this change of direction also affects the
-subsidiary protocol in parameter \lstinline+a+ as illustrated by the
-typing of \lstinline+select+:
-% If \lstinline+c+ has type \lstinline+!Stream Arith.end+, then
-\begin{lstlisting}
-  c : !Stream Arith.EndT |-
-  select Next [Arith, EndT] c : !Arith.!Stream a. EndT
-\end{lstlisting}
-But this type is not an instance of the type
-\lstinline+Service Arith = forall(s:S). ?Arith.s+.
-Thanks to polarities, we can adapt to \lstinline+c : !Stream -Arith+ which switches the
-direction to an output:
-\begin{lstlisting}
-  select Next [-Arith, EndT] c : ?Arith.!Stream -Arith. EndT
+  protocol NegQuit = Neg Int -Int NegQuit | Quit
 \end{lstlisting}
 
-This way, we can reuse \lstinline+serveArith+ as follows.
+\subsection{Discussion}
+\label{sec:constr-subtyp-algebr}
+
+Consider an extension of the arithmetic server with an additional
+operation indicated by the command \lstinline+Add+.
+Here is an example that demonstrates the limitations of this approach
+to protocol subtyping.
 \begin{lstlisting}
-streamActArith : !Stream -Arith.EndT -> Unit
-streamActArith = streamAct [Arith] serveArith
+  protocol Msg = M1 | M2
+  protocol QR a b = Step a -b (QR a b) | Quit
 \end{lstlisting}
-
-The same active server can also serve the infinite stream of \lstinline+ones+:
+The protocol \lstinline+QR Msg Msg+ indicates that client and server
+send \lstinline+M1+ and \lstinline+M2+ messages forth and back. If we
+evolve the message protocol with additional messages, then constructor
+subtyping will fail. Consider the extended message type
 \begin{lstlisting}
-streamActOnes : !Stream Int.EndT -> Unit
-streamActOnes = streamAct [-Int] (sendInt 1)
+  protocol Msg' = M1 | M2 | M3
 \end{lstlisting}
-Interestingly, the typing of \lstinline+streamActOnes+ involves \emph{double negation of
-polarities}. Observe that \lstinline+sendInt 1 : Service -Int+, so that the transmitted stream is
-in fact \lstinline+Stream -(-Int)+ $\equiv$ \lstinline+Stream Int+.
+Using \lstinline+QR Msg' Msg'+ means that the client can send an
+arbitrary message \lstinline+M1+, \lstinline+M2+, or \lstinline+M3+,
+but it has to be prepared to handle the same messages as input. That
+is, even a client that promises to send only \lstinline+M1+ and
+\lstinline+M2+ has to be prepared to process a message \lstinline+M3+
+in response. Hence, \lstinline+?QR Msg'[M1,M2] Msg'+ is a subtype of
+\lstinline+?QR Msg' Msg'+, but \lstinline+?QR Msg'[M1,M2] Msg'[M1,M2]+
+is not, because the second parameter of \lstinline+QR+ occurs under
+inversion (i.e., with revered direction). In short, we cannot obtain a
+type equivalent to \lstinline+QR Msg Msg+ as a subtype of
+\lstinline+QR Msg' Msg'+.
 
-\subsubsection{A toolbox for generic servers}
-\label{sec:toolb-gener-serv}
-
-Inspired by the protocols \lstinline+Stream a+ and \lstinline+ListP a+
-(from \cref{sec:introduction}), we can build a library of parameterized 
-protocols with generic servers for them. These protocols reify the
-standard type constructors, reminiscent of regular language operators.
 \begin{lstlisting}
-protocol Seq a b    = Seq a b                  -- product
-protocol Either a b = Left a | Right b         -- sum
-protocol Repeat a   = More a (Repeat a) | Quit -- iteration
+  protocol AB = A | B
+  protocol Msg'' a b = M1 -a | M2 -b
+  protocol Msg''' a b c = M1 -a | M2 -b | M3 -c
+
+  !Msg'' AB A <: !Msg'' AB AB
+  ?Msg'' AB A <: ?Msg'' A A
 \end{lstlisting}
-We leave the straightforward implementation of the corresponding passive
-generic servers, \lstinline+seq+, \lstinline+either+, and
-\lstinline+repeat+, as well as their active variants, to the reader.
-
-These protocol types and their generic servers are sufficient to
-construct skeleton servers for all protocols whose flow can be described by regular languages. For example, we
-can build the server for \lstinline+Repeat Arith+ by combination of
-generic servers with the servers for negation and addition.
-\begin{lstlisting}
-type Neg    = Seq Int -Int
-type Add    = Seq Int (Seq Int -Int)
-type Arith  = Either Neg Add
-
-serveNeg : Service Neg
-serveNeg [s] c = match c with {
-  Seq c -> let (x, c) = receiveInt [!Int.s] c in
-           sendInt [s] (0-x) c }
-
-serveAdd : Service Add
-serveAdd [s] c = match c with {
-  Seq c -> let (x, c) = receiveInt [?Seq Int -Int.s] c in
-           match c with {
-    Seq c -> let (y, c) = receiveInt [!Int.s] c in
-	     sendInt [s] (x+y) c }}
-
-serveArith : Service Arith
-serveArith = either [Neg] serveNeg [Add] serveAdd
-
-serveAriths : Service (Repeat Arith)
-serveAriths = repeat [Arith] serveArith
-\end{lstlisting}
-
-There is some overhead compared to the arithmetic server shown in
-\cref{sec:simple-protocols-add}. Previously, a client only had to handle the tags
-\lstinline+Neg+ and \lstinline+Add+ besides the \lstinline+Repeat+
-protocol. Here, \lstinline+Neg+ and \lstinline+Add+ are replaced by
-\lstinline+Left+ and \lstinline+Right+ and the client has to handle
-the \lstinline+Seq+ tags on top. Thus the protocol constructed from
-the generic parts has some overheads, as we discuss in
-\cref{sec:are-generic-servers}. We provide further examples of 
-generic servers in \cref{sec:toolb-gener-serv-1}.
-
-
-% \subsubsection{Transmission of parametric data}
-% \label{sec:transm-param-data}
-
-
-% Using parameterized protocols, we can define polymorphic operations for sending and receiving
-% parametric datatypes. Suppose we want to send lists of arbitrary type \lstinline+a+, as long as someone can
-% supply a way of sending a value of type \lstinline+a+.
-% \begin{lstlisting}
-% data List (a:T) = Nil | Cons a (List a)
-% type Send (a:T) = a -> forall(s:S). !a.s -> s
-
-% sendList : forall(a:T). Send a -> Send (List a)
-% sendList [a] sendA xs [s] c = case xs of {
-%     Nil       -> select Nil [a,s] c,
-%     Cons x xs -> select Cons [a,s] c
-%               |> sendA [!List a.s] x
-% 	      |> sendList [a] sendA [s] xs }
-% \end{lstlisting}
-% To this end, one would provide implementations of \lstinline+Send a+
-% for suitable primitive types \lstinline+a+ and modularly build further
-% implementations.
-% % \begin{lstlisting}
-% % sendInt : Send Int
-% % sendInt x [s] = send [Int, s] x
-% % \end{lstlisting}
-% \begin{lstlisting}
-% sendListInt : Send (List Int)
-% sendListInt = sendList [Int] sendInt
-
-% sendListListInt : Send (List (List Int))
-% sendListListInt = sendList [List Int] sendListInt
-% \end{lstlisting}
-% %Receiving can be handled similarly.
-
 
 %%% Local Variables:
 %%% mode: latex
