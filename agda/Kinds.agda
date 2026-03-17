@@ -43,6 +43,7 @@ data _≤k_ : Rel Kind where
   ≤k-step   : pk₁ ≤p pk₂ → m₁ ≤m m₂ → KV pk₁ m₁ ≤k KV pk₂ m₂
 
 TLin = KV KT Lin
+MLin = KV KM Lin
 SLin = KV KS Lin
 SUn  = KV KS Un
 MUn  = KV KM Un

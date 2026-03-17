@@ -37,7 +37,7 @@ module _ where
 
   data Ty (Δ : List Kind) : Kind → Set where
     T-Var   : K ∈ Δ → Ty Δ K
-    T-Base  : Ty Δ MUn
+    T-Base  : Ty Δ TLin
     T-Arrow : KM ≤p pk → Ty Δ TLin → Ty Δ TLin → Ty Δ (KV pk m)
     T-Pair  : Ty Δ (KV pk₁ m) → Ty Δ (KV pk₂ m) → Ty Δ (KV KT m)
     T-Poly  : Ty (K′ ∷ Δ) (KV KT m) → Ty Δ (KV KT m)

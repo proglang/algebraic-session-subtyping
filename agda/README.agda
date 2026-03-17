@@ -36,8 +36,8 @@ import SubstitutionSubtyping
 -- Abstract syntax of expressions and processes from Section 4.
 import ExprSyntax
 
--- Algorithmic expression typing with normalized environments and result types.
-import ExprNormalTyping
+-- Renaming and substitution operations for expressions and values.
+import ExprSubstitution
 
 -- Algorithmic subtyping on normal forms.
 import AlgorithmicSubtyping
@@ -56,6 +56,27 @@ import AlgorithmicInference
 
 -- Completeness of the algorithmic system with respect to declarative subtyping.
 import AlgorithmicComplete
+
+-- Preservation of algorithmic subtyping under type substitution.
+import AlgorithmicSubstitution
+
+-- Algorithmic expression typing with normalized environments and result types.
+import ExprNormalTyping
+
+-- Labelled reduction of full typing contexts for expression actions.
+import ExprContextReduction
+
+-- Labelled transition system for processes.
+import ProcSemantics
+
+-- Context reduction for process labels, extending expression context reduction.
+import ProcContextReduction
+
+-- Preservation interfaces for term and type substitution on typed expressions.
+import ExprSubstitutionTyping
+
+-- Alternative preservation setup using full context-reduction steps.
+import ExprPreservationStep
 
 -- Small example developments exercising the formalization.
 import Examples

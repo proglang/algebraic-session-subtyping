@@ -33,7 +33,7 @@ mutual
     V-Const    : Const → Value Δ n
     V-Var      : Fin n → Value Δ n
     V-Abs      : Ty Δ TLin → Expr Δ (suc n) → Value Δ n
-    V-Rec      : Ty Δ TLin → Value Δ (suc n) → Value Δ n
+    V-Rec      : Ty Δ TLin → Ty Δ TLin → Value Δ (suc n) → Value Δ n
     V-TAbs     : (K : Kind) → Value (K ∷ Δ) n → Value Δ n
     V-Pair     : Value Δ n → Value Δ n → Value Δ n
     V-Receive₁ : Ty Δ TLin → Value Δ n
