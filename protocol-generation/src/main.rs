@@ -1,4 +1,4 @@
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 pub mod dfa;
 
@@ -189,6 +189,145 @@ impl TypingLts {
     }
 }
 
-fn main() {
-    println!("Hello, world!");
+#[derive(Debug, Clone, Copy)]
+enum BuildError<'a> {
+    InvalidName { name: &'a str },
+    MissingConstructor,
+    InvalidConstructor { name: &'a str },
+    InvalidBranchTarget { target: &'a str },
+    DuplicateLabel { label: &'a str },
+    DuplicateDefinitions { name: &'a str },
+    BinaryLabeledTarget { target: &'a str },
+    BinaryWrongTransCount { count: usize },
+}
+
+struct DfaBuilder<'a> {
+    dfa: dfa::Dfa<Option<TypeCon>, Transition>,
+    states: HashMap<&'a str, dfa::StId>,
+}
+
+impl<'a> DfaBuilder<'a> {
+    fn get_or_create(&mut self, name: Option<&'a str>) -> dfa::StId {
+        let mut push_new = || self.dfa.push((name == Some("End")).then_some(TypeCon::End));
+        if let Some(name) = name {
+            *self.states.entry(name).or_insert_with(push_new)
+        } else {
+            // This state cannot be referred to, push unconditionally.
+            push_new()
+        }
+    }
+
+    fn read_line(&mut self, s: &'a str) -> Result<(), BuildError<'a>> {
+        let mut segs = s.split_whitespace().peekable();
+        let name =
+            segs.next_if_map_mut(
+                |seg| match (seg.as_bytes().first(), seg.as_bytes().last()) {
+                    (Some(b'('), Some(b')')) => Some(&seg[1..seg.len() - 1]),
+                    _ => None,
+                },
+            );
+
+        if let Some(name) = name
+            && (name.is_empty()
+                || name == "End"
+                || name.contains(|c: char| {
+                    !c.is_alphanumeric() && !matches!(c, '_' | '-' | '?' | '!' | '&' | '+')
+                }))
+        {
+            return Err(BuildError::InvalidName { name });
+        }
+
+        let tycon = match segs.next() {
+            None if name.is_some() => {
+                // Gave a name but no constructor.
+                return Err(BuildError::MissingConstructor);
+            }
+
+            None => {
+                // Empty line, ignore.
+                return Ok(());
+            }
+
+            Some("+") => TypeCon::Branch(Polarity::Out),
+            Some("&") => TypeCon::Branch(Polarity::In),
+            Some("!") => TypeCon::Message(Polarity::Out),
+            Some("?") => TypeCon::Message(Polarity::In),
+            Some("->") => TypeCon::Arrow,
+
+            Some(name) => return Err(BuildError::InvalidConstructor { name }),
+        };
+
+        let transitions = if matches!(tycon, TypeCon::Branch(_)) {
+            let mut seen_labels = HashSet::new();
+            segs.map(|target| {
+                if let Some((label, target)) = target.split_once(':') {
+                    if !seen_labels.insert(label) {
+                        Err(BuildError::DuplicateLabel { label })
+                    } else {
+                        Ok((
+                            Transition::Label(label.to_owned()),
+                            self.get_or_create(Some(target)),
+                        ))
+                    }
+                } else {
+                    Err(BuildError::InvalidBranchTarget { target })
+                }
+            })
+            .collect::<Result<_, _>>()?
+        } else {
+            let Some(t1) = segs.next() else {
+                return Err(BuildError::BinaryWrongTransCount { count: 0 });
+            };
+            let Some(t2) = segs.next() else {
+                return Err(BuildError::BinaryWrongTransCount { count: 1 });
+            };
+            if segs.next().is_some() {
+                return Err(BuildError::BinaryWrongTransCount {
+                    count: 1 + segs.count(),
+                });
+            };
+            if let Some(labeled_target) = [t1, t2].iter().find(|target| target.contains(':')) {
+                return Err(BuildError::BinaryLabeledTarget {
+                    target: labeled_target,
+                });
+            }
+
+            let mut transitions = HashMap::with_capacity(2);
+            transitions.insert(Transition::One, self.get_or_create(Some(t1)));
+            transitions.insert(Transition::Two, self.get_or_create(Some(t2)));
+            transitions
+        };
+
+        let this_id = self.get_or_create(name);
+        let this_state = &mut self.dfa[this_id];
+
+        if this_state.label.is_some() {
+            return Err(BuildError::DuplicateDefinitions {
+                name: name.expect("duplicate definition implies the state is named"),
+            });
+        }
+
+        this_state.label = Some(tycon);
+        this_state.transitions = transitions;
+
+        Ok(())
+    }
+}
+
+fn main() -> std::io::Result<()> {
+    let mut line = String::new();
+    let mut builder = DfaBuilder {
+        dfa: dfa::Dfa::new(),
+        states: <_>::default(),
+    };
+
+    while std::io::stdin().read_line(&mut line)? > 0 {
+        if let Err(e) = builder.read_line(line.clone().leak()) {
+            eprintln!("bad input line: {e:#?}")
+        }
+
+        line.clear();
+    }
+
+    Ok(())
 }
