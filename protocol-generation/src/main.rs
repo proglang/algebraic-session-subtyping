@@ -1,4 +1,7 @@
+use error_stack::Report;
 use hashbrown::{HashMap, HashSet};
+use petgraph::graph::DiGraph;
+use protocol_generation::graphs::{self, VisualizationError};
 
 pub mod dfa;
 
@@ -314,20 +317,18 @@ impl<'a> DfaBuilder<'a> {
     }
 }
 
-fn main() -> std::io::Result<()> {
-    let mut line = String::new();
-    let mut builder = DfaBuilder {
-        dfa: dfa::Dfa::new(),
-        states: <_>::default(),
-    };
+fn main() -> Result<(), Report<VisualizationError>> {
+    let mut g = DiGraph::<String, String>::new();
+    let a = g.add_node("+".to_owned());
+    let b = g.add_node("&".to_owned());
 
-    while std::io::stdin().read_line(&mut line)? > 0 {
-        if let Err(e) = builder.read_line(line.clone().leak()) {
-            eprintln!("bad input line: {e:#?}")
-        }
+    let g = DiGraph::<String, String>::from_edges([(a, b, "A".to_owned()), (b, a, "B".to_owned())]);
 
-        line.clear();
-    }
+    eprintln!("pre-visualization");
+
+    graphs::visualize(&g, |_| graphs::Shape::CIRCLE)?;
+
+    eprintln!("post-visualization");
 
     Ok(())
 }

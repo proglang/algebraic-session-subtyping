@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+error-stack = "0.6.0"
 hashbrown = "0.16.1"
 itertools = "0.14.0"
+petgraph = "0.8.3"
+tao = "0.34.6"
+thiserror = "2.0.18"
+wry = "0.54.4"
