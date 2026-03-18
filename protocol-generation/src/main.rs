@@ -1,7 +1,18 @@
-use error_stack::Report;
+use std::borrow::Cow;
+
 use hashbrown::{HashMap, HashSet};
-use petgraph::graph::DiGraph;
-use protocol_generation::graphs::{self, VisualizationError};
+use petgraph::{
+    graph::DiGraph,
+    visit::{IntoNodeReferences, NodeRef},
+};
+use protocol_generation::{
+    graphs::{self, GraphvizVisualizer, Svg},
+    vis::Visualizer,
+};
+use tao::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoopProxy, EventLoopWindowTarget},
+};
 
 pub mod dfa;
 
@@ -317,7 +328,140 @@ impl<'a> DfaBuilder<'a> {
     }
 }
 
-fn main() -> Result<(), Report<VisualizationError>> {
+type VisStack<G> = GraphvizVisualizer<
+    Svg,
+    G,
+    fn(G, <G as IntoNodeReferences>::NodeRef) -> graphs::Shape,
+    SvgVisualizer,
+>;
+
+fn spawn_with_graph_visualizer<G>(f: impl FnOnce(VisStack<G>) + Send + 'static) -> !
+where
+    G: IntoNodeReferences<NodeWeight = TypeCon>,
+{
+    let node_shape = |_, node: G::NodeRef| match node.weight().kind() {
+        K::T => graphs::Shape::BOX,
+        K::S => graphs::Shape::CIRCLE,
+    };
+
+    run_event_loop(move |event_proxy| {
+        f(GraphvizVisualizer::with_inner(
+            node_shape,
+            SvgVisualizer { event_proxy },
+        ))
+    })
+}
+
+/// A [`Visualizer`] for [`Svg`] values by rendering them into a [`wry::WebView`].
+struct SvgVisualizer {
+    event_proxy: EventLoopProxy<UserEvent>,
+}
+
+impl Visualizer<Svg> for SvgVisualizer {
+    fn visualize(&mut self, data: Svg) -> protocol_generation::vis::Result {
+        let Ok(()) = self.event_proxy.send_event(UserEvent::DisplaySvg(data)) else {
+            panic!("event loop on main thread should outlive all other threads");
+        };
+        Ok(())
+    }
+}
+
+enum UserEvent {
+    DisplaySvg(Svg),
+    Exit,
+}
+
+fn create_window<E>(
+    window_target: &EventLoopWindowTarget<E>,
+) -> (tao::window::Window, wry::WebView) {
+    let window = tao::window::WindowBuilder::new()
+        .with_title(env!("CARGO_PKG_NAME"))
+        .build(window_target)
+        .expect("window creation failed");
+
+    #[cfg(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+    ))]
+    let webview = wry::WebView::new(&window, wry::WebViewAttributes::default());
+
+    #[cfg(not(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+    )))]
+    let webview = {
+        use tao::platform::unix::WindowExtUnix;
+        use wry::WebViewExtUnix;
+
+        let container = window.default_vbox().expect("default vbox should exist");
+        wry::WebView::new_gtk(container).expect("WebView creation failed")
+    };
+
+    (window, webview)
+}
+
+fn run_event_loop(f: impl FnOnce(EventLoopProxy<UserEvent>) + Send + 'static) -> ! {
+    let event_loop = tao::event_loop::EventLoopBuilder::with_user_event().build();
+    let event_proxy = event_loop.create_proxy();
+
+    let mut background = Some(std::thread::spawn(|| f(event_proxy)));
+    let mut exit_requested = false;
+    let mut open_window = None;
+
+    event_loop.run(move |event, target, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                // There is no open window any more.
+                open_window = None;
+            }
+            Event::UserEvent(UserEvent::DisplaySvg(svg)) => {
+                // Open a new window or reuse an existing WebView but update it with the new SVG
+                // document.
+                let (_, web_view) = open_window.get_or_insert_with(|| create_window(target));
+                if let Err(error) = web_view.load_html(&svg) {
+                    eprintln!("Displaying SVG failed: {error:?}")
+                }
+            }
+            Event::UserEvent(UserEvent::Exit) => {
+                exit_requested = true;
+            }
+            _ => {
+                // Any other events are ignored.
+            }
+        }
+
+        // If no windows are open and we should exit do so!
+        if open_window.is_none() && exit_requested {
+            // Wait until the main thread has properly cleaned up and print any panics.
+            if let Some(background) = background.take()
+                && let Err(panic) = background.join()
+            {
+                let panic_str = panic
+                    .downcast::<String>()
+                    .map(|bs| Cow::Owned(*bs))
+                    .or_else(|p| p.downcast::<&'static str>().map(|bs| Cow::Borrowed(*bs)));
+                if let Ok(s) = panic_str {
+                    eprintln!("A PANIC OCCURED!\n\n{s}");
+                } else {
+                    eprintln!("A PANIC OCCURED!\n\n(I don't know how to print it.)");
+                }
+            }
+
+            *control_flow = ControlFlow::ExitWithCode(0);
+        }
+    });
+}
+
+fn main() -> Result<(), ()> {
     let mut g = DiGraph::<String, String>::new();
     let a = g.add_node("+".to_owned());
     let b = g.add_node("&".to_owned());
@@ -326,7 +470,7 @@ fn main() -> Result<(), Report<VisualizationError>> {
 
     eprintln!("pre-visualization");
 
-    graphs::visualize(&g, |_| graphs::Shape::CIRCLE)?;
+    //graphs::visualize(&g, |_| graphs::Shape::CIRCLE)?;
 
     eprintln!("post-visualization");
 
