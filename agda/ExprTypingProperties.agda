@@ -1,0 +1,330 @@
+module ExprTypingProperties where
+
+open import Data.Fin using (Fin; zero) renaming (suc to fsuc)
+open import Data.List using (List; []; _∷_)
+open import Data.Nat using (suc)
+open import Data.Product using (Σ; _×_; _,_)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+import Relation.Binary.PropositionalEquality as Eq
+
+open import AlgorithmicSubtyping using (_<:ₜ_)
+open import Kinds using (Kind; KV; SLin; TLin)
+open import ExprSyntax using (Expr; Value; E-Match)
+open import ExprNormalTyping
+open import ExprContextReduction using (RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un)
+data FrameCtx {Δ : List Kind} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
+  FC-∅ :
+    FrameCtx ∅ ∅ ∅
+
+  FC-frame :
+    ∀ {n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+    → FrameCtx Φ Γ Γ̂
+    → FrameCtx (B-Lin T ▻ Φ) (B-Used ▻ Γ) (B-Lin T ▻ Γ̂)
+
+  FC-allused :
+    ∀ {n} {Φ Γ Γ̂ : Ctx Δ n}
+    → FrameCtx Φ Γ Γ̂
+    → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ) (B-Used ▻ Γ̂)
+
+  FC-live :
+    ∀ {n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+    → FrameCtx Φ Γ Γ̂
+    → FrameCtx (B-Used ▻ Φ) (B-Lin T ▻ Γ) (B-Lin T ▻ Γ̂)
+
+  FC-un :
+    ∀ {n} {Φ Γ Γ̂ : Ctx Δ n} {K} {T : NfTy Δ K}
+    → FrameCtx Φ Γ Γ̂
+    → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) (B-Un T ▻ Γ̂)
+
+frame-unique :
+  ∀ {Δ n} {Φ Γ Γ̂₁ Γ̂₂ : Ctx Δ n}
+  → FrameCtx Φ Γ Γ̂₁
+  → FrameCtx Φ Γ Γ̂₂
+  → Γ̂₁ ≡ Γ̂₂
+frame-unique FC-∅ FC-∅ = refl
+frame-unique (FC-frame f₁) (FC-frame f₂)
+  rewrite frame-unique f₁ f₂ = refl
+frame-unique (FC-allused f₁) (FC-allused f₂)
+  rewrite frame-unique f₁ f₂ = refl
+frame-unique (FC-live f₁) (FC-live f₂)
+  rewrite frame-unique f₁ f₂ = refl
+frame-unique (FC-un f₁) (FC-un f₂)
+  rewrite frame-unique f₁ f₂ = refl
+
+frame-cons-used :
+  ∀ {Δ n} {Φ Γ Γ̂ : Ctx Δ n}
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ) (B-Used ▻ Γ̂)
+frame-cons-used = FC-allused
+
+frame-cons-lin :
+  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx (B-Used ▻ Φ) (B-Lin T ▻ Γ) (B-Lin T ▻ Γ̂)
+frame-cons-lin = FC-live
+
+frame-cons-un-local :
+  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) (B-Un T ▻ Γ̂)
+frame-cons-un-local = FC-un
+
+wkFrameCtx :
+  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n}
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx (wkCtx {K = K} Φ) (wkCtx Γ) (wkCtx Γ̂)
+wkFrameCtx FC-∅ = FC-∅
+wkFrameCtx (FC-frame f) = FC-frame (wkFrameCtx f)
+wkFrameCtx (FC-allused f) = FC-allused (wkFrameCtx f)
+wkFrameCtx (FC-live f) = FC-live (wkFrameCtx f)
+wkFrameCtx (FC-un f) = FC-un (wkFrameCtx f)
+
+lift-∋ᵘ :
+  ∀ {Δ n K} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K} (b : Binding Δ)
+  → Γ ∋ᵘ x ∶ T
+  → (b ▻ Γ) ∋ᵘ fsuc x ∶ T
+lift-∋ᵘ (B-Lin _) = thereᵘˡ
+lift-∋ᵘ (B-Un _) = thereᵘᵘ
+lift-∋ᵘ B-Used = thereᵘ✖
+
+frame-∋ᵘ :
+  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  → Γ ∋ᵘ x ∶ T
+  → FrameCtx Φ Γ Γ̂
+  → Γ̂ ∋ᵘ x ∶ T
+frame-∋ᵘ hereᵘ (FC-un f) = hereᵘ
+frame-∋ᵘ (thereᵘˡ x∈) (FC-live f) = thereᵘˡ (frame-∋ᵘ x∈ f)
+frame-∋ᵘ (thereᵘᵘ x∈) (FC-un f) = thereᵘᵘ (frame-∋ᵘ x∈ f)
+frame-∋ᵘ (thereᵘ✖ x∈) (FC-frame f) = thereᵘˡ (frame-∋ᵘ x∈ f)
+frame-∋ᵘ (thereᵘ✖ x∈) (FC-allused f) = thereᵘ✖ (frame-∋ᵘ x∈ f)
+
+lift-take :
+  ∀ {Δ n K} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K} (b : Binding Δ)
+  → Γ ⊢ˡ x ∶ T ⊣ Γ′
+  → (b ▻ Γ) ⊢ˡ fsuc x ∶ T ⊣ (b ▻ Γ′)
+lift-take (B-Lin _) = take-thereˡ
+lift-take (B-Un _) = take-thereᵘ
+lift-take B-Used = take-there✖
+
+frame-take :
+  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  → Γ ⊢ˡ x ∶ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx Φ Γ′ Γ̂′
+  → Γ̂ ⊢ˡ x ∶ T ⊣ Γ̂′
+frame-take take-here (FC-live f) (FC-allused f′)
+  rewrite frame-unique f f′ = take-here
+frame-take (take-thereˡ t) (FC-live f) (FC-live f′) =
+  take-thereˡ (frame-take t f f′)
+frame-take (take-thereᵘ t) (FC-un f) (FC-un f′) =
+  take-thereᵘ (frame-take t f f′)
+frame-take (take-there✖ t) (FC-frame f) (FC-frame f′) =
+  take-thereˡ (frame-take t f f′)
+frame-take (take-there✖ t) (FC-allused f) (FC-allused f′) =
+  take-there✖ (frame-take t f f′)
+
+frame-take-exists :
+  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  → Γ ⊢ˡ x ∶ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ˡ x ∶ T ⊣ Γ̂′)
+frame-take-exists take-here (FC-live f) =
+  _ , FC-allused f , take-here
+frame-take-exists (take-thereˡ t) (FC-live f)
+  with frame-take-exists t f
+... | Γ̂′ , f′ , t′ = _ , FC-live f′ , take-thereˡ t′
+frame-take-exists (take-thereᵘ t) (FC-un f)
+  with frame-take-exists t f
+... | Γ̂′ , f′ , t′ = _ , FC-un f′ , take-thereᵘ t′
+frame-take-exists (take-there✖ t) (FC-frame f)
+  with frame-take-exists t f
+... | Γ̂′ , f′ , t′ = _ , FC-frame f′ , take-thereˡ t′
+frame-take-exists (take-there✖ t) (FC-allused f)
+  with frame-take-exists t f
+... | Γ̂′ , f′ , t′ = _ , FC-allused f′ , take-there✖ t′
+
+invert-frame-used :
+  ∀ {Δ n} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)}
+  → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ) Γ̂
+  → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ B-Used ▻ Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+invert-frame-used (FC-allused f) = _ , refl , f
+
+invert-frame-un-local :
+  ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)} {T : NfTy Δ K}
+  → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) Γ̂
+  → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ B-Un T ▻ Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+invert-frame-un-local (FC-un f) = _ , refl , f
+
+frame-remove :
+  ∀ {Δ n} {Γ₀ G Γ₁ : Ctx Δ n}
+  → FrameCtx Γ₁ G Γ₀
+  → RemoveCtx Γ₀ G Γ₁
+frame-remove FC-∅ = RM-∅
+frame-remove (FC-frame f) = RM-drop (frame-remove f)
+frame-remove (FC-allused f) = RM-allused (frame-remove f)
+frame-remove (FC-live f) = RM-lin (frame-remove f)
+frame-remove (FC-un f) = RM-un (frame-remove f)
+
+postulate
+  wkFrameCtx-invert :
+    ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx (K ∷ Δ) n}
+    → FrameCtx (wkCtx {K = K} Φ) (wkCtx Γ) Γ̂
+    → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ wkCtx {K = K} Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+
+mutual
+
+  frame-value :
+    ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+    → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
+    → FrameCtx Φ Γ Γ̂
+    → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ᵥ v ⇒ T ⊣ Γ̂′)
+  frame-value (TV-Const cT) f = _ , f , TV-Const cT
+  frame-value (TV-Var-Lin take) f
+    with frame-take-exists take f
+  ... | Γ̂′ , f′ , take′ = Γ̂′ , f′ , TV-Var-Lin take′
+  frame-value (TV-Var-Un x∈) f = _ , f , TV-Var-Un (frame-∋ᵘ x∈ f)
+  frame-value (TV-Abs d) f
+    with frame-synth d (frame-cons-lin f)
+  ... | Γ̂body , fbody , d′
+    with invert-frame-used fbody
+  ... | Γ̂′ , refl , f′ = Γ̂′ , f′ , TV-Abs d′
+  frame-value (TV-Rec d) f
+    with frame-check d (frame-cons-un-local f)
+  ... | Γ̂body , fbody , d′
+    with invert-frame-un-local fbody
+  ... | Γ̂′ , refl , f′
+    with frame-unique f f′
+  ... | refl = _ , f , TV-Rec d′
+  frame-value (TV-TAbs d) f
+    with frame-value d (wkFrameCtx f)
+  ... | Γ̂wk , fwk , d′
+    with wkFrameCtx-invert fwk
+  ... | Γ̂′ , refl , f′ = Γ̂′ , f′ , TV-TAbs d′
+  frame-value (TV-Pair d₁ d₂) f
+    with frame-value d₁ f
+  ... | Γ̂₂ , f₂ , d₁′
+    with frame-value d₂ f₂
+  ... | Γ̂₃ , f₃ , d₂′ = Γ̂₃ , f₃ , TV-Pair d₁′ d₂′
+  frame-value TV-Receive₁ f = _ , f , TV-Receive₁
+  frame-value TV-Receive₂ f = _ , f , TV-Receive₂
+  frame-value TV-Send₁ f = _ , f , TV-Send₁
+  frame-value TV-Send₂ f = _ , f , TV-Send₂
+  frame-value (TV-Send₃ d) f
+    with frame-check d f
+  ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , TV-Send₃ d′
+  frame-value (TV-Selectᵀ sel) f = _ , f , TV-Selectᵀ sel
+
+  frame-synth-match :
+    ∀ {Δ n} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k}
+      {e : Expr Δ n}
+      {branches : Fin (suc k) → Expr Δ (suc n)}
+      {T : NfTy Δ SLin} {U : NfTy Δ TLin}
+      {B : Fin (suc k) → NfTy Δ SLin} {V : Fin (suc k) → NfTy Δ TLin}
+    → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
+    → MatchBranches T B
+    → ((i : Fin (suc k)) → (B i ∷ˡ Γ₂) ⊢ branches i ⇒ V i ⊣ used∷ Γ₃)
+    → BranchJoin V U
+    → FrameCtx Φ Γ₁ Γ̂₁
+    → Σ (Ctx Δ n) λ Γ̂₃ → FrameCtx Φ Γ₃ Γ̂₃ × (Γ̂₁ ⊢ E-Match e branches ⇒ U ⊣ Γ̂₃)
+  frame-synth-match {Δ = Δ} {n = n} {Φ = Φ} {Γ₃ = Γ₃} {k = k}
+                    {branches = branches} {B = B} {V = V}
+                    d m bs j f
+    with frame-synth d f
+  ... | Γ̂₂ , f₂ , d′
+    with frame-synth (bs zero) (frame-cons-lin f₂)
+  ... | Γ̂zero , fzero , dzero
+    with invert-frame-used fzero
+  ... | Γ̂₃ , refl , f₃ = Γ̂₃ , f₃ , T-Match d′ m bs′ j
+    where
+    branch :
+      (i : Fin (suc k))
+      → Σ (Ctx Δ (suc n)) λ Γ̂i
+          → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ₃) Γ̂i
+          × ((B i ∷ˡ Γ̂₂) ⊢ branches i ⇒ V i ⊣ Γ̂i)
+    branch i with frame-synth (bs i) (frame-cons-lin f₂)
+    ... | Γ̂i , fi , di = Γ̂i , fi , di
+
+    bs′ : (i : Fin (suc k)) → (B i ∷ˡ Γ̂₂) ⊢ branches i ⇒ V i ⊣ used∷ Γ̂₃
+    bs′ i with branch i
+    ... | Γ̂i , fi , di with invert-frame-used fi
+    ... | Γ̂₃′ , refl , f₃′
+      rewrite frame-unique f₃ f₃′ = di
+
+  frame-synth :
+    ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+    → Γ ⊢ e ⇒ T ⊣ Γ′
+    → FrameCtx Φ Γ Γ̂
+    → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ e ⇒ T ⊣ Γ̂′)
+  frame-synth (T-Val d) f
+    with frame-value d f
+  ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , T-Val d′
+  frame-synth (T-Pair d₁ d₂) f
+    with frame-synth d₁ f
+  ... | Γ̂₂ , f₂ , d₁′
+    with frame-synth d₂ f₂
+  ... | Γ̂₃ , f₃ , d₂′ = Γ̂₃ , f₃ , T-Pair d₁′ d₂′
+  frame-synth (T-App d₁ d₂) f
+    with frame-synth d₁ f
+  ... | Γ̂₂ , f₂ , d₁′
+    with frame-check d₂ f₂
+  ... | Γ̂₃ , f₃ , d₂′ = Γ̂₃ , f₃ , T-App d₁′ d₂′
+  frame-synth (T-LetUnit d₁ d₂) f
+    with frame-check d₁ f
+  ... | Γ̂₂ , f₂ , d₁′
+    with frame-synth d₂ f₂
+  ... | Γ̂₃ , f₃ , d₂′ = Γ̂₃ , f₃ , T-LetUnit d₁′ d₂′
+  frame-synth (T-LetPair d₁ d₂) f
+    with frame-synth d₁ f
+  ... | Γ̂₂ , f₂ , d₁′
+    with frame-synth d₂ (frame-cons-lin (frame-cons-lin f₂))
+  ... | Γ̂body , fbody , d₂′
+    with invert-frame-used fbody
+  ... | Γ̂used₁ , refl , fbody₁
+    with invert-frame-used fbody₁
+  ... | Γ̂₃ , refl , f₃ = Γ̂₃ , f₃ , T-LetPair d₁′ d₂′
+  frame-synth (T-Match d m bs j) f = frame-synth-match d m bs j f
+  frame-synth (T-TApp d) f
+    with frame-synth d f
+  ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , T-TApp d′
+
+  frame-check :
+    ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
+    → Γ ⊢ e ⇐ T ⊣ Γ′
+    → FrameCtx Φ Γ Γ̂
+    → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ e ⇐ T ⊣ Γ̂′)
+  frame-check (T-Check d sub) f
+    with frame-synth d f
+  ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , T-Check d′ sub
+
+replay-value :
+  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+  → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx Φ Γ′ Γ̂′
+  → Γ̂ ⊢ᵥ v ⇒ T ⊣ Γ̂′
+replay-value d fin fout
+  with frame-value d fin
+... | Γ̂″ , f″ , d′
+  rewrite frame-unique fout f″ = d′
+
+replay-synth :
+  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+  → Γ ⊢ e ⇒ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx Φ Γ′ Γ̂′
+  → Γ̂ ⊢ e ⇒ T ⊣ Γ̂′
+replay-synth d fin fout
+  with frame-synth d fin
+... | Γ̂″ , f″ , d′
+  rewrite frame-unique fout f″ = d′
+
+replay-check :
+  ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
+  → Γ ⊢ e ⇐ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → FrameCtx Φ Γ′ Γ̂′
+  → Γ̂ ⊢ e ⇐ T ⊣ Γ̂′
+replay-check d fin fout
+  with frame-check d fin
+... | Γ̂″ , f″ , d′
+  rewrite frame-unique fout f″ = d′

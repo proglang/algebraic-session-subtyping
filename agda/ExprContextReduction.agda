@@ -1,0 +1,733 @@
+module ExprContextReduction where
+
+open import Data.Fin using (Fin; zero; suc)
+open import Data.List using ([])
+open import Data.Product using (Σ; _×_; _,_)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+
+open import Kinds
+open import Duality
+open import Types
+open import ExprSyntax using (Value; E-Val)
+open import ExprSemantics using (Label; L-β; L-Fork; L-New; L-RecvVal; L-RecvLab; L-SendVal; L-SendLab; L-Close)
+open import ExprNormalTyping
+open import Data.Nat using (ℕ; zero; suc; _+_)
+
+-- This module proposes a context-level reduction relation on full contexts.
+-- Unlike Fig. 13 in the report, it does not work on context fragments. The
+-- idea is that a label updates one full incoming context directly to one full
+-- outgoing context.
+--
+-- For `L-RecvVal x v`, the current channel binding at `x` is updated from
+-- `?T.S` to `S`, and the resources used while typing `v` are merged into the
+-- full context.
+
+data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
+  AU-∅ : AllUsed ∅
+  AU-used : ∀ {n} {Γ : Ctx Δ n}
+    → AllUsed Γ
+    → AllUsed (B-Used ▻ Γ)
+  AU-un : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+    → AllUsed Γ
+    → AllUsed (B-Un T ▻ Γ)
+
+allUsedCtx : ∀ {Δ n} → Ctx Δ n → Ctx Δ n
+allUsedCtx ∅ = ∅
+allUsedCtx (B-Lin _ ▻ Γ) = B-Used ▻ allUsedCtx Γ
+allUsedCtx (B-Un T ▻ Γ) = B-Un T ▻ allUsedCtx Γ
+allUsedCtx (B-Used ▻ Γ) = B-Used ▻ allUsedCtx Γ
+
+allUsedCtx-AllUsed : ∀ {Δ n} (Γ : Ctx Δ n) → AllUsed (allUsedCtx Γ)
+allUsedCtx-AllUsed ∅ = AU-∅
+allUsedCtx-AllUsed (B-Lin _ ▻ Γ) = AU-used (allUsedCtx-AllUsed Γ)
+allUsedCtx-AllUsed (B-Un _ ▻ Γ) = AU-un (allUsedCtx-AllUsed Γ)
+allUsedCtx-AllUsed (B-Used ▻ Γ) = AU-used (allUsedCtx-AllUsed Γ)
+
+-- Only linear resources must be kept disjoint. Unrestricted bindings may
+-- appear on both sides simultaneously.
+data LinearDisjoint {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Set where
+  LD-∅ : LinearDisjoint ∅ ∅
+
+  LD-used-used : ∀ {n} {Γ₀ Γ : Ctx Δ n}
+    → LinearDisjoint Γ₀ Γ
+    → LinearDisjoint (B-Used ▻ Γ₀) (B-Used ▻ Γ)
+
+  LD-used-live : ∀ {n K} {Γ₀ Γ : Ctx Δ n} {T : NfTy Δ K}
+    → LinearDisjoint Γ₀ Γ
+    → LinearDisjoint (B-Used ▻ Γ₀) (B-Lin T ▻ Γ)
+
+  LD-live-used : ∀ {n K} {Γ₀ Γ : Ctx Δ n} {T : NfTy Δ K}
+    → LinearDisjoint Γ₀ Γ
+    → LinearDisjoint (B-Lin T ▻ Γ₀) (B-Used ▻ Γ)
+
+  LD-un-un : ∀ {n} {Γ₀ Γ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+    → LinearDisjoint Γ₀ Γ
+    → LinearDisjoint (B-Un T ▻ Γ₀) (B-Un T ▻ Γ)
+
+-- Merge the full context used to type the payload into the updated channel
+-- context. Live linear positions of Γv are turned into `B-Used`; live
+-- unrestricted positions leave Γx unchanged.
+data MergeCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
+  MC-∅ : MergeCtx ∅ ∅ ∅
+
+  MC-used-left : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {b : Binding Δ}
+    → MergeCtx Γx Γv Γ₁
+    → MergeCtx (B-Used ▻ Γx) (b ▻ Γv) (b ▻ Γ₁)
+
+  MC-used-right : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {b : Binding Δ}
+    → MergeCtx Γx Γv Γ₁
+    → MergeCtx (b ▻ Γx) (B-Used ▻ Γv) (b ▻ Γ₁)
+
+  MC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+    → MergeCtx Γx Γv Γ₁
+    → MergeCtx (B-Un T ▻ Γx) (B-Un T ▻ Γv) (B-Un T ▻ Γ₁)
+
+mergeDisjointContext :
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
+  → LinearDisjoint Γ₁ Γ₂
+  → Σ (Ctx Δ n) λ Γ → MergeCtx Γ₁ Γ₂ Γ
+mergeDisjointContext LD-∅ = ∅ , MC-∅
+mergeDisjointContext (LD-used-used ld)
+  with mergeDisjointContext ld
+... | Γ , m = (B-Used ▻ Γ) , MC-used-left m
+mergeDisjointContext (LD-used-live ld)
+  with mergeDisjointContext ld
+... | Γ , m = (_ ▻ Γ) , MC-used-left m
+mergeDisjointContext (LD-live-used ld)
+  with mergeDisjointContext ld
+... | Γ , m = (_ ▻ Γ) , MC-used-right m
+mergeDisjointContext {Γ₁ = B-Un T ▻ Γ₁} {Γ₂ = B-Un .T ▻ Γ₂} (LD-un-un {T = T} ld)
+  with mergeDisjointContext {Γ₁ = Γ₁} {Γ₂ = Γ₂} ld
+... | Γ , m = (B-Un T ▻ Γ) , MC-un {Γ₁ = Γ} {T = T} m
+
+-- Remove a full payload context from a full source context. Live linear
+-- bindings of Γv are consumed from Γ₀; live unrestricted bindings are shared
+-- and therefore remain present in the remainder.
+data RemoveCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
+  RM-∅ : RemoveCtx ∅ ∅ ∅
+
+  RM-drop : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+    → RemoveCtx Γ₀ Γv Γx
+    → RemoveCtx (B-Lin T ▻ Γ₀) (B-Used ▻ Γv) (B-Lin T ▻ Γx)
+
+  RM-allused : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n}
+    → RemoveCtx Γ₀ Γv Γx
+    → RemoveCtx (B-Used ▻ Γ₀) (B-Used ▻ Γv) (B-Used ▻ Γx)
+
+  RM-lin : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+    → RemoveCtx Γ₀ Γv Γx
+    → RemoveCtx (B-Lin T ▻ Γ₀) (B-Lin T ▻ Γv) (B-Used ▻ Γx)
+
+  RM-un : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+    → RemoveCtx Γ₀ Γv Γx
+    → RemoveCtx (B-Un T ▻ Γ₀) (B-Un T ▻ Γv) (B-Un T ▻ Γx)
+
+remove-allUsedCtx : ∀ {Δ n} (Γ : Ctx Δ n) → RemoveCtx Γ (allUsedCtx Γ) Γ
+remove-allUsedCtx ∅ = RM-∅
+remove-allUsedCtx (B-Lin _ ▻ Γ) = RM-drop (remove-allUsedCtx Γ)
+remove-allUsedCtx (B-Un _ ▻ Γ) = RM-un (remove-allUsedCtx Γ)
+remove-allUsedCtx (B-Used ▻ Γ) = RM-allused (remove-allUsedCtx Γ)
+
+mergeRemoveContext :
+  ∀ {Δ n} {Γ₀ Γ₁ Γ₂ G₁ G₂ : Ctx Δ n}
+  → RemoveCtx Γ₀ G₁ Γ₁
+  → RemoveCtx Γ₁ G₂ Γ₂
+  → Σ (Ctx Δ n) λ Γ →
+      MergeCtx G₁ G₂ Γ × RemoveCtx Γ₀ Γ Γ₂
+mergeRemoveContext RM-∅ RM-∅ = ∅ , MC-∅ , RM-∅
+mergeRemoveContext (RM-drop r₁) (RM-drop r₂)
+  with mergeRemoveContext r₁ r₂
+... | Γ , m , r = (B-Used ▻ Γ) , MC-used-left m , RM-drop r
+mergeRemoveContext (RM-drop r₁) (RM-lin r₂)
+  with mergeRemoveContext r₁ r₂
+... | Γ , m , r = (B-Lin _ ▻ Γ) , MC-used-left m , RM-lin r
+mergeRemoveContext (RM-allused r₁) (RM-allused r₂)
+  with mergeRemoveContext r₁ r₂
+... | Γ , m , r = (B-Used ▻ Γ) , MC-used-left m , RM-allused r
+mergeRemoveContext (RM-lin r₁) (RM-allused r₂)
+  with mergeRemoveContext r₁ r₂
+... | Γ , m , r = (B-Lin _ ▻ Γ) , MC-used-right m , RM-lin r
+mergeRemoveContext (RM-un r₁) (RM-un r₂)
+  with mergeRemoveContext r₁ r₂
+... | Γ , m , r = (B-Un _ ▻ Γ) , MC-un m , RM-un r
+
+remove-linear :
+  ∀ {Δ n} {Γ₀ G Γ₁ : Ctx Δ n}
+  → RemoveCtx Γ₀ G Γ₁
+  → LinearDisjoint G Γ₁
+remove-linear RM-∅ = LD-∅
+remove-linear (RM-drop r) = LD-used-live (remove-linear r)
+remove-linear (RM-allused r) = LD-used-used (remove-linear r)
+remove-linear (RM-lin r) = LD-live-used (remove-linear r)
+remove-linear (RM-un r) = LD-un-un (remove-linear r)
+
+remove-allused-disjoint :
+  ∀ {Δ n} {Γ₀ G Γ₁ : Ctx Δ n}
+  → RemoveCtx Γ₀ G Γ₁
+  → LinearDisjoint G (allUsedCtx Γ₀)
+remove-allused-disjoint RM-∅ = LD-∅
+remove-allused-disjoint (RM-drop r) = LD-used-used (remove-allused-disjoint r)
+remove-allused-disjoint (RM-allused r) = LD-used-used (remove-allused-disjoint r)
+remove-allused-disjoint (RM-lin r) = LD-live-used (remove-allused-disjoint r)
+remove-allused-disjoint (RM-un r) = LD-un-un (remove-allused-disjoint r)
+
+remove-preserves-remove :
+  ∀ {Δ n}
+    {Γ₀ G Γ₂ Γin Γr : Ctx Δ n}
+  → RemoveCtx Γ₀ G Γ₂
+  → RemoveCtx Γ₀ Γin Γr
+  → LinearDisjoint G Γin
+  → Σ (Ctx Δ n) λ Γr′ → RemoveCtx Γ₂ Γin Γr′
+remove-preserves-remove RM-∅ RM-∅ LD-∅ = ∅ , RM-∅
+remove-preserves-remove (RM-drop r₁) (RM-drop r₂) (LD-used-used ld)
+  with remove-preserves-remove r₁ r₂ ld
+... | Γr′ , r′ = B-Lin _ ▻ Γr′ , RM-drop r′
+remove-preserves-remove (RM-drop r₁) (RM-lin r₂) (LD-used-live ld)
+  with remove-preserves-remove r₁ r₂ ld
+... | Γr′ , r′ = B-Used ▻ Γr′ , RM-lin r′
+remove-preserves-remove (RM-allused r₁) (RM-allused r₂) (LD-used-used ld)
+  with remove-preserves-remove r₁ r₂ ld
+... | Γr′ , r′ = B-Used ▻ Γr′ , RM-allused r′
+remove-preserves-remove (RM-lin r₁) (RM-drop r₂) (LD-live-used ld)
+  with remove-preserves-remove r₁ r₂ ld
+... | Γr′ , r′ = B-Used ▻ Γr′ , RM-allused r′
+remove-preserves-remove (RM-un r₁) (RM-un r₂) (LD-un-un ld)
+  with remove-preserves-remove r₁ r₂ ld
+... | Γr′ , r′ = B-Un _ ▻ Γr′ , RM-un r′
+
+sym-disjoint :
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
+  → LinearDisjoint Γ₁ Γ₂
+  → LinearDisjoint Γ₂ Γ₁
+sym-disjoint LD-∅ = LD-∅
+sym-disjoint (LD-used-used d) = LD-used-used (sym-disjoint d)
+sym-disjoint (LD-used-live d) = LD-live-used (sym-disjoint d)
+sym-disjoint (LD-live-used d) = LD-used-live (sym-disjoint d)
+sym-disjoint (LD-un-un d) = LD-un-un (sym-disjoint d)
+
+remove-preserves-disjoint :
+  ∀ {Δ n}
+    {Γ₀ G Γ₁ Γf : Ctx Δ n}
+  → RemoveCtx Γ₀ G Γ₁
+  → LinearDisjoint Γ₀ Γf
+  → LinearDisjoint Γ₁ Γf
+remove-preserves-disjoint RM-∅ LD-∅ = LD-∅
+remove-preserves-disjoint (RM-drop r) (LD-live-used d) =
+  LD-live-used (remove-preserves-disjoint r d)
+remove-preserves-disjoint (RM-allused r) (LD-used-used d) =
+  LD-used-used (remove-preserves-disjoint r d)
+remove-preserves-disjoint (RM-allused r) (LD-used-live d) =
+  LD-used-live (remove-preserves-disjoint r d)
+remove-preserves-disjoint (RM-lin r) (LD-live-used d) =
+  LD-used-used (remove-preserves-disjoint r d)
+remove-preserves-disjoint (RM-un r) (LD-un-un d) =
+  LD-un-un (remove-preserves-disjoint r d)
+
+remove-removed-disjoint :
+  ∀ {Δ n}
+    {Γ₀ G Γ₁ Γf : Ctx Δ n}
+  → RemoveCtx Γ₀ G Γ₁
+  → LinearDisjoint Γ₀ Γf
+  → LinearDisjoint G Γf
+remove-removed-disjoint RM-∅ LD-∅ = LD-∅
+remove-removed-disjoint (RM-drop r) (LD-live-used d) =
+  LD-used-used (remove-removed-disjoint r d)
+remove-removed-disjoint (RM-allused r) (LD-used-used d) =
+  LD-used-used (remove-removed-disjoint r d)
+remove-removed-disjoint (RM-allused r) (LD-used-live d) =
+  LD-used-live (remove-removed-disjoint r d)
+remove-removed-disjoint (RM-lin r) (LD-live-used d) =
+  LD-live-used (remove-removed-disjoint r d)
+remove-removed-disjoint (RM-un r) (LD-un-un d) =
+  LD-un-un (remove-removed-disjoint r d)
+
+restore-disjoint :
+  ∀ {Δ n}
+    {Γ₀ G Γ₁ Γf : Ctx Δ n}
+  → RemoveCtx Γ₀ G Γ₁
+  → LinearDisjoint Γ₁ Γf
+  → LinearDisjoint G Γf
+  → LinearDisjoint Γ₀ Γf
+restore-disjoint RM-∅ LD-∅ LD-∅ = LD-∅
+restore-disjoint (RM-drop r) (LD-live-used d₁) (LD-used-used d₂) =
+  LD-live-used (restore-disjoint r d₁ d₂)
+restore-disjoint (RM-allused r) (LD-used-used d₁) (LD-used-used d₂) =
+  LD-used-used (restore-disjoint r d₁ d₂)
+restore-disjoint (RM-allused r) (LD-used-live d₁) (LD-used-live d₂) =
+  LD-used-live (restore-disjoint r d₁ d₂)
+restore-disjoint (RM-lin r) (LD-used-used d₁) (LD-live-used d₂) =
+  LD-live-used (restore-disjoint r d₁ d₂)
+restore-disjoint (RM-un r) (LD-un-un d₁) (LD-un-un d₂) =
+  LD-un-un (restore-disjoint r d₁ d₂)
+
+merge-preserves-disjoint :
+  ∀ {Δ n}
+    {Γx Γv Γ₁ Γf : Ctx Δ n}
+  → MergeCtx Γx Γv Γ₁
+  → LinearDisjoint Γx Γf
+  → LinearDisjoint Γv Γf
+  → LinearDisjoint Γ₁ Γf
+merge-preserves-disjoint MC-∅ LD-∅ LD-∅ = LD-∅
+merge-preserves-disjoint (MC-used-left m) (LD-used-used dx) (LD-used-used dv) =
+  LD-used-used (merge-preserves-disjoint m dx dv)
+merge-preserves-disjoint (MC-used-left m) (LD-used-live dx) (LD-used-live dv) =
+  LD-used-live (merge-preserves-disjoint m dx dv)
+merge-preserves-disjoint (MC-used-left m) (LD-used-used dx) (LD-live-used dv) =
+  LD-live-used (merge-preserves-disjoint m dx dv)
+merge-preserves-disjoint (MC-used-right m) (LD-used-used dx) (LD-used-used dv) =
+  LD-used-used (merge-preserves-disjoint m dx dv)
+merge-preserves-disjoint (MC-used-right m) (LD-used-live dx) (LD-used-live dv) =
+  LD-used-live (merge-preserves-disjoint m dx dv)
+merge-preserves-disjoint (MC-used-right m) (LD-live-used dx) (LD-used-used dv) =
+  LD-live-used (merge-preserves-disjoint m dx dv)
+merge-preserves-disjoint (MC-un m) (LD-un-un dx) (LD-un-un dv) =
+  LD-un-un (merge-preserves-disjoint m dx dv)
+
+-- Pointwise replacement in a full context.
+data ReplaceAt {Δ} : ∀ {n} → Ctx Δ n → Fin n → Binding Δ → Ctx Δ n → Set where
+  R-here : ∀ {n} {Γ : Ctx Δ n} {b b′ : Binding Δ}
+    → ReplaceAt (b ▻ Γ) zero b′ (b′ ▻ Γ)
+
+  R-there : ∀ {n} {Γ Γ′ : Ctx Δ n} {x : Fin n} {b b′ : Binding Δ}
+    → ReplaceAt Γ x b′ Γ′
+    → ReplaceAt (b ▻ Γ) (suc x) b′ (b ▻ Γ′)
+
+replace-preserves-disjoint :
+  ∀ {Δ n K K′}
+    {Γ₀ Γ₁ Γf : Ctx Δ n}
+    {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  → Γ₀ ∋ˡ x ∶ T
+  → LinearDisjoint Γ₀ Γf
+  → ReplaceAt Γ₀ x (B-Lin U) Γ₁
+  → LinearDisjoint Γ₁ Γf
+replace-preserves-disjoint hereˡ (LD-live-used d) R-here = LD-live-used d
+replace-preserves-disjoint (thereˡˡ x∈) (LD-live-used d) (R-there rep) =
+  LD-live-used (replace-preserves-disjoint x∈ d rep)
+replace-preserves-disjoint (thereˡᵘ x∈) (LD-un-un d) (R-there rep) =
+  LD-un-un (replace-preserves-disjoint x∈ d rep)
+replace-preserves-disjoint (thereˡ✖ x∈) (LD-used-used d) (R-there rep) =
+  LD-used-used (replace-preserves-disjoint x∈ d rep)
+replace-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep) =
+  LD-used-live (replace-preserves-disjoint x∈ d rep)
+
+replace-used-preserves-disjoint :
+  ∀ {Δ n K}
+    {Γ₀ Γ₁ Γf : Ctx Δ n}
+    {x : Fin n} {T : NfTy Δ K}
+  → Γ₀ ∋ˡ x ∶ T
+  → LinearDisjoint Γ₀ Γf
+  → ReplaceAt Γ₀ x B-Used Γ₁
+  → LinearDisjoint Γ₁ Γf
+replace-used-preserves-disjoint hereˡ (LD-live-used d) R-here = LD-used-used d
+replace-used-preserves-disjoint (thereˡˡ x∈) (LD-live-used d) (R-there rep) =
+  LD-live-used (replace-used-preserves-disjoint x∈ d rep)
+replace-used-preserves-disjoint (thereˡᵘ x∈) (LD-un-un d) (R-there rep) =
+  LD-un-un (replace-used-preserves-disjoint x∈ d rep)
+replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-used d) (R-there rep) =
+  LD-used-used (replace-used-preserves-disjoint x∈ d rep)
+replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep) =
+  LD-used-live (replace-used-preserves-disjoint x∈ d rep)
+
+sessNf : NfTy [] SLin → NfTy [] TLin
+sessNf (mkNfTy S NS) = mkNfTy (SessLin S) (N-Sub NS)
+
+unitLinNf : NfTy [] TLin
+unitLinNf = mkNfTy UnitLin N-Base
+
+recvChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
+recvChanNf (mkNfTy T NT) (mkNfTy S NS) =
+  mkNfTy
+    (SessLin (T-Msg ⊝ (T-Up T) S))
+    (N-Sub (N-Msg ⊝ (N-Up NT) NS))
+
+sendChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
+sendChanNf (mkNfTy T NT) (mkNfTy S NS) =
+  mkNfTy
+    (SessLin (T-Msg ⊕ (T-Up T) S))
+    (N-Sub (N-Msg ⊕ (N-Up NT) NS))
+
+dualSessNf : NfTy [] SLin → NfTy [] TLin
+dualSessNf (mkNfTy S _) = normalizeTy (SessLin (T-Dual D-S S))
+
+postulate
+  SelectBranches : ∀ {k} → NfTy [] SLin → (Fin k → NfTy [] SLin) → Set
+
+infix 4 _—ctx[_]→_
+
+data _—ctx[_]→_ : ∀ {n k} → Ctx [] n → Label n k → Ctx [] (k + n) → Set where
+  Ctx-β : ∀ {n} {Γ : Ctx [] n}
+    → Γ —ctx[ ExprSemantics.L-β ]→ Γ
+
+  Ctx-New : ∀ {n} {Γ₀ : Ctx [] n} {S : Ty [] SLin}
+    → Γ₀ —ctx[ L-New S ]→ (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
+
+  Ctx-Fork : ∀ {n} {Γ₀ Γv Γv′ Γ₁ : Ctx [] n} {v : Value [] n}
+    → RemoveCtx Γ₀ Γv Γ₁
+    → Γv ⊢ E-Val v ⇐ linArrNf unitLinNf unitLinNf ⊣ Γv′
+    → AllUsed Γv′
+    → Γ₀ —ctx[ L-Fork v ]→ Γ₁
+
+  Ctx-Rcv : ∀ {n} {Γ₀ Γv Γv′ Γx Γ₁ : Ctx [] n}
+      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+    → AllUsed Γv′
+    → LinearDisjoint Γ₀ Γv
+    → Γ₀ ∋ˡ x ∶ recvChanNf T S
+    → ReplaceAt Γ₀ x (B-Lin (sessNf S)) Γx
+    → MergeCtx Γx Γv Γ₁
+    → Γ₀ —ctx[ L-RecvVal x v ]→ Γ₁
+
+  Ctx-Send : ∀ {n} {Γ₀ Γx Γv Γv′ Γ₁ : Ctx [] n}
+      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+    → RemoveCtx Γ₀ Γv Γx
+    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+    → AllUsed Γv′
+    → Γx ∋ˡ x ∶ sendChanNf T S
+    → ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁
+    → Γ₀ —ctx[ L-SendVal x v ]→ Γ₁
+
+  Ctx-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
+    → Γ₀ ∋ˡ x ∶ normalizeTy EndLin
+    → ReplaceAt Γ₀ x B-Used Γ₁
+    → Γ₀ —ctx[ L-Close x ]→ Γ₁
+
+  Ctx-Match : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {S : NfTy [] SLin} {B : Fin k → NfTy [] SLin}
+    → MatchBranches S B
+    → Γ₀ ∋ˡ x ∶ sessNf S
+    → ReplaceAt Γ₀ x (B-Lin (sessNf (B i))) Γ₁
+    → Γ₀ —ctx[ L-RecvLab x i ]→ Γ₁
+
+  Ctx-Select : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {S : NfTy [] SLin} {B : Fin k → NfTy [] SLin}
+    → SelectBranches S B
+    → Γ₀ ∋ˡ x ∶ sessNf S
+    → ReplaceAt Γ₀ x (B-Lin (sessNf (B i))) Γ₁
+    → Γ₀ —ctx[ L-SendLab x i ]→ Γ₁
+
+data _⦂_⇒_ : ∀ {n k} → Label n k → Ctx [] n → Ctx [] n → Set where
+
+  Label-β : ∀ {n} {Γin Γv : Ctx [] n}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-β ⦂ Γin ⇒ Γv
+
+  Label-Fork : ∀ {n} {Γin Γv : Ctx [] n} {v : Value [] n}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-Fork v ⦂ Γin ⇒ Γv
+
+  Label-New : ∀ {n} {Γin Γv : Ctx [] n} {S : Ty [] SLin}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-New S ⦂ Γin ⇒ Γv
+
+  Label-RecvVal :
+    ∀ {n} {x : Fin n}
+      {Γin Γin′ Γv Γv′ : Ctx [] n}
+      {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+    → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
+    → AllUsed Γin′
+    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+    → AllUsed Γv′
+    → L-RecvVal x v ⦂ Γin ⇒ Γv
+
+  Label-RecvLab : ∀ {n k} {x : Fin n} {Γin Γv : Ctx [] n} {i : Fin k}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-RecvLab x i ⦂ Γin ⇒ Γv
+
+  Label-SendVal : ∀ {n} {x : Fin n} {Γin Γv : Ctx [] n} {v : Value [] n}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-SendVal x v ⦂ Γin ⇒ Γv
+
+  Label-SendLab : ∀ {n k} {x : Fin n} {Γin Γv : Ctx [] n} {i : Fin k}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-SendLab x i ⦂ Γin ⇒ Γv
+
+  Label-Close : ∀ {n} {x : Fin n} {Γin Γv : Ctx [] n}
+    → AllUsed Γin
+    → AllUsed Γv
+    → L-Close x ⦂ Γin ⇒ Γv
+
+extendUsed : ∀ (k : ℕ) {n} → Ctx [] n → Ctx [] (k + n)
+extendUsed zero Γ = Γ
+extendUsed (suc k) Γ = B-Used ▻ extendUsed k Γ
+
+data Compatible :
+  ∀ {n k}
+    {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (k + n)}
+    {ℓ : Label n k}
+  → (Γ₀ —ctx[ ℓ ]→ Γ₁)
+  → {Γin Γv : Ctx [] n}
+  → (ℓ ⦂ Γin ⇒ Γv)
+  → Set where
+  Compat-β :
+    ∀ {n} {Γ₀ Γin Γv : Ctx [] n}
+      {auin : AllUsed Γin}
+      {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₀} {ℓ = L-β}
+        Ctx-β
+        (Label-β auin auv)
+
+  Compat-New :
+    ∀ {n} {Γ₀ Γin Γv : Ctx [] n} {S : Ty [] SLin}
+      {auin : AllUsed Γin}
+      {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible {Γ₀ = Γ₀} {ℓ = L-New S}
+        (Ctx-New {Γ₀ = Γ₀} {S = S})
+        (Label-New auin auv)
+
+  Compat-Fork :
+    ∀ {n} {Γ₀ Γin Γv Γv′ Γ₁ : Ctx [] n} {v : Value [] n}
+      {Γlbl : Ctx [] n} {auin : AllUsed Γin} {aulbl : AllUsed Γlbl}
+      {rm : RemoveCtx Γ₀ Γv Γ₁}
+      {dv : Γv ⊢ E-Val v ⇐ linArrNf unitLinNf unitLinNf ⊣ Γv′}
+      {auv : AllUsed Γv′}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible (Ctx-Fork rm dv auv) (Label-Fork auin aulbl)
+
+  Compat-RecvVal :
+    ∀ {n} {Γ₀ Γv Γv′ Γx Γ₁ Γin Γin′ : Ctx [] n}
+      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {ld : LinearDisjoint Γ₀ Γv}
+      {x∈ : Γ₀ ∋ˡ x ∶ recvChanNf T S}
+      {rep : ReplaceAt Γ₀ x (B-Lin (sessNf S)) Γx}
+      {merge : MergeCtx Γx Γv Γ₁}
+      {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
+      {auin : AllUsed Γin′}
+      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+      {au : AllUsed Γv′}
+    → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvVal x v}
+        (Ctx-Rcv dv au ld x∈ rep merge) (Label-RecvVal take auin dv au)
+
+  Compat-SendVal :
+    ∀ {n} {Γ₀ Γin Γx Γv Γv′ Γ₁ : Ctx [] n}
+      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {rm : RemoveCtx Γ₀ Γv Γx}
+      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+      {auv : AllUsed Γv′}
+      {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
+      {rep : ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁}
+      {Γlbl : Ctx [] n} {auin : AllUsed Γin} {aul : AllUsed Γlbl}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendVal x v}
+        (Ctx-Send rm dv auv x∈ rep) (Label-SendVal auin aul)
+
+  Compat-Close :
+    ∀ {n} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n}
+      {x∈ : Γ₀ ∋ˡ x ∶ normalizeTy EndLin}
+      {rep : ReplaceAt Γ₀ x B-Used Γ₁}
+      {Γv : Ctx [] n} {auin : AllUsed Γin} {au : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-Close x}
+        (Ctx-Close x∈ rep) (Label-Close auin au)
+
+  Compat-Match :
+    ∀ {n k} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {S : NfTy [] SLin} {B : Fin k → NfTy [] SLin}
+      {mb : MatchBranches S B}
+      {x∈ : Γ₀ ∋ˡ x ∶ sessNf S}
+      {rep : ReplaceAt Γ₀ x (B-Lin (sessNf (B i))) Γ₁}
+      {Γv : Ctx [] n} {auin : AllUsed Γin} {au : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvLab x i}
+        (Ctx-Match mb x∈ rep) (Label-RecvLab auin au)
+
+  Compat-Select :
+    ∀ {n k} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {S : NfTy [] SLin} {B : Fin k → NfTy [] SLin}
+      {sb : SelectBranches S B}
+      {x∈ : Γ₀ ∋ˡ x ∶ sessNf S}
+      {rep : ReplaceAt Γ₀ x (B-Lin (sessNf (B i))) Γ₁}
+      {Γv : Ctx [] n} {auin : AllUsed Γin} {au : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendLab x i}
+        (Ctx-Select sb x∈ rep) (Label-SendLab auin au)
+
+data InputCompatible :
+  ∀ {n k}
+    (Γ₀ : Ctx [] n)
+    {Γin Γv : Ctx [] n}
+    {ℓ : Label n k}
+  → (ℓ ⦂ Γin ⇒ Γv)
+  → Set where
+  IC-β :
+    ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ (Label-β auin auv)
+
+  IC-Fork :
+    ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {v : Value [] n}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ (Label-Fork {v = v} auin auv)
+
+  IC-New :
+    ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {S : Ty [] SLin}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ (Label-New {S = S} auin auv)
+
+  IC-RecvVal :
+    ∀ {n} {Γ₀ Γin Γr Γv : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {Γin′ Γv′ : Ctx [] n}
+      {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
+      {auin : AllUsed Γin′}
+      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+      {auv : AllUsed Γv′}
+    → RemoveCtx Γ₀ Γin Γr
+    → InputCompatible Γ₀ (Label-RecvVal take auin dv auv)
+
+  IC-RecvLab :
+    ∀ {n k} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {i : Fin k}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ {ℓ = L-RecvLab x i} (Label-RecvLab auin auv)
+
+  IC-SendVal :
+    ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {v : Value [] n}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ {ℓ = L-SendVal x v} (Label-SendVal auin auv)
+
+  IC-SendLab :
+    ∀ {n k} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {i : Fin k}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ {ℓ = L-SendLab x i} (Label-SendLab auin auv)
+
+  IC-Close :
+    ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n}
+      {auin : AllUsed Γin} {auv : AllUsed Γv}
+    → allUsedCtx Γ₀ ≡ Γin
+    → InputCompatible Γ₀ {ℓ = L-Close x} (Label-Close auin auv)
+
+data Extract : ∀ {n k} → Ctx [] n → Label n k → Ctx [] n → Set where
+  Ex-β :
+    ∀ {n} {Γ₀ : Ctx [] n}
+    → Extract Γ₀ L-β (allUsedCtx Γ₀)
+
+  Ex-Fork :
+    ∀ {n} {Γ₀ : Ctx [] n} {v : Value [] n}
+    → Extract Γ₀ (L-Fork v) (allUsedCtx Γ₀)
+
+  Ex-New :
+    ∀ {n} {Γ₀ : Ctx [] n} {S : Ty [] SLin}
+    → Extract Γ₀ (L-New S) (allUsedCtx Γ₀)
+
+  Ex-RecvVal :
+    ∀ {n}
+      {Γ₀ Γin Γr Γin′ : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+      {T : NfTy [] TLin} {S : NfTy [] SLin}
+    → RemoveCtx Γ₀ Γin Γr
+    → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
+    → AllUsed Γin′
+    → Extract Γ₀ (L-RecvVal x v) Γin
+
+  Ex-RecvLab :
+    ∀ {n k}
+      {Γ₀ : Ctx [] n}
+      {x : Fin n} {i : Fin k}
+    → Extract Γ₀ (L-RecvLab x i) (allUsedCtx Γ₀)
+
+  Ex-SendVal :
+    ∀ {n}
+      {Γ₀ : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+    → Extract Γ₀ (L-SendVal x v) (allUsedCtx Γ₀)
+
+  Ex-SendLab :
+    ∀ {n k}
+      {Γ₀ : Ctx [] n}
+      {x : Fin n} {i : Fin k}
+    → Extract Γ₀ (L-SendLab x i) (allUsedCtx Γ₀)
+
+  Ex-Close :
+    ∀ {n}
+      {Γ₀ : Ctx [] n}
+      {x : Fin n}
+    → Extract Γ₀ (L-Close x) (allUsedCtx Γ₀)
+
+extract-remove :
+  ∀ {n k}
+    {Γ₀ Γin : Ctx [] n}
+    {ℓ : Label n k}
+  → Extract Γ₀ ℓ Γin
+  → Σ (Ctx [] n) λ Γr → RemoveCtx Γ₀ Γin Γr
+extract-remove Ex-β = _ , remove-allUsedCtx _
+extract-remove Ex-Fork = _ , remove-allUsedCtx _
+extract-remove Ex-New = _ , remove-allUsedCtx _
+extract-remove (Ex-RecvVal rm _ _) = _ , rm
+extract-remove Ex-RecvLab = _ , remove-allUsedCtx _
+extract-remove Ex-SendVal = _ , remove-allUsedCtx _
+extract-remove Ex-SendLab = _ , remove-allUsedCtx _
+extract-remove Ex-Close = _ , remove-allUsedCtx _
+
+extract-disjoint-active :
+  ∀ {n k}
+    {Γ₀ Γ₂ Γin G : Ctx [] n}
+    {ℓ : Label n k}
+  → RemoveCtx Γ₀ G Γ₂
+  → Extract Γ₂ ℓ Γin
+  → LinearDisjoint G Γin
+extract-disjoint-active r ex with extract-remove ex
+... | Γr , rin =
+  sym-disjoint
+    (remove-removed-disjoint rin (sym-disjoint (remove-linear r)))
+
+ctx-step-preserves-disjoint :
+    ∀ {n k}
+      {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (k + n)}
+      {Γin Γv Γf : Ctx [] n}
+      {ℓ : Label n k}
+    → (step : Γ₀ —ctx[ ℓ ]→ Γ₁)
+    → (lbl : ℓ ⦂ Γin ⇒ Γv)
+    → Compatible step lbl
+    → LinearDisjoint Γ₀ Γf
+    → LinearDisjoint Γv Γf
+    → LinearDisjoint Γ₁ (extendUsed k Γf)
+ctx-step-preserves-disjoint Ctx-β (Label-β _ _) (Compat-β _) ld0 ldv = ld0
+ctx-step-preserves-disjoint Ctx-New (Label-New _ _) (Compat-New _) ld0 ldv =
+  LD-live-used (LD-live-used ld0)
+ctx-step-preserves-disjoint (Ctx-Fork rm _ _) (Label-Fork _ _) (Compat-Fork _) ld0 ldv =
+  remove-preserves-disjoint rm ld0
+ctx-step-preserves-disjoint
+  (Ctx-Rcv _ _ _ x∈ rep merge)
+  (Label-RecvVal _ _ _ _)
+  Compat-RecvVal
+  ld0 ldv =
+  merge-preserves-disjoint merge (replace-preserves-disjoint x∈ ld0 rep) ldv
+ctx-step-preserves-disjoint
+  (Ctx-Send rm _ _ x∈ rep)
+  (Label-SendVal _ _)
+  (Compat-SendVal _)
+  ld0 ldv =
+  let ldx = remove-preserves-disjoint rm ld0 in
+  replace-preserves-disjoint x∈ ldx rep
+ctx-step-preserves-disjoint
+  (Ctx-Close x∈ rep)
+  (Label-Close _ _)
+  (Compat-Close _)
+  ld0 ldv =
+  replace-used-preserves-disjoint x∈ ld0 rep
+ctx-step-preserves-disjoint
+  (Ctx-Match _ x∈ rep)
+  (Label-RecvLab _ _)
+  (Compat-Match _)
+  ld0 ldv =
+  replace-preserves-disjoint x∈ ld0 rep
+ctx-step-preserves-disjoint
+  (Ctx-Select _ x∈ rep)
+  (Label-SendLab _ _)
+  (Compat-Select _)
+  ld0 ldv =
+  replace-preserves-disjoint x∈ ld0 rep
