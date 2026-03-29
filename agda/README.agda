@@ -18,6 +18,9 @@ import Kits
 -- Core abstract syntax of kinds-indexed types and their normal forms.
 import Types
 
+-- Structural properties of type renaming, including injective renamings.
+import TypesProperties
+
 -- Decidable equality for types and related syntax.
 import TypesDecidable
 
@@ -75,8 +78,14 @@ import ProcContextReduction
 -- Preservation interfaces for term and type substitution on typed expressions.
 import ExprSubstitutionTyping
 
+-- Existence of removed subcontexts corresponding to leftover typing contexts.
+import ExprTypingLeftover
+
 -- Alternative preservation setup using full context-reduction steps.
 import ExprPreservationStep
+
+-- Revised preservation setup using removable frames around the active context.
+import ExprPreservationStep2
 
 -- Small example developments exercising the formalization.
 import Examples

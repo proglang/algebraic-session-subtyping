@@ -15,9 +15,12 @@ open import ExprNormalTyping
 
 data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
   AU-∅ : AllUsed ∅
-  AU-▻ : ∀ {n} {Γ : Ctx Δ n}
+  AU-used : ∀ {n} {Γ : Ctx Δ n}
     → AllUsed Γ
     → AllUsed (B-Used ▻ Γ)
+  AU-un : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+    → AllUsed Γ
+    → AllUsed (B-Un T ▻ Γ)
 
 -- Context splitting for parallel composition.
 -- Linear resources are assigned to exactly one side.
@@ -69,15 +72,18 @@ split-refl-used : ∀ {Δ n} {Γ : Ctx Δ n}
   → AllUsed Γ
   → Split Γ Γ Γ
 split-refl-used AU-∅ = S-∅
-split-refl-used (AU-▻ AUΓ) = S-Used (split-refl-used AUΓ)
+split-refl-used (AU-used AUΓ) = S-Used (split-refl-used AUΓ)
+split-refl-used (AU-un AUΓ) = S-Un (split-refl-used AUΓ)
 
 split-allused : ∀ {Δ n} {Γ Γ₁ Γ₂ : Ctx Δ n}
   → Split Γ Γ₁ Γ₂
   → AllUsed Γ
   → AllUsed Γ₁ × AllUsed Γ₂
 split-allused S-∅ AU-∅ = AU-∅ , AU-∅
-split-allused (S-Used sp) (AU-▻ AUΓ) with split-allused sp AUΓ
-... | AU₁ , AU₂ = AU-▻ AU₁ , AU-▻ AU₂
+split-allused (S-Used sp) (AU-used AUΓ) with split-allused sp AUΓ
+... | AU₁ , AU₂ = AU-used AU₁ , AU-used AU₂
+split-allused (S-Un sp) (AU-un AUΓ) with split-allused sp AUΓ
+... | AU₁ , AU₂ = AU-un AU₁ , AU-un AU₂
 
 -- Suggested next steps, if this direction is adopted:
 -- 1. A well-formedness predicate for process contexts, if desired.

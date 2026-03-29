@@ -12,6 +12,7 @@ open import Kinds
 open import Kits
 open import Duality
 open import Types
+open import TypesProperties using (renaming-injective; weakenᵣ-injective)
 open import ExprSyntax hiding (Binding; Ctx)
 open import AlgorithmicSubtyping
 open import AlgorithmicMerge
@@ -41,6 +42,52 @@ normalProtoOf (mkNfTy _ NT) = NT
 normalizeTy : ∀ {K} → Ty Δ K → NfTy Δ K
 normalizeTy {K = KV pk m} T = mkNfTy (nf ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T)
 normalizeTy {K = KP} T = mkNfTy (nf ⊕ d?⊥ T) (nf-normal-proto T)
+
+ren-pres-normalVar :
+  ∀ {Δ Δ′ pk m} {T : Ty Δ (KV pk m)} (ρ : Δ →ᵣ Δ′)
+  → NormalVar T
+  → NormalVar (T ⋯ ρ)
+ren-pres-normalVar ρ NV-Var = NV-Var
+ren-pres-normalVar ρ (NV-Dual d x) = NV-Dual d _
+
+ren-pres-normalProto′ :
+  ∀ {Δ Δ′} {T : Ty Δ KP} (ρ : Δ →ᵣ Δ′)
+  → NormalProto′ T
+  → NormalProto′ (T ⋯ ρ)
+
+ren-pres-normalProto :
+  ∀ {Δ Δ′} {T : Ty Δ KP} (ρ : Δ →ᵣ Δ′)
+  → NormalProto T
+  → NormalProto (T ⋯ ρ)
+
+ren-pres-normalTy :
+  ∀ {Δ Δ′ pk m} {T : Ty Δ (KV pk m)} (ρ : Δ →ᵣ Δ′)
+  → NormalTy T
+  → NormalTy (T ⋯ ρ)
+
+ren-pres-normalProto ρ (N-Normal NP) = N-Normal (ren-pres-normalProto′ ρ NP)
+ren-pres-normalProto ρ (N-Minus NP) = N-Minus (ren-pres-normalProto′ ρ NP)
+
+ren-pres-normalProto′ ρ (N-ProtoP NP) = N-ProtoP (ren-pres-normalProto ρ NP)
+ren-pres-normalProto′ ρ (N-Up NT) = N-Up (ren-pres-normalTy ρ NT)
+ren-pres-normalProto′ ρ N-Var = N-Var
+
+ren-pres-normalTy ρ (N-Var NV) = N-Var (ren-pres-normalVar ρ NV)
+ren-pres-normalTy ρ N-Base = N-Base
+ren-pres-normalTy ρ (N-Arrow N₁ N₂) = N-Arrow (ren-pres-normalTy ρ N₁) (ren-pres-normalTy ρ N₂)
+ren-pres-normalTy ρ (N-Pair N₁ N₂) = N-Pair (ren-pres-normalTy ρ N₁) (ren-pres-normalTy ρ N₂)
+ren-pres-normalTy ρ (N-Poly N) = N-Poly (ren-pres-normalTy (ρ ↑ᵣ _) N)
+ren-pres-normalTy ρ (N-Sub N) = N-Sub (ren-pres-normalTy ρ N)
+ren-pres-normalTy ρ N-End = N-End
+ren-pres-normalTy ρ (N-Msg p NP NS) = N-Msg p (ren-pres-normalProto′ ρ NP) (ren-pres-normalTy ρ NS)
+ren-pres-normalTy ρ (N-ProtoD N) = N-ProtoD (ren-pres-normalTy ρ N)
+
+ren-pres-normal :
+  ∀ {Δ Δ′ K} {T : Ty Δ K} (ρ : Δ →ᵣ Δ′)
+  → Normal T
+  → Normal (T ⋯ ρ)
+ren-pres-normal {K = KV pk m} ρ N = ren-pres-normalTy ρ N
+ren-pres-normal {K = KP} ρ N = ren-pres-normalProto ρ N
 
 data Binding (Δ : List Kind) : Set where
   B-Lin  : ∀ {K} → NfTy Δ K → Binding Δ
@@ -112,7 +159,8 @@ ForkTy = LinArr (LinArr UnitLin UnitLin) UnitLin
 
 NewTy : Ty Δ TLin
 NewTy = T-Poly {K′ = SLin} {m = Lin}
-  (T-Pair (T-Var (here refl)) (T-Dual D-S (T-Var (here refl))))
+  (T-Pair (SessLin (T-Var (here refl)))
+          (SessLin (T-Dual D-S (T-Var (here refl)))))
 
 wkTy : ∀ {K K′} → Ty Δ K → Ty (K′ ∷ Δ) K
 wkTy {K′ = K′} T = T ⋯ weakenᵣ K′
@@ -264,7 +312,7 @@ mutual
       → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ normalizeTy (SendTy T S) ⊣ Γ₁
 
     TV-Send₃ : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin} {v : Value Δ n}
-      → Γ₁ ⊢ᵥ v ⇒ normalizeTy T ⊣ Γ₂
+      → Γ₁ ⊢ E-Val v ⇐ normalizeTy T ⊣ Γ₂
       → Γ₁ ⊢ᵥ V-Send₃ T S v ⇒ normalizeTy (LinArr (SessLin (T-Msg ⊕ (T-Up T) S)) (SessLin S)) ⊣ Γ₂
 
     TV-Selectᵀ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {i : Fin k} {args : List (TyArg Δ)} {K} {T : NfTy Δ K}
@@ -375,6 +423,78 @@ nfTyEq :
     (eq : T₁ ≡ T₂) (N₁ : NormalTy T₁) (N₂ : NormalTy T₂)
   → mkNfTy T₁ N₁ ≡ mkNfTy T₂ N₂
 nfTyEq refl N₁ N₂ = cong (mkNfTy _) (nt-unique N₁ N₂)
+
+nfEq :
+  ∀ {Δ K} {T₁ T₂ : Ty Δ K}
+    (eq : T₁ ≡ T₂) (N₁ : Normal T₁) (N₂ : Normal T₂)
+  → mkNfTy T₁ N₁ ≡ mkNfTy T₂ N₂
+nfEq {K = KV pk m} eq N₁ N₂ = nfTyEq eq N₁ N₂
+nfEq {K = KP} refl N₁ N₂ = cong (mkNfTy _) (np-unique N₁ N₂)
+
+normalizeTy-id :
+  ∀ {Δ K} {T : Ty Δ K}
+  → (N : Normal T)
+  → normalizeTy T ≡ mkNfTy T N
+normalizeTy-id {K = KV pk m} {T = T} N =
+  nfEq (Types.nf-idempotent N) (Types.nf-normal-type ⊕ d?⊥ T) N
+normalizeTy-id {K = KP} {T = T} N =
+  nfEq (Types.nfp-idempotent N) (Types.nf-normal-proto T) N
+
+wkNfTy-injective :
+  ∀ {Δ K K′} {T U : NfTy Δ K}
+  → wkNfTy {K′ = K′} T ≡ wkNfTy {K′ = K′} U
+  → T ≡ U
+wkNfTy-injective {K′ = K′} {T = mkNfTy T NT} {U = mkNfTy U NU} eq
+  rewrite normalizeTy-id {T = T ⋯ weakenᵣ K′} (ren-pres-normal (weakenᵣ K′) NT)
+        | normalizeTy-id {T = U ⋯ weakenᵣ K′} (ren-pres-normal (weakenᵣ K′) NU)
+  = nfEq
+      (renaming-injective (weakenᵣ K′) weakenᵣ-injective (cong ⌞_⌟ eq))
+      NT
+      NU
+
+linBinding-injective :
+  ∀ {Δ K K′} {T : NfTy Δ K} {U : NfTy Δ K′}
+  → B-Lin T ≡ B-Lin U
+  → Σ (K ≡ K′) λ where
+      refl → T ≡ U
+linBinding-injective refl = refl , refl
+
+unBinding-injective :
+  ∀ {Δ K K′} {T : NfTy Δ K} {U : NfTy Δ K′}
+  → B-Un T ≡ B-Un U
+  → Σ (K ≡ K′) λ where
+      refl → T ≡ U
+unBinding-injective refl = refl , refl
+
+wkBinding-injective :
+  ∀ {Δ K} {b₁ b₂ : Binding Δ}
+  → wkBinding {K = K} b₁ ≡ wkBinding {K = K} b₂
+  → b₁ ≡ b₂
+wkBinding-injective {K = K} {b₁ = B-Lin T} {b₂ = B-Lin U} eq
+  with linBinding-injective eq
+... | refl , eq′
+  = cong B-Lin (wkNfTy-injective {K′ = K} eq′)
+wkBinding-injective {K = K} {b₁ = B-Un T} {b₂ = B-Un U} eq
+  with unBinding-injective eq
+... | refl , eq′
+  = cong B-Un (wkNfTy-injective {K′ = K} eq′)
+wkBinding-injective {b₁ = B-Used} {b₂ = B-Used} refl = refl
+wkBinding-injective {b₁ = B-Lin T} {b₂ = B-Un U} ()
+wkBinding-injective {b₁ = B-Lin T} {b₂ = B-Used} ()
+wkBinding-injective {b₁ = B-Un T} {b₂ = B-Lin U} ()
+wkBinding-injective {b₁ = B-Un T} {b₂ = B-Used} ()
+wkBinding-injective {b₁ = B-Used} {b₂ = B-Lin U} ()
+wkBinding-injective {b₁ = B-Used} {b₂ = B-Un U} ()
+
+wkCtx-injective :
+  ∀ {Δ n K} {Γ₁ Γ₂ : Ctx Δ n}
+  → wkCtx {K = K} Γ₁ ≡ wkCtx {K = K} Γ₂
+  → Γ₁ ≡ Γ₂
+wkCtx-injective {Γ₁ = ∅} {Γ₂ = ∅} refl = refl
+wkCtx-injective {Γ₁ = b₁ ▻ Γ₁} {Γ₂ = b₂ ▻ Γ₂} eq
+  with wkBinding-injective (cong (λ where (b ▻ _) → b) eq)
+     | wkCtx-injective (cong (λ where (_ ▻ Γ) → Γ) eq)
+... | refl | refl = refl
 
 pairNf-injective :
   ∀ {Δ pk₁ pk₂ m} {T₁ T₂ : NfTy Δ (KV pk₁ m)} {U₁ U₂ : NfTy Δ (KV pk₂ m)}
