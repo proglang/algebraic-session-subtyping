@@ -12,7 +12,7 @@ open import Types
 open import ExprSyntax using (Expr; Value; Const; TyArg; E-Val; V-Pair)
 open import ExprNormalTyping
 open import ExprContextReduction using (RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un; AllUsed; AU-∅; AU-used; AU-un)
-open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; replay-value)
+open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; replay-value-allUsed)
 
 usedCtx : ∀ {Δ n} → Ctx Δ n → Ctx Δ n
 usedCtx ∅ = ∅
@@ -92,13 +92,6 @@ remove-compose-frame (RM-lin r₁) (RM-allused r₂)
 remove-compose-frame (RM-un r₁) (RM-un r₂)
   with remove-compose-frame r₁ r₂
 ... | G , r , f = (B-Un _ ▻ G) , RM-un r , FC-un f
-
-postulate
-  allUsed-frame-local :
-    ∀ {Δ n}
-      {Φ Γ : Ctx Δ n}
-    → AllUsed Γ
-    → FrameCtx Φ Γ Φ
 
 strip-lin-used :
   ∀ {Δ n K} {T : NfTy Δ K} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc n)}
@@ -364,7 +357,7 @@ mutual
     with remove-compose-frame r₁ r₂
   ... | G₁₂ , r₁₂ , f =
     G₁₂ , G₂′ ,
-    (r₁₂ , (TV-Pair (replay-value d₁′ f (allUsed-frame-local {Φ = G₂} au₁)) d₂′) , au₂)
+    (r₁₂ , (TV-Pair (replay-value-allUsed d₁′ f au₁) d₂′) , au₂)
   strip-value {Γ₀ = Γ₀} TV-Receive₁ =
     allUsedCtx Γ₀ , allUsedCtx Γ₀ ,
     remove-allUsedCtx Γ₀ , TV-Receive₁ , allUsedCtx-AllUsed Γ₀

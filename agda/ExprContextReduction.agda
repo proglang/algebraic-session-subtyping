@@ -437,9 +437,13 @@ data _⦂_⇒_ : ∀ {n k} → Label n k → Ctx [] n → Ctx [] n → Set where
     → AllUsed Γv
     → L-RecvLab x i ⦂ Γin ⇒ Γv
 
-  Label-SendVal : ∀ {n} {x : Fin n} {Γin Γv : Ctx [] n} {v : Value [] n}
-    → AllUsed Γin
-    → AllUsed Γv
+  Label-SendVal :
+    ∀ {n} {x : Fin n}
+      {Γin Γv Γin′ : Ctx [] n}
+      {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+    → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
+    → Γv ⊢ᵥ v ⇒ T ⊣ Γin′
+    → AllUsed Γin′
     → L-SendVal x v ⦂ Γin ⇒ Γv
 
   Label-SendLab : ∀ {n k} {x : Fin n} {Γin Γv : Ctx [] n} {i : Fin k}
@@ -513,10 +517,9 @@ data Compatible :
       {auv : AllUsed Γv′}
       {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
       {rep : ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁}
-      {Γlbl : Ctx [] n} {auin : AllUsed Γin} {aul : AllUsed Γlbl}
-    → allUsedCtx Γ₀ ≡ Γin
+      {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendVal x v}
-        (Ctx-Send rm dv auv x∈ rep) (Label-SendVal auin aul)
+        (Ctx-Send rm dv auv x∈ rep) (Label-SendVal take dv auv)
 
   Compat-Close :
     ∀ {n} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n}
@@ -593,10 +596,14 @@ data InputCompatible :
     → InputCompatible Γ₀ {ℓ = L-RecvLab x i} (Label-RecvLab auin auv)
 
   IC-SendVal :
-    ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {v : Value [] n}
-      {auin : AllUsed Γin} {auv : AllUsed Γv}
-    → allUsedCtx Γ₀ ≡ Γin
-    → InputCompatible Γ₀ {ℓ = L-SendVal x v} (Label-SendVal auin auv)
+    ∀ {n} {Γ₀ Γin Γr Γv : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
+      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γr}
+      {auv : AllUsed Γr}
+    → RemoveCtx Γ₀ Γin Γr
+    → InputCompatible Γ₀ {ℓ = L-SendVal x v} (Label-SendVal take dv auv)
 
   IC-SendLab :
     ∀ {n k} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {i : Fin k}
@@ -641,9 +648,14 @@ data Extract : ∀ {n k} → Ctx [] n → Label n k → Ctx [] n → Set where
 
   Ex-SendVal :
     ∀ {n}
-      {Γ₀ : Ctx [] n}
+      {Γ₀ Γin Γr Γv Γin′ : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-    → Extract Γ₀ (L-SendVal x v) (allUsedCtx Γ₀)
+      {T : NfTy [] TLin} {S : NfTy [] SLin}
+    → RemoveCtx Γ₀ Γin Γr
+    → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
+    → Γv ⊢ᵥ v ⇒ T ⊣ Γin′
+    → AllUsed Γin′
+    → Extract Γ₀ (L-SendVal x v) Γin
 
   Ex-SendLab :
     ∀ {n k}
@@ -668,7 +680,7 @@ extract-remove Ex-Fork = _ , remove-allUsedCtx _
 extract-remove Ex-New = _ , remove-allUsedCtx _
 extract-remove (Ex-RecvVal rm _ _) = _ , rm
 extract-remove Ex-RecvLab = _ , remove-allUsedCtx _
-extract-remove Ex-SendVal = _ , remove-allUsedCtx _
+extract-remove (Ex-SendVal rm _ _ _) = _ , rm
 extract-remove Ex-SendLab = _ , remove-allUsedCtx _
 extract-remove Ex-Close = _ , remove-allUsedCtx _
 
@@ -708,8 +720,8 @@ ctx-step-preserves-disjoint
   merge-preserves-disjoint merge (replace-preserves-disjoint x∈ ld0 rep) ldv
 ctx-step-preserves-disjoint
   (Ctx-Send rm _ _ x∈ rep)
-  (Label-SendVal _ _)
-  (Compat-SendVal _)
+  (Label-SendVal _ _ _)
+  Compat-SendVal
   ld0 ldv =
   let ldx = remove-preserves-disjoint rm ld0 in
   replace-preserves-disjoint x∈ ldx rep

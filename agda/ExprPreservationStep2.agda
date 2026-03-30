@@ -1,17 +1,18 @@
 module ExprPreservationStep2 where
 
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
-open import Data.List using ([])
+open import Data.List using (List; []; _∷_)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
+open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong; subst)
 
 open import Kinds
 open import Kits
 open import Types using (Ty; T-Base; N-Sub; N-End)
 open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-sub; <:ₜ-end)
-open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; C-Receive; C-Close; C-Fork; C-Unit)
-open import ExprSemantics using (Label; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Close; Act-AppL; Act-AppR; Act-TAppE; Act-PairL; Act-PairR; Act-MatchE; Act-LetPairE; Act-LetUnitE; _—[_]→_)
+open import ExprSyntax using (Expr; Value; Const; TyArg; E-Val; E-LetUnit; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; V-Send₁; V-Send₂; V-Send₃; V-Selectᵀ; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
+open import ExprSemantics using (Label; _▻arg_; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send₃; Act-Send; Act-Select₁; Act-Select₂; Act-Close; Act-AppL; Act-AppR; Act-TAppE; Act-PairL; Act-PairR; Act-MatchE; Act-LetPairE; Act-LetUnitE; _—[_]→_)
 import ExprSemantics as ES
 open import ExprNormalTyping
 open import ExprSubstitution using (substTyValue)
@@ -20,7 +21,7 @@ import ExprSubstitutionTyping as EST
 import ExprContextReduction as ECR
 open import ExprContextReduction using
   (_—ctx[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint
-  ; Ctx-β; Ctx-New; Ctx-Fork; Ctx-Rcv; Ctx-Close
+  ; Ctx-β; Ctx-New; Ctx-Fork; Ctx-Rcv; Ctx-Send; Ctx-Close
   ; ReplaceAt; replace-preserves-disjoint
   ; RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
   ; MergeCtx; MC-∅; MC-used-left; MC-used-right; MC-un
@@ -31,13 +32,13 @@ open import ExprContextReduction using
   ; AllUsed; AU-∅; AU-used; AU-un; allUsedCtx-AllUsed
   ; LinearDisjoint; LD-∅; LD-used-used; LD-used-live; LD-live-used; LD-un-un
   ; unitLinNf; dualSessNf
-  ; Label-β; Label-Fork; Label-RecvVal; Label-Close
-  ; recvChanNf; sessNf
+  ; Label-β; Label-Fork; Label-RecvVal; Label-SendVal; Label-Close
+  ; recvChanNf; sendChanNf; sessNf
   ; allUsedCtx
   ; Ex-β; Ex-Fork; Ex-New; Ex-RecvVal; Ex-RecvLab; Ex-SendVal; Ex-SendLab; Ex-Close
-  ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-Close
+  ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-SendVal; Compat-Close
   )
-open import ExprTypingProperties using (frame-remove; replay-synth)
+open import ExprTypingProperties using (frame-remove; replay-synth-allUsed; replay-check-allUsed)
 open import ExprTypingLeftover using (strip-value; leftover-synth)
 open import ExprPreservationStep using
   ( closeTy-shape
@@ -45,20 +46,31 @@ open import ExprPreservationStep using
   ; fork-shape
   ; new-shape
   ; newInst-shape
+  ; sendTy-shape
   ; receive₂-shape
+  ; send₃-shape
+  ; send₁-rigid
+  ; send₂-rigid
+  ; send₁-ty
+  ; send₂-ty
+  ; send₂-shape
   ; receive₁-rigid
   ; receive₂-rigid
   ; receive₁-ty
   ; receive₂-ty
   ; recv-app-inversion
+  ; check-output-unique
   ; merge-value
-  ; replace-take
-  ; replace-used-output
+   ; replace-take
+   ; replace-used-output
+  ; take-from-membership
+  ; take-unique
   ; take-implies-membership
+  ; sendChan-subtype
+  ; sess-subtype
   ; weaken-synth
   ; arrow-subtype-inversion
   ; substTy-wkCtx-id
-  ; allUsed-frame
   ; remove-frame
   ; merge-frame
   )
@@ -107,6 +119,24 @@ take-replace take-here = ExprContextReduction.R-here
 take-replace (take-thereˡ take) = ExprContextReduction.R-there (take-replace take)
 take-replace (take-thereᵘ take) = ExprContextReduction.R-there (take-replace take)
 take-replace (take-there✖ take) = ExprContextReduction.R-there (take-replace take)
+
+take-replace-lin :
+  ∀ {n K K′}
+    {Γ₀ Γ₂ : Ctx [] n}
+    {x : Fin n} {T : NfTy [] K} {U : NfTy [] K′}
+  → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
+  → Σ (Ctx [] n) λ Γ₁ → ReplaceAt Γ₀ x (B-Lin U) Γ₁
+take-replace-lin {U = U} (take-here {Γ = Γ}) =
+  U ∷ˡ Γ , ExprContextReduction.R-here
+take-replace-lin {U = U} (take-thereˡ {U = V} take)
+  with take-replace-lin {U = U} take
+... | Γ₁ , rep = V ∷ˡ Γ₁ , ExprContextReduction.R-there rep
+take-replace-lin {U = U} (take-thereᵘ {U = V} take)
+  with take-replace-lin {U = U} take
+... | Γ₁ , rep = V ∷ᵘ Γ₁ , ExprContextReduction.R-there rep
+take-replace-lin {U = U} (take-there✖ take)
+  with take-replace-lin {U = U} take
+... | Γ₁ , rep = used∷ Γ₁ , ExprContextReduction.R-there rep
 
 allUsedCtx-take :
   ∀ {n K}
@@ -202,6 +232,31 @@ remove-membership (RM-drop r) (thereˡˡ x∈) = thereˡˡ (remove-membership r 
 remove-membership (RM-lin r) (thereˡ✖ x∈) = thereˡˡ (remove-membership r x∈)
 remove-membership (RM-un r) (thereˡᵘ x∈) = thereˡᵘ (remove-membership r x∈)
 remove-membership (RM-allused r) (thereˡ✖ x∈) = thereˡ✖ (remove-membership r x∈)
+
+remove-membership-un :
+  ∀ {n K}
+    {Γ₀ G Γ₂ : Ctx [] n}
+    {x : Fin n} {T : NfTy [] K}
+  → RemoveCtx Γ₀ G Γ₂
+  → Γ₂ ∋ᵘ x ∶ T
+  → Γ₀ ∋ᵘ x ∶ T
+remove-membership-un (RM-un r) hereᵘ = hereᵘ
+remove-membership-un (RM-drop r) (thereᵘˡ x∈) = thereᵘˡ (remove-membership-un r x∈)
+remove-membership-un (RM-lin r) (thereᵘ✖ x∈) = thereᵘˡ (remove-membership-un r x∈)
+remove-membership-un (RM-un r) (thereᵘᵘ x∈) = thereᵘᵘ (remove-membership-un r x∈)
+remove-membership-un (RM-allused r) (thereᵘ✖ x∈) = thereᵘ✖ (remove-membership-un r x∈)
+
+lin-un-disjoint :
+  ∀ {n K K′}
+    {Γ : Ctx [] n}
+    {x : Fin n} {T : NfTy [] K} {U : NfTy [] K′}
+  → Γ ∋ˡ x ∶ T
+  → Γ ∋ᵘ x ∶ U
+  → ⊥
+lin-un-disjoint hereˡ ()
+lin-un-disjoint (thereˡˡ x∈) (thereᵘˡ x∈′) = lin-un-disjoint x∈ x∈′
+lin-un-disjoint (thereˡᵘ x∈) (thereᵘᵘ x∈′) = lin-un-disjoint x∈ x∈′
+lin-un-disjoint (thereˡ✖ x∈) (thereᵘ✖ x∈′) = lin-un-disjoint x∈ x∈′
 
 extract-membership :
   ∀ {n K}
@@ -317,6 +372,22 @@ postulate
     → LinearDisjoint Γ₀ Γv
     → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
 
+  select₁-pres :
+    ∀ {n k K}
+      {Γ Γ′ : Ctx [] n}
+      {i : Fin k} {U : Ty [] K}
+      {T : NfTy [] (KV KT Lin)}
+    → Γ ⊢ E-TApp (E-Val (V-Const (C-Select i))) U ⇒ T ⊣ Γ′
+    → Γ ⊢ᵥ V-Selectᵀ i ((K , U) ∷ []) ⇒ T ⊣ Γ′
+
+  select₂-pres :
+    ∀ {n k K}
+      {Γ Γ′ : Ctx [] n}
+      {i : Fin k} {args : List (TyArg [])} {U : Ty [] K}
+      {T : NfTy [] (KV KT Lin)}
+    → Γ ⊢ E-TApp (E-Val (V-Selectᵀ i args)) U ⇒ T ⊣ Γ′
+    → Γ ⊢ᵥ V-Selectᵀ i (args ▻arg (K , U)) ⇒ T ⊣ Γ′
+
 basePres :
   ∀ {n pk mult}
     {Γ₀ Γ₂ Γin : Ctx [] n}
@@ -330,20 +401,32 @@ basePres :
   → Γ₀ ⊢ e₂ ⇒ U ⊣ Γ₂
   → normalTyOf U <:ₜ normalTyOf T
   → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
-postulate
-  basePres-proof :
-    ∀ {n pk mult}
-      {Γ₀ Γ₂ Γin : Ctx [] n}
-      {Γv : Ctx [] n}
-      {e₂ : Expr [] n}
-      {T U : NfTy [] (KV pk mult)}
-    → (step : Γ₀ —ctx[ ExprSemantics.L-β ]→ Γ₀)
-    → (lbl : ExprSemantics.L-β ⦂ Γin ⇒ Γv)
-    → Extract Γ₀ ExprSemantics.L-β Γin
-    → Compatible step lbl
-    → Γ₀ ⊢ e₂ ⇒ U ⊣ Γ₂
-    → normalTyOf U <:ₜ normalTyOf T
-    → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
+basePres-proof :
+  ∀ {n pk mult}
+    {Γ₀ Γ₂ Γin : Ctx [] n}
+    {Γv : Ctx [] n}
+    {e₂ : Expr [] n}
+    {T U : NfTy [] (KV pk mult)}
+  → (step : Γ₀ —ctx[ ExprSemantics.L-β ]→ Γ₀)
+  → (lbl : ExprSemantics.L-β ⦂ Γin ⇒ Γv)
+  → Extract Γ₀ ExprSemantics.L-β Γin
+  → Compatible step lbl
+  → Γ₀ ⊢ e₂ ⇒ U ⊣ Γ₂
+  → normalTyOf U <:ₜ normalTyOf T
+  → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
+basePres-proof {Γ₀ = Γ₀} step lbl ex compat synth sub = record
+  { Gf = allUsedCtx Γ₀
+  ; Γ₀′ = Γ₀
+  ; Γ₁ = Γ₀
+  ; Γ₁′ = Γ₀
+  ; U = _
+  ; src-remove = remove-usedCtx Γ₀
+  ; dst-remove = remove-usedCtx Γ₀
+  ; ctx-step = step
+  ; compat = compat
+  ; synth = synth
+  ; subtype = sub
+  }
 
 beta-compatible :
   ∀ {n}
@@ -398,6 +481,47 @@ new-compatible {Γ₀ = Γ₀} {S = S} {lbl = lbl} ex
   go {lbl′ = lbl′} with lbl′
   ... | ECR.Label-New _ _ = Compat-New refl
 
+send-compatible :
+  ∀ {n}
+    {Γ₀ Γin Γx Γ₁ Γv Γv′ : Ctx [] n}
+    {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+    {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
+    {rm : RemoveCtx Γ₀ Γv Γx}
+    {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+    {au : AllUsed Γv′}
+    {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
+    {rep : ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁}
+  → Extract Γ₀ (ExprSemantics.L-SendVal x v) Γin
+  → Compatible (Ctx-Send rm dv au x∈ rep) (Label-SendVal take dv au)
+send-compatible _ = Compat-SendVal
+
+send-remove-membership :
+  ∀ {n}
+    {Γ₀ Γin Γr Γv : Ctx [] n}
+    {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin}
+  → RemoveCtx Γ₀ Γin Γr
+  → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
+  → Σ (Ctx [] n) λ Γx →
+      RemoveCtx Γ₀ Γv Γx × (Γx ∋ˡ x ∶ sendChanNf T S)
+send-remove-membership (RM-lin r) take-here =
+  _ , RM-drop r , hereˡ
+send-remove-membership (RM-lin r) (take-thereˡ take)
+  with send-remove-membership r take
+... | Γx , rm , x∈ =
+  used∷ Γx , RM-lin rm , thereˡ✖ x∈
+send-remove-membership (RM-un r) (take-thereᵘ take)
+  with send-remove-membership r take
+... | Γx , rm , x∈ =
+  _ ∷ᵘ Γx , RM-un rm , thereˡᵘ x∈
+send-remove-membership (RM-allused r) (take-there✖ take)
+  with send-remove-membership r take
+... | Γx , rm , x∈ =
+  used∷ Γx , RM-allused rm , thereˡ✖ x∈
+send-remove-membership (RM-drop r) (take-there✖ take)
+  with send-remove-membership r take
+... | Γx , rm , x∈ =
+  _ ∷ˡ Γx , RM-drop rm , thereˡˡ x∈
+
 remove-extract :
   ∀ {n k}
     {Γ₀ Γ₂ : Ctx [] n}
@@ -420,8 +544,8 @@ remove-extract r ld (Ex-RecvVal rin take au) with remove-preserves-remove r rin 
 ... | Γr′ , rin′ = Ex-RecvVal rin′ take au
 remove-extract {Γ₂ = Γ₂} r ld Ex-RecvLab =
   subst (λ X → Extract Γ₂ (ExprSemantics.L-RecvLab _ _) X) (sym (allUsedCtx-remove r)) Ex-RecvLab
-remove-extract {Γ₂ = Γ₂} r ld Ex-SendVal =
-  subst (λ X → Extract Γ₂ (ExprSemantics.L-SendVal _ _) X) (sym (allUsedCtx-remove r)) Ex-SendVal
+remove-extract r ld (Ex-SendVal rin take dv au) with remove-preserves-remove r rin ld
+... | Γr′ , rin′ = Ex-SendVal rin′ take dv au
 remove-extract {Γ₂ = Γ₂} r ld Ex-SendLab =
   subst (λ X → Extract Γ₂ (ExprSemantics.L-SendLab _ _) X) (sym (allUsedCtx-remove r)) Ex-SendLab
 remove-extract {Γ₂ = Γ₂} r ld ex@Ex-Close
@@ -505,14 +629,282 @@ recv-extract-disjoint :
 recv-extract-disjoint r (Ex-RecvVal rin take au) x∈ =
   recv-input-disjoint-core r rin take au x∈
 
-postulate
-  appR-extract-disjoint-recv-general :
-    ∀ {n}
-      {Γ₀ Γ₂ Γin G : Ctx [] n}
+send-input-disjoint-core :
+  ∀ {n K}
+    {Γ₀ Γ₂ Γin Γr Γv G : Ctx [] n}
+    {x : Fin n}
+    {T : NfTy [] TLin} {S : NfTy [] SLin}
+    {U : NfTy [] K}
+  → RemoveCtx Γ₀ G Γ₂
+  → RemoveCtx Γ₀ Γin Γr
+  → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
+  → Γ₂ ∋ˡ x ∶ U
+  → LinearDisjoint G Γv
+  → LinearDisjoint G Γin
+send-input-disjoint-core {x = fzero}
+  (RM-drop r)
+  (RM-lin rin)
+  take-here
+  hereˡ
+  (LD-used-used ldv) =
+  LD-used-live ldv
+send-input-disjoint-core {x = fsuc x}
+  (RM-drop r)
+  (RM-lin rin)
+  (take-thereˡ take)
+  (thereˡˡ x∈)
+  (LD-used-live ldv) =
+  LD-used-live (send-input-disjoint-core {x = x} r rin take x∈ ldv)
+send-input-disjoint-core {x = fsuc x}
+  (RM-un r)
+  (RM-un rin)
+  (take-thereᵘ take)
+  (thereˡᵘ x∈)
+  (LD-un-un ldv) =
+  LD-un-un (send-input-disjoint-core {x = x} r rin take x∈ ldv)
+send-input-disjoint-core {x = fsuc x}
+  (RM-drop r)
+  (RM-drop rin)
+  (take-there✖ take)
+  (thereˡˡ x∈)
+  (LD-used-used ldv) =
+  LD-used-used (send-input-disjoint-core {x = x} r rin take x∈ ldv)
+send-input-disjoint-core {x = fsuc x}
+  (RM-lin r)
+  (RM-drop rin)
+  (take-there✖ take)
+  (thereˡ✖ x∈)
+  (LD-live-used ldv) =
+  LD-live-used (send-input-disjoint-core {x = x} r rin take x∈ ldv)
+send-input-disjoint-core {x = fsuc x}
+  (RM-allused r)
+  (RM-allused rin)
+  (take-there✖ take)
+  (thereˡ✖ x∈)
+  (LD-used-used ldv) =
+  LD-used-used (send-input-disjoint-core {x = x} r rin take x∈ ldv)
+
+send-extract-disjoint :
+  ∀ {n K}
+    {Γ₀ Γ₂ Γin Γv G : Ctx [] n}
+    {x : Fin n} {w : Value [] n}
+    {U : NfTy [] K}
+  → RemoveCtx Γ₀ G Γ₂
+  → LinearDisjoint Γ₀ Γv
+  → ExprSemantics.L-SendVal x w ⦂ Γin ⇒ Γv
+  → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
+  → Γ₂ ∋ˡ x ∶ U
+  → LinearDisjoint G Γin
+send-extract-disjoint
+  r disj
+  (Label-SendVal take dv au)
+  (Ex-SendVal rin _ _ _)
+  x∈ =
+  send-input-disjoint-core r rin take x∈ (remove-removed-disjoint r disj)
+
+basePres step lbl ex compat synth sub =
+  basePres-proof step lbl ex compat synth sub
+
+mutual
+
+  recv-live-synth-removed :
+    ∀ {n pk mult}
+      {Γ₀ G Γ₂ Γ₃ Γin : Ctx [] n}
       {x : Fin n} {v : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {T : NfTy [] (KV pk mult)}
     → RemoveCtx Γ₀ G Γ₂
+    → Γ₂ ⊢ e₁ ⇒ T ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
-    → LinearDisjoint G Γin
+    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+
+  recv-live-synth-removed r
+    (T-App (T-Val vr) (T-Check (T-Val vv) sub))
+    (Act-Rcv {x = x} {v = v})
+    (Ex-RecvVal rin take au)
+    with receive₂-shape vr
+  ... | refl , _
+    with extract-membership rin (take-implies-membership take)
+  ... | x∈₀
+    with vv
+  ... | TV-Var-Lin {K = K} {T = U} take₂ =
+      K , U , take-implies-membership take₂
+  ... | TV-Var-Un x∈ᵘ = ⊥-elim (lin-un-disjoint x∈₀ (remove-membership-un r x∈ᵘ))
+
+  recv-live-synth-removed r
+    (T-App d₁ d₂)
+    (Act-AppL step)
+    ex =
+    recv-live-synth-removed r d₁ step ex
+
+  recv-live-synth-removed r
+    (T-App (T-Val dv) d₂)
+    (Act-AppR step)
+    ex
+    with strip-value dv
+  ... | Gv , Gv′ , rv , dv′ , au
+    with mergeRemoveContext r rv
+  ... | Gm , mv , rm
+    with recv-live-check-removed rm d₂ step ex
+  ... | K , U , x∈ = K , U , remove-membership rv x∈
+
+  recv-live-synth-removed r
+    (T-TApp d)
+    (Act-TAppE step)
+    ex =
+    recv-live-synth-removed r d step ex
+
+  recv-live-synth-removed r
+    (T-Pair d₁ d₂)
+    (Act-PairL step)
+    ex =
+    recv-live-synth-removed r d₁ step ex
+
+  recv-live-synth-removed r
+    (T-Pair (T-Val dv) d₂)
+    (Act-PairR step)
+    ex
+    with strip-value dv
+  ... | Gv , Gv′ , rv , dv′ , au
+    with mergeRemoveContext r rv
+  ... | Gm , mv , rm
+    with recv-live-synth-removed rm d₂ step ex
+  ... | K , U , x∈ = K , U , remove-membership rv x∈
+
+  recv-live-synth-removed r
+    (T-Match d mb bs bj)
+    (Act-MatchE step)
+    ex =
+    recv-live-synth-removed r d step ex
+
+  recv-live-synth-removed r
+    (T-LetPair d body)
+    (Act-LetPairE step)
+    ex =
+    recv-live-synth-removed r d step ex
+
+  recv-live-synth-removed r
+    (T-LetUnit d₁ d₂)
+    (Act-LetUnitE step)
+    ex =
+    recv-live-check-removed r d₁ step ex
+
+  recv-live-check-removed :
+    ∀ {n pk mult}
+      {Γ₀ G Γ₂ Γ₃ Γin : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {T : NfTy [] (KV pk mult)}
+    → RemoveCtx Γ₀ G Γ₂
+    → Γ₂ ⊢ e₁ ⇐ T ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
+    → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
+    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+
+  recv-live-check-removed r (T-Check d sub) step ex =
+    recv-live-synth-removed r d step ex
+
+  send-live-synth-removed :
+    ∀ {n pk mult}
+      {Γ₀ G Γ₂ Γ₃ Γin : Ctx [] n}
+      {x : Fin n} {w : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {T : NfTy [] (KV pk mult)}
+    → RemoveCtx Γ₀ G Γ₂
+    → Γ₂ ⊢ e₁ ⇒ T ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-SendVal x w ]→ e₂
+    → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
+    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+
+  send-live-synth-removed r
+    (T-App (T-Val vr) (T-Check (T-Val vv) sub))
+    (Act-Send {T = Tᵣ} {S = Sᵣ})
+    ex@(Ex-SendVal rin take dv au)
+    with extract-membership rin (take-implies-membership take)
+  ... | x∈₀
+    with strip-value vr
+  ... | Gv , Gv′ , rv , vr′ , auv
+    with vv
+  ... | TV-Var-Lin {K = K} {T = U} take₂ =
+      K , U , remove-membership rv (take-implies-membership take₂)
+  ... | TV-Var-Un x∈ᵘ =
+      ⊥-elim
+        (lin-un-disjoint x∈₀
+          (remove-membership-un r (remove-membership-un rv x∈ᵘ)))
+
+  send-live-synth-removed r
+    (T-App d₁ d₂)
+    (Act-AppL step)
+    ex =
+    send-live-synth-removed r d₁ step ex
+
+  send-live-synth-removed r
+    (T-App (T-Val dv) d₂)
+    (Act-AppR step)
+    ex
+    with strip-value dv
+  ... | Gv , Gv′ , rv , dv′ , au
+    with mergeRemoveContext r rv
+  ... | Gm , mv , rm
+    with send-live-check-removed rm d₂ step ex
+  ... | K , U , x∈ = K , U , remove-membership rv x∈
+
+  send-live-synth-removed r
+    (T-TApp d)
+    (Act-TAppE step)
+    ex =
+    send-live-synth-removed r d step ex
+
+  send-live-synth-removed r
+    (T-Pair d₁ d₂)
+    (Act-PairL step)
+    ex =
+    send-live-synth-removed r d₁ step ex
+
+  send-live-synth-removed r
+    (T-Pair (T-Val dv) d₂)
+    (Act-PairR step)
+    ex
+    with strip-value dv
+  ... | Gv , Gv′ , rv , dv′ , au
+    with mergeRemoveContext r rv
+  ... | Gm , mv , rm
+    with send-live-synth-removed rm d₂ step ex
+  ... | K , U , x∈ = K , U , remove-membership rv x∈
+
+  send-live-synth-removed r
+    (T-Match d mb bs bj)
+    (Act-MatchE step)
+    ex =
+    send-live-synth-removed r d step ex
+
+  send-live-synth-removed r
+    (T-LetPair d body)
+    (Act-LetPairE step)
+    ex =
+    send-live-synth-removed r d step ex
+
+  send-live-synth-removed r
+    (T-LetUnit d₁ d₂)
+    (Act-LetUnitE step)
+    ex =
+    send-live-check-removed r d₁ step ex
+
+  send-live-check-removed :
+    ∀ {n pk mult}
+      {Γ₀ G Γ₂ Γ₃ Γin : Ctx [] n}
+      {x : Fin n} {w : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {T : NfTy [] (KV pk mult)}
+    → RemoveCtx Γ₀ G Γ₂
+    → Γ₂ ⊢ e₁ ⇐ T ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-SendVal x w ]→ e₂
+    → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
+    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+
+  send-live-check-removed r (T-Check d sub) step ex =
+    send-live-synth-removed r d step ex
 
   appR-extract-disjoint-recv :
     ∀ {n}
@@ -526,34 +918,27 @@ postulate
     → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
     → LinearDisjoint G Γin
+  appR-extract-disjoint-recv r d step ex
+    with recv-live-check-removed r d step ex
+  ... | K , U , x∈ = recv-extract-disjoint r ex x∈
 
-appR-extract-disjoint :
-  ∀ {n k}
-    {Γ₀ Γ₂ : Ctx [] n}
-    {Γin G : Ctx [] n}
-    {ℓ : Label n k}
-  → RemoveCtx Γ₀ G Γ₂
-  → Extract Γ₀ ℓ Γin
-  → LinearDisjoint G Γin
-appR-extract-disjoint r ex@Ex-β
-  rewrite extract-beta-eq ex = remove-allused-disjoint r
-appR-extract-disjoint r ex@Ex-Fork
-  rewrite extract-fork-eq ex = remove-allused-disjoint r
-appR-extract-disjoint r ex@Ex-New
-  rewrite extract-new-eq ex = remove-allused-disjoint r
-appR-extract-disjoint r ex@(Ex-RecvVal _ _ _) =
-  appR-extract-disjoint-recv-general r ex
-appR-extract-disjoint r Ex-RecvLab =
-  remove-allused-disjoint r
-appR-extract-disjoint r Ex-SendVal =
-  remove-allused-disjoint r
-appR-extract-disjoint r Ex-SendLab =
-  remove-allused-disjoint r
-appR-extract-disjoint r ex@Ex-Close
-  rewrite extract-close-eq ex = remove-allused-disjoint r
-
-basePres step lbl ex compat synth sub =
-  basePres-proof step lbl ex compat synth sub
+  appR-extract-disjoint-send :
+    ∀ {n}
+      {Γ₀ Γ₂ Γ₃ Γin Γv : Ctx [] n}
+      {x : Fin n} {w : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {A : NfTy [] TLin}
+      {G : Ctx [] n}
+    → RemoveCtx Γ₀ G Γ₂
+    → LinearDisjoint Γ₀ Γv
+    → Γ₂ ⊢ e₁ ⇐ A ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-SendVal x w ]→ e₂
+    → ExprSemantics.L-SendVal x w ⦂ Γin ⇒ Γv
+    → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
+    → LinearDisjoint G Γin
+  appR-extract-disjoint-send r disj d step lbl ex
+    with send-live-check-removed r d step ex
+  ... | K , U , x∈ = send-extract-disjoint r disj lbl ex x∈
 
 receive-live-synth :
   ∀ {n pk mult}
@@ -597,23 +982,24 @@ weaken-val-synth {k = k} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} dv =
       (extendUsed-eq k Γ₂)
       (weaken-synth {k = k} (T-Val dv)))
 
-postulate
-  tapp-receive-output-id :
-    ∀ {n}
-      {Γ₀ Γ₂ : Ctx [] n}
-      {T : Ty [] TLin}
-      {U : NfTy [] (KV KT Lin)}
-    → Γ₀ ⊢ E-TApp (E-Val (V-Const C-Receive)) T ⇒ U ⊣ Γ₂
-    → Γ₂ ≡ Γ₀
+tapp-receive-output-id :
+  ∀ {n}
+    {Γ₀ Γ₂ : Ctx [] n}
+    {T : Ty [] TLin}
+    {U : NfTy [] (KV KT Lin)}
+  → Γ₀ ⊢ E-TApp (E-Val (V-Const C-Receive)) T ⇒ U ⊣ Γ₂
+  → Γ₂ ≡ Γ₀
+tapp-receive-output-id d = sym (receive₁-rigid d)
 
-  tapp-receive₁-output-id :
-    ∀ {n}
-      {Γ₀ Γ₂ : Ctx [] n}
-      {T : Ty [] TLin}
-      {S : Ty [] SLin}
-      {U : NfTy [] (KV KT Lin)}
-    → Γ₀ ⊢ E-TApp (E-Val (V-Receive₁ T)) S ⇒ U ⊣ Γ₂
-    → Γ₂ ≡ Γ₀
+tapp-receive₁-output-id :
+  ∀ {n}
+    {Γ₀ Γ₂ : Ctx [] n}
+    {T : Ty [] TLin}
+    {S : Ty [] SLin}
+    {U : NfTy [] (KV KT Lin)}
+  → Γ₀ ⊢ E-TApp (E-Val (V-Receive₁ T)) S ⇒ U ⊣ Γ₂
+  → Γ₂ ≡ Γ₀
+tapp-receive₁-output-id d = sym (receive₂-rigid d)
 
 allUsed-extendUsed :
   ∀ {n} (k : ℕ) {Γ : Ctx [] n}
@@ -731,7 +1117,165 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
               (<:ₜ-refl (normalTyOf (normalizeTy T-Base)))
         })
 
+preserve⇒-send :
+  ∀ {n}
+    {Γ₀ Γm Γ₂ Γin Γv : Ctx [] n}
+    {x : Fin n} {v : Value [] n}
+    {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
+    {A Uarg R : NfTy [] TLin}
+  → Γ₀ ⊢ᵥ V-Send₃ Tᵣ Sᵣ v ⇒ linArrNf A R ⊣ Γm
+  → Γm ⊢ᵥ V-Var x ⇒ Uarg ⊣ Γ₂
+  → normalTyOf Uarg <:ₜ normalTyOf A
+  → (lbl : ExprSemantics.L-SendVal x v ⦂ Γin ⇒ Γv)
+  → Extract Γ₀ (ExprSemantics.L-SendVal x v) Γin
+  → LinearDisjoint Γ₀ Γv
+  → PresSynth Γin Γv lbl Γ₀ Γ₂ (E-Val (V-Var x)) R
+preserve⇒-send
+  {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+  {x = x} {v = v}
+  {Tᵣ = Tᵣ} {Sᵣ = Sᵣ}
+  {A = A} {Uarg = Uarg} {R = R}
+  vr vv sub lbl@(Label-SendVal {T = T} {S = S} take dv au) ex disj
+  with send-remove-membership (proj₂ (extract-remove ex)) take
+... | Γx , rm , x∈
+  with check-output-unique
+         (replay-check-allUsed
+           (T-Check
+             {T = T} {U = T}
+             (T-Val {T = T} dv)
+             (<:ₜ-refl (normalTyOf T)))
+           (remove-frame rm)
+           au)
+         (proj₁ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr))
+... | eqΓm
+  rewrite eqΓm
+  with vv
+... | TV-Var-Un x∈ᵘ = ⊥-elim (lin-un-disjoint x∈ x∈ᵘ)
+... | TV-Var-Lin take′
+  with take-from-membership x∈
+... | Γx′ , take₀
+  with take-unique take₀ take′
+... | eqChan , eqΓ
+  rewrite eqΓ
+  with sendChan-subtype
+         {T₁ = T} {T₂ = normalizeTy Tᵣ}
+         {S₁ = S} {S₂ = normalizeTy Sᵣ}
+         (subst
+           (λ X → normalTyOf X <:ₜ normalTyOf (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
+           (sym eqChan)
+           (subst
+             (λ X → normalTyOf Uarg <:ₜ normalTyOf X)
+             (proj₁ (proj₂ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr)))
+             sub))
+... | _ , S<:Sᵣ
+  with take-replace-lin {U = sessNf S} take₀
+... | Γ₁ , rep =
+  let
+    eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
+    eqAll = trans (allUsedCtx-remove rm) (allUsedCtx-replace-lin x∈ rep)
+  in
+  record
+    { Gf = allUsedCtx Γ₀
+    ; Γ₀′ = Γ₀
+    ; Γ₁ = Γ₁
+    ; Γ₁′ = Γ₁
+    ; U = sessNf S
+    ; src-remove = remove-usedCtx Γ₀
+    ; dst-remove =
+        subst
+          (λ X → RemoveCtx Γ₁ X Γ₁)
+          (sym eqAll)
+          (remove-usedCtx Γ₁)
+    ; ctx-step = Ctx-Send rm dv au x∈ rep
+    ; compat = send-compatible ex
+    ; synth = T-Val (TV-Var-Lin (replace-take take₀ rep))
+    ; subtype =
+        subst
+          (λ X → normalTyOf (sessNf S) <:ₜ normalTyOf X)
+          (sym (proj₂ (proj₂ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr))))
+          (sess-subtype {S₁ = S} {S₂ = normalizeTy Sᵣ} S<:Sᵣ)
+    }
+
 mutual
+
+  preserve⇒-appR-core :
+    ∀ {n k}
+      {Γ₀ Γ₂ Γ₃ : Ctx [] n}
+      {Γin Γv G G′ : Ctx [] n}
+      {v : Value [] n}
+      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
+      {A V : NfTy [] TLin}
+      {ℓ : Label n k}
+    → (r : RemoveCtx Γ₀ G Γ₂)
+    → G ⊢ᵥ v ⇒ linArrNf A V ⊣ G′
+    → AllUsed G′
+    → Γ₂ ⊢ e₁ ⇐ A ⊣ Γ₃
+    → e₁ —[ ℓ ]→ e₂
+    → (lbl : ℓ ⦂ Γin ⇒ Γv)
+    → (ex : Extract Γ₀ ℓ Γin)
+    → LinearDisjoint Γ₀ Γv
+    → LinearDisjoint G Γin
+    → PresSynth Γin Γv lbl Γ₀ Γ₃ (E-App (E-Val (ES.weakenValueBy k v)) e₂) V
+  preserve⇒-appR-core {k = k} {Γ₀ = Γ₀} {Γ₂ = Γ₂} {Γ₃ = Γ₃}
+    {Γin = Γin} {Γv = Γv} {G = G} {v = v} {e₂ = e₂} {A = A} {V = V}
+    r dv′ au darg step lbl ex disj ldex
+    with preserve⇐ {T = A} darg step lbl
+         (remove-extract r ldex ex)
+         (remove-disjoint r disj)
+  ... | pc
+    with ctx-step-preserves-disjoint
+           (PresCheck.ctx-step pc)
+           lbl
+           (PresCheck.compat pc)
+           (remove-preserves-disjoint
+             (PresCheck.src-remove pc)
+             (sym-disjoint (remove-linear r)))
+           (sym-disjoint (remove-removed-disjoint r disj))
+  ... | ldstep
+    with restore-disjoint
+           (PresCheck.dst-remove pc)
+           (subst
+             (λ X → LinearDisjoint (PresCheck.Γ₁′ pc) X)
+             (extendUsedCR-eq k G)
+             ldstep)
+           (extendUsed-disjoint k
+             (remove-removed-disjoint
+               (PresCheck.src-remove pc)
+               (sym-disjoint (remove-linear r))))
+  ... | ldtarget
+    with mergeRemoveContext r (PresCheck.src-remove pc)
+  ... | Gf , msrc , rsrc
+    with mergeDisjointContext ldtarget
+  ... | Γ₁ , mleft
+    with frame-remove
+           (merge-frame ldtarget mleft)
+  ... | dstr
+    with mergeRemoveContext dstr (PresCheck.dst-remove pc)
+  ... | Gfdst , mdst , rdst
+    with merge-result-unique mdst (merge-extendUsed k msrc)
+  ... | eqG = record
+    { Gf = Gf
+    ; Γ₀′ = PresCheck.Γ₀′ pc
+    ; Γ₁ = Γ₁
+    ; Γ₁′ = PresCheck.Γ₁′ pc
+    ; U = V
+    ; src-remove = rsrc
+    ; dst-remove =
+        subst
+          (λ X → RemoveCtx Γ₁ X (PresCheck.Γ₁′ pc))
+          eqG
+          rdst
+    ; ctx-step = PresCheck.ctx-step pc
+    ; compat = PresCheck.compat pc
+    ; synth =
+        T-App
+          (replay-synth-allUsed
+            (weaken-val-synth {k = k} dv′)
+            (remove-frame dstr)
+            (allUsed-extendUsed k au))
+          (PresCheck.check pc)
+    ; subtype = <:ₜ-refl (normalTyOf V)
+    }
 
   preserve⇒ :
     ∀ {n k pk mult}
@@ -871,6 +1415,182 @@ mutual
               (sym (newInst-shape {S = S}))
               (<:ₜ-refl (normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S)))))
         }
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    d@(T-TApp (T-Val vr))
+    (Act-Send₁ {T = T})
+    lbl@(Label-β _ _) ex _
+    rewrite sym (send₁-rigid d) =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₀}
+        {U = normalizeTy (SendTy1 T)}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val TV-Send₁)
+        (subst
+          (λ X → normalTyOf (normalizeTy (SendTy1 T)) <:ₜ normalTyOf X)
+          (sym (send₁-ty d))
+          (<:ₜ-refl (normalTyOf (normalizeTy (SendTy1 T)))))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    d@(T-TApp (T-Val vr))
+    (Act-Send₂ {T = T} {S = S})
+    lbl@(Label-β _ _) ex _
+    rewrite sym (send₂-rigid d) =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₀}
+        {U = normalizeTy (SendTy T S)}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val TV-Send₂)
+        (subst
+          (λ X → normalTyOf (normalizeTy (SendTy T S)) <:ₜ normalTyOf X)
+          (sym (send₂-ty d))
+          (<:ₜ-refl (normalTyOf (normalizeTy (SendTy T S)))))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    (T-App (T-Val vr) pv)
+    (Act-Send₃ {T = T} {S = S} {v = v})
+    lbl@(Label-β _ _) ex _
+    with send₂-shape {Tᵣ = T} {Sᵣ = S} vr
+  ... | refl , (eqA , eqR)
+    rewrite eqA | eqR =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+        {U = linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
+             (sessNf (normalizeTy S))}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val
+          (subst
+            (λ X → Γ₀ ⊢ᵥ V-Send₃ T S v ⇒ X ⊣ Γ₂)
+            (sendTy-shape {T = T} {S = S})
+            (TV-Send₃ pv)))
+        (<:ₜ-refl
+          (normalTyOf
+            (linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
+              (sessNf (normalizeTy S)))))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    d
+    Act-Select₁
+    lbl@(Label-β _ _) ex _ =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+        {U = R}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val (select₁-pres d))
+        (<:ₜ-refl (normalTyOf R))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    d
+    Act-Select₂
+    lbl@(Label-β _ _) ex _ =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+        {U = R}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val (select₂-pres d))
+        (<:ₜ-refl (normalTyOf R))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    d@(T-TApp (T-Val vr))
+    (Act-Receive₁ {T = T})
+    lbl@(Label-β _ _) ex _
+    rewrite tapp-receive-output-id d =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₀}
+        {U = normalizeTy (ReceiveTy1 T)}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val TV-Receive₁)
+        (subst
+          (λ X → normalTyOf (normalizeTy (ReceiveTy1 T)) <:ₜ normalTyOf X)
+          (sym (receive₁-ty d))
+          (<:ₜ-refl (normalTyOf (normalizeTy (ReceiveTy1 T)))))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = R}
+    d@(T-TApp (T-Val vr))
+    (Act-Receive₂ {T = T} {S = S})
+    lbl@(Label-β _ _) ex _
+    rewrite tapp-receive₁-output-id d =
+      basePres
+        {Γ₀ = Γ₀} {Γ₂ = Γ₀}
+        {U = normalizeTy (ReceiveTy T S)}
+        Ctx-β lbl ex (beta-compatible lbl ex)
+        (T-Val TV-Receive₂)
+        (subst
+          (λ X → normalTyOf (normalizeTy (ReceiveTy T S)) <:ₜ normalTyOf X)
+          (sym (receive₂-ty d))
+          (<:ₜ-refl (normalTyOf (normalizeTy (ReceiveTy T S)))))
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {Γv = Γv}
+    {T = R}
+    d
+    (Act-Rcv {T = Tᵣ} {S = Sᵣ} {x = x} {v = v})
+    (Label-RecvVal {T = T} {S = S} take auin dv au)
+    (Ex-RecvVal rin _ _)
+    disj
+    with extract-membership rin (take-implies-membership take)
+  ... | x∈
+    with recv-app-inversion {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} {T = T} {S = S} d x∈
+  ... | take₀ , _ , _ , sub
+    with take-replace-lin {U = sessNf S} take₀
+  ... | Γx , rep
+    with mergeDisjointContext (replace-preserves-disjoint x∈ disj rep)
+  ... | Γ₁ , merge =
+    let
+      ld : LinearDisjoint Γx Γv
+      ld = replace-preserves-disjoint x∈ disj rep
+
+      eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
+      eqAll = trans (allUsedCtx-replace-lin x∈ rep) (allUsedCtx-merge ld merge)
+    in
+    record
+      { Gf = allUsedCtx Γ₀
+      ; Γ₀′ = Γ₀
+      ; Γ₁ = Γ₁
+      ; Γ₁′ = Γ₁
+      ; U = pairNf T (sessNf S)
+      ; src-remove = remove-usedCtx Γ₀
+      ; dst-remove =
+          subst
+            (λ X → RemoveCtx Γ₁ X Γ₁)
+            (sym eqAll)
+            (remove-usedCtx Γ₁)
+      ; ctx-step = Ctx-Rcv dv au disj x∈ rep merge
+      ; compat = Compat-RecvVal
+      ; synth =
+          T-Val
+            (TV-Pair
+              (merge-value dv au ld merge)
+              (TV-Var-Lin (replace-take take₀ rep)))
+      ; subtype = sub
+      }
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {e₁ = E-App (E-Val (V-Send₃ Tᵣ Sᵣ v)) (E-Val (V-Var x))}
+    {e₂ = E-Val (V-Var x)}
+    {T = R}
+    (T-App {Γ₂ = Γm} {Γ₃ = Γ₂} {T = A} {U = R}
+      (T-Val vr)
+      (T-Check {U = U} (T-Val vv) sub))
+    (Act-Send {T = Tᵣ} {S = Sᵣ} {x = x} {v = v})
+    lbl ex disj =
+    preserve⇒-send vr vv sub lbl ex disj
   preserve⇒ {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     (T-Pair {T = T} {U = U} (T-Val du) (T-Val dv))
     Act-PairV lbl@(Label-β _ auv) ex _ =
@@ -936,63 +1656,16 @@ mutual
     lbl ex@(Ex-RecvVal {x = x} {v = vᵣ} _ _ _) disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
-    with preserve⇐ {T = A} (T-Check pArg subArg) step lbl
-         (remove-extract r (appR-extract-disjoint-recv {A = A} r (T-Check pArg subArg) step ex) ex)
-         (remove-disjoint r disj)
-  ... | pc
-    with ctx-step-preserves-disjoint
-           (PresCheck.ctx-step pc)
-           lbl
-           (PresCheck.compat pc)
-           (remove-preserves-disjoint
-             (PresCheck.src-remove pc)
-             (sym-disjoint (remove-linear r)))
-           (sym-disjoint (remove-removed-disjoint r disj))
-  ... | ldstep
-    with restore-disjoint
-           (PresCheck.dst-remove pc)
-           (subst
-             (λ X → LinearDisjoint (PresCheck.Γ₁′ pc) X)
-             (extendUsedCR-eq k G)
-             ldstep)
-           (extendUsed-disjoint k
-             (remove-removed-disjoint
-               (PresCheck.src-remove pc)
-               (sym-disjoint (remove-linear r))))
-  ... | ldtarget
-    with mergeRemoveContext r (PresCheck.src-remove pc)
-  ... | Gf , msrc , rsrc
-    with mergeDisjointContext ldtarget
-  ... | Γ₁ , mleft
-    with frame-remove
-           (merge-frame ldtarget mleft)
-  ... | dstr
-    with mergeRemoveContext dstr (PresCheck.dst-remove pc)
-  ... | Gfdst , mdst , rdst
-    with merge-result-unique mdst (merge-extendUsed k msrc)
-  ... | eqG = record
-    { Gf = Gf
-    ; Γ₀′ = PresCheck.Γ₀′ pc
-    ; Γ₁ = Γ₁
-    ; Γ₁′ = PresCheck.Γ₁′ pc
-    ; U = V
-    ; src-remove = rsrc
-    ; dst-remove =
-        subst
-          (λ X → RemoveCtx Γ₁ X (PresCheck.Γ₁′ pc))
-          eqG
-          rdst
-    ; ctx-step = PresCheck.ctx-step pc
-    ; compat = PresCheck.compat pc
-    ; synth =
-        T-App
-          (replay-synth
-            (weaken-val-synth {k = k} dv′)
-            (remove-frame dstr)
-            (allUsed-frame {Φ = PresCheck.Γ₁ pc} (allUsed-extendUsed k au)))
-          (PresCheck.check pc)
-    ; subtype = <:ₜ-refl (normalTyOf V)
-    }
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (appR-extract-disjoint-recv {A = A} r (T-Check pArg subArg) step ex)
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-App (E-Val v) e₁}
@@ -1001,66 +1674,145 @@ mutual
       (T-Val dv)
       (T-Check pArg subArg))
     (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
-    lbl ex disj
+    lbl ex@Ex-β disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
-    with preserve⇐ {T = A} (T-Check pArg subArg) step lbl
-         (remove-extract r (appR-extract-disjoint r ex) ex)
-         (remove-disjoint r disj)
-  ... | pc
-    with ctx-step-preserves-disjoint
-           (PresCheck.ctx-step pc)
-           lbl
-           (PresCheck.compat pc)
-           (remove-preserves-disjoint
-             (PresCheck.src-remove pc)
-             (sym-disjoint (remove-linear r)))
-           (sym-disjoint (remove-removed-disjoint r disj))
-  ... | ldstep
-    with restore-disjoint
-           (PresCheck.dst-remove pc)
-           (subst
-             (λ X → LinearDisjoint (PresCheck.Γ₁′ pc) X)
-             (extendUsedCR-eq k G)
-             ldstep)
-           (extendUsed-disjoint k
-             (remove-removed-disjoint
-               (PresCheck.src-remove pc)
-               (sym-disjoint (remove-linear r))))
-  ... | ldtarget
-    with mergeRemoveContext r (PresCheck.src-remove pc)
-  ... | Gf , msrc , rsrc
-    with mergeDisjointContext ldtarget
-  ... | Γ₁ , mleft
-    with frame-remove
-           (merge-frame ldtarget mleft)
-  ... | dstr
-    with mergeRemoveContext dstr (PresCheck.dst-remove pc)
-  ... | Gfdst , mdst , rdst
-    with merge-result-unique mdst (merge-extendUsed k msrc)
-  ... | eqG = record
-    { Gf = Gf
-    ; Γ₀′ = PresCheck.Γ₀′ pc
-    ; Γ₁ = Γ₁
-    ; Γ₁′ = PresCheck.Γ₁′ pc
-    ; U = V
-    ; src-remove = rsrc
-    ; dst-remove =
-        subst
-          (λ X → RemoveCtx Γ₁ X (PresCheck.Γ₁′ pc))
-          eqG
-          rdst
-    ; ctx-step = PresCheck.ctx-step pc
-    ; compat = PresCheck.compat pc
-    ; synth =
-        T-App
-          (replay-synth
-            (weaken-val-synth {k = k} dv′)
-            (remove-frame dstr)
-            (allUsed-frame {Φ = PresCheck.Γ₁ pc} (allUsed-extendUsed k au)))
-          (PresCheck.check pc)
-    ; subtype = <:ₜ-refl (normalTyOf V)
-    }
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-App (E-Val v) e₁}
+    {T = V} {ℓ = ℓ}
+    (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
+      (T-Val dv)
+      (T-Check pArg subArg))
+    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-Fork disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-App (E-Val v) e₁}
+    {T = V} {ℓ = ℓ}
+    (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
+      (T-Val dv)
+      (T-Check pArg subArg))
+    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-New disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-App (E-Val v) e₁}
+    {T = V} {ℓ = ℓ}
+    (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
+      (T-Val dv)
+      (T-Check pArg subArg))
+    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-RecvLab disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-App (E-Val v) e₁}
+    {T = V} {ℓ = ℓ}
+    (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
+      (T-Val dv)
+      (T-Check pArg subArg))
+    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@(Ex-SendVal _ _ _ _) disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (appR-extract-disjoint-send {A = A} r disj (T-Check pArg subArg) step lbl ex)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-App (E-Val v) e₁}
+    {T = V} {ℓ = ℓ}
+    (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
+      (T-Val dv)
+      (T-Check pArg subArg))
+    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-SendLab disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-App (E-Val v) e₁}
+    {T = V} {ℓ = ℓ}
+    (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
+      (T-Val dv)
+      (T-Check pArg subArg))
+    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-Close disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-appR-core
+        r
+        dv′
+        au
+        (T-Check pArg subArg)
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
   preserve⇒ d step lbl ex disj = preserve⇒-hard d step lbl ex disj
 
   preserve⇐ :

@@ -23,7 +23,10 @@ open import ExprSubstitutionTyping using (nfProto-eq; rec-unfold-preserves-value
 open import ExprNormalTyping
 open import ExprContextReduction using (_—ctx[_]→_; Ctx-β; Ctx-Fork; Ctx-New; Ctx-Rcv; Ctx-Send; Ctx-Close; ReplaceAt; R-here; R-there; MergeCtx; MC-∅; MC-used-left; MC-used-right; MC-un; RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un; AllUsed; LinearDisjoint; LD-∅; LD-used-used; LD-used-live; LD-live-used; LD-un-un; recvChanNf; sendChanNf; sessNf; dualSessNf; unitLinNf)
   renaming (AU-∅ to AU-nil; AU-used to AU-cons-used; AU-un to AU-cons-un)
-open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; frame-unique; frame-value; frame-check)
+open import ExprTypingProperties using
+  ( FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un
+  ; replay-value-allUsed; replay-check-allUsed
+  )
 
 open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
@@ -509,13 +512,6 @@ remove-frame (RM-allused rm) = FC-allused (remove-frame rm)
 remove-frame (RM-lin rm) = FC-live (remove-frame rm)
 remove-frame (RM-un rm) = FC-un (remove-frame rm)
 
-postulate
-  allUsed-frame :
-    ∀ {n}
-      {Φ Γ : Ctx [] n}
-    → AllUsed Γ
-    → FrameCtx Φ Γ Φ
-
 remove-value :
   ∀ {n K}
     {Γ₀ Γv Γx Γv′ : Ctx [] n}
@@ -524,10 +520,7 @@ remove-value :
   → AllUsed Γv′
   → RemoveCtx Γ₀ Γv Γx
   → Γ₀ ⊢ᵥ v ⇒ T ⊣ Γx
-remove-value {Γx = Γx} dv au rm
-  with frame-value dv (remove-frame rm)
-... | Γout , fout , dv′
-  rewrite frame-unique fout (allUsed-frame {Φ = Γx} au) = dv′
+remove-value dv au rm = replay-value-allUsed dv (remove-frame rm) au
 
 remove-check :
   ∀ {n pk m}
@@ -537,10 +530,7 @@ remove-check :
   → AllUsed Γv′
   → RemoveCtx Γ₀ Γv Γx
   → Γ₀ ⊢ E-Val v ⇐ T ⊣ Γx
-remove-check {Γx = Γx} dv au rm
-  with frame-check dv (remove-frame rm)
-... | Γout , fout , dv′
-  rewrite frame-unique fout (allUsed-frame {Φ = Γx} au) = dv′
+remove-check dv au rm = replay-check-allUsed dv (remove-frame rm) au
 
 postulate
   send-payload-output :
@@ -854,10 +844,7 @@ merge-value :
   → LinearDisjoint Γx Γv
   → MergeCtx Γx Γv Γ₁
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γx
-merge-value {Γx = Γx} dv au ld merge
-  with frame-value dv (merge-frame ld merge)
-... | Γout , fout , dv′
-  rewrite frame-unique fout (allUsed-frame {Φ = Γx} au) = dv′
+merge-value dv au ld merge = replay-value-allUsed dv (merge-frame ld merge) au
 
 preserve⇒ :
   ∀ {n k pk mult}

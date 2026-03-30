@@ -11,7 +11,10 @@ open import AlgorithmicSubtyping using (_<:ₜ_)
 open import Kinds using (Kind; KV; SLin; TLin)
 open import ExprSyntax using (Expr; Value; E-Match)
 open import ExprNormalTyping
-open import ExprContextReduction using (RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un)
+open import ExprContextReduction using
+  ( RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
+  ; AllUsed; AU-∅; AU-used; AU-un
+  )
 data FrameCtx {Δ : List Kind} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
   FC-∅ :
     FrameCtx ∅ ∅ ∅
@@ -164,6 +167,19 @@ frame-remove (FC-frame f) = RM-drop (frame-remove f)
 frame-remove (FC-allused f) = RM-allused (frame-remove f)
 frame-remove (FC-live f) = RM-lin (frame-remove f)
 frame-remove (FC-un f) = RM-un (frame-remove f)
+
+allUsed-frame :
+  ∀ {Δ n} {Φ Γ Γ̂ : Ctx Δ n}
+  → AllUsed Γ
+  → FrameCtx Φ Γ Γ̂
+  → Γ̂ ≡ Φ
+allUsed-frame AU-∅ FC-∅ = refl
+allUsed-frame (AU-used au) (FC-frame f)
+  rewrite allUsed-frame au f = refl
+allUsed-frame (AU-used au) (FC-allused f)
+  rewrite allUsed-frame au f = refl
+allUsed-frame (AU-un au) (FC-un f)
+  rewrite allUsed-frame au f = refl
 
 postulate
   wkFrameCtx-invert :
@@ -328,3 +344,36 @@ replay-check d fin fout
   with frame-check d fin
 ... | Γ̂″ , f″ , d′
   rewrite frame-unique fout f″ = d′
+
+replay-value-allUsed :
+  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+  → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → AllUsed Γ′
+  → Γ̂ ⊢ᵥ v ⇒ T ⊣ Φ
+replay-value-allUsed d fin au
+  with frame-value d fin
+... | Γ̂″ , fout , d′
+  rewrite allUsed-frame au fout = d′
+
+replay-synth-allUsed :
+  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+  → Γ ⊢ e ⇒ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → AllUsed Γ′
+  → Γ̂ ⊢ e ⇒ T ⊣ Φ
+replay-synth-allUsed d fin au
+  with frame-synth d fin
+... | Γ̂″ , fout , d′
+  rewrite allUsed-frame au fout = d′
+
+replay-check-allUsed :
+  ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
+  → Γ ⊢ e ⇐ T ⊣ Γ′
+  → FrameCtx Φ Γ Γ̂
+  → AllUsed Γ′
+  → Γ̂ ⊢ e ⇐ T ⊣ Φ
+replay-check-allUsed d fin au
+  with frame-check d fin
+... | Γ̂″ , fout , d′
+  rewrite allUsed-frame au fout = d′
