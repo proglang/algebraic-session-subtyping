@@ -10,6 +10,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; cong;
 import Duality as D
 open import Kinds
 open import Kits
+open import Variance using (Variance)
 open import Types using
   ( Ty; Ty-Syntax; Ty-Traversal; T-Var; T-Base; T-Poly; T-Msg; T-Up
   ; NormalTy; NormalProto
@@ -17,6 +18,7 @@ open import Types using
   ; nf-complete; nf-sound+; fusion
   ; nt-unique; np-unique
   )
+open import TypesProtocolConstructors using (SelectConstTy; SelectTy1; SelectTy2)
 open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-trans)
 open import AlgorithmicSubstitution using () renaming (subst-preserves-<:ₜ to substTy-preserves-<:ₜ)
 open import SubstitutionSubtyping using (subst-preserves-≡c)
@@ -25,8 +27,8 @@ open import ExprSyntax using
   ; V-Abs; V-Rec; V-TAbs; V-Var
   ; V-Receive₁; V-Receive₂
   ; V-Send₁; V-Send₂; V-Send₃
-  ; V-Selectᵀ
-  ; TyArg
+  ; V-Select₁; V-Select₂
+  ; C-Select
   )
 open import ExprSubstitution
 open import ExprNormalTyping
@@ -98,13 +100,6 @@ postulate
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
     → substTyCtxWith Γ₁ ϕ ⊢ᵥ substTyValueWith ϕ v ⇒ substTyNfWith T ϕ ⊣ substTyCtxWith Γ₂ ϕ
 
-  substTy-preserves-value-select :
-    ∀ {Δ n K K′ k} {Γ₁ : Ctx (K ∷ Δ) n} {i : Fin k} {args : List (TyArg (K ∷ Δ))}
-      {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
-    → SelectInstTy i args T
-    → substTyCtx Γ₁ U ⊢ᵥ V-Selectᵀ i (substTyArgsWith ⦅ U ⦆ₛ args)
-         ⇒ substTyNf T U ⊣ substTyCtx Γ₁ U
-
   substTy-preserves-synth-tapp :
     ∀ {Δ n K K′ m} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
       {e : Expr (K ∷ Δ) n} {T : NfTy (K′ ∷ K ∷ Δ) (KV KT m)} {U : Ty (K ∷ Δ) K′} {W : Ty Δ K}
@@ -171,6 +166,22 @@ postulate
   substTyWith-polyNf :
     ∀ {Δ Δ′ K m} (T : NfTy (K ∷ Δ) (KV KT m)) (ϕ : Δ →ₛ Δ′)
     → substTyNfWith (polyNf T) ϕ ≡ polyNf (substTyNfWith T (ϕ ↑ₛ K))
+
+  substTy-SelectConstTy :
+    ∀ {Δ K k} {v : Variance} {i : Fin k} (U : Ty Δ K)
+    → (SelectConstTy {Δ = K ∷ Δ} v i) ⋯ ⦅ U ⦆ₛ ≡ SelectConstTy {Δ = Δ} v i
+
+  substTy-SelectTy1 :
+    ∀ {Δ K k} {v : Variance} {i : Fin k} (P : Ty (K ∷ Δ) KP) (U : Ty Δ K)
+    → (SelectTy1 v i P) ⋯ ⦅ U ⦆ₛ ≡ SelectTy1 v i (P ⋯ ⦅ U ⦆ₛ)
+
+  substTy-SelectTy2 :
+    ∀ {Δ K k} {v : Variance} {i : Fin k} (P : Ty (K ∷ Δ) KP) (S : Ty (K ∷ Δ) SLin) (U : Ty Δ K)
+    → (SelectTy2 v i P S) ⋯ ⦅ U ⦆ₛ ≡ SelectTy2 v i (P ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
+
+  ConstTy-select-subst :
+    ∀ {Δ K k} {v : Variance} {i : Fin k} {U : Ty Δ K}
+    → ConstTy (C-Select v i) (substTyNf (normalizeTy (SelectConstTy {Δ = K ∷ Δ} v i)) U)
 
 substTy-preserves-value-tabs :
   ∀ {Δ n K K′ m} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
@@ -304,12 +315,45 @@ substTy-preserves-value-send₂ {Γ₁ = Γ₁} {T = T} {S = S} {U = U} =
   Send₂Ty Γ₁ T S U X =
     substTyCtx Γ₁ U ⊢ᵥ V-Send₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
 
-postulate
-  SelectConstTy-subst :
-    ∀ {Δ K k} {i : Fin k} {K′}
-      {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
-    → SelectConstTy i T
-    → SelectConstTy i (substTyNf T U)
+substTy-preserves-value-select₁ :
+  ∀ {Δ n K k} {Γ₁ : Ctx (K ∷ Δ) n} {v : Variance} {i : Fin k} {P : Ty (K ∷ Δ) KP} {U : Ty Δ K}
+  → substTyCtx Γ₁ U ⊢ᵥ V-Select₁ v i (P ⋯ ⦅ U ⦆ₛ)
+       ⇒ substTyNf (normalizeTy (SelectTy1 v i P)) U ⊣ substTyCtx Γ₁ U
+substTy-preserves-value-select₁ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {U = U} =
+  Eq.subst
+    (Select₁Ty Γ₁ v i P U)
+    (Eq.sym
+      (Eq.trans
+        (substTy-normalizeTy (SelectTy1 v i P) U)
+        (cong normalizeTy (substTy-SelectTy1 {v = v} P U))))
+    (TV-Select₁ {v = v} {i = i} {P = P ⋯ ⦅ U ⦆ₛ})
+  where
+  Select₁Ty :
+    ∀ {Δ n K k} (Γ₁ : Ctx (K ∷ Δ) n) (v : Variance) (i : Fin k) (P : Ty (K ∷ Δ) KP) (U : Ty Δ K) →
+    NfTy Δ TLin → Set
+  Select₁Ty Γ₁ v i P U X =
+    substTyCtx Γ₁ U ⊢ᵥ V-Select₁ v i (P ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
+
+substTy-preserves-value-select₂ :
+  ∀ {Δ n K k} {Γ₁ : Ctx (K ∷ Δ) n}
+    {v : Variance} {i : Fin k} {P : Ty (K ∷ Δ) KP} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
+  → substTyCtx Γ₁ U ⊢ᵥ V-Select₂ v i (P ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
+       ⇒ substTyNf (normalizeTy (SelectTy2 v i P S)) U ⊣ substTyCtx Γ₁ U
+substTy-preserves-value-select₂ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {S = S} {U = U} =
+  Eq.subst
+    (Select₂Ty Γ₁ v i P S U)
+    (Eq.sym
+      (Eq.trans
+        (substTy-normalizeTy (SelectTy2 v i P S) U)
+        (cong normalizeTy (substTy-SelectTy2 {v = v} P S U))))
+    (TV-Select₂ {v = v} {i = i} {P = P ⋯ ⦅ U ⦆ₛ} {S = S ⋯ ⦅ U ⦆ₛ})
+  where
+  Select₂Ty :
+    ∀ {Δ n K k}
+      (Γ₁ : Ctx (K ∷ Δ) n) (v : Variance) (i : Fin k) (P : Ty (K ∷ Δ) KP) (S : Ty (K ∷ Δ) SLin) (U : Ty Δ K) →
+      NfTy Δ TLin → Set
+  Select₂Ty Γ₁ v i P S U X =
+    substTyCtx Γ₁ U ⊢ᵥ V-Select₂ v i (P ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
 
 ConstTy-subst :
   ∀ {Δ K c K′} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
@@ -325,15 +369,9 @@ ConstTy-subst {U = U} CT-Send
   rewrite substTy-normalizeTy (T-Poly {K′ = TLin} {m = Lin} (SendTy1 (T-Var (here refl)))) U
   = CT-Send
 ConstTy-subst {U = U} CT-Close rewrite substTy-normalizeTy (LinArr EndLin UnitLin) U = CT-Close
-ConstTy-subst (CT-Select p) = CT-Select (SelectConstTy-subst p)
+ConstTy-subst CT-Select = ConstTy-select-subst
 
 postulate
-
-  SelectInstTy-subst :
-    ∀ {Δ K k} {i : Fin k} {args : List (TyArg (K ∷ Δ))} {K′}
-      {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
-    → SelectInstTy i args T
-    → SelectInstTy i (substTyArgsWith ⦅ U ⦆ₛ args) (substTyNf T U)
 
   MatchBranches-subst :
     ∀ {Δ K k} {T : NfTy (K ∷ Δ) SLin} {B : Fin k → NfTy (K ∷ Δ) SLin} {U : Ty Δ K}
@@ -441,9 +479,10 @@ mutual
           (λ X → substTyCtx Γ₁ U ⊢ E-Val (substTyValue v U) ⇐ X ⊣ substTyCtx Γ₂ U)
           (substTy-normalizeTy T U)
           (substTy-preserves-check p))
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U}
-    (TV-Selectᵀ {i = i} {args = args} {T = T} p) =
-    substTy-preserves-value-select {Γ₁ = Γ₁} {i = i} {args = args} {T = T} {U = U} p
+  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Select₁ {v = v} {i = i} {P = P}) =
+    substTy-preserves-value-select₁ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {U = U}
+  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Select₂ {v = v} {i = i} {P = P} {S = S}) =
+    substTy-preserves-value-select₂ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {S = S} {U = U}
 
   substTy-preserves-synth :
     ∀ {Δ n K K′} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}

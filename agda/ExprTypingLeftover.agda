@@ -9,7 +9,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans
 open import Kinds
 open import Duality
 open import Types
-open import ExprSyntax using (Expr; Value; Const; TyArg; E-Val; V-Pair)
+open import ExprSyntax using (Expr; Value; Const; E-Val; V-Pair)
 open import ExprNormalTyping
 open import ExprContextReduction using (RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un; AllUsed; AU-∅; AU-used; AU-un)
 open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; replay-value-allUsed)
@@ -373,9 +373,12 @@ mutual
   strip-value d@(TV-Send₃ _)
     with strip-value-send₃-case d
   ... | G , G′ , r , d′ , au = G , G′ , r , d′ , au
-  strip-value {Γ₀ = Γ₀} (TV-Selectᵀ sel) =
+  strip-value {Γ₀ = Γ₀} TV-Select₁ =
     allUsedCtx Γ₀ , allUsedCtx Γ₀ ,
-    remove-allUsedCtx Γ₀ , TV-Selectᵀ sel , allUsedCtx-AllUsed Γ₀
+    remove-allUsedCtx Γ₀ , TV-Select₁ , allUsedCtx-AllUsed Γ₀
+  strip-value {Γ₀ = Γ₀} TV-Select₂ =
+    allUsedCtx Γ₀ , allUsedCtx Γ₀ ,
+    remove-allUsedCtx Γ₀ , TV-Select₂ , allUsedCtx-AllUsed Γ₀
 
 mutual
   leftover-value :
@@ -407,7 +410,8 @@ mutual
   leftover-value TV-Send₁ = _ , remove-refl _
   leftover-value TV-Send₂ = _ , remove-refl _
   leftover-value (TV-Send₃ d) = leftover-check d
-  leftover-value (TV-Selectᵀ _) = _ , remove-refl _
+  leftover-value TV-Select₁ = _ , remove-refl _
+  leftover-value TV-Select₂ = _ , remove-refl _
 
   leftover-synth :
     ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}

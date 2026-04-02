@@ -1,7 +1,7 @@
 module ExprSemantics where
 
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
-open import Data.List using (List; []; _∷_)
+open import Data.List using ([]; _∷_)
 open import Data.Nat using (ℕ; _+_) renaming (zero to zeroℕ; suc to sucℕ)
 open import Data.Product using (_,_)
 
@@ -26,10 +26,6 @@ data Label : ℕ → ℕ → Set where
 
 freshPair : Expr Δ (sucℕ (sucℕ n))
 freshPair = E-Val (V-Pair (V-Var fzero) (V-Var (fsuc fzero)))
-
-_▻arg_ : List (TyArg Δ) → TyArg Δ → List (TyArg Δ)
-[] ▻arg a = a ∷ []
-(x ∷ xs) ▻arg a = x ∷ (xs ▻arg a)
 
 infix 4 _—[_]→_
 
@@ -130,20 +126,20 @@ data _—[_]→_ : ∀ {n k} → Expr [] n → Label n k → Expr [] (k + n) →
         —[ L-RecvLab x i ]→
       substExpr (branches i) (V-Var x)
 
-  Act-Sel : ∀ {n k} {i : Fin k} {args : List (TyArg [])} {x : Fin n} →
-      E-App (E-Val (V-Selectᵀ i args)) (E-Val (V-Var x))
+  Act-Sel : ∀ {n k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} {x : Fin n} →
+      E-App (E-Val (V-Select₂ v i P S)) (E-Val (V-Var x))
         —[ L-SendLab x i ]→
       E-Val (V-Var x)
 
-  Act-Select₁ : ∀ {n k K} {i : Fin k} {T : Ty [] K} →
-      E-TApp {K = K} (E-Val (V-Const {n = n} (C-Select i))) T
+  Act-Select₁ : ∀ {n k} {v : Variance} {i : Fin k} {P : Ty [] KP} →
+      E-TApp {K = KP} (E-Val (V-Const {n = n} (C-Select v i))) P
         —[ L-β ]→
-      E-Val (V-Selectᵀ {n = n} i ((K , T) ∷ []))
+      E-Val (V-Select₁ {n = n} v i P)
 
-  Act-Select₂ : ∀ {n k K} {i : Fin k} {args : List (TyArg [])} {T : Ty [] K} →
-      E-TApp {K = K} (E-Val (V-Selectᵀ {n = n} i args)) T
+  Act-Select₂ : ∀ {n k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} →
+      E-TApp {K = SLin} (E-Val (V-Select₁ {n = n} v i P)) S
         —[ L-β ]→
-      E-Val (V-Selectᵀ {n = n} i (args ▻arg (K , T)))
+      E-Val (V-Select₂ {n = n} v i P S)
 
   Act-Close : ∀ {n} {x : Fin n} →
       E-App (E-Val (V-Const C-Close)) (E-Val (V-Var x))

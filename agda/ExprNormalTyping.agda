@@ -13,6 +13,7 @@ open import Kits
 open import Duality
 open import Types
 open import TypesProperties using (renaming-injective; weakenᵣ-injective)
+open import TypesProtocolConstructors using (SelectTy1; SelectTy2; SelectConstTy)
 open import ExprSyntax hiding (Binding; Ctx)
 open import AlgorithmicSubtyping
 open import AlgorithmicMerge
@@ -184,8 +185,6 @@ SendTy1 T = T-Poly {K′ = SLin} {m = Lin}
 
 postulate
   MatchBranches : ∀ {Δ k} → NfTy Δ SLin → (Fin k → NfTy Δ SLin) → Set
-  SelectConstTy : ∀ {Δ k} (i : Fin k) → ∀ {K} → NfTy Δ K → Set
-  SelectInstTy  : ∀ {Δ k} (i : Fin k) (args : List (TyArg Δ)) → ∀ {K} → NfTy Δ K → Set
 
 data BranchJoin {Δ} : ∀ {k} → (Fin (suc k) → NfTy Δ TLin) → NfTy Δ TLin → Set where
   BJ-one : ∀ {T}
@@ -215,9 +214,8 @@ data ConstTy {Δ} : Const → ∀ {K} → NfTy Δ K → Set where
   CT-Send : ConstTy C-Send
     (normalizeTy (T-Poly {K′ = TLin} {m = Lin} (SendTy1 (T-Var (here refl)))))
   CT-Close : ConstTy C-Close (normalizeTy CloseTy)
-  CT-Select : ∀ {k} {i : Fin k} {K} {T : NfTy Δ K}
-    → SelectConstTy i T
-    → ConstTy (C-Select i) T
+  CT-Select : ∀ {k} {v : Variance} {i : Fin k}
+    → ConstTy (C-Select v i) (normalizeTy (SelectConstTy v i))
 
 infix 4 _∋ˡ_∶_ _∋ᵘ_∶_ _⊢ˡ_∶_⊣_ _⊢ᵥ_⇒_⊣_ _⊢_⇒_⊣_ _⊢_⇐_⊣_
 
@@ -315,9 +313,11 @@ mutual
       → Γ₁ ⊢ E-Val v ⇐ normalizeTy T ⊣ Γ₂
       → Γ₁ ⊢ᵥ V-Send₃ T S v ⇒ normalizeTy (LinArr (SessLin (T-Msg ⊕ (T-Up T) S)) (SessLin S)) ⊣ Γ₂
 
-    TV-Selectᵀ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {i : Fin k} {args : List (TyArg Δ)} {K} {T : NfTy Δ K}
-      → SelectInstTy i args T
-      → Γ₁ ⊢ᵥ V-Selectᵀ i args ⇒ T ⊣ Γ₁
+    TV-Select₁ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP}
+      → Γ₁ ⊢ᵥ V-Select₁ v i P ⇒ normalizeTy (SelectTy1 v i P) ⊣ Γ₁
+
+    TV-Select₂ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP} {S : Ty Δ SLin}
+      → Γ₁ ⊢ᵥ V-Select₂ v i P S ⇒ normalizeTy (SelectTy2 v i P S) ⊣ Γ₁
 
   data _⊢_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Expr Δ n → ∀ {K} → NfTy Δ K → Ctx Δ n → Set where
     T-Val : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {v : Value Δ n} {K} {T : NfTy Δ K}

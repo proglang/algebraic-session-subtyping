@@ -1,6 +1,6 @@
 module Types where
 
-open import Data.Empty using (⊥-elim)
+open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin
 open import Data.Fin.Subset as Subset using ()
 open import Data.Nat using (ℕ; zero; suc; _⊔_)
@@ -16,20 +16,11 @@ open import Util
 open import Kinds
 open import Duality
 open import Kits
+open import Variance public
 
 variable
   n : ℕ
   Δ Δ₁ Δ₂ Δ₃ Δ′ : List Kind
-
--- variance of parameter of protocol type constructor
--- ⊕ : covariant - parameter appears under even number of T-Minus operators
--- ⊝ : contravariant - parameter appears under odd number of T-Minus operators
--- ⊙ : invariant - parameter appears under even and odd numbers of T-Minus operators
-
-data Variance : Set where
-  ⊕ ⊝ ⊘ : Variance
-
-variable ⊙ : Variance
 
 module _ where
 

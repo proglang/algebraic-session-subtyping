@@ -228,7 +228,8 @@ mutual
   frame-value (TV-Send₃ d) f
     with frame-check d f
   ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , TV-Send₃ d′
-  frame-value (TV-Selectᵀ sel) f = _ , f , TV-Selectᵀ sel
+  frame-value TV-Select₁ f = _ , f , TV-Select₁
+  frame-value TV-Select₂ f = _ , f , TV-Select₂
 
   frame-synth-match :
     ∀ {Δ n} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k}

@@ -8,6 +8,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; subst
 
 open import Kinds
 open import Kits
+open import Variance using (Variance)
 open import Types using (Ty; Ty-Syntax; Ty-Traversal; fusion)
 open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans)
 open import ExprSyntax using
@@ -28,19 +29,18 @@ open import ExprSyntax using
   ; V-Send₁
   ; V-Send₂
   ; V-Send₃
-  ; V-Selectᵀ
+  ; V-Select₁
+  ; V-Select₂
   ; V-TAbs
   ; V-Var
   ; C-Receive
   ; C-Send
   ; C-Select
-  ; TyArg
   )
 open import ExprSemantics using
   ( Label
   ; L-β
   ; L-RecvLab
-  ; _▻arg_
   ; _—[_]→_
   ; Act-App
   ; Act-TApp
@@ -313,15 +313,15 @@ postulate
     → Γ ⊢ᵥ V-Send₃ T S v ⇒ U ⊣ Γ′
 
   select₁-pres :
-    ∀ {n k K} {Γ Γ′ : Ctx [] n} {i : Fin k} {U : Ty [] K} {T : NfTy [] (KV KT Lin)}
-    → Γ ⊢ E-TApp (E-Val (V-Const (C-Select i))) U ⇒ T ⊣ Γ′
-    → Γ ⊢ᵥ V-Selectᵀ i ((K , U) ∷ []) ⇒ T ⊣ Γ′
+    ∀ {n k} {Γ Γ′ : Ctx [] n} {v : Variance} {i : Fin k} {P : Ty [] KP} {T : NfTy [] (KV KT Lin)}
+    → Γ ⊢ E-TApp (E-Val (V-Const (C-Select v i))) P ⇒ T ⊣ Γ′
+    → Γ ⊢ᵥ V-Select₁ v i P ⇒ T ⊣ Γ′
 
   select₂-pres :
-    ∀ {n k K} {Γ Γ′ : Ctx [] n} {i : Fin k} {args : List (TyArg [])} {U : Ty [] K}
+    ∀ {n k} {Γ Γ′ : Ctx [] n} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
       {T : NfTy [] (KV KT Lin)}
-    → Γ ⊢ E-TApp (E-Val (V-Selectᵀ i args)) U ⇒ T ⊣ Γ′
-    → Γ ⊢ᵥ V-Selectᵀ i (args ▻arg (K , U)) ⇒ T ⊣ Γ′
+    → Γ ⊢ E-TApp (E-Val (V-Select₁ v i P)) S ⇒ T ⊣ Γ′
+    → Γ ⊢ᵥ V-Select₂ v i P S ⇒ T ⊣ Γ′
 
   poly-sub-invert :
     ∀ {K m} {T : NfTy (K ∷ []) (KV KT m)} {U : NfTy [] (KV KT m)}

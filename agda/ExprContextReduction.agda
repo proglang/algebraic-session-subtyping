@@ -1,6 +1,7 @@
 module ExprContextReduction where
 
 open import Data.Fin using (Fin; zero; suc)
+open import Data.Fin.Subset as Subset
 open import Data.List using ([])
 open import Data.Product using (Σ; _×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
@@ -8,6 +9,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 open import Kinds
 open import Duality
 open import Types
+open import TypesProtocolConstructors using (ProtocolConstructors; materialize-at)
 open import ExprSyntax using (Value; E-Val)
 open import ExprSemantics using (Label; L-β; L-Fork; L-New; L-RecvVal; L-RecvLab; L-SendVal; L-SendLab; L-Close)
 open import ExprNormalTyping
@@ -349,6 +351,14 @@ sendChanNf (mkNfTy T NT) (mkNfTy S NS) =
 dualSessNf : NfTy [] SLin → NfTy [] TLin
 dualSessNf (mkNfTy S _) = normalizeTy (SessLin (T-Dual D-S S))
 
+selectInNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
+selectInNf v i P S =
+  sessNf (normalizeTy (T-Msg ⊕ (T-ProtoP (Subset.⁅ i ⁆) v ⌞ P ⌟) ⌞ S ⌟))
+
+selectOutNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
+selectOutNf {k} v i P S =
+  sessNf (normalizeTy (materialize-at (ProtocolConstructors k v) i ⊕ ⌞ P ⌟ ⌞ S ⌟))
+
 postulate
   SelectBranches : ∀ {k} → NfTy [] SLin → (Fin k → NfTy [] SLin) → Set
 
@@ -399,10 +409,9 @@ data _—ctx[_]→_ : ∀ {n k} → Ctx [] n → Label n k → Ctx [] (k + n) �
     → Γ₀ —ctx[ L-RecvLab x i ]→ Γ₁
 
   Ctx-Select : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
-      {S : NfTy [] SLin} {B : Fin k → NfTy [] SLin}
-    → SelectBranches S B
-    → Γ₀ ∋ˡ x ∶ sessNf S
-    → ReplaceAt Γ₀ x (B-Lin (sessNf (B i))) Γ₁
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+    → Γ₀ ∋ˡ x ∶ selectInNf v i P S
+    → ReplaceAt Γ₀ x (B-Lin (selectOutNf v i P S)) Γ₁
     → Γ₀ —ctx[ L-SendLab x i ]→ Γ₁
 
 data _⦂_⇒_ : ∀ {n k} → Label n k → Ctx [] n → Ctx [] n → Set where
@@ -446,10 +455,12 @@ data _⦂_⇒_ : ∀ {n k} → Label n k → Ctx [] n → Ctx [] n → Set where
     → AllUsed Γin′
     → L-SendVal x v ⦂ Γin ⇒ Γv
 
-  Label-SendLab : ∀ {n k} {x : Fin n} {Γin Γv : Ctx [] n} {i : Fin k}
-    → AllUsed Γin
-    → AllUsed Γv
-    → L-SendLab x i ⦂ Γin ⇒ Γv
+  Label-SendLab :
+    ∀ {n k} {x : Fin n} {Γin Γin′ : Ctx [] n} {i : Fin k}
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin} 
+    → Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′
+    → AllUsed Γin′
+    → L-SendLab x i ⦂ Γin ⇒ Γin′
 
   Label-Close : ∀ {n} {x : Fin n} {Γin Γv : Ctx [] n}
     → AllUsed Γin
@@ -542,15 +553,16 @@ data Compatible :
         (Ctx-Match mb x∈ rep) (Label-RecvLab auin au)
 
   Compat-Select :
-    ∀ {n k} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
-      {S : NfTy [] SLin} {B : Fin k → NfTy [] SLin}
-      {sb : SelectBranches S B}
-      {x∈ : Γ₀ ∋ˡ x ∶ sessNf S}
-      {rep : ReplaceAt Γ₀ x (B-Lin (sessNf (B i))) Γ₁}
-      {Γv : Ctx [] n} {auin : AllUsed Γin} {au : AllUsed Γv}
-    → allUsedCtx Γ₀ ≡ Γin
+    ∀ {n k} {Γ₀ Γin Γin′ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+      {x∈ : Γ₀ ∋ˡ x ∶ selectInNf v i P S}
+      {rep : ReplaceAt Γ₀ x (B-Lin (selectOutNf v i P S)) Γ₁}
+      {take : Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′}
+      {au : AllUsed Γin′}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendLab x i}
-        (Ctx-Select sb x∈ rep) (Label-SendLab auin au)
+        (Ctx-Select {v = v} {P = P} {S = S} x∈ rep)
+        {Γin = Γin} {Γv = Γin′}
+        (Label-SendLab {v = v} {P = P} {S = S} take au)
 
 data InputCompatible :
   ∀ {n k}
@@ -606,10 +618,13 @@ data InputCompatible :
     → InputCompatible Γ₀ {ℓ = L-SendVal x v} (Label-SendVal take dv auv)
 
   IC-SendLab :
-    ∀ {n k} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {i : Fin k}
-      {auin : AllUsed Γin} {auv : AllUsed Γv}
-    → allUsedCtx Γ₀ ≡ Γin
-    → InputCompatible Γ₀ {ℓ = L-SendLab x i} (Label-SendLab auin auv)
+    ∀ {n k} {Γ₀ Γin Γr Γin′ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+      {take : Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′}
+      {au : AllUsed Γin′}
+    → RemoveCtx Γ₀ Γin Γr
+    → InputCompatible Γ₀ {Γin = Γin} {Γv = Γin′} {ℓ = L-SendLab x i}
+        (Label-SendLab {v = v} {P = P} {S = S} take au)
 
   IC-Close :
     ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n}
@@ -659,9 +674,12 @@ data Extract : ∀ {n k} → Ctx [] n → Label n k → Ctx [] n → Set where
 
   Ex-SendLab :
     ∀ {n k}
-      {Γ₀ : Ctx [] n}
+      {Γ₀ Γin Γr Γin′ : Ctx [] n}
       {x : Fin n} {i : Fin k}
-    → Extract Γ₀ (L-SendLab x i) (allUsedCtx Γ₀)
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+    → RemoveCtx Γ₀ Γin Γr
+    → Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′
+    → Extract Γ₀ (L-SendLab x i) Γin
 
   Ex-Close :
     ∀ {n}
@@ -681,7 +699,7 @@ extract-remove Ex-New = _ , remove-allUsedCtx _
 extract-remove (Ex-RecvVal rm _ _) = _ , rm
 extract-remove Ex-RecvLab = _ , remove-allUsedCtx _
 extract-remove (Ex-SendVal rm _ _ _) = _ , rm
-extract-remove Ex-SendLab = _ , remove-allUsedCtx _
+extract-remove (Ex-SendLab rm _) = _ , rm
 extract-remove Ex-Close = _ , remove-allUsedCtx _
 
 extract-disjoint-active :
@@ -738,8 +756,8 @@ ctx-step-preserves-disjoint
   ld0 ldv =
   replace-preserves-disjoint x∈ ld0 rep
 ctx-step-preserves-disjoint
-  (Ctx-Select _ x∈ rep)
-  (Label-SendLab _ _)
-  (Compat-Select _)
+  (Ctx-Select {P = P} {S = S} x∈ rep)
+  (Label-SendLab {v = v} {P = P} {S = S} _ _)
+  (Compat-Select {v = v} {P = P} {S = S})
   ld0 ldv =
   replace-preserves-disjoint x∈ ld0 rep

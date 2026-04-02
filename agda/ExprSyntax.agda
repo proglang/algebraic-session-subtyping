@@ -24,7 +24,7 @@ data Const : Set where
   C-New       : Const
   C-Receive   : Const
   C-Send      : Const
-  C-Select    : ∀ {k} → Fin k → Const
+  C-Select    : ∀ {k} → Variance → Fin k → Const
   C-Close     : Const
 
 mutual
@@ -41,7 +41,8 @@ mutual
     V-Send₁    : Ty Δ TLin → Value Δ n
     V-Send₂    : Ty Δ TLin → Ty Δ SLin → Value Δ n
     V-Send₃    : Ty Δ TLin → Ty Δ SLin → Value Δ n → Value Δ n
-    V-Selectᵀ  : ∀ {k} → Fin k → List (TyArg Δ) → Value Δ n
+    V-Select₁  : ∀ {k} → Variance → Fin k → Ty Δ KP → Value Δ n
+    V-Select₂  : ∀ {k} → Variance → Fin k → Ty Δ KP → Ty Δ SLin → Value Δ n
 
   data Expr (Δ : List Kind) (n : ℕ) : Set where
     E-Val     : Value Δ n → Expr Δ n

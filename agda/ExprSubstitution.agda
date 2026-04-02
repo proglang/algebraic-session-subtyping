@@ -44,7 +44,8 @@ mutual
   renameValue ρ (V-Send₁ T) = V-Send₁ T
   renameValue ρ (V-Send₂ T S) = V-Send₂ T S
   renameValue ρ (V-Send₃ T S v) = V-Send₃ T S (renameValue ρ v)
-  renameValue ρ (V-Selectᵀ i args) = V-Selectᵀ i args
+  renameValue ρ (V-Select₁ v i P) = V-Select₁ v i P
+  renameValue ρ (V-Select₂ v i P S) = V-Select₂ v i P S
 
   renameExpr : ∀ {Δ n m} → Ren {n} {m} → Expr Δ n → Expr Δ m
   renameExpr ρ (E-Val v) = E-Val (renameValue ρ v)
@@ -79,7 +80,8 @@ mutual
   renTyValue ϕ (V-Send₁ T) = V-Send₁ (T ⋯ ϕ)
   renTyValue ϕ (V-Send₂ T S) = V-Send₂ (T ⋯ ϕ) (S ⋯ ϕ)
   renTyValue ϕ (V-Send₃ T S v) = V-Send₃ (T ⋯ ϕ) (S ⋯ ϕ) (renTyValue ϕ v)
-  renTyValue ϕ (V-Selectᵀ i args) = V-Selectᵀ i (renTyArgs ϕ args)
+  renTyValue ϕ (V-Select₁ v i P) = V-Select₁ v i (P ⋯ ϕ)
+  renTyValue ϕ (V-Select₂ v i P S) = V-Select₂ v i (P ⋯ ϕ) (S ⋯ ϕ)
 
   renTyExpr : ∀ {Δ Δ′ n} → (ϕ : Δ →ᵣ Δ′) → Expr Δ n → Expr Δ′ n
   renTyExpr ϕ (E-Val v) = E-Val (renTyValue ϕ v)
@@ -129,7 +131,8 @@ mutual
   substValueWith σ (V-Send₁ T) = V-Send₁ T
   substValueWith σ (V-Send₂ T S) = V-Send₂ T S
   substValueWith σ (V-Send₃ T S v) = V-Send₃ T S (substValueWith σ v)
-  substValueWith σ (V-Selectᵀ i args) = V-Selectᵀ i args
+  substValueWith σ (V-Select₁ v i P) = V-Select₁ v i P
+  substValueWith σ (V-Select₂ v i P S) = V-Select₂ v i P S
 
   substExprWith : ∀ {Δ n m} → Sub Δ {n} {m} → Expr Δ n → Expr Δ m
   substExprWith σ (E-Val v) = E-Val (substValueWith σ v)
@@ -170,7 +173,8 @@ mutual
   substTyValueWith ϕ (V-Send₁ T) = V-Send₁ (T ⋯ ϕ)
   substTyValueWith ϕ (V-Send₂ T S) = V-Send₂ (T ⋯ ϕ) (S ⋯ ϕ)
   substTyValueWith ϕ (V-Send₃ T S v) = V-Send₃ (T ⋯ ϕ) (S ⋯ ϕ) (substTyValueWith ϕ v)
-  substTyValueWith ϕ (V-Selectᵀ i args) = V-Selectᵀ i (substTyArgsWith ϕ args)
+  substTyValueWith ϕ (V-Select₁ v i P) = V-Select₁ v i (P ⋯ ϕ)
+  substTyValueWith ϕ (V-Select₂ v i P S) = V-Select₂ v i (P ⋯ ϕ) (S ⋯ ϕ)
 
   substTyExprWith : ∀ {Δ Δ′ n} → (ϕ : Δ →ₛ Δ′) → Expr Δ n → Expr Δ′ n
   substTyExprWith ϕ (E-Val v) = E-Val (substTyValueWith ϕ v)
