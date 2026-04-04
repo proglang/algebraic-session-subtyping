@@ -43,14 +43,14 @@ data _<:ₜ_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → NormalTy T₂
   <:ₜ-base : N-Base{Δ = Δ} <:ₜ N-Base
   <:ₜ-arrow : ∀ {≤pk : KM ≤p pk} {m} {T₁ : Ty Δ _}{U₁}{T₂}{U₂}
                {M₁ : NormalTy T₁}{N₁ : NormalTy U₁}{M₂ : NormalTy T₂}{N₂ : NormalTy U₂}
-        → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow{km = ≤pk}{m} M₁ N₁) <:ₜ (N-Arrow{km = ≤pk}{m} M₂ N₂)
+        → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow ≤pk {m} M₁ N₁) <:ₜ (N-Arrow ≤pk {m} M₂ N₂)
   <:ₜ-pair : ∀ {m} {T₁ : Ty Δ (KV pk₁ m)} {U₁ : Ty Δ (KV pk₂ m)} {T₂ : Ty Δ (KV pk₁ m)} {U₂ : Ty Δ (KV pk₂ m)}
                {M₁ : NormalTy T₁}{N₁ : NormalTy U₁}{M₂ : NormalTy T₂}{N₂ : NormalTy U₂}
         → M₁ <:ₜ M₂ → N₁ <:ₜ N₂ → N-Pair M₁ N₁ <:ₜ N-Pair M₂ N₂
   <:ₜ-poly : ∀ {m}{K′}{T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} {N₁ : NormalTy T₁} {N₂ : NormalTy T₂}
-        → N₁ <:ₜ N₂ → N-Poly N₁ <:ₜ N-Poly N₂
+        → N₁ <:ₜ N₂ → N-Poly K′ N₁ <:ₜ N-Poly K′ N₂
   <:ₜ-sub : ∀ {km≤ : KV pk m ≤k KV pk′ m′}{T₁ T₂ : Ty Δ (KV pk m)}{N₁ : NormalTy T₁}{N₂ : NormalTy T₂}
-          → N₁ <:ₜ N₂ → N-Sub{km≤ = km≤} N₁ <:ₜ N-Sub{km≤ = km≤} N₂
+          → N₁ <:ₜ N₂ → N-Sub km≤ N₁ <:ₜ N-Sub km≤ N₂
   <:ₜ-end : N-End{Δ = Δ} <:ₜ N-End
   <:ₜ-msg : ∀ {p} {P₁ P₂ : Ty Δ KP}{S₁ S₂ : Ty Δ (KV KS Lin)}
           {NP₁ : NormalProto′ P₁}{NP₂ : NormalProto′ P₂}{NS₁ : NormalTy S₁} {NS₂ : NormalTy S₂}
@@ -63,7 +63,7 @@ data _<:ₚ′_ where
   <:ₚ′-proto : ∀{P₁ P₂ : Ty Δ KP} {N₁ : NormalProto P₁}{N₂ : NormalProto P₂}
     → #c₁ ⊆ #c₂
     → N₁ <<:ₚ[ ⊙ ] N₂
-    → N-ProtoP{#c = #c₁}{⊙ = ⊙} N₁ <:ₚ′ N-ProtoP{#c = #c₂}{⊙ = ⊙} N₂
+    → N-ProtoP #c₁ ⊙ N₁ <:ₚ′ N-ProtoP #c₂ ⊙ N₂
   <:ₚ′-up : ∀ {T₁ T₂ : Ty Δ (KV pk m)}{N₁ : NormalTy T₁}{N₂ : NormalTy T₂}
     → N₁ <:ₜ N₂
     → N-Up N₁ <:ₚ′ N-Up N₂
@@ -84,7 +84,7 @@ data _<:ₚ_ where
 <<:ₚ-refl : ∀ {T : Ty Δ KP}(NP : NormalProto T) → NP <<:ₚ[ ⊙ ] NP
 <<:ₚ′-refl : ∀ {T : Ty Δ KP}(NP : NormalProto′ T) → NP <<:ₚ′[ ⊙ ] NP
 
-<:ₚ′-refl (N-ProtoP NP) = <:ₚ′-proto (λ {x} z → z) (<<:ₚ-refl NP)
+<:ₚ′-refl (N-ProtoP #c ⊙ NP) = <:ₚ′-proto {#c₁ = #c} {#c₂ = #c} {⊙ = ⊙} (λ {x} z → z) (<<:ₚ-refl NP)
 <:ₚ′-refl (N-Up N) = <:ₚ′-up (<:ₜ-refl N)
 <:ₚ′-refl N-Var = <:ₚ′-var
 
@@ -103,10 +103,10 @@ data _<:ₚ_ where
 
 <:ₜ-refl (N-Var x) = <:ₜ-var
 <:ₜ-refl N-Base = <:ₜ-base
-<:ₜ-refl (N-Arrow N N₁) = <:ₜ-arrow (<:ₜ-refl N) (<:ₜ-refl N₁)
+<:ₜ-refl (N-Arrow _ N N₁) = <:ₜ-arrow (<:ₜ-refl N) (<:ₜ-refl N₁)
 <:ₜ-refl (N-Pair N N₁) = <:ₜ-pair (<:ₜ-refl N) (<:ₜ-refl N₁)
-<:ₜ-refl (N-Poly N) = <:ₜ-poly (<:ₜ-refl N)
-<:ₜ-refl (N-Sub N) = <:ₜ-sub (<:ₜ-refl N)
+<:ₜ-refl (N-Poly _ N) = <:ₜ-poly (<:ₜ-refl N)
+<:ₜ-refl (N-Sub _ N) = <:ₜ-sub (<:ₜ-refl N)
 <:ₜ-refl N-End = <:ₜ-end
 <:ₜ-refl (N-Msg p NP N) = <:ₜ-msg (<<:ₚ′-refl NP) (<:ₜ-refl N)
 <:ₜ-refl (N-ProtoD N) = <:ₜ-data (<:ₜ-refl N)
@@ -184,12 +184,12 @@ N₁ <<:ₜ[ ⊝ ] N₂ = N₂ <:ₜ N₁
 <<:ₜ-end {p = ⊝} = <:ₜ-end
 
 <<:ₜ-sub : ∀ {f₁ f₂} {N₁ : NormalTy (nf p f₁ T₁)}{N₂ : NormalTy (nf p f₂ T₂)}
-  → {km≤ : KV pk m ≤k KV pk′ m′} → N₁ <<:ₜ[ p ] N₂ → N-Sub {pk = pk}{m = m}{km≤ = km≤} N₁ <<:ₜ[ p ] N-Sub{pk = pk}{m = m}{km≤ = km≤} N₂
+  → {km≤ : KV pk m ≤k KV pk′ m′} → N₁ <<:ₜ[ p ] N₂ → N-Sub {pk = pk}{m = m} km≤ N₁ <<:ₜ[ p ] N-Sub {pk = pk}{m = m} km≤ N₂
 <<:ₜ-sub {⊕} N₁<:N₂ = <:ₜ-sub N₁<:N₂
 <<:ₜ-sub {⊝} N₁<:N₂ = <:ₜ-sub N₁<:N₂
 
 <<:ₜ-sub-invert : ∀ {f₁ f₂} {N₁ : NormalTy (nf (invert p) f₁ T₁)}{N₂ : NormalTy (nf (invert p) f₂ T₂)}
-  → {km≤ : KV pk m ≤k KV pk′ m′} → N₁ <<:ₜ[ p ] N₂ → N-Sub {pk = pk}{m = m}{km≤ = km≤} N₁ <<:ₜ[ p ] N-Sub{pk = pk}{m = m}{km≤ = km≤} N₂
+  → {km≤ : KV pk m ≤k KV pk′ m′} → N₁ <<:ₜ[ p ] N₂ → N-Sub {pk = pk}{m = m} km≤ N₁ <<:ₜ[ p ] N-Sub {pk = pk}{m = m} km≤ N₂
 <<:ₜ-sub-invert {⊕} N₁<:N₂ = <:ₜ-sub N₁<:N₂
 <<:ₜ-sub-invert {⊝} N₁<:N₂ = <:ₜ-sub N₁<:N₂
 

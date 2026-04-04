@@ -69,16 +69,16 @@ ren-pres-normalTy :
 ren-pres-normalProto ρ (N-Normal NP) = N-Normal (ren-pres-normalProto′ ρ NP)
 ren-pres-normalProto ρ (N-Minus NP) = N-Minus (ren-pres-normalProto′ ρ NP)
 
-ren-pres-normalProto′ ρ (N-ProtoP NP) = N-ProtoP (ren-pres-normalProto ρ NP)
+ren-pres-normalProto′ ρ (N-ProtoP #c ⊙ NP) = N-ProtoP #c ⊙ (ren-pres-normalProto ρ NP)
 ren-pres-normalProto′ ρ (N-Up NT) = N-Up (ren-pres-normalTy ρ NT)
 ren-pres-normalProto′ ρ N-Var = N-Var
 
 ren-pres-normalTy ρ (N-Var NV) = N-Var (ren-pres-normalVar ρ NV)
 ren-pres-normalTy ρ N-Base = N-Base
-ren-pres-normalTy ρ (N-Arrow N₁ N₂) = N-Arrow (ren-pres-normalTy ρ N₁) (ren-pres-normalTy ρ N₂)
+ren-pres-normalTy ρ (N-Arrow km N₁ N₂) = N-Arrow km (ren-pres-normalTy ρ N₁) (ren-pres-normalTy ρ N₂)
 ren-pres-normalTy ρ (N-Pair N₁ N₂) = N-Pair (ren-pres-normalTy ρ N₁) (ren-pres-normalTy ρ N₂)
-ren-pres-normalTy ρ (N-Poly N) = N-Poly (ren-pres-normalTy (ρ ↑ᵣ _) N)
-ren-pres-normalTy ρ (N-Sub N) = N-Sub (ren-pres-normalTy ρ N)
+ren-pres-normalTy ρ (N-Poly K′ N) = N-Poly K′ (ren-pres-normalTy (ρ ↑ᵣ _) N)
+ren-pres-normalTy ρ (N-Sub km≤ N) = N-Sub km≤ (ren-pres-normalTy ρ N)
 ren-pres-normalTy ρ N-End = N-End
 ren-pres-normalTy ρ (N-Msg p NP NS) = N-Msg p (ren-pres-normalProto′ ρ NP) (ren-pres-normalTy ρ NS)
 ren-pres-normalTy ρ (N-ProtoD N) = N-ProtoD (ren-pres-normalTy ρ N)
@@ -132,7 +132,7 @@ LinArr : Ty Δ TLin → Ty Δ TLin → Ty Δ TLin
 LinArr = T-Arrow {pk = KT} {m = Lin} (≤p-step <p-mt)
 
 linArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ TLin
-linArrNf (mkNfTy T NT) (mkNfTy U NU) = mkNfTy (LinArr T U) (N-Arrow NT NU)
+linArrNf (mkNfTy T NT) (mkNfTy U NU) = mkNfTy (LinArr T U) (N-Arrow (≤p-step <p-mt) NT NU)
 
 pairNf : ∀ {pk₁ pk₂ m}
   → NfTy Δ (KV pk₁ m)
@@ -141,7 +141,7 @@ pairNf : ∀ {pk₁ pk₂ m}
 pairNf (mkNfTy T NT) (mkNfTy U NU) = mkNfTy (T-Pair T U) (N-Pair NT NU)
 
 polyNf : NfTy (K ∷ Δ) (KV KT m) → NfTy Δ (KV KT m)
-polyNf (mkNfTy T NT) = mkNfTy (T-Poly T) (N-Poly NT)
+polyNf {K = K} (mkNfTy T NT) = mkNfTy (T-Poly K T) (N-Poly K NT)
 
 UnitLin : Ty Δ TLin
 UnitLin = T-Base
@@ -159,7 +159,7 @@ ForkTy : Ty Δ TLin
 ForkTy = LinArr (LinArr UnitLin UnitLin) UnitLin
 
 NewTy : Ty Δ TLin
-NewTy = T-Poly {K′ = SLin} {m = Lin}
+NewTy = T-Poly SLin
   (T-Pair (SessLin (T-Var (here refl)))
           (SessLin (T-Dual D-S (T-Var (here refl)))))
 
@@ -172,7 +172,7 @@ ReceiveTy T S = LinArr
   (T-Pair T (SessLin S))
 
 ReceiveTy1 : Ty Δ TLin → Ty Δ TLin
-ReceiveTy1 T = T-Poly {K′ = SLin} {m = Lin}
+ReceiveTy1 T = T-Poly SLin
   (ReceiveTy (wkTy {K′ = SLin} T) (T-Var (here refl)))
 
 SendTy : Ty Δ TLin → Ty Δ SLin → Ty Δ TLin
@@ -180,7 +180,7 @@ SendTy T S = LinArr T
   (LinArr (SessLin (T-Msg ⊕ (T-Up T) S)) (SessLin S))
 
 SendTy1 : Ty Δ TLin → Ty Δ TLin
-SendTy1 T = T-Poly {K′ = SLin} {m = Lin}
+SendTy1 T = T-Poly SLin
   (SendTy (wkTy {K′ = SLin} T) (T-Var (here refl)))
 
 postulate
@@ -210,9 +210,9 @@ data ConstTy {Δ} : Const → ∀ {K} → NfTy Δ K → Set where
   CT-Fork : ConstTy C-Fork (normalizeTy ForkTy)
   CT-New  : ConstTy C-New (normalizeTy NewTy)
   CT-Receive : ConstTy C-Receive
-    (normalizeTy (T-Poly {K′ = TLin} {m = Lin} (ReceiveTy1 (T-Var (here refl)))))
+    (normalizeTy (T-Poly TLin (ReceiveTy1 (T-Var (here refl)))))
   CT-Send : ConstTy C-Send
-    (normalizeTy (T-Poly {K′ = TLin} {m = Lin} (SendTy1 (T-Var (here refl)))))
+    (normalizeTy (T-Poly TLin (SendTy1 (T-Var (here refl)))))
   CT-Close : ConstTy C-Close (normalizeTy CloseTy)
   CT-Select : ∀ {k} {v : Variance} {i : Fin k}
     → ConstTy (C-Select v i) (normalizeTy (SelectConstTy v i))
@@ -544,7 +544,7 @@ polyNf-injective :
   → T₁ ≡ T₂
 tpoly-injective :
   ∀ {Δ K m} {T₁ T₂ : Ty (K ∷ Δ) (KV KT m)}
-  → T-Poly T₁ ≡ T-Poly T₂
+  → T-Poly K T₁ ≡ T-Poly K T₂
   → T₁ ≡ T₂
 tpoly-injective refl = refl
 

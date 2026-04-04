@@ -79,14 +79,14 @@ lub-joinₜ {T₁ = T₁} N₁ N₂ N₃ (<:ₜ-var {nv = NV-Dual D-S x}) <:ₜ-
 ... | yes (T , refl , refl)
   rewrite var-equal′ x = (T-Dual D-S (T-Var x)) , ((N-Var (NV-Dual D-S x)) , (<:ₜ-var , (<:ₜ-var , (refl , <:ₜ-var))))
 lub-joinₜ N₁ N₂ N₃ <:ₜ-base <:ₜ-base = T-Base , N-Base , <:ₜ-base , <:ₜ-base , refl , <:ₜ-base
-lub-joinₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁ N₃₂) (<:ₜ-arrow {≤pk = ≤pk} N₁<:N₃ N₁<:N₄) (<:ₜ-arrow N₂<:N₃ N₂<:N₄)
+lub-joinₜ (N-Arrow _ N₁₁ N₁₂) (N-Arrow _ N₂₁ N₂₂) (N-Arrow _ N₃₁ N₃₂) (<:ₜ-arrow {≤pk = ≤pk} N₁<:N₃ N₁<:N₄) (<:ₜ-arrow N₂<:N₃ N₂<:N₄)
   rewrite ≤p-irrelevant ≤pk ≤pk
   with glb-meetₜ N₂₁ N₁₁ N₃₁ N₂<:N₃ N₁<:N₃
 ... | Tdom , Ndom , <:₁₁ , <:₁₂ , meet≡ , <:₁₃
   with lub-joinₜ N₁₂ N₂₂ N₃₂ N₁<:N₄ N₂<:N₄
 ... | Tcod , Ncod , <:₂₁ , <:₂₂ , join≡ , <:₂₃
   rewrite meet≡ | join≡
-  = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
+  = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow ≤pk Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
 lub-joinₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₁<:N₃ N₁<:N₄) (<:ₜ-pair N₂<:N₃ N₂<:N₄)
   with lub-joinₜ N₁₁ N₂₁ N₃₁ N₁<:N₃ N₂<:N₃
 ... | Tfst , Nfst , <:₁₁ , <:₁₂ , join≡₁ , <:₁₃
@@ -97,12 +97,12 @@ lub-joinₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk
 lub-joinₜ N₁ N₂ N₃ (<:ₜ-poly {K′ = K′} N₁<:N₃) (<:ₜ-poly N₂<:N₃)
   with lub-joinₜ _ _ _ N₁<:N₃ N₂<:N₃
 ... | ( T , N , <:₁ , <:₂ , join≡ , N<:N₃)
-  rewrite eq-kind′ K′ | join≡ = (T-Poly T) , ((N-Poly N) , ((<:ₜ-poly <:₁) , ((<:ₜ-poly <:₂) , (refl , (<:ₜ-poly N<:N₃)))))
+  rewrite eq-kind′ K′ | join≡ = (T-Poly K′ T) , ((N-Poly K′ N) , ((<:ₜ-poly <:₁) , ((<:ₜ-poly <:₂) , (refl , (<:ₜ-poly N<:N₃)))))
 lub-joinₜ N₁ N₂ N₃ (<:ₜ-sub {pk = pk}{m = m}{km≤ = km≤} N₁<:N₃) (<:ₜ-sub N₂<:N₃)
   with lub-joinₜ _ _ _ N₁<:N₃ N₂<:N₃
 ... | ( T , N , <:₁ , <:₂ , join≡ , N<:N₃)
   rewrite eq-prekind′ pk | eq-multiplicity′ m | ≤k-irrelevant km≤ km≤ | join≡
-  = T-Sub km≤ T , (N-Sub N) , ((<:ₜ-sub <:₁) , ((<:ₜ-sub <:₂) , (refl , (<:ₜ-sub N<:N₃))))
+  = T-Sub km≤ T , (N-Sub km≤ N) , ((<:ₜ-sub <:₁) , ((<:ₜ-sub <:₂) , (refl , (<:ₜ-sub N<:N₃))))
 lub-joinₜ N₁ N₂ N₃ <:ₜ-end <:ₜ-end = T-End , N-End , <:ₜ-end , <:ₜ-end , refl , <:ₜ-end
 lub-joinₜ (N-Msg ⊕ NP₁ NS₁) (N-Msg ⊕ NP₂ NS₂) (N-Msg ⊕ NP₃ NS₃) (<:ₜ-msg {p = ⊕} NP₁<<:NP₃ NS₁<:NS₃) (<:ₜ-msg NP₂<<:NP₃ NS₂<:NS₃)
   with glb-meetₚ′ NP₁ NP₂ NP₃ NP₁<<:NP₃ NP₂<<:NP₃
@@ -124,7 +124,7 @@ lub-joinₜ N₁ N₂ N₃ (<:ₜ-data N₁<:N₃) (<:ₜ-data N₂<:N₃)
   rewrite join≡ = (T-ProtoD T) , (N-ProtoD N , (<:ₜ-data <:₁) , ((<:ₜ-data <:₂) , (refl , <:ₜ-data N<:N₃)))
 
 lub-joinₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊕ T₁} {T₂ = T-ProtoP {k = .k} #c₂ ⊕ T₂} {T₃ = T-ProtoP {k = .k} #c₃ ⊕ T₃}
-           (N-ProtoP {#c = #c₁} {⊙ = ⊕} N₁) (N-ProtoP {#c = #c₂} N₂) (N-ProtoP {#c = #c₃} N₃) (<:ₚ′-proto #c₁⊆#c₃ N₁<<:N₃) (<:ₚ′-proto #c₂⊆#c₃ N₂<<:N₃)
+           (N-ProtoP #c₁ ⊕ N₁) (N-ProtoP #c₂ ⊕ N₂) (N-ProtoP #c₃ ⊕ N₃) (<:ₚ′-proto #c₁⊆#c₃ N₁<<:N₃) (<:ₚ′-proto #c₂⊆#c₃ N₂<<:N₃)
   with k ≟ k
 ... | no k≢k = ⊥-elim (k≢k refl)
 ... | yes refl
@@ -134,9 +134,9 @@ lub-joinₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊕ T₁} {T₂ = T-ProtoP {k = .k
   with lub-joinₚ N₁ N₂ N₃ N₁<<:N₃ N₂<<:N₃
 ... | ( T , N , <:₁ , <:₂ , join≡ , N<:N₃)
   rewrite join≡
-  = (T-ProtoP (#c₁ ∪ #c₂) ⊕ T) , (N-ProtoP N) , ((<:ₚ′-proto (p⊆p∪q #c₂) <:₁) , ((<:ₚ′-proto (q⊆p∪q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (∪-lub #c₁⊆#c₃ #c₂⊆#c₃) N<:N₃))))
+  = (T-ProtoP (#c₁ ∪ #c₂) ⊕ T) , (N-ProtoP (#c₁ ∪ #c₂) ⊕ N) , ((<:ₚ′-proto (p⊆p∪q #c₂) <:₁) , ((<:ₚ′-proto (q⊆p∪q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (∪-lub #c₁⊆#c₃ #c₂⊆#c₃) N<:N₃))))
 lub-joinₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊝ T₁} {T₂ = T-ProtoP {k = .k} #c₂ ⊝ T₂} {T₃ = T-ProtoP {k = .k} #c₃ ⊝ T₃}
-           (N-ProtoP {#c = #c₁} {⊙ = ⊝} N₁) (N-ProtoP {#c = #c₂} N₂) (N-ProtoP {#c = #c₃} N₃) (<:ₚ′-proto #c₁⊆#c₃ N₁<<:N₃) (<:ₚ′-proto #c₂⊆#c₃ N₂<<:N₃)
+           (N-ProtoP #c₁ ⊝ N₁) (N-ProtoP #c₂ ⊝ N₂) (N-ProtoP #c₃ ⊝ N₃) (<:ₚ′-proto #c₁⊆#c₃ N₁<<:N₃) (<:ₚ′-proto #c₂⊆#c₃ N₂<<:N₃)
   with k ≟ k
 ... | no k≢k = ⊥-elim (k≢k refl)
 ... | yes refl
@@ -146,9 +146,9 @@ lub-joinₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊝ T₁} {T₂ = T-ProtoP {k = .k
   with glb-meetₚ N₁ N₂ N₃ N₁<<:N₃ N₂<<:N₃
 ... | ( T , N , <:₁ , <:₂ , meet≡ , N₃<:N)
   rewrite meet≡
-  = (T-ProtoP (#c₁ ∪ #c₂) ⊝ T) , (N-ProtoP N) , ((<:ₚ′-proto (p⊆p∪q #c₂) <:₁) , ((<:ₚ′-proto (q⊆p∪q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (∪-lub #c₁⊆#c₃ #c₂⊆#c₃) N₃<:N))))
+  = (T-ProtoP (#c₁ ∪ #c₂) ⊝ T) , (N-ProtoP (#c₁ ∪ #c₂) ⊝ N) , ((<:ₚ′-proto (p⊆p∪q #c₂) <:₁) , ((<:ₚ′-proto (q⊆p∪q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (∪-lub #c₁⊆#c₃ #c₂⊆#c₃) N₃<:N))))
 lub-joinₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊘ T₁} {T₂ = T-ProtoP {k = .k} #c₂ ⊘ .T₁} {T₃ = T-ProtoP {k = .k} #c₃ ⊘ .T₁}
-           (N-ProtoP {#c = #c₁} {⊙ = ⊘} N₁) (N-ProtoP {#c = #c₂} N₂) (N-ProtoP {#c = #c₃} N₃) (<:ₚ′-proto #c₁⊆#c₃ refl) (<:ₚ′-proto #c₂⊆#c₃ refl)
+           (N-ProtoP #c₁ ⊘ N₁) (N-ProtoP #c₂ ⊘ N₂) (N-ProtoP #c₃ ⊘ N₃) (<:ₚ′-proto #c₁⊆#c₃ refl) (<:ₚ′-proto #c₂⊆#c₃ refl)
   with k ≟ k
 ... | no k≢k = ⊥-elim (k≢k refl)
 ... | yes refl
@@ -158,7 +158,7 @@ lub-joinₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊘ T₁} {T₂ = T-ProtoP {k = .k
   with ty-equal T₁ T₁
 ... | no T₁≢T₁ = ⊥-elim (T₁≢T₁ refl)
 ... | yes refl
-  = (T-ProtoP (#c₁ ∪ #c₂) ⊘ T₁) , (N-ProtoP N₁) , ((<:ₚ′-proto (p⊆p∪q #c₂) refl) , ((<:ₚ′-proto (q⊆p∪q #c₁ #c₂) refl) , (refl , (<:ₚ′-proto (∪-lub #c₁⊆#c₃ #c₂⊆#c₃) refl))))
+  = (T-ProtoP (#c₁ ∪ #c₂) ⊘ T₁) , (N-ProtoP (#c₁ ∪ #c₂) ⊘ N₁) , ((<:ₚ′-proto (p⊆p∪q #c₂) refl) , ((<:ₚ′-proto (q⊆p∪q #c₁ #c₂) refl) , (refl , (<:ₚ′-proto (∪-lub #c₁⊆#c₃ #c₂⊆#c₃) refl))))
 lub-joinₚ′ (N-Up N₁) (N-Up N₂) (N-Up N₃) (<:ₚ′-up {pk = pk}{m = m} N₁<:N₃) (<:ₚ′-up N₂<:N₃)
   with lub-joinₜ N₁ N₂ N₃ N₁<:N₃ N₂<:N₃
 ... | ( T , N , <:₁ , <:₂ , join≡ , N<:N₃)
@@ -189,14 +189,14 @@ glb-meetₜ {T₁ = T₁} (N-Var (NV-Dual D-S x)) (N-Var (NV-Dual D-S x)) (N-Var
 ... | yes (T , refl , refl)
   rewrite var-equal′ x = (T-Dual D-S (T-Var x)) , ((N-Var (NV-Dual D-S x)) , (<:ₜ-var , (<:ₜ-var , (refl , <:ₜ-var))))
 glb-meetₜ N₁ N₂ N₃ <:ₜ-base <:ₜ-base = T-Base , N-Base , <:ₜ-base , <:ₜ-base , refl , <:ₜ-base
-glb-meetₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁ N₃₂) (<:ₜ-arrow {≤pk = ≤pk} N₁<:N₃ N₃<:N₄) (<:ₜ-arrow N₂<:N₃ N₃<:N₅)
+glb-meetₜ (N-Arrow _ N₁₁ N₁₂) (N-Arrow _ N₂₁ N₂₂) (N-Arrow _ N₃₁ N₃₂) (<:ₜ-arrow {≤pk = ≤pk} N₁<:N₃ N₃<:N₄) (<:ₜ-arrow N₂<:N₃ N₃<:N₅)
   rewrite ≤p-irrelevant ≤pk ≤pk
   with lub-joinₜ N₂₁ N₁₁ N₃₁ N₂<:N₃ N₁<:N₃
 ... | Tdom , Ndom , <:₁₁ , <:₁₂ , join≡ , <:₁₃
   with glb-meetₜ N₁₂ N₂₂ N₃₂ N₃<:N₄ N₃<:N₅
 ... | Tcod , Ncod , <:₂₁ , <:₂₂ , meet≡ , <:₂₃
   rewrite join≡ | meet≡
-  = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
+  = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow ≤pk Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
 glb-meetₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₃<:N₁ N₃<:N₂) (<:ₜ-pair N₃<:N₄ N₃<:N₅)
   with glb-meetₜ N₁₁ N₂₁ N₃₁ N₃<:N₁ N₃<:N₄
 ... | Tfst , Nfst , <:₁₁ , <:₁₂ , meet≡₁ , <:₁₃
@@ -207,12 +207,12 @@ glb-meetₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk
 glb-meetₜ N₁ N₂ N₃ (<:ₜ-poly {K′ = K′} N₃<:N₁) (<:ₜ-poly N₃<:N₂)
   with glb-meetₜ _ _ _ N₃<:N₁ N₃<:N₂
 ... | ( T , N , <:₁ , <:₂ , meet≡ , N₃<:N)
-  rewrite eq-kind′ K′ | meet≡ = (T-Poly T) , ((N-Poly N) , ((<:ₜ-poly <:₁) , ((<:ₜ-poly <:₂) , (refl , (<:ₜ-poly N₃<:N)))))
+  rewrite eq-kind′ K′ | meet≡ = (T-Poly K′ T) , ((N-Poly K′ N) , ((<:ₜ-poly <:₁) , ((<:ₜ-poly <:₂) , (refl , (<:ₜ-poly N₃<:N)))))
 glb-meetₜ N₁ N₂ N₃ (<:ₜ-sub {pk = pk}{m = m}{km≤ = km≤} N₃<:N₁) (<:ₜ-sub N₃<:N₂)
   with glb-meetₜ _ _ _ N₃<:N₁ N₃<:N₂
 ... | ( T , N , <:₁ , <:₂ , meet≡ , N₃<:N)
   rewrite eq-prekind′ pk | eq-multiplicity′ m | ≤k-irrelevant km≤ km≤ | meet≡
-  = T-Sub km≤ T , (N-Sub N) , ((<:ₜ-sub <:₁) , ((<:ₜ-sub <:₂) , (refl , (<:ₜ-sub N₃<:N))))
+  = T-Sub km≤ T , (N-Sub km≤ N) , ((<:ₜ-sub <:₁) , ((<:ₜ-sub <:₂) , (refl , (<:ₜ-sub N₃<:N))))
 glb-meetₜ N₁ N₂ N₃ <:ₜ-end <:ₜ-end = T-End , N-End , <:ₜ-end , <:ₜ-end , refl , <:ₜ-end
 glb-meetₜ (N-Msg ⊕ NP₁ NS₁) (N-Msg ⊕ NP₂ NS₂) (N-Msg ⊕ NP₃ NS₃) (<:ₜ-msg {p = ⊕} NP₃<<:NP₁ NS₃<:NS₁) (<:ₜ-msg NP₃<<:NP₂ NS₃<:NS₂)
   with lub-joinₚ′ NP₁ NP₂ NP₃ NP₃<<:NP₁ NP₃<<:NP₂
@@ -234,7 +234,7 @@ glb-meetₜ N₁ N₂ N₃ (<:ₜ-data N₃<:N₁) (<:ₜ-data N₃<:N₂)
   rewrite meet≡ = (T-ProtoD T) , (N-ProtoD N , (<:ₜ-data <:₁) , ((<:ₜ-data <:₂) , (refl , <:ₜ-data N₃<:N)))
 
 glb-meetₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊕ T₁} {T₂ = T-ProtoP {k = .k} #c₂ ⊕ T₂} {T₃ = T-ProtoP {k = .k} #c₃ ⊕ T₃}
-           (N-ProtoP {#c = #c₁} {⊙ = ⊕} N₁) (N-ProtoP {#c = #c₂} N₂) (N-ProtoP {#c = #c₃} N₃) (<:ₚ′-proto #c₃⊆#c₁ N₃<<:N₁) (<:ₚ′-proto #c₃⊆#c₂ N₃<<:N₂)
+           (N-ProtoP #c₁ ⊕ N₁) (N-ProtoP #c₂ ⊕ N₂) (N-ProtoP #c₃ ⊕ N₃) (<:ₚ′-proto #c₃⊆#c₁ N₃<<:N₁) (<:ₚ′-proto #c₃⊆#c₂ N₃<<:N₂)
   with k ≟ k
 ... | no k≢k = ⊥-elim (k≢k refl)
 ... | yes refl
@@ -244,9 +244,9 @@ glb-meetₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊕ T₁} {T₂ = T-ProtoP {k = .k
   with glb-meetₚ N₁ N₂ N₃ N₃<<:N₁ N₃<<:N₂
 ... | ( T , N , <:₁ , <:₂ , meet≡ , N₃<:N)
   rewrite meet≡
-  = (T-ProtoP (#c₁ ∩ #c₂) ⊕ T) , (N-ProtoP N) , ((<:ₚ′-proto (p∩q⊆p #c₁ #c₂) <:₁) , ((<:ₚ′-proto (p∩q⊆q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (⊆-∩ #c₃⊆#c₁ #c₃⊆#c₂) N₃<:N))))
+  = (T-ProtoP (#c₁ ∩ #c₂) ⊕ T) , (N-ProtoP (#c₁ ∩ #c₂) ⊕ N) , ((<:ₚ′-proto (p∩q⊆p #c₁ #c₂) <:₁) , ((<:ₚ′-proto (p∩q⊆q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (⊆-∩ #c₃⊆#c₁ #c₃⊆#c₂) N₃<:N))))
 glb-meetₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊝ T₁} {T₂ = T-ProtoP {k = .k} #c₂ ⊝ T₂} {T₃ = T-ProtoP {k = .k} #c₃ ⊝ T₃}
-           (N-ProtoP {#c = #c₁} {⊙ = ⊝} N₁) (N-ProtoP {#c = #c₂} N₂) (N-ProtoP {#c = #c₃} N₃) (<:ₚ′-proto #c₃⊆#c₁ N₁<:N₃) (<:ₚ′-proto #c₃⊆#c₂ N₂<:N₃)
+           (N-ProtoP #c₁ ⊝ N₁) (N-ProtoP #c₂ ⊝ N₂) (N-ProtoP #c₃ ⊝ N₃) (<:ₚ′-proto #c₃⊆#c₁ N₁<:N₃) (<:ₚ′-proto #c₃⊆#c₂ N₂<:N₃)
   with k ≟ k
 ... | no k≢k = ⊥-elim (k≢k refl)
 ... | yes refl
@@ -256,9 +256,9 @@ glb-meetₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊝ T₁} {T₂ = T-ProtoP {k = .k
   with lub-joinₚ N₁ N₂ N₃ N₁<:N₃ N₂<:N₃
 ... | ( T , N , <:₁ , <:₂ , join≡ , N<:N₃)
   rewrite join≡
-  = (T-ProtoP (#c₁ ∩ #c₂) ⊝ T) , (N-ProtoP N) , ((<:ₚ′-proto (p∩q⊆p #c₁ #c₂) <:₁) , ((<:ₚ′-proto (p∩q⊆q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (⊆-∩ #c₃⊆#c₁ #c₃⊆#c₂) N<:N₃))))
+  = (T-ProtoP (#c₁ ∩ #c₂) ⊝ T) , (N-ProtoP (#c₁ ∩ #c₂) ⊝ N) , ((<:ₚ′-proto (p∩q⊆p #c₁ #c₂) <:₁) , ((<:ₚ′-proto (p∩q⊆q #c₁ #c₂) <:₂) , (refl , (<:ₚ′-proto (⊆-∩ #c₃⊆#c₁ #c₃⊆#c₂) N<:N₃))))
 glb-meetₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊘ T₁} {T₂ = T-ProtoP {k = .k} #c₂ ⊘ .T₁} {T₃ = T-ProtoP {k = .k} #c₃ ⊘ .T₁}
-           (N-ProtoP {#c = #c₁} {⊙ = ⊘} N₁) (N-ProtoP {#c = #c₂} N₂) (N-ProtoP {#c = #c₃} N₃) (<:ₚ′-proto #c₃⊆#c₁ refl) (<:ₚ′-proto #c₃⊆#c₂ refl)
+           (N-ProtoP #c₁ ⊘ N₁) (N-ProtoP #c₂ ⊘ N₂) (N-ProtoP #c₃ ⊘ N₃) (<:ₚ′-proto #c₃⊆#c₁ refl) (<:ₚ′-proto #c₃⊆#c₂ refl)
   with k ≟ k
 ... | no k≢k = ⊥-elim (k≢k refl)
 ... | yes refl
@@ -268,7 +268,7 @@ glb-meetₚ′ {T₁ = T-ProtoP {k = k} #c₁ ⊘ T₁} {T₂ = T-ProtoP {k = .k
   with ty-equal T₁ T₁
 ... | no T₁≢T₁ = ⊥-elim (T₁≢T₁ refl)
 ... | yes refl
-  = (T-ProtoP (#c₁ ∩ #c₂) ⊘ T₁) , (N-ProtoP N₁) , ((<:ₚ′-proto (p∩q⊆p #c₁ #c₂) refl) , ((<:ₚ′-proto (p∩q⊆q #c₁ #c₂) refl) , (refl , (<:ₚ′-proto (⊆-∩ #c₃⊆#c₁ #c₃⊆#c₂) refl))))
+  = (T-ProtoP (#c₁ ∩ #c₂) ⊘ T₁) , (N-ProtoP (#c₁ ∩ #c₂) ⊘ N₁) , ((<:ₚ′-proto (p∩q⊆p #c₁ #c₂) refl) , ((<:ₚ′-proto (p∩q⊆q #c₁ #c₂) refl) , (refl , (<:ₚ′-proto (⊆-∩ #c₃⊆#c₁ #c₃⊆#c₂) refl))))
 glb-meetₚ′ (N-Up N₁) (N-Up N₂) (N-Up N₃) (<:ₚ′-up {pk = pk}{m = m} N₃<:N₁) (<:ₚ′-up N₃<:N₂)
   with glb-meetₜ N₁ N₂ N₃ N₃<:N₁ N₃<:N₂
 ... | ( T , N , <:₁ , <:₂ , meet≡ , N₃<:N)

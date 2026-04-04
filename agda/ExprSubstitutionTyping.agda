@@ -233,7 +233,7 @@ substTy-ReceiveTy1 :
   ∀ {Δ K} (T : Ty (K ∷ Δ) TLin) (U : Ty Δ K)
   → (ReceiveTy1 T) ⋯ ⦅ U ⦆ₛ ≡ ReceiveTy1 (T ⋯ ⦅ U ⦆ₛ)
 substTy-ReceiveTy1 T U =
-  cong T-Poly
+  cong (T-Poly SLin)
     (cong (λ X → ReceiveTy X (T-Var (here refl)))
       (sym (⋯-↑-wk T ⦅ U ⦆ₛ SLin)))
 
@@ -241,7 +241,7 @@ substTy-SendTy1 :
   ∀ {Δ K} (T : Ty (K ∷ Δ) TLin) (U : Ty Δ K)
   → (SendTy1 T) ⋯ ⦅ U ⦆ₛ ≡ SendTy1 (T ⋯ ⦅ U ⦆ₛ)
 substTy-SendTy1 T U =
-  cong T-Poly
+  cong (T-Poly SLin)
     (cong (λ X → SendTy X (T-Var (here refl)))
       (sym (⋯-↑-wk T ⦅ U ⦆ₛ SLin)))
 
@@ -363,10 +363,10 @@ ConstTy-subst {U = U} CT-Unit rewrite substTy-normalizeTy T-Base U = CT-Unit
 ConstTy-subst {U = U} CT-Fork rewrite substTy-normalizeTy ForkTy U = CT-Fork
 ConstTy-subst {U = U} CT-New rewrite substTy-normalizeTy NewTy U = CT-New
 ConstTy-subst {U = U} CT-Receive
-  rewrite substTy-normalizeTy (T-Poly {K′ = TLin} {m = Lin} (ReceiveTy1 (T-Var (here refl)))) U
+  rewrite substTy-normalizeTy (T-Poly TLin (ReceiveTy1 (T-Var (here refl)))) U
   = CT-Receive
 ConstTy-subst {U = U} CT-Send
-  rewrite substTy-normalizeTy (T-Poly {K′ = TLin} {m = Lin} (SendTy1 (T-Var (here refl)))) U
+  rewrite substTy-normalizeTy (T-Poly TLin (SendTy1 (T-Var (here refl)))) U
   = CT-Send
 ConstTy-subst {U = U} CT-Close rewrite substTy-normalizeTy (LinArr EndLin UnitLin) U = CT-Close
 ConstTy-subst CT-Select = ConstTy-select-subst

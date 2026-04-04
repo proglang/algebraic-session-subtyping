@@ -42,7 +42,7 @@ pair-injective refl = refl , refl , refl , refl
 
 poly-injective :
   ∀ {Δ K K′ m} {t : Ty (K ∷ Δ) (KV KT m)} {t′ : Ty (K′ ∷ Δ) (KV KT m)}
-  → T-Poly t ≡ T-Poly t′
+  → T-Poly K t ≡ T-Poly K′ t′
   → Σ (K ≡ K′) λ where
       refl → t ≡ t′
 poly-injective refl = refl , refl
@@ -129,10 +129,10 @@ renaming-injective {T₁ = T-Pair t u} {T₂ = T-Pair t₁ u₁} ρ inj eq
   = cong₂ T-Pair
       (renaming-injective ρ inj eq₁)
       (renaming-injective ρ inj eq₂)
-renaming-injective {T₁ = T-Poly t} {T₂ = T-Poly t₁} ρ inj eq
+renaming-injective {T₁ = T-Poly K t} {T₂ = T-Poly K₁ t₁} ρ inj eq
   with poly-injective eq
 ... | refl , eq′
-  = cong T-Poly (renaming-injective (ρ ↑ᵣ _) (injective-↑ᵣ inj) eq′)
+  = cong (T-Poly K) (renaming-injective (ρ ↑ᵣ _) (injective-↑ᵣ inj) eq′)
 renaming-injective {T₁ = T-Sub x t} {T₂ = T-Sub x₁ t₁} ρ inj eq
   with sub-injective eq
 ... | refl , refl , refl , eq′

@@ -331,7 +331,7 @@ replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep)
   LD-used-live (replace-used-preserves-disjoint x∈ d rep)
 
 sessNf : NfTy [] SLin → NfTy [] TLin
-sessNf (mkNfTy S NS) = mkNfTy (SessLin S) (N-Sub NS)
+sessNf (mkNfTy S NS) = mkNfTy (SessLin S) (N-Sub (≤k-step (≤p-step <p-st) ≤m-refl) NS)
 
 unitLinNf : NfTy [] TLin
 unitLinNf = mkNfTy UnitLin N-Base
@@ -340,13 +340,13 @@ recvChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
 recvChanNf (mkNfTy T NT) (mkNfTy S NS) =
   mkNfTy
     (SessLin (T-Msg ⊝ (T-Up T) S))
-    (N-Sub (N-Msg ⊝ (N-Up NT) NS))
+    (N-Sub (≤k-step (≤p-step <p-st) ≤m-refl) (N-Msg ⊝ (N-Up NT) NS))
 
 sendChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
 sendChanNf (mkNfTy T NT) (mkNfTy S NS) =
   mkNfTy
     (SessLin (T-Msg ⊕ (T-Up T) S))
-    (N-Sub (N-Msg ⊕ (N-Up NT) NS))
+    (N-Sub (≤k-step (≤p-step <p-st) ≤m-refl) (N-Msg ⊕ (N-Up NT) NS))
 
 dualSessNf : NfTy [] SLin → NfTy [] TLin
 dualSessNf (mkNfTy S _) = normalizeTy (SessLin (T-Dual D-S S))

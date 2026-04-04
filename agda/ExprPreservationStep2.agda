@@ -30,6 +30,10 @@ open import Variance using
   ; vcompose-⊕
   ; vcompose-⊝
   ; vcompose-⊘
+  ; vcompose-assoc
+  ; vcompose-swap
+  ; VarianceCovers
+  ; compose-covers
   )
 open import Types using (Ty; T-Base; N-Sub; N-End)
 open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-sub; <:ₜ-msg; <:ₚ′-proto; <:ₜ-end)
@@ -277,7 +281,7 @@ end-subtype-invert :
   ∀ {U : NfTy [] TLin}
   → normalTyOf U <:ₜ normalTyOf (normalizeTy EndLin)
   → U ≡ normalizeTy EndLin
-end-subtype-invert {U = mkNfTy .EndLin (N-Sub N-End)} (<:ₜ-sub <:ₜ-end) = refl
+end-subtype-invert {U = mkNfTy .EndLin (N-Sub _ N-End)} (<:ₜ-sub <:ₜ-end) = refl
 
 remove-disjoint :
   ∀ {n}
@@ -589,7 +593,7 @@ subst-preserves-≡c-pointwise (Types.T-Pair T U) rel =
   Types.≡c-pair
     (subst-preserves-≡c-pointwise T rel)
     (subst-preserves-≡c-pointwise U rel)
-subst-preserves-≡c-pointwise (Types.T-Poly T) rel =
+subst-preserves-≡c-pointwise (Types.T-Poly K′ T) rel =
   Types.≡c-all (subst-preserves-≡c-pointwise T (lift-≈ₛ rel))
 subst-preserves-≡c-pointwise (Types.T-Sub K≤K′ T) rel =
   Types.≡c-sub K≤K′ (subst-preserves-≡c-pointwise T rel)
@@ -644,16 +648,6 @@ conv⇒<<: {v = ⊕} eq = proj₁ (conv⇒subty _ _ eq)
 conv⇒<<: {v = ⊝} eq = proj₂ (conv⇒subty _ _ eq)
 conv⇒<<: {v = ⊘} eq = eq
 
-vcompose-assoc :
-  ∀ v₁ v₂ v₃ → vcompose (vcompose v₁ v₂) v₃ ≡ vcompose v₁ (vcompose v₂ v₃)
-vcompose-assoc ⊕ v₂ v₃ = refl
-vcompose-assoc ⊝ ⊕ v₃ = refl
-vcompose-assoc ⊝ ⊝ ⊕ = refl
-vcompose-assoc ⊝ ⊝ ⊝ = refl
-vcompose-assoc ⊝ ⊝ ⊘ = refl
-vcompose-assoc ⊝ ⊘ v₃ = refl
-vcompose-assoc ⊘ v₂ v₃ = refl
-
 swap-<<: :
   ∀ {Δ K} {T₁ T₂ : Ty Δ K} {v : Variance}
   → T₁ <<:[ v ] T₂
@@ -686,34 +680,6 @@ swap-≈ᵥ :
   → SubstRelates ϕ p v ψ
   → SubstRelates ψ p (vswap v) ϕ
 swap-≈ᵥ {p = p} rel K x = swap-SubstRelVar {x = x} {p = p} (rel K x)
-
-vcompose-swap :
-  ∀ v₁ v₂ → vcompose (vswap v₁) v₂ ≡ vcompose v₁ (vswap v₂)
-vcompose-swap ⊕ v₂ = refl
-vcompose-swap ⊝ ⊕ = refl
-vcompose-swap ⊝ ⊝ = refl
-vcompose-swap ⊝ ⊘ = refl
-vcompose-swap ⊘ v₂ = refl
-
-VarianceCovers : Variance → Variance → Set
-VarianceCovers ⊕ ⊕ = ⊤
-VarianceCovers ⊝ ⊝ = ⊤
-VarianceCovers ⊘ v = ⊤
-VarianceCovers _ _ = ⊥
-
-compose-covers :
-  ∀ {v v₁ v₂}
-  → VarianceCovers v₁ v₂
-  → VarianceCovers (vcompose v₁ v) (vcompose v₂ v)
-compose-covers {v = ⊕} {v₁ = ⊕} {⊕} cov = tt
-compose-covers {v = ⊝} {v₁ = ⊕} {⊕} cov = tt
-compose-covers {v = ⊘} {v₁ = ⊕} {⊕} cov = tt
-compose-covers {v = ⊕} {v₁ = ⊝} {⊝} cov = tt
-compose-covers {v = ⊝} {v₁ = ⊝} {⊝} cov = tt
-compose-covers {v = ⊘} {v₁ = ⊝} {⊝} cov = tt
-compose-covers {v = ⊕} {v₁ = ⊘} cov = tt
-compose-covers {v = ⊝} {v₁ = ⊘} cov = tt
-compose-covers {v = ⊘} {v₁ = ⊘} cov = tt
 
 coerce-<<: :
   ∀ {Δ K}
@@ -820,7 +786,7 @@ all-<<: :
     {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)}
     {v : Variance}
   → T₁ <<:[ v ] T₂
-  → Types.T-Poly T₁ <<:[ v ] Types.T-Poly T₂
+  → Types.T-Poly K′ T₁ <<:[ v ] Types.T-Poly K′ T₂
 all-<<: {v = ⊕} rel = <:-all rel
 all-<<: {v = ⊝} rel = <:-all rel
 all-<<: {v = ⊘} rel = Types.≡c-all rel

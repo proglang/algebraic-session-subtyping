@@ -31,7 +31,7 @@ module _ where
     T-Base  : Ty Δ TLin
     T-Arrow : KM ≤p pk → Ty Δ TLin → Ty Δ TLin → Ty Δ (KV pk m)
     T-Pair  : Ty Δ (KV pk₁ m) → Ty Δ (KV pk₂ m) → Ty Δ (KV KT m)
-    T-Poly  : Ty (K′ ∷ Δ) (KV KT m) → Ty Δ (KV KT m)
+    T-Poly  : (K′ : Kind) → Ty (K′ ∷ Δ) (KV KT m) → Ty Δ (KV KT m)
     T-Sub   : KV pk m ≤k KV pk′ m′ → Ty Δ (KV pk m) → Ty Δ (KV pk′ m′)
 
     -- session types
@@ -66,7 +66,7 @@ module _ where
   T-Base ⋯ ϕ = T-Base
   T-Arrow x t u ⋯ ϕ = T-Arrow x (t ⋯ ϕ) (u ⋯ ϕ)
   T-Pair t u ⋯ ϕ = T-Pair (t ⋯ ϕ) (u ⋯ ϕ)
-  T-Poly t ⋯ ϕ = T-Poly (t ⋯ (ϕ ↑ _))
+  T-Poly K′ t ⋯ ϕ = T-Poly K′ (t ⋯ (ϕ ↑ _))
   T-Sub x t ⋯ ϕ = T-Sub x (t ⋯ ϕ)
   T-Dual x t ⋯ ϕ = T-Dual x (t ⋯ ϕ)
   T-End ⋯ ϕ = T-End
@@ -81,7 +81,7 @@ module _ where
   ⋯-id T-Base = refl
   ⋯-id (T-Arrow x t u) = cong₂ (T-Arrow x) (⋯-id t) (⋯-id u)
   ⋯-id (T-Pair t u) = cong₂ T-Pair (⋯-id t) (⋯-id u)
-  ⋯-id (T-Poly t) = cong T-Poly (trans (cong (t ⋯_) (~-ext id↑~id)) (⋯-id t))
+  ⋯-id (T-Poly K′ t) = cong (T-Poly K′) (trans (cong (t ⋯_) (~-ext id↑~id)) (⋯-id t))
   ⋯-id (T-Sub x t) = cong (T-Sub x) (⋯-id t)
   ⋯-id (T-Dual x t) = cong (T-Dual x) (⋯-id t)
   ⋯-id T-End = refl
@@ -108,7 +108,7 @@ module _ where
   fusion T-Base ϕ₁ ϕ₂ = refl
   fusion (T-Arrow x t u) ϕ₁ ϕ₂ = cong₂ (T-Arrow x) (fusion t ϕ₁ ϕ₂) (fusion u ϕ₁ ϕ₂)
   fusion (T-Pair t u) ϕ₁ ϕ₂ = cong₂ T-Pair (fusion t ϕ₁ ϕ₂) (fusion u ϕ₁ ϕ₂)
-  fusion (T-Poly t) ϕ₁ ϕ₂ = cong T-Poly (trans (fusion t (ϕ₁ ↑ _) (ϕ₂ ↑ _)) (cong (t ⋯_) (sym (~-ext (dist-↑-· _ ϕ₁ ϕ₂)))))
+  fusion (T-Poly K′ t) ϕ₁ ϕ₂ = cong (T-Poly K′) (trans (fusion t (ϕ₁ ↑ _) (ϕ₂ ↑ _)) (cong (t ⋯_) (sym (~-ext (dist-↑-· _ ϕ₁ ϕ₂)))))
   fusion (T-Sub x t) ϕ₁ ϕ₂ = cong (T-Sub x) (fusion t ϕ₁ ϕ₂)
   fusion (T-Dual x t) ϕ₁ ϕ₂ = cong (T-Dual x) (fusion t ϕ₁ ϕ₂)
   fusion T-End ϕ₁ ϕ₂ = refl
@@ -143,7 +143,7 @@ module _ where
   data NormalTy {Δ} : Ty Δ (KV pk m) → Set
   data NormalProto {Δ} : Ty Δ KP → Set
   data NormalProto′ {Δ} : Ty Δ KP → Set where
-    N-ProtoP : (N : NormalProto T) → NormalProto′ (T-ProtoP #c ⊙ T)
+    N-ProtoP : (#c : Subset.Subset k) → (⊙ : Variance) → (N : NormalProto T) → NormalProto′ (T-ProtoP #c ⊙ T)
     N-Up     : (N : NormalTy T) → NormalProto′ (T-Up T)
     N-Var    : {x : KP ∈ Δ} → NormalProto′ (T-Var x)
 
@@ -158,10 +158,10 @@ module _ where
   data NormalTy {Δ} where
     N-Var    : (NV : NormalVar T) → NormalTy T
     N-Base   : NormalTy T-Base
-    N-Arrow  : {km : KM ≤p pk}{m : Multiplicity} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Arrow {m = m} km T₁ T₂)
+    N-Arrow  : (km : KM ≤p pk) {m : Multiplicity} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Arrow {m = m} km T₁ T₂)
     N-Pair   : {T₁ : Ty Δ (KV pk₁ m)} {T₂ : Ty Δ (KV pk₂ m)} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Pair T₁ T₂)
-    N-Poly   : ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → (N : NormalTy T) → NormalTy (T-Poly T)
-    N-Sub    : {km≤ : KV pk m ≤k KV pk′ m′} → (N : NormalTy T) → NormalTy (T-Sub km≤ T)
+    N-Poly   : (K′ : Kind) → ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → (N : NormalTy T) → NormalTy (T-Poly K′ T)
+    N-Sub    : (km≤ : KV pk m ≤k KV pk′ m′) → (N : NormalTy T) → NormalTy (T-Sub km≤ T)
     N-End    : NormalTy T-End
     N-Msg    : ∀ p → (N : NormalProto′ T) → (NS : NormalTy S) → NormalTy (T-Msg p T S)
     N-ProtoD : (N : NormalTy T) → NormalTy (T-ProtoD T)
@@ -175,16 +175,16 @@ module _ where
   sizeₜ N = suc $ case N of λ where
     (N-Var x) →  zero
     N-Base →  zero
-    (N-Arrow N₁ N₂) →  (sizeₜ N₁ ⊔ sizeₜ N₂)
+    (N-Arrow _ N₁ N₂) →  (sizeₜ N₁ ⊔ sizeₜ N₂)
     (N-Pair N₁ N₂) →  (sizeₜ N₁ ⊔ sizeₜ N₂)
-    (N-Poly N) →  (sizeₜ N)
-    (N-Sub N) →  (sizeₜ N)
+    (N-Poly _ N) →  (sizeₜ N)
+    (N-Sub _ N) →  (sizeₜ N)
     N-End →  zero
     (N-Msg p NP NS) →  (sizeₚ′ NP ⊔ sizeₜ NS)
     (N-ProtoD N) →  (sizeₜ N)
 
   sizeₚ′ N = suc $ case N of λ where
-    (N-ProtoP N) → (sizeₚ N)
+    (N-ProtoP _ _ N) → (sizeₚ N)
     (N-Up N) → (sizeₜ N)
     N-Var → zero
 
@@ -226,7 +226,7 @@ module _ where
     ≡c-pair : {m : Multiplicity}
              {T₄ : Ty Δ (KV pk₁ m)} {T₅ : Ty Δ (KV pk₂ m)} {T₆ : Ty Δ (KV pk₁ m)} {T₇ : Ty Δ (KV pk₂ m)}
              → T₄ ≡c T₆ → T₅ ≡c T₇ → T-Pair T₄ T₅ ≡c T-Pair T₆ T₇
-    ≡c-all : ∀ {m} {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ ≡c T₂ → T-Poly T₁ ≡c T-Poly T₂
+    ≡c-all : ∀ {m} {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ ≡c T₂ → T-Poly K′ T₁ ≡c T-Poly K′ T₂
     ≡c-msg : T₁ ≡c T₂ → S₁ ≡c S₂ → T-Msg p T₁ S₁ ≡c T-Msg p T₂ S₂
     ≡c-protoD : T₁ ≡c T₂ → T-ProtoD T₁ ≡c T-ProtoD T₂
     ≡c-protoP : T₁ ≡c T₂ → T-ProtoP #c ⊙ T₁ ≡c T-ProtoP #c ⊙ T₂
@@ -348,20 +348,20 @@ module _ where
   t-minus-reify (T-Dual x T) ()
   t-minus-reify (T-Up T) (N-Up nT) = refl
   t-minus-reify (T-Minus T) ()
-  t-minus-reify (T-ProtoP _ _ T) (N-ProtoP nT) = refl
+  t-minus-reify (T-ProtoP _ _ T) (N-ProtoP _ _ nT) = refl
 
   t-minus-normal : (T : Ty Δ KP) → NormalProto T → NormalProto (t-minus T)
   t-minus-normal (T-Var x) (N-Normal N-Var) = N-Minus N-Var
   t-minus-normal (T-Up T) (N-Normal (N-Up x)) =  N-Minus (N-Up x)
-  t-minus-normal (T-Minus (T-ProtoP _ _ _)) (N-Minus (N-ProtoP nT)) = N-Normal (N-ProtoP nT)
+  t-minus-normal (T-Minus (T-ProtoP _ _ _)) (N-Minus (N-ProtoP #c ⊙ nT)) = N-Normal (N-ProtoP #c ⊙ nT)
   t-minus-normal (T-Minus (T-Up _)) (N-Minus (N-Up x)) = N-Normal (N-Up x)
   t-minus-normal (T-Minus (T-Var _)) (N-Minus N-Var) = N-Normal N-Var
-  t-minus-normal (T-ProtoP _ _ T) (N-Normal (N-ProtoP x)) =  N-Minus (N-ProtoP x)
+  t-minus-normal (T-ProtoP #c ⊙ T) (N-Normal (N-ProtoP .#c .⊙ x)) =  N-Minus (N-ProtoP #c ⊙ x)
 
   t-minus-involution : (T : Ty Δ KP) → NormalProto T → t-minus (t-minus T) ≡ T
   t-minus-involution (T-Var x) (N-Normal x₁) = refl
   t-minus-involution (T-Up T) (N-Normal x) = refl
-  t-minus-involution (T-Minus (T-ProtoP _ _ _)) (N-Minus (N-ProtoP nT)) = refl
+  t-minus-involution (T-Minus (T-ProtoP _ _ _)) (N-Minus (N-ProtoP _ _ nT)) = refl
   t-minus-involution (T-Minus (T-Up _)) (N-Minus (N-Up x)) = refl
   t-minus-involution (T-Minus (T-Var _)) (N-Minus N-Var) = refl
   t-minus-involution (T-ProtoP _ _ T) (N-Normal x) = refl
@@ -377,7 +377,7 @@ module _ where
   nf p d? T-Base = T-Base
   nf p d? (T-Arrow x T U) = T-Arrow x (nf ⊕ d?⊥ T) (nf ⊕ d?⊥ U)
   nf p d? (T-Pair T U) = T-Pair (nf ⊕ d?⊥ T) (nf ⊕ d?⊥ U)
-  nf p d? (T-Poly T) = T-Poly (nf ⊕ d?⊥ T)
+  nf p d? (T-Poly K′ T) = T-Poly K′ (nf ⊕ d?⊥ T)
   -- nf p d? (T-Sub (≤k-step ≤p-refl ≤m-refl) T) = nf p d? T
   nf p d? (T-Sub x T) = T-Sub x (nf p (λ x₁ → dualizable-sub (d? x₁) x) T)
   nf p d? (T-Dual dK T) = nf (invert p) (λ x₁ → dK) T
@@ -392,10 +392,10 @@ module _ where
 
   -- t-msg returns a normal form
   nf-t-msg-loop : (p : Polarity) → {T : Ty Δ KP} → (nT : NormalProto T) → let p′ , T′ = t-loop p T in Polarity × NormalProto′ T′
-  nf-t-msg-loop p (N-Normal (N-ProtoP x)) = p , N-ProtoP x
+  nf-t-msg-loop p (N-Normal (N-ProtoP #c ⊙ x)) = p , N-ProtoP #c ⊙ x
   nf-t-msg-loop p (N-Normal (N-Up x)) = p , N-Up x
   nf-t-msg-loop p (N-Normal N-Var) = p , N-Var
-  nf-t-msg-loop p (N-Minus (N-ProtoP x)) = invert p , N-ProtoP x
+  nf-t-msg-loop p (N-Minus (N-ProtoP #c ⊙ x)) = invert p , N-ProtoP #c ⊙ x
   nf-t-msg-loop p (N-Minus (N-Up x)) = invert p , N-Up x
   nf-t-msg-loop p (N-Minus N-Var) = invert p , N-Var
   
@@ -417,10 +417,10 @@ module _ where
   nf-normal-type : ∀ ⊙ → (d? : ⊙ ≡ ⊝ → Dualizable (KV pk m)) (T : Ty Δ (KV pk m)) → NormalTy (nf ⊙ d? T)
   nf-normal-type ⊙ d? (T-Var x) = N-Var (nf-normal-type-var ⊙ d? x)
   nf-normal-type ⊙ d? T-Base = N-Base
-  nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
+  nf-normal-type ⊙ d? (T-Arrow x T T₁) =  N-Arrow x (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
   nf-normal-type ⊙ d? (T-Pair T T₁) =  N-Pair (nf-normal-type ⊕ d?⊥ T) (nf-normal-type ⊕ d?⊥ T₁)
-  nf-normal-type ⊙ d? (T-Poly T) = N-Poly (nf-normal-type ⊕ d?⊥ T)
-  nf-normal-type ⊙ d? (T-Sub x T) = N-Sub (nf-normal-type ⊙ (λ x₁ → dualizable-sub (d? x₁) x) T)
+  nf-normal-type ⊙ d? (T-Poly K′ T) = N-Poly K′ (nf-normal-type ⊕ d?⊥ T)
+  nf-normal-type ⊙ d? (T-Sub x T) = N-Sub x (nf-normal-type ⊙ (λ x₁ → dualizable-sub (d? x₁) x) T)
   nf-normal-type ⊙ d? (T-Dual x T) = nf-normal-type (invert ⊙) (const x) T
   nf-normal-type ⊙ d? T-End = N-End
   nf-normal-type ⊙ d? (T-Msg p T T₁) = nf-t-msg (mult ⊙ p) (nf-normal-proto T) (nf-normal-type ⊙ d? T₁)
@@ -430,13 +430,13 @@ module _ where
   nf-normal-proto (T-Up T) = N-Normal (N-Up (nf-normal-type ⊕ d?⊥ T))
   nf-normal-proto (T-Minus T) with inspect (nf ⊕ d?⊥) T | nf-normal-proto T
   ... | Eq.[ eq ] | nf-t-normal = t-minus-normal ((nf ⊕ d?⊥) T) nf-t-normal
-  nf-normal-proto (T-ProtoP #c ⊙ T) = N-Normal (N-ProtoP (nf-normal-proto T))
+  nf-normal-proto (T-ProtoP #c ⊙ T) = N-Normal (N-ProtoP #c ⊙ (nf-normal-proto T))
 
   nf-normal-proto-inverted (T-Var x) = N-Minus N-Var
   nf-normal-proto-inverted (T-Up T) = N-Minus (N-Up (nf-normal-type ⊕ d?⊥ T))
   nf-normal-proto-inverted (T-Minus T)
     rewrite t-minus-involution (nf ⊕ d?⊥ T) (nf-normal-proto T) = nf-normal-proto T  
-  nf-normal-proto-inverted (T-ProtoP #c ⊙ T) = N-Minus (N-ProtoP (nf-normal-proto T))
+  nf-normal-proto-inverted (T-ProtoP #c ⊙ T) = N-Minus (N-ProtoP #c ⊙ (nf-normal-proto T))
 
   nf-tmsg-invert-minus  : ∀ (⊙ : Polarity) (d? : ⊙ ≡ ⊝ → Dualizable (KV KS Lin)) → (T : Ty Δ KP)
     → t-msg (invert ⊙) (nf ⊕ d?⊥ T) S ≡ t-msg ⊙ (t-minus (nf ⊕ d?⊥ T)) S
@@ -456,7 +456,7 @@ module _ where
   nf-⊕-ignores {T = T-Base} f g = refl
   nf-⊕-ignores {T = T-Arrow x T T₁} f g = refl
   nf-⊕-ignores {T = T-Pair T T₁} f g = cong₂ T-Pair (nf-⊕-ignores {T = T} d?⊥ d?⊥) (nf-⊕-ignores {T = T₁} d?⊥ d?⊥)
-  nf-⊕-ignores {T = T-Poly T} f g = refl
+  nf-⊕-ignores {T = T-Poly K′ T} f g = refl
   nf-⊕-ignores {T = T-Sub x T} f g = cong (T-Sub x) (nf-⊕-ignores {T = T} (λ x₁ → dualizable-sub (f x₁) x) (λ x₁ → dualizable-sub (g x₁) x))
   nf-⊕-ignores {T = T-Dual x T} f g = refl
   nf-⊕-ignores {T = T-End} f g = refl
@@ -480,7 +480,7 @@ module _ where
   nf-complete {T₂ = T₂} f g ≡c-minus-p rewrite nf-⊕-ignores {T = T₂} g d?⊥ = t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
   nf-complete f g (≡c-fun {≤pk = ≤pk} T1=T2 T1=T3) = cong₂ (T-Arrow ≤pk) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
   nf-complete f g (≡c-pair T1=T2 T1=T3) = cong₂ T-Pair (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete d?⊥ d?⊥ T1=T3)
-  nf-complete f g (≡c-all T1=T2) = cong T-Poly (nf-complete d?⊥ d?⊥ T1=T2)
+  nf-complete f g (≡c-all {K′ = K′} T1=T2) = cong (T-Poly K′) (nf-complete d?⊥ d?⊥ T1=T2)
   nf-complete f g (≡c-msg {p = p} T1=T2 T1=T3) = cong₂ (t-msg (mult ⊕ p)) (nf-complete d?⊥ d?⊥ T1=T2) (nf-complete f g T1=T3)
   nf-complete f g (≡c-protoD T1=T2) = cong T-ProtoD (nf-complete d?⊥ d?⊥ T1=T2)
   nf-complete f g (≡c-protoP T1=T2) = cong (T-ProtoP _ _) (nf-complete d?⊥ d?⊥ T1=T2)
@@ -518,7 +518,7 @@ module _ where
   nf-sound+ T-Base = ≡c-refl
   nf-sound+ (T-Arrow x T T₁) = ≡c-fun (nf-sound+ T) (nf-sound+ T₁)
   nf-sound+ (T-Pair T T₁) = ≡c-pair (nf-sound+ T) (nf-sound+ T₁)
-  nf-sound+ (T-Poly T) = ≡c-all (nf-sound+ T)
+  nf-sound+ (T-Poly K′ T) = ≡c-all {K′ = K′} (nf-sound+ T)
   nf-sound+ (T-Sub x T) = ≡c-sub x (nf-sound+ T)
   nf-sound+ (T-Dual D-S T) = ≡c-trns (nf-sound- T) (≡c-symm (dual-tinv T))
   nf-sound+ T-End = ≡c-refl
@@ -554,16 +554,16 @@ module _ where
   np-unique (N-Normal NP₁) (N-Normal NP₂) = cong N-Normal (np′-unique NP₁ NP₂)
   np-unique (N-Minus NP₁) (N-Minus NP₂) = cong N-Minus (np′-unique NP₁ NP₂)
 
-  np′-unique (N-ProtoP NP₁) (N-ProtoP NP₂) = cong N-ProtoP (np-unique NP₁ NP₂)
+  np′-unique (N-ProtoP #c ⊙ NP₁) (N-ProtoP .#c .⊙ NP₂) = cong (λ NP → N-ProtoP #c ⊙ NP) (np-unique NP₁ NP₂)
   np′-unique (N-Up N₁) (N-Up N₂) = cong N-Up (nt-unique N₁ N₂)
   np′-unique N-Var N-Var = refl
 
   nt-unique (N-Var NV₁) (N-Var NV₂) = cong N-Var (nv-unique NV₁ NV₂)
   nt-unique N-Base N-Base = refl
-  nt-unique (N-Arrow N₁ N₃) (N-Arrow N₂ N₄) = cong₂ N-Arrow (nt-unique N₁ N₂) (nt-unique N₃ N₄)
+  nt-unique (N-Arrow km N₁ N₃) (N-Arrow .km N₂ N₄) = cong₂ (N-Arrow km) (nt-unique N₁ N₂) (nt-unique N₃ N₄)
   nt-unique (N-Pair N₁ N₃) (N-Pair N₂ N₄) = cong₂ N-Pair (nt-unique N₁ N₂) (nt-unique N₃ N₄)
-  nt-unique (N-Poly N₁) (N-Poly N₂) = cong N-Poly (nt-unique N₁ N₂)
-  nt-unique (N-Sub N₁) (N-Sub N₂) = cong N-Sub (nt-unique N₁ N₂)
+  nt-unique (N-Poly K′ N₁) (N-Poly .K′ N₂) = cong (N-Poly K′) (nt-unique N₁ N₂)
+  nt-unique (N-Sub km≤ N₁) (N-Sub .km≤ N₂) = cong (N-Sub km≤) (nt-unique N₁ N₂)
   nt-unique N-End N-End = refl
   nt-unique (N-Msg {T = T} p NP₁ N₁) (N-Msg p₁ NP₂ N₂) = cong₂ (N-Msg p) (np′-unique {P = T} NP₁ NP₂) (nt-unique N₁ N₂)
   nt-unique (N-ProtoD N₁) (N-ProtoD N₂) = cong N-ProtoD (nt-unique N₁ N₂)
@@ -582,12 +582,12 @@ module _ where
   t-loop-nf-ident (T-Var x₁) (N-Normal N′) = inj₁ refl
   t-loop-nf-ident (T-Up T) (N-Normal N′) = inj₁ refl
   t-loop-nf-ident (T-ProtoP #c ⊙ T) (N-Normal N′) = inj₁ refl
-  t-loop-nf-ident (T-Minus (T-ProtoP #c ⊙ T)) (N-Minus (N-ProtoP x)) = inj₂ refl
+  t-loop-nf-ident (T-Minus (T-ProtoP #c ⊙ T)) (N-Minus (N-ProtoP .#c .⊙ x)) = inj₂ refl
   t-loop-nf-ident (T-Minus T) (N-Minus (N-Up x)) = inj₂ refl
   t-loop-nf-ident (T-Minus T) (N-Minus N-Var) = inj₂ refl
 
   t-loop-nf-ident′ : ∀ {p} (T : Ty Δ KP) → NormalProto′ T → t-loop p T ≡ (p , T)
-  t-loop-nf-ident′ T (N-ProtoP x) = refl
+  t-loop-nf-ident′ T (N-ProtoP _ _ x) = refl
   t-loop-nf-ident′ T (N-Up x) = refl
   t-loop-nf-ident′ T N-Var = refl
 
@@ -601,22 +601,22 @@ module _ where
   nf-idempotent {T = T-Var x₁} (N-Var x) = refl
   nf-idempotent {T = T-Dual x₁ (T-Var x₂)} (N-Var x) = refl
   nf-idempotent N-Base = refl
-  nf-idempotent (N-Arrow N₁ N₂) = cong₂ (T-Arrow _) (nf-idempotent N₁) (nf-idempotent N₂)
+  nf-idempotent (N-Arrow km N₁ N₂) = cong₂ (T-Arrow km) (nf-idempotent N₁) (nf-idempotent N₂)
   nf-idempotent (N-Pair N₁ N₂) = cong₂ T-Pair (nf-idempotent N₁) (nf-idempotent N₂)
-  nf-idempotent (N-Poly N) = cong T-Poly (nf-idempotent N)
-  nf-idempotent {T = T-Sub km≤ T} (N-Sub N) = cong (T-Sub _) (trans (cong (λ d? → nf ⊕ d? T) (dual-all-irrelevant (λ x₁ → dualizable-sub (d?⊥ x₁) km≤) d?⊥)) (nf-idempotent N))
+  nf-idempotent (N-Poly K′ N) = cong (T-Poly K′) (nf-idempotent N)
+  nf-idempotent {T = T-Sub km≤ T} (N-Sub .km≤ N) = cong (T-Sub km≤) (trans (cong (λ d? → nf ⊕ d? T) (dual-all-irrelevant (λ x₁ → dualizable-sub (d?⊥ x₁) km≤) d?⊥)) (nf-idempotent N))
   nf-idempotent N-End = refl
-  nf-idempotent (N-Msg p (N-ProtoP NT) NS) = cong₂ (T-Msg p) (cong (T-ProtoP _ _) (nfp-idempotent NT)) (nf-idempotent NS)
+  nf-idempotent (N-Msg p (N-ProtoP #c ⊙ NT) NS) = cong₂ (T-Msg p) (cong (λ T → T-ProtoP #c ⊙ T) (nfp-idempotent NT)) (nf-idempotent NS)
   nf-idempotent (N-Msg p (N-Up NT) NS) = cong₂ (T-Msg p) (cong T-Up (nf-idempotent NT)) (nf-idempotent NS)
   nf-idempotent (N-Msg p N-Var NS) = cong₂ (T-Msg p) refl (nf-idempotent NS)
   nf-idempotent (N-ProtoD N) = cong T-ProtoD (nf-idempotent N)
 
   nfp-idempotent (N-Normal NP) = nfp′-idempotent NP
-  nfp-idempotent (N-Minus (N-ProtoP NP)) = cong T-Minus (cong (T-ProtoP _ _) (nfp-idempotent NP))
+  nfp-idempotent (N-Minus (N-ProtoP #c ⊙ NP)) = cong T-Minus (cong (λ T → T-ProtoP #c ⊙ T) (nfp-idempotent NP))
   nfp-idempotent (N-Minus (N-Up NT)) = cong T-Minus (cong T-Up (nf-idempotent NT))
   nfp-idempotent (N-Minus N-Var) = cong T-Minus refl
 
-  nfp′-idempotent (N-ProtoP NP) = cong (T-ProtoP _ _) (nfp-idempotent NP)
+  nfp′-idempotent (N-ProtoP #c ⊙ NP) = cong (λ T → T-ProtoP #c ⊙ T) (nfp-idempotent NP)
   nfp′-idempotent (N-Up NT) = cong T-Up (nf-idempotent NT)
   nfp′-idempotent N-Var = refl
 

@@ -27,7 +27,7 @@ normal-proto′-<:-minus : (T₁ T₂ : Ty Δ KP) → T₂ <: T₁ → NormalPro
 normal-proto′-<: T₁ T₃ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) N₁ = normal-proto′-<: T₂ T₃ T₂<:T₃ (normal-proto′-<: T₁ T₂ T₁<:T₂ N₁)
 normal-proto′-<: T₁ T₂ <:-var N₁ = N₁
 normal-proto′-<: (T-Up T₁) (T-Up T₂) (<:-up T₁<:T₂) N₁ = N-Up (nf-normal-type ⊕ d?⊥ T₂)
-normal-proto′-<: (T-ProtoP #c ⊙ T₁) (T-ProtoP #d .⊙ T₂) (<:-proto #c⊆#d T₁<<:T₂) N₁ = N-ProtoP (nf-normal-proto T₂)
+normal-proto′-<: (T-ProtoP #c ⊙ T₁) (T-ProtoP #d .⊙ T₂) (<:-proto #c⊆#d T₁<<:T₂) N₁ = N-ProtoP #d ⊙ (nf-normal-proto T₂)
 normal-proto′-<: T₁ T₂ (<:-minus T₁<:T₂) N₁ = normal-proto′-<:-minus _ _ T₁<:T₂ N₁
 normal-proto′-<: T₁ T₂ (<:-minus-minus-l {T₃} T₁<:T₂) N₁
   rewrite t-minus-involution (nf ⊕ d?⊥ T₃) (nf-normal-proto T₃)
@@ -54,7 +54,7 @@ normal-proto′-loop-<:-minus : (T₁ T₂ : Ty Δ KP) → T₂ <: T₁ → Norm
 normal-proto′-loop-<: T₁ T₃ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) N = normal-proto′-loop-<: T₂ T₃ T₂<:T₃ (normal-proto′-loop-<: T₁ T₂ T₁<:T₂ N)
 normal-proto′-loop-<: T₁ T₂ <:-var N = N
 normal-proto′-loop-<: T₁ T₂ (<:-up {T₂ = T₃} T₁<:T₂) N = N-Up (nf-normal-type ⊕ d?⊥ T₃)
-normal-proto′-loop-<: T₁ T₂ (<:-proto {T₂ = T₃} x x₁) N = N-ProtoP (nf-normal-proto T₃)
+normal-proto′-loop-<: T₁ T₂ (<:-proto {T₂ = T₃} x x₁) N = N-ProtoP _ _ (nf-normal-proto T₃)
 normal-proto′-loop-<: T₁ T₂ (<:-minus {T₃} {T₄} T₁<:T₂) N = normal-proto′-loop-<:-minus _ _ T₁<:T₂ N 
 normal-proto′-loop-<: T₁ T₂ (<:-minus-minus-l {T₃} T₁<:T₂) N
   rewrite t-minus-involution (nf ⊕ d?⊥ T₃) (nf-normal-proto T₃)
@@ -66,7 +66,7 @@ normal-proto′-loop-<: T₁ T₂ (<:-minus-minus-r {T₂ = T₃} T₁<:T₂) N
 normal-proto′-loop-<:-minus T₁ T₃ (<:-trans {T₂ = T₂} T₃<:T₂ T₂<:T₁) N = normal-proto′-loop-<:-minus _ _ T₃<:T₂ (normal-proto′-loop-<:-minus _ _ T₂<:T₁ N)
 normal-proto′-loop-<:-minus T₁ T₂ <:-var N = N
 normal-proto′-loop-<:-minus T₁ T₂ (<:-up {T₁ = T₃} T₂<:T₁) N = N-Up (nf-normal-type ⊕ d?⊥ T₃)
-normal-proto′-loop-<:-minus T₁ T₂ (<:-proto {T₁ = T₄} {T₂ = T₃} #c⊆#d T₁<<:T₂) N = N-ProtoP (nf-normal-proto T₄)
+normal-proto′-loop-<:-minus T₁ T₂ (<:-proto {T₁ = T₄} {T₂ = T₃} #c⊆#d T₁<<:T₂) N = N-ProtoP _ _ (nf-normal-proto T₄)
 normal-proto′-loop-<:-minus T₁ T₂ (<:-minus {T₃} {T₄} T₂<:T₁) N
   rewrite t-minus-involution (nf ⊕ d?⊥ T₃) (nf-normal-proto T₃)
   rewrite t-minus-involution (nf ⊕ d?⊥ T₄) (nf-normal-proto T₄)
@@ -154,12 +154,12 @@ nft-size : (T₁ T₂ : Ty Δ (KV pk m)) → T₁ <: T₂
 nft-size T₁ T₃ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) {p = p}{f₁ = f₁} N₁ N₃
   using N₂ ← nf-normal-type p f₁ T₂
   = trans (nft-size T₁ T₂ T₁<:T₂ N₁ N₂) (nft-size T₂ T₃ T₂<:T₃ N₂ N₃)
-nft-size T₁ T₂ (<:-sub K≤K′ T₁<:T₂) (N-Sub N₁) (N-Sub N₂) = cong suc (nft-size _ _ T₁<:T₂ N₁ N₂)
-nft-size T₁ T₂ (<:-sub-dual-l {T = T}{K≤K′}) {p} (N-Sub N₁) (N-Sub N₂)
+nft-size T₁ T₂ (<:-sub K≤K′ T₁<:T₂) (N-Sub _ N₁) (N-Sub _ N₂) = cong suc (nft-size _ _ T₁<:T₂ N₁ N₂)
+nft-size T₁ T₂ (<:-sub-dual-l {T = T}{K≤K′}) {p} (N-Sub _ N₁) (N-Sub _ N₂)
   using eq ← (cong (λ f → nf (invert p) f T) (dual-all-irrelevant (λ x₁ → D-S) (λ x₁ → dualizable-sub D-S K≤K′)))
   rewrite nt-unique-eq eq N₁ N₂
   = sym (cong suc (sizeₜ-subst N₂ eq))
-nft-size T₁ T₂ (<:-sub-dual-r {T = T}{K≤K′}) {p} (N-Sub N₁) (N-Sub N₂)
+nft-size T₁ T₂ (<:-sub-dual-r {T = T}{K≤K′}) {p} (N-Sub _ N₁) (N-Sub _ N₂)
   using eq ← (cong (λ f → nf (invert p) f T) (dual-all-irrelevant (λ x₁ → dualizable-sub D-S K≤K′) (λ x₁ → D-S)))
   rewrite nt-unique-eq eq N₁ N₂
   = sym (cong suc (sizeₜ-subst N₂ eq))
@@ -168,7 +168,7 @@ nft-size T₁ T₂ <:-var {p = ⊝} (N-Var x) (N-Var x₁) = refl
 nft-size T₁ T₂ <:-dual-var {p = ⊕} (N-Var x) (N-Var x₁) = refl
 nft-size T₁ T₂ <:-dual-var {p = ⊝} (N-Var x) (N-Var x₁) = refl
 nft-size T₁ T₂ <:-base N-Base N-Base = refl
-nft-size (T-Arrow _ T₁ T₂) (T-Arrow _ T₃ T₄) (<:-fun T₃<:T₁ T₂<:T₄) (N-Arrow N₁ N₂) (N-Arrow N₃ N₄)
+nft-size (T-Arrow _ T₁ T₂) (T-Arrow _ T₃ T₄) (<:-fun T₃<:T₁ T₂<:T₄) (N-Arrow _ N₁ N₂) (N-Arrow _ N₃ N₄)
   = cong suc $ begin
       (sizeₜ N₁ ⊔ sizeₜ N₂)
     ≡⟨ cong₂ _⊔_ (sym $ nft-size T₃ T₁ T₃<:T₁ N₃ N₁) (nft-size T₂ T₄ T₂<:T₄ N₂ N₄) ⟩
@@ -181,7 +181,7 @@ nft-size (T-Pair T₁ T₂) (T-Pair T₃ T₄) (<:-pair T₁<:T₃ T₂<:T₄) (
       (sizeₜ N₃ ⊔ sizeₜ N₄)
     ∎
 nft-size (T-ProtoD T₁) (T-ProtoD T₂) (<:-protoD T₁<:T₂) (N-ProtoD N₁) (N-ProtoD N₂) = cong suc (nft-size T₁ T₂ T₁<:T₂ N₁ N₂)
-nft-size T₁ T₂ (<:-all T₁<:T₂) (N-Poly N₁) (N-Poly N₂) = cong suc (nft-size _ _ T₁<:T₂ N₁ N₂)
+nft-size T₁ T₂ (<:-all T₁<:T₂) (N-Poly _ N₁) (N-Poly _ N₂) = cong suc (nft-size _ _ T₁<:T₂ N₁ N₂)
 nft-size (T-Msg p₃ (T-Minus T) S) (T-Msg .(invert p₃) T S)  (<:-msg-minus refl) {p = p} {f₁}{f₂} (N-Msg p₁ N₁ NS₁) (N-Msg p₂ N₂ NS₂)
   rewrite dual-all-irrelevant f₁ f₂ | nt-unique NS₁ NS₂
   rewrite sym (invert-mult-⊙ p₃ {p})
@@ -230,9 +230,9 @@ nfp-size T₁ T₃ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) {p = ⊕} N₁
   = trans (nfp-size T₁ T₂ T₁<:T₂ N₁ N₂) (nfp-size T₂ T₃ T₂<:T₃ N₂ N₃)
 nfp-size T₁ T₂ <:-var {p = ⊕} (N-Normal N-Var) (N-Normal N-Var) = refl
 nfp-size (T-Up T₁) (T-Up T₂) (<:-up T₁<:T₂) {p = ⊕} (N-Normal (N-Up N₁)) (N-Normal (N-Up N₂)) = cong suc (cong suc (nft-size T₁ T₂ T₁<:T₂ N₁ N₂))
-nfp-size (T-ProtoP _ ⊕ T₁) (T-ProtoP _ _ T₂)(<:-proto #c⊆#d T₁<<:T₂) {p = ⊕} (N-Normal (N-ProtoP N₁)) (N-Normal (N-ProtoP N₂)) = cong suc (cong suc (nfp-size T₁ T₂ T₁<<:T₂ N₁ N₂))
-nfp-size (T-ProtoP _ ⊝ T₁) (T-ProtoP _ _ T₂) (<:-proto #c⊆#d T₁<<:T₂) {p = ⊕} (N-Normal (N-ProtoP N₁)) (N-Normal (N-ProtoP N₂)) = cong suc (cong suc (sym (nfp-size T₂ T₁ T₁<<:T₂ N₂ N₁)))
-nfp-size (T-ProtoP _ ⊘ T₁) (T-ProtoP _ _ T₂) (<:-proto #c⊆#d T₁≡cT₂) {p = ⊕} (N-Normal (N-ProtoP N₁)) (N-Normal (N-ProtoP N₂))
+nfp-size (T-ProtoP _ ⊕ T₁) (T-ProtoP _ _ T₂)(<:-proto #c⊆#d T₁<<:T₂) {p = ⊕} (N-Normal (N-ProtoP _ _ N₁)) (N-Normal (N-ProtoP _ _ N₂)) = cong suc (cong suc (nfp-size T₁ T₂ T₁<<:T₂ N₁ N₂))
+nfp-size (T-ProtoP _ ⊝ T₁) (T-ProtoP _ _ T₂) (<:-proto #c⊆#d T₁<<:T₂) {p = ⊕} (N-Normal (N-ProtoP _ _ N₁)) (N-Normal (N-ProtoP _ _ N₂)) = cong suc (cong suc (sym (nfp-size T₂ T₁ T₁<<:T₂ N₂ N₁)))
+nfp-size (T-ProtoP _ ⊘ T₁) (T-ProtoP _ _ T₂) (<:-proto #c⊆#d T₁≡cT₂) {p = ⊕} (N-Normal (N-ProtoP _ _ N₁)) (N-Normal (N-ProtoP _ _ N₂))
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N₁ N₂
   = refl
 nfp-size (T-Minus T₁) (T-Minus T₂) (<:-minus T₂<:T₁) {p = ⊕} N₁ N₂ = nfp-invert-size T₁ T₂ T₂<:T₁ N₁ N₂
@@ -249,9 +249,9 @@ nfp-invert-size T₁ T₃ (<:-trans {T₂ = T₂} T₂<:T₃ T₃<:T₁) {⊕} {
   = trans (nfp-invert-size _ _ T₃<:T₁ N₁ N₂) (nfp-invert-size _ _ T₂<:T₃ N₂ N₃)
 nfp-invert-size T₁ T₂ <:-var {⊕} {f₁} (N-Minus N-Var) (N-Minus N-Var) = refl
 nfp-invert-size T₁ T₂ (<:-up T₂<:T₁) {⊕} {f₁} (N-Minus (N-Up N₁)) (N-Minus (N-Up N₂)) = cong suc $ cong suc (sym $ nft-size _ _ T₂<:T₁ N₂ N₁)
-nfp-invert-size T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) {⊕} {f₁} (N-Minus (N-ProtoP N₁)) (N-Minus (N-ProtoP N₂)) = cong suc $ cong suc (sym $ nfp-size _ _ T₁<<:T₂ N₂ N₁)
-nfp-invert-size T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) {⊕} {f₁} (N-Minus (N-ProtoP N₁)) (N-Minus (N-ProtoP N₂)) = cong suc $ cong suc (nfp-size _ _ T₁<<:T₂ N₁ N₂)
-nfp-invert-size T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) {⊕} {f₁} (N-Minus (N-ProtoP N₁)) (N-Minus (N-ProtoP N₂))
+nfp-invert-size T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) {⊕} {f₁} (N-Minus (N-ProtoP _ _ N₁)) (N-Minus (N-ProtoP _ _ N₂)) = cong suc $ cong suc (sym $ nfp-size _ _ T₁<<:T₂ N₂ N₁)
+nfp-invert-size T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) {⊕} {f₁} (N-Minus (N-ProtoP _ _ N₁)) (N-Minus (N-ProtoP _ _ N₂)) = cong suc $ cong suc (nfp-size _ _ T₁<<:T₂ N₁ N₂)
+nfp-invert-size T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) {⊕} {f₁} (N-Minus (N-ProtoP _ _ N₁)) (N-Minus (N-ProtoP _ _ N₂))
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N₁ N₂
   = refl
 nfp-invert-size T₁ T₂ (<:-minus {T₃} {T₄} T₂<:T₁) {⊕} {f₁} N₁ N₂
@@ -272,9 +272,9 @@ nfp′-size T₁ T₃ (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) {⊕} {f₁
  = trans (nfp′-size T₁ T₂ T₁<:T₂ N₁ N₂) (nfp′-size T₂ T₃ T₂<:T₃ N₂ N₃)
 nfp′-size T₁ T₂ <:-var {⊕} N-Var N-Var = refl
 nfp′-size T₁ T₂ (<:-up T₁<:T₂) {⊕} (N-Up N₁) (N-Up N₂) = cong suc (nft-size _ _ T₁<:T₂ N₁ N₂)
-nfp′-size T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) {⊕} (N-ProtoP N₁) (N-ProtoP N₂) = cong suc (nfp-size _ _ T₁<<:T₂ N₁ N₂)
-nfp′-size T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) {⊕} (N-ProtoP N₁) (N-ProtoP N₂) = sym $ cong suc (nfp-size _ _ T₁<<:T₂ N₂ N₁)
-nfp′-size T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) {⊕} (N-ProtoP N₁) (N-ProtoP N₂)
+nfp′-size T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) {⊕} (N-ProtoP _ _ N₁) (N-ProtoP _ _ N₂) = cong suc (nfp-size _ _ T₁<<:T₂ N₁ N₂)
+nfp′-size T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) {⊕} (N-ProtoP _ _ N₁) (N-ProtoP _ _ N₂) = sym $ cong suc (nfp-size _ _ T₁<<:T₂ N₂ N₁)
+nfp′-size T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) {⊕} (N-ProtoP _ _ N₁) (N-ProtoP _ _ N₂)
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N₁ N₂
   = refl
 nfp′-size T₁ T₂ (<:-minus T₁<:T₂) {⊕} N₁ N₂ = nfp′-invert-size _ _ T₁<:T₂ N₁ N₂
@@ -305,9 +305,9 @@ nfp′-size-t-loop {p = p} ⊕ T₁ T₃ (<:-trans {T₂ = T₂} T₁<<:T₂ T�
   = trans (nfp′-size-t-loop ⊕ _ _ T₂<<:T₃ N₁ N₂) (nfp′-size-t-loop ⊕ _ _ T₁<<:T₂ N₂ N₃)
 nfp′-size-t-loop {p = p} ⊕ T₁ T₂ <:-var N-Var N-Var = refl
 nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-up T₁<<:T₂) (N-Up N) (N-Up N₁) = sym $ cong suc $ nft-size _ _ T₁<<:T₂ N₁ N
-nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = sym $ cong suc $ nfp-size _ _ T₁<<:T₂ N₁ N
-nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = cong suc $ nfp-size _ _ T₁<<:T₂ N N₁
-nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) (N-ProtoP N) (N-ProtoP N₁)
+nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = sym $ cong suc $ nfp-size _ _ T₁<<:T₂ N₁ N
+nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = cong suc $ nfp-size _ _ T₁<<:T₂ N N₁
+nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁)
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N N₁
   = refl
 nfp′-size-t-loop {p = p} ⊕ T₁ T₂ (<:-minus {T₃} {T₄} T₁<<:T₂) N₁ N₂ = nfp′-invert-size-t-loop ⊝ T₃ T₄ T₁<<:T₂ N₁ N₂
@@ -323,9 +323,9 @@ nfp′-size-t-loop {p = p} ⊝ T₁ T₃ (<:-trans {T₂ = T₂} T₁<<:T₂ T�
   = trans (nfp′-size-t-loop ⊝ _ _ T₁<<:T₂ N₁ N₂) (nfp′-size-t-loop ⊝ _ _ T₂<<:T₃ N₂ N₃)
 nfp′-size-t-loop {p = p} ⊝ T₁ T₂ <:-var N-Var N-Var = refl
 nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-up T₁<<:T₂) (N-Up N) (N-Up N₁) = cong suc (nft-size _ _ T₁<<:T₂ N N₁)
-nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = cong suc $ nfp-size _ _ T₁<<:T₂ N N₁
-nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = sym $ cong suc $ nfp-size _ _ T₁<<:T₂ N₁ N
-nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) (N-ProtoP N) (N-ProtoP N₁)
+nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = cong suc $ nfp-size _ _ T₁<<:T₂ N N₁
+nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = sym $ cong suc $ nfp-size _ _ T₁<<:T₂ N₁ N
+nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁)
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N N₁
   = refl
 nfp′-size-t-loop {p = p} ⊝ T₁ T₂ (<:-minus {T₃} {T₄} T₁<<:T₂) N₁ N₂ = sym $ nfp′-invert-size-t-loop ⊝ T₃ T₄ T₁<<:T₂ N₂ N₁
@@ -341,9 +341,9 @@ nfp′-invert-size-t-loop ⊕ T₁ T₃ (<:-trans {T₂ = T₂} T₁<<:T₂ T₂
   = trans (nfp′-invert-size-t-loop ⊕ _ _ T₂<<:T₃ N₁ N₂) (nfp′-invert-size-t-loop ⊕ _ _ T₁<<:T₂ N₂ N₃)
 nfp′-invert-size-t-loop ⊕ T₁ T₂ <:-var N-Var N-Var = refl
 nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-up T₁<<:T₂) (N-Up N) (N-Up N₁) = cong suc (sym $ nft-size _ _ T₁<<:T₂ N₁ N)
-nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = cong suc (sym $ nfp-size _ _ T₁<<:T₂ N₁ N)
-nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = cong suc (nfp-size _ _ T₁<<:T₂ N N₁)
-nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) (N-ProtoP N) (N-ProtoP N₁)
+nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = cong suc (sym $ nfp-size _ _ T₁<<:T₂ N₁ N)
+nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = cong suc (nfp-size _ _ T₁<<:T₂ N N₁)
+nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁)
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N N₁
   = refl
 nfp′-invert-size-t-loop ⊕ T₁ T₂ (<:-minus {T₃} {T₄} T₁<<:T₂) N₁ N₂
@@ -362,9 +362,9 @@ nfp′-invert-size-t-loop ⊝ T₁ T₃ (<:-trans {T₂ = T₂} T₁<<:T₂ T₂
   = trans (nfp′-invert-size-t-loop ⊝ _ _ T₁<<:T₂ N₁ N₂) (nfp′-invert-size-t-loop ⊝ _ _ T₂<<:T₃ N₂ N₃)
 nfp′-invert-size-t-loop ⊝ T₁ T₂ <:-var N-Var N-Var = refl
 nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-up T₁<<:T₂) (N-Up N) (N-Up N₁) = cong suc (nft-size _ _ T₁<<:T₂ N N₁)
-nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-proto {⊙ = ⊕} x T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = cong suc (nfp-size _ _ T₁<<:T₂ N N₁)
-nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-proto {⊙ = ⊝} x T₁<<:T₂) (N-ProtoP N) (N-ProtoP N₁) = cong suc (sym $ nfp-size _ _ T₁<<:T₂ N₁ N)
-nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-proto {⊙ = ⊘} x T₁≡cT₂) (N-ProtoP N) (N-ProtoP N₁)
+nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-proto {⊙ = ⊕} x T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = cong suc (nfp-size _ _ T₁<<:T₂ N N₁)
+nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-proto {⊙ = ⊝} x T₁<<:T₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁) = cong suc (sym $ nfp-size _ _ T₁<<:T₂ N₁ N)
+nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-proto {⊙ = ⊘} x T₁≡cT₂) (N-ProtoP _ _ N) (N-ProtoP _ _ N₁)
   rewrite nf-complete d?⊥ d?⊥ T₁≡cT₂ | np-unique N N₁
   = refl
 nfp′-invert-size-t-loop ⊝ T₁ T₂ (<:-minus {T₃} {T₄} T₁<<:T₂) N₁ N₂

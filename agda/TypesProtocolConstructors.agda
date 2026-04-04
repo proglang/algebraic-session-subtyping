@@ -61,7 +61,7 @@ usageVariance (T-Arrow x T₁ T₂) p =
   joinUsage (swapUsage (usageVariance T₁ p)) (usageVariance T₂ p)
 usageVariance (T-Pair T₁ T₂) p =
   joinUsage (usageVariance T₁ p) (usageVariance T₂ p)
-usageVariance (T-Poly T) p = usageVariance T (there p)
+usageVariance (T-Poly _ T) p = usageVariance T (there p)
 usageVariance (T-Sub x T) p = usageVariance T p
 usageVariance (T-Dual x T) p = swapUsage (usageVariance T p)
 usageVariance T-End p = unused
@@ -119,16 +119,19 @@ materialize (Ts , uv) p P S = materializeList Ts p P S
 materialize-at : ∀ {n v} → AllConstructorSignatures n v → Fin n → Polarity → Ty Δ KP → Ty Δ SLin → Ty Δ SLin
 materialize-at {n} {v} cs i p P S = materialize (cs i) p P S
 
-SelectTy : (k : ℕ) → (v : Variance) → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
-SelectTy k v i P S = T-Arrow (≤p-step <p-mt)
+SelectTy0 : (k : ℕ) → (v : Variance) → AllConstructorSignatures k v → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
+SelectTy0 k v cs i P S = T-Arrow (≤p-step <p-mt)
                      (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
                             (T-Msg ⊕ (T-ProtoP (Subset.⁅ i ⁆) v P) S))
                      (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl) 
-                            (materialize-at (ProtocolConstructors k v) i ⊕ P S))
+                            (materialize-at cs i ⊕ P S))
+
+SelectTy : (k : ℕ) → (v : Variance) → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
+SelectTy k v i P S = SelectTy0 k v (ProtocolConstructors k v) i P S
 
 SelectTy1 : ∀ {Δ k} → (v : Variance) → (i : Fin k) → (P : Ty Δ KP) → Ty Δ TLin
 SelectTy1 {Δ} {k} v i P =
-  T-Poly {K′ = SLin} {m = Lin}
+  T-Poly SLin
     (SelectTy k v i (P ⋯ weakenᵣ SLin) (T-Var (here refl)))
 
 SelectTy2 : ∀ {Δ k} → (v : Variance) → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
@@ -136,4 +139,4 @@ SelectTy2 {Δ} {k} v i P S =
   SelectTy k v i P S
 
 SelectConstTy : ∀ {Δ k} → (v : Variance) → (i : Fin k) → Ty Δ TLin
-SelectConstTy v i = T-Poly {K′ = KP} {m = Lin} (SelectTy1 v i (T-Var (here refl)))
+SelectConstTy v i = T-Poly KP (SelectTy1 v i (T-Var (here refl)))

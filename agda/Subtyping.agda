@@ -59,7 +59,7 @@ data _<:_ {Δ} where
     → T₁ <: T₃ → T₂ <: T₄
     → T-Pair T₁ T₂ <: T-Pair T₃ T₄
   <:-protoD : T₁ <: T₂ → T-ProtoD T₁ <: T-ProtoD T₂
-  <:-all : {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ <: T₂ → T-Poly T₁ <: T-Poly T₂
+  <:-all : {T₁ T₂ : Ty (K′ ∷ Δ) (KV KT m)} → T₁ <: T₂ → T-Poly K′ T₁ <: T-Poly K′ T₂
 
   -- obsolete
   -- <:-neg-l : T-Msg (invert p) T S <: S′ → T-Msg p (T-Minus T) S <: S′
@@ -105,7 +105,7 @@ data _<:_ {Δ} where
 <:-refl {T = T-Base} = <:-base
 <:-refl {T = T-Arrow x T T₁} = <:-fun <:-refl <:-refl
 <:-refl {T = T-Pair T T₁} = <:-pair <:-refl <:-refl
-<:-refl {T = T-Poly T} = <:-all <:-refl
+<:-refl {T = T-Poly K′ T} = <:-all {K′ = K′} <:-refl
 <:-refl {T = T-Sub x T} = <:-sub x <:-refl
 <:-refl {T = T-Dual D-S T} = <:-refl-dual
 <:-refl {T = T-End} = <:-end

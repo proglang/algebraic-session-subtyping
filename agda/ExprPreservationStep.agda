@@ -256,13 +256,13 @@ new-inversion (TV-Const CT-New) = refl , refl
 receive-const-shape :
   ∀ {W : NfTy [] TLin}
   → ConstTy C-Receive W
-  → W ≡ normalizeTy (Ty.T-Poly {K′ = TLin} {m = Lin} (ReceiveTy1 (Ty.T-Var (here refl))))
+  → W ≡ normalizeTy (Ty.T-Poly TLin (ReceiveTy1 (Ty.T-Var (here refl))))
 receive-const-shape CT-Receive = refl
 
 send-const-shape :
   ∀ {W : NfTy [] TLin}
   → ConstTy C-Send W
-  → W ≡ normalizeTy (Ty.T-Poly {K′ = TLin} {m = Lin} (SendTy1 (Ty.T-Var (here refl))))
+  → W ≡ normalizeTy (Ty.T-Poly TLin (SendTy1 (Ty.T-Var (here refl))))
 send-const-shape CT-Send = refl
 
 take-from-membership :
