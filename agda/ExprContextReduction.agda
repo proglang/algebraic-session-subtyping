@@ -9,7 +9,8 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 open import Kinds
 open import Duality
 open import Types
-open import TypesProtocolConstructors using (ProtocolConstructors; materialize-at)
+open import NormalTypes using (N-Up; N-Normal)
+open import NormalTypesSubstitution using (msgNF)
 open import ExprSyntax using (Value; E-Val)
 open import ExprSemantics using (Label; L-β; L-Fork; L-New; L-RecvVal; L-RecvLab; L-SendVal; L-SendLab; L-Close)
 open import ExprNormalTyping
@@ -331,33 +332,25 @@ replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep)
   LD-used-live (replace-used-preserves-disjoint x∈ d rep)
 
 sessNf : NfTy [] SLin → NfTy [] TLin
-sessNf (mkNfTy S NS) = mkNfTy (SessLin S) (N-Sub (≤k-step (≤p-step <p-st) ≤m-refl) NS)
+sessNf = sessTyNf
 
 unitLinNf : NfTy [] TLin
-unitLinNf = mkNfTy UnitLin N-Base
+unitLinNf = unitConstNf
 
 recvChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
-recvChanNf (mkNfTy T NT) (mkNfTy S NS) =
-  mkNfTy
-    (SessLin (T-Msg ⊝ (T-Up T) S))
-    (N-Sub (≤k-step (≤p-step <p-st) ≤m-refl) (N-Msg ⊝ (N-Up NT) NS))
+recvChanNf T S = sessTyNf (msgNF ⊝ (N-Normal (N-Up T)) S)
 
 sendChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
-sendChanNf (mkNfTy T NT) (mkNfTy S NS) =
-  mkNfTy
-    (SessLin (T-Msg ⊕ (T-Up T) S))
-    (N-Sub (≤k-step (≤p-step <p-st) ≤m-refl) (N-Msg ⊕ (N-Up NT) NS))
+sendChanNf T S = sessTyNf (msgNF ⊕ (N-Normal (N-Up T)) S)
 
 dualSessNf : NfTy [] SLin → NfTy [] TLin
-dualSessNf (mkNfTy S _) = normalizeTy (SessLin (T-Dual D-S S))
+dualSessNf S = normalizeTy (SessLin (T-Dual D-S ⌞ S ⌟))
 
 selectInNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
-selectInNf v i P S =
-  sessNf (normalizeTy (T-Msg ⊕ (T-ProtoP (Subset.⁅ i ⁆) v ⌞ P ⌟) ⌞ S ⌟))
+selectInNf = selectInTyNf
 
 selectOutNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
-selectOutNf {k} v i P S =
-  sessNf (normalizeTy (materialize-at (ProtocolConstructors k v) i ⊕ ⌞ P ⌟ ⌞ S ⌟))
+selectOutNf = selectOutTyNf
 
 postulate
   SelectBranches : ∀ {k} → NfTy [] SLin → (Fin k → NfTy [] SLin) → Set

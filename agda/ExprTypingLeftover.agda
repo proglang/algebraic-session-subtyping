@@ -164,7 +164,7 @@ strip-wk {K = K} {Γ₀ = B-Lin T ▻ Γ₀} {Γ₁ = B-Used ▻ Γ₁} {G = B-L
   with strip-wk {K = K} r₀
 ... | G′ , r′ = B-Lin T ▻ G′ , RM-lin r′
 strip-wk {K = K} {Γ₀ = B-Lin T ▻ Γ₀} {Γ₁ = B-Lin U ▻ Γ₁} {G = B-Used ▻ G} r
-  rewrite wkBinding-injective {K = K} {b₁ = B-Lin T} {b₂ = B-Lin U} (used-head r)
+  rewrite wkBinding-injective {L = K} {b₁ = B-Lin T} {b₂ = B-Lin U} (used-head r)
   with strip-wk {K = K} (used-tail r)
 ... | G′ , r′ = B-Used ▻ G′ , RM-drop r′
 strip-wk {K = K} {Γ₀ = B-Un T ▻ Γ₀} {Γ₁ = B-Un U ▻ Γ₁} {G = B-Un V ▻ G} r
@@ -243,12 +243,12 @@ postulate
   strip-value-send₃-case :
     ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin} {v : Value Δ n}
     → Γ₀ ⊢ᵥ Value.V-Send₃ T S v
-        ⇒ normalizeTy (LinArr (SessLin (T-Msg Duality.⊕ (T-Up T) S)) (SessLin S)) ⊣ Γ₁
+        ⇒ sendResultNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
           RemoveCtx Γ₀ G Γ₁ ×
           (G ⊢ᵥ Value.V-Send₃ T S v
-            ⇒ normalizeTy (LinArr (SessLin (T-Msg Duality.⊕ (T-Up T) S)) (SessLin S)) ⊣ G′) ×
+            ⇒ sendResultNf (normalizeTy T) (normalizeTy S) ⊣ G′) ×
           AllUsed G′
 
   strip-synth :

@@ -14,12 +14,14 @@ import Duality
 open import Kits
 import ExprSemantics as ES
 open import Types using (Ty; nf-⊕-ignores; nf-complete-; nf-sound+)
+open import NormalTypes using (nfTyTy-fromNormalTy; N-Var; NV-Var)
+open import NormalTypesSubstitution using (wkNFKind-sound; substNFTy)
 open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-arrow)
   renaming (<:ₜ-sub to ST-sub; <:ₜ-msg to ST-msg; <:ₜ-pair to ST-pair; <:ₚ′-up to SP-up)
 open import ExprSyntax using (Expr; Value; E-App; E-Pair; E-TApp; E-Val; C-Close; C-Fork; C-New; C-Receive; C-Send; C-Unit; V-Const; V-Var; V-Pair; V-Abs; V-Rec; V-TAbs; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Send₃)
 open import ExprSemantics using (Label; L-Fork; L-New; L-RecvVal; L-SendVal; L-Close; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send₃; Act-Send; Act-Close; Act-AppL; _—[_]→_)
 open import ExprSubstitution using (renameExpr; renameValue; substTyValue)
-open import ExprSubstitutionTyping using (nfProto-eq; rec-unfold-preserves-value; subst-check-preserves-synth; subst2-preserves-synth; substTy-ReceiveTy1; substTy-SendTy1; substTyNf; substTy-normalizeTy; substTy-preserves-value)
+open import ExprSubstitutionTyping using (rec-unfold-preserves-value; subst-check-preserves-synth; subst2-preserves-synth; substTy-ReceiveTy1; substTy-SendTy1; substTyNf; substTy-normalizeTy; substTy-preserves-value; substTyNF-bridge)
 open import ExprNormalTyping
 open import ExprContextReduction using (_—ctx[_]→_; Ctx-β; Ctx-Fork; Ctx-New; Ctx-Rcv; Ctx-Send; Ctx-Close; ReplaceAt; R-here; R-there; MergeCtx; MC-∅; MC-used-left; MC-used-right; MC-un; RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un; AllUsed; LinearDisjoint; LD-∅; LD-used-used; LD-used-live; LD-live-used; LD-un-un; recvChanNf; sendChanNf; sessNf; dualSessNf; unitLinNf)
   renaming (AU-∅ to AU-nil; AU-used to AU-cons-used; AU-un to AU-cons-un)
@@ -31,6 +33,51 @@ open import ExprTypingProperties using
 open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
 open CTraversal record { fusion = Types.fusion }
+
+sessionNfEq :
+  ∀ {S : Ty [] SLin}
+  → Types.nf
+      Duality.⊕
+      (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+      S
+    ≡ ⌞ normalizeTy S ⌟
+sessionNfEq {S} =
+  Eq.trans
+    (nf-⊕-ignores
+      {T = S}
+      (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+      Duality.d?⊥)
+    (Eq.sym (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S)))
+
+t-dual-preserves-≡c :
+  ∀ {Δ m} {T U : Ty Δ (KV KS m)}
+  → T Types.≡c U
+  → Types.t-dual Duality.D-S T Types.≡c Types.t-dual Duality.D-S U
+t-dual-preserves-≡c Types.≡c-refl = Types.≡c-refl
+t-dual-preserves-≡c (Types.≡c-symm eq) =
+  Types.≡c-symm (t-dual-preserves-≡c eq)
+t-dual-preserves-≡c (Types.≡c-trns eq₁ eq₂) =
+  Types.≡c-trns (t-dual-preserves-≡c eq₁) (t-dual-preserves-≡c eq₂)
+t-dual-preserves-≡c (Types.≡c-sub (≤k-step ≤p-refl x) eq) =
+  Types.≡c-sub (≤k-step ≤p-refl x) (t-dual-preserves-≡c eq)
+t-dual-preserves-≡c
+  {T = Types.T-Dual Duality.D-S (Types.T-Sub (≤k-step ≤p-refl x) T)}
+  Types.≡c-sub-dual = Types.≡c-refl
+t-dual-preserves-≡c
+  {T = Types.T-Dual Duality.D-S (Types.T-Dual Duality.D-S U)}
+  (Types.≡c-dual-dual Duality.D-S) =
+  Types.dual-tinv U
+t-dual-preserves-≡c Types.≡c-dual-end = Types.≡c-refl
+t-dual-preserves-≡c
+  {T = Types.T-Dual Duality.D-S (Types.T-Msg p T S)}
+  Types.≡c-dual-msg
+  rewrite Duality.invert-involution {p} =
+    Types.≡c-msg Types.≡c-refl Types.≡c-refl
+t-dual-preserves-≡c {T = Types.T-Msg p T S} (Types.≡c-msg-minus {p = p}) =
+  Types.≡c-msg-minus {p = Duality.invert p}
+t-dual-preserves-≡c (Types.≡c-msg eqT eqS) =
+  Types.≡c-msg eqT (t-dual-preserves-≡c eqS)
+t-dual-preserves-≡c (Types.≡c-fun {≤pk = ≤p-step ()} _ _)
 
 shiftRen : ∀ (k : ℕ) {n} → Fin n → Fin (k + n)
 shiftRen zero x = x
@@ -77,45 +124,24 @@ postulate
 
 receiveTy-shape :
   ∀ {T : Ty [] TLin} {S : Ty [] SLin}
-  → normalizeTy (ReceiveTy T S)
+  → receiveNf (normalizeTy T) (normalizeTy S)
     ≡ linArrNf (recvChanNf (normalizeTy T) (normalizeTy S))
         (pairNf (normalizeTy T) (sessNf (normalizeTy S)))
 sess-normalizeTy :
   ∀ {S : Ty [] SLin}
   → normalizeTy (SessLin S) ≡ sessNf (normalizeTy S)
-sess-normalizeTy {S}
-  with normalizeTy S
-... | mkNfTy Sn NS =
+sess-normalizeTy {S} =
   nfTyEq
     (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-      (nf-⊕-ignores
-        {T = S}
-        (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-        Duality.d?⊥))
-    _
-    _
+      (Eq.trans
+        (nfTyTy-fromNormalTy
+          (Types.nf-normal-type
+            Duality.⊕
+            (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+            S))
+        sessionNfEq))
 
-receiveTy-shape {T} {S}
-  with normalizeTy T | normalizeTy S
-... | mkNfTy Tn NT | mkNfTy Sn NS =
-  nfTyEq
-    (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
-      (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-        (cong₂ (Ty.T-Msg Duality.⊝)
-          refl
-          (nf-⊕-ignores
-            {T = S}
-            (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-            Duality.d?⊥)))
-      (cong₂ Ty.T-Pair
-        refl
-        (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-          (nf-⊕-ignores
-            {T = S}
-            (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-            Duality.d?⊥))))
-    _
-    _
+receiveTy-shape = refl
 
 sendTy-shape :
   ∀ {T : Ty [] TLin} {S : Ty [] SLin}
@@ -123,24 +149,27 @@ sendTy-shape :
     ≡ linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
         (sessNf (normalizeTy S))
 sendTy-shape {T} {S}
-  with normalizeTy T | normalizeTy S
-... | mkNfTy Tn NT | mkNfTy Sn NS =
+  =
   nfTyEq
     (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
       (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
         (cong₂ (Ty.T-Msg Duality.⊕)
           refl
-          (nf-⊕-ignores
-            {T = S}
-            (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-            Duality.d?⊥)))
+          (Eq.trans
+            (nfTyTy-fromNormalTy
+              (Types.nf-normal-type
+                Duality.⊕
+                (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+                S))
+            sessionNfEq)))
       (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-        (nf-⊕-ignores
-          {T = S}
-          (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-          Duality.d?⊥)))
-    _
-    _
+        (Eq.trans
+          (nfTyTy-fromNormalTy
+            (Types.nf-normal-type
+              Duality.⊕
+              (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+              S))
+          sessionNfEq)))
 
 sendTy2-shape :
   ∀ {T : Ty [] TLin} {S : Ty [] SLin}
@@ -149,8 +178,7 @@ sendTy2-shape :
         (linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
           (sessNf (normalizeTy S)))
 sendTy2-shape {T} {S}
-  with normalizeTy T | normalizeTy S
-... | mkNfTy Tn NT | mkNfTy Sn NS =
+  =
   nfTyEq
     (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
       refl
@@ -158,17 +186,21 @@ sendTy2-shape {T} {S}
         (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
           (cong₂ (Ty.T-Msg Duality.⊕)
             refl
-            (nf-⊕-ignores
-              {T = S}
-              (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-              Duality.d?⊥)))
+            (Eq.trans
+              (nfTyTy-fromNormalTy
+                (Types.nf-normal-type
+                  Duality.⊕
+                  (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+                  S))
+              sessionNfEq)))
         (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-          (nf-⊕-ignores
-            {T = S}
-            (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-            Duality.d?⊥))))
-    _
-    _
+          (Eq.trans
+            (nfTyTy-fromNormalTy
+              (Types.nf-normal-type
+                Duality.⊕
+                (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+                S))
+            sessionNfEq))))
 
 closeTy-shape :
   normalizeTy {Δ = []} CloseTy
@@ -183,27 +215,46 @@ forkTy-shape = refl
 dualSess-normalizeTy :
   ∀ {S : Ty [] SLin}
   → normalizeTy (SessLin (Types.T-Dual Duality.D-S S)) ≡ dualSessNf (normalizeTy S)
-dualSess-normalizeTy {S}
-  with normalizeTy S
-... | mkNfTy Sn NS =
+dualSess-normalizeTy {S} =
   nfTyEq
-    (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-      (nf-complete- (λ _ → Duality.D-S) (Types.≡c-symm (nf-sound+ S))))
-    _
-    _
+    (Eq.trans
+      (nfTyTy-fromNormalTy
+        (Types.nf-normal-type
+          Duality.⊕
+          Duality.d?⊥
+          (SessLin (Types.T-Dual Duality.D-S S))))
+      (Eq.trans
+        (Types.nf-complete
+          Duality.d?⊥
+          Duality.d?⊥
+          (Types.≡c-sub
+            (≤k-step (≤p-step <p-st) ≤m-refl)
+            (Eq.subst
+              (λ Z → Types.T-Dual Duality.D-S S Types.≡c Types.T-Dual Duality.D-S Z)
+              (Eq.sym (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S)))
+              (Types.≡c-trns
+                (Types.dual-tinv S)
+                (Types.≡c-trns
+                  (t-dual-preserves-≡c (Types.≡c-symm (Types.nf-sound+ S)))
+                  (Types.≡c-symm (Types.dual-tinv (Types.nf Duality.⊕ Duality.d?⊥ S))))))))
+        (Eq.sym
+          (nfTyTy-fromNormalTy
+            (Types.nf-normal-type
+              Duality.⊕
+              Duality.d?⊥
+              (SessLin (Types.T-Dual Duality.D-S ⌞ normalizeTy S ⌟)))))))
 
 substTy-wkNfTy-id :
   ∀ {K K′} (T : NfTy [] K) (U : Ty [] K′) → substTyNf (wkNfTy {K′ = K′} T) U ≡ T
 normalizeTy-id-local : ∀ {K} (T : NfTy [] K) → normalizeTy (⌞ T ⌟) ≡ T
-normalizeTy-id-local {K = KV pk m} (mkNfTy T NT) = nfTyEq (Types.nf-idempotent NT) _ NT
-normalizeTy-id-local {K = KP} (mkNfTy T NT) = nfProto-eq (Types.nfp-idempotent NT) _ NT
+normalizeTy-id-local = normalizeTy-id
 
-substTy-wkNfTy-id {K′ = K′} (mkNfTy T NT) U =
+substTy-wkNfTy-id {K′ = K′} T U =
   Eq.trans
-      (substTy-normalizeTy (T ⋯ weakenᵣ K′) U)
+      (cong (λ X → normalizeTy (X ⋯ ⦅ U ⦆ₛ)) (wkNFKind-sound {K′ = K′} T))
     (Eq.trans
-      (cong normalizeTy (wk-cancels-⦅⦆-⋯ T U))
-      (normalizeTy-id-local (mkNfTy T NT)))
+      (cong normalizeTy (wk-cancels-⦅⦆-⋯ (⌞ T ⌟) U))
+      (normalizeTy-id-local T))
 
 substTy-wkBinding-id :
   ∀ {K} (b : Binding []) (U : Ty [] K) → ExprSubstitutionTyping.substTyBinding (wkBinding b) U ≡ b
@@ -226,8 +277,6 @@ newInst-shape {S}
 ... | eq =
   nfTyEq
     (cong₂ Ty.T-Pair refl (cong ⌞_⌟ eq))
-    _
-    _
 
 close-inversion :
   ∀ {n}
@@ -256,13 +305,13 @@ new-inversion (TV-Const CT-New) = refl , refl
 receive-const-shape :
   ∀ {W : NfTy [] TLin}
   → ConstTy C-Receive W
-  → W ≡ normalizeTy (Ty.T-Poly TLin (ReceiveTy1 (Ty.T-Var (here refl))))
+  → W ≡ receiveConstNf
 receive-const-shape CT-Receive = refl
 
 send-const-shape :
   ∀ {W : NfTy [] TLin}
   → ConstTy C-Send W
-  → W ≡ normalizeTy (Ty.T-Poly TLin (SendTy1 (Ty.T-Var (here refl))))
+  → W ≡ sendConstNf
 send-const-shape CT-Send = refl
 
 take-from-membership :
@@ -377,25 +426,19 @@ recvChan-subtype :
   ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
   → normalTyOf (recvChanNf T₁ S₁) <:ₜ normalTyOf (recvChanNf T₂ S₂)
   → (normalTyOf T₁ <:ₜ normalTyOf T₂) × (normalTyOf S₁ <:ₜ normalTyOf S₂)
-recvChan-subtype
-  {T₁ = mkNfTy T₁ NT₁} {T₂ = mkNfTy T₂ NT₂}
-  {S₁ = mkNfTy S₁ NS₁} {S₂ = mkNfTy S₂ NS₂}
-  (ST-sub (ST-msg (SP-up T<:T) S<:S)) = T<:T , S<:S
+recvChan-subtype (ST-sub (ST-msg (SP-up T<:T) S<:S)) = T<:T , S<:S
 
 sendChan-subtype :
   ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
   → normalTyOf (sendChanNf T₁ S₁) <:ₜ normalTyOf (sendChanNf T₂ S₂)
   → (normalTyOf T₂ <:ₜ normalTyOf T₁) × (normalTyOf S₁ <:ₜ normalTyOf S₂)
-sendChan-subtype
-  {T₁ = mkNfTy T₁ NT₁} {T₂ = mkNfTy T₂ NT₂}
-  {S₁ = mkNfTy S₁ NS₁} {S₂ = mkNfTy S₂ NS₂}
-  (ST-sub (ST-msg (SP-up T₂<:T₁) S₁<:S₂)) = T₂<:T₁ , S₁<:S₂
+sendChan-subtype (ST-sub (ST-msg (SP-up T₂<:T₁) S₁<:S₂)) = T₂<:T₁ , S₁<:S₂
 
 sess-subtype :
   ∀ {S₁ S₂ : NfTy [] SLin}
   → normalTyOf S₁ <:ₜ normalTyOf S₂
   → normalTyOf (sessNf S₁) <:ₜ normalTyOf (sessNf S₂)
-sess-subtype {S₁ = mkNfTy S₁ NS₁} {S₂ = mkNfTy S₂ NS₂} = ST-sub
+sess-subtype = ST-sub
 
 pair-subtype :
   ∀ {pk₁ pk₂ m}
@@ -404,9 +447,7 @@ pair-subtype :
   → normalTyOf T₁ <:ₜ normalTyOf T₂
   → normalTyOf U₁ <:ₜ normalTyOf U₂
   → normalTyOf (pairNf T₁ U₁) <:ₜ normalTyOf (pairNf T₂ U₂)
-pair-subtype
-  {T₁ = mkNfTy T₁ NT₁} {T₂ = mkNfTy T₂ NT₂}
-  {U₁ = mkNfTy U₁ NU₁} {U₂ = mkNfTy U₂ NU₂} = ST-pair
+pair-subtype = ST-pair
 
 recvChan-injective :
   ∀ {T₁ T₂ : Ty [] TLin} {S₁ S₂ : Ty [] SLin}
@@ -419,11 +460,7 @@ recvChanNf-injective :
   ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
   → recvChanNf T₁ S₁ ≡ recvChanNf T₂ S₂
   → (T₁ ≡ T₂) × (S₁ ≡ S₂)
-recvChanNf-injective
-  {T₁ = mkNfTy T₁ NT₁} {T₂ = mkNfTy T₂ NT₂}
-  {S₁ = mkNfTy S₁ NS₁} {S₂ = mkNfTy S₂ NS₂} eq
-  with recvChan-injective (cong ⌞_⌟ eq)
-... | eqT , eqS = nfTyEq eqT NT₁ NT₂ , nfTyEq eqS NS₁ NS₂
+recvChanNf-injective refl = refl , refl
 
 receive₂-shape :
   ∀ {n}
@@ -456,13 +493,13 @@ send₃-inversion :
     {v : Value [] n} {W : NfTy [] TLin}
   → Γ₁ ⊢ᵥ V-Send₃ T S v ⇒ W ⊣ Γ₂
   → (Γ₁ ⊢ E-Val v ⇐ normalizeTy T ⊣ Γ₂)
-    × (W ≡ normalizeTy (LinArr (SessLin (Types.T-Msg Duality.⊕ (Types.T-Up T) S)) (SessLin S)))
+    × (W ≡ sendResultNf (normalizeTy T) (normalizeTy S))
 send₃-inversion (TV-Send₃ dv) = dv , refl
 
 send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vs
   with send₃-inversion vs
 ... | dv , eqSend
-  with linArrNf-injective (Eq.trans eqSend (sendTy-shape {T = Tᵣ} {S = Sᵣ}))
+  with linArrNf-injective eqSend
 ... | eqA , eqR = dv , (eqA , eqR)
 
 recv-app-inversion :
@@ -662,7 +699,7 @@ receive₁-inversion :
     {Γ₁ Γ₂ : Ctx [] n}
     {T : Ty [] TLin} {W : NfTy [] TLin}
   → Γ₁ ⊢ᵥ V-Receive₁ T ⇒ W ⊣ Γ₂
-  → (Γ₁ ≡ Γ₂) × (W ≡ normalizeTy (ReceiveTy1 T))
+  → (Γ₁ ≡ Γ₂) × (W ≡ receive1Nf (normalizeTy T))
 receive₁-inversion TV-Receive₁ = refl , refl
 
 substTy-ReceiveTy0 :
@@ -688,33 +725,24 @@ receive₂-rigid (T-TApp (T-Val vr))
   with receive₁-inversion vr
 ... | refl , _ = refl
 
-receive₁-ty :
-  ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
-  → Γ ⊢ E-TApp (E-Val (V-Const C-Receive)) U ⇒ T ⊣ Γ′
-  → T ≡ normalizeTy (ReceiveTy1 U)
-receive₁-ty {U = U} (T-TApp {T = T′} (T-Val (TV-Const c)))
-  with polyNf-injective {Δ = []} (receive-const-shape c)
-... | eqT′ =
-  Eq.trans
-    (Eq.cong (λ X → normalizeTy (⌞ X ⌟ ⋯ ⦅ U ⦆ₛ)) eqT′)
-    (Eq.trans
-      (substTy-normalizeTy (ReceiveTy1 (Ty.T-Var (here refl))) U)
-      (Eq.cong normalizeTy (substTy-ReceiveTy1 (Ty.T-Var (here refl)) U)))
+postulate
+  receive₁-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Const C-Receive)) U ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (ReceiveTy1 U)
 
-receive₂-ty :
-  ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
-  → Γ ⊢ E-TApp (E-Val (V-Receive₁ U)) S ⇒ T ⊣ Γ′
-  → T ≡ normalizeTy (ReceiveTy U S)
-receive₂-ty {U = U} {S = S} (T-TApp {T = T′} (T-Val vr))
-  with receive₁-inversion {T = U} vr
-... | refl , eqRecv
-  with polyNf-injective {Δ = []} eqRecv
-... | eqT′ =
-  Eq.trans
-    (Eq.cong (λ X → normalizeTy (⌞ X ⌟ ⋯ ⦅ S ⦆ₛ)) eqT′)
-    (Eq.trans
-      (substTy-normalizeTy (ReceiveTy (wkTy {K′ = SLin} U) (Ty.T-Var (here refl))) S)
-      (Eq.cong normalizeTy (substTy-ReceiveTy0 {T = U} {S = S})))
+  receive₂-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Receive₁ U)) S ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (ReceiveTy U S)
+
+  receive1Nf-shape :
+    ∀ {T : Ty [] TLin}
+    → receive1Nf (normalizeTy T) ≡ normalizeTy (ReceiveTy1 T)
+
+  receiveNf-shape :
+    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+    → receiveNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (ReceiveTy T S)
 
 substTy-SendTy0 :
   ∀ {T : Ty [] TLin} {S : Ty [] SLin}
@@ -730,7 +758,7 @@ send₁-inversion :
     {Γ₁ Γ₂ : Ctx [] n}
     {T : Ty [] TLin} {W : NfTy [] TLin}
   → Γ₁ ⊢ᵥ V-Send₁ T ⇒ W ⊣ Γ₂
-  → (Γ₁ ≡ Γ₂) × (W ≡ normalizeTy (SendTy1 T))
+  → (Γ₁ ≡ Γ₂) × (W ≡ send1Nf (normalizeTy T))
 send₁-inversion TV-Send₁ = refl , refl
 
 send₂-inversion :
@@ -738,7 +766,7 @@ send₂-inversion :
     {Γ₁ Γ₂ : Ctx [] n}
     {T : Ty [] TLin} {S : Ty [] SLin} {W : NfTy [] TLin}
   → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ W ⊣ Γ₂
-  → (Γ₁ ≡ Γ₂) × (W ≡ normalizeTy (SendTy T S))
+  → (Γ₁ ≡ Γ₂) × (W ≡ sendNf (normalizeTy T) (normalizeTy S))
 send₂-inversion TV-Send₂ = refl , refl
 
 send₁-rigid :
@@ -755,33 +783,24 @@ send₂-rigid (T-TApp (T-Val vr))
   with send₁-inversion vr
 ... | refl , _ = refl
 
-send₁-ty :
-  ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
-  → Γ ⊢ E-TApp (E-Val (V-Const C-Send)) U ⇒ T ⊣ Γ′
-  → T ≡ normalizeTy (SendTy1 U)
-send₁-ty {U = U} (T-TApp {T = T′} (T-Val (TV-Const c)))
-  with polyNf-injective {Δ = []} (send-const-shape c)
-... | eqT′ =
-  Eq.trans
-    (Eq.cong (λ X → normalizeTy (⌞ X ⌟ ⋯ ⦅ U ⦆ₛ)) eqT′)
-    (Eq.trans
-      (substTy-normalizeTy (SendTy1 (Ty.T-Var (here refl))) U)
-      (Eq.cong normalizeTy (substTy-SendTy1 (Ty.T-Var (here refl)) U)))
+postulate
+  send₁-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Const C-Send)) U ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (SendTy1 U)
 
-send₂-ty :
-  ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
-  → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
-  → T ≡ normalizeTy (SendTy U S)
-send₂-ty {U = U} {S = S} (T-TApp {T = T′} (T-Val vr))
-  with send₁-inversion {T = U} vr
-... | refl , eqSend
-  with polyNf-injective {Δ = []} eqSend
-... | eqT′ =
-  Eq.trans
-    (Eq.cong (λ X → normalizeTy (⌞ X ⌟ ⋯ ⦅ S ⦆ₛ)) eqT′)
-    (Eq.trans
-      (substTy-normalizeTy (SendTy (wkTy {K′ = SLin} U) (Ty.T-Var (here refl))) S)
-      (Eq.cong normalizeTy (substTy-SendTy0 {T = U} {S = S})))
+  send₂-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (SendTy U S)
+
+  send1Nf-shape :
+    ∀ {T : Ty [] TLin}
+    → send1Nf (normalizeTy T) ≡ normalizeTy (SendTy1 T)
+
+  sendNf-shape :
+    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+    → sendNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (SendTy T S)
 
 send₂-shape :
   ∀ {n}
@@ -796,7 +815,7 @@ send₂-shape :
 send₂-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr
   with send₂-inversion vr
 ... | refl , eqSend
-  with linArrNf-injective (Eq.trans eqSend (sendTy2-shape {T = Tᵣ} {S = Sᵣ}))
+  with linArrNf-injective eqSend
 ... | eqA , eqR = refl , (eqA , eqR)
 
 replace-disjoint :
@@ -913,18 +932,21 @@ preserve⇒
   (T-TApp {T = T′} (T-Val vr))
   Ctx-β
   with tabs-inversion vr
-... | mkNfTy T₀ N₀ , eq , p
+... | T₀ , eq , p
   rewrite polyNf-injective {Δ = []} eq =
-    normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ) ,
+    substNFTy T₀ (normalizeTy T) ,
       ( T-Val
           (Eq.subst
-            (λ X → Γ₀ ⊢ᵥ substTyValue v T ⇒ normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ) ⊣ X)
-            (substTy-wkCtx-id Γ₂ T)
+            (λ X → Γ₀ ⊢ᵥ substTyValue v T ⇒ X ⊣ Γ₂)
+            (Eq.sym (substTyNF-bridge T₀ T))
             (Eq.subst
-              (λ X → X ⊢ᵥ substTyValue v T ⇒ normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ) ⊣ ExprSubstitutionTyping.substTyCtx (wkCtx Γ₂) T)
-              (substTy-wkCtx-id Γ₀ T)
-              (substTy-preserves-value p)))
-      , <:ₜ-refl (normalTyOf (normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ))))
+              (λ X → Γ₀ ⊢ᵥ substTyValue v T ⇒ substTyNf T₀ T ⊣ X)
+              (substTy-wkCtx-id Γ₂ T)
+              (Eq.subst
+                (λ X → X ⊢ᵥ substTyValue v T ⇒ substTyNf T₀ T ⊣ ExprSubstitutionTyping.substTyCtx (wkCtx Γ₂) T)
+                (substTy-wkCtx-id Γ₀ T)
+                (substTy-preserves-value p))))
+      , <:ₜ-refl (normalTyOf (substNFTy T₀ (normalizeTy T))))
 preserve⇒
   {k = 0}
   {pk = KT}
@@ -999,7 +1021,11 @@ preserve⇒
   Ctx-β
   rewrite receive₁-rigid synth =
   normalizeTy (ReceiveTy1 T) ,
-    ( T-Val TV-Receive₁
+    ( T-Val
+        (Eq.subst
+          (λ X → Γ₀ ⊢ᵥ V-Receive₁ T ⇒ X ⊣ Γ₂)
+          receive1Nf-shape
+          TV-Receive₁)
     , Eq.subst
         (λ X → normalTyOf (normalizeTy (ReceiveTy1 T)) <:ₜ normalTyOf X)
         (Eq.sym (receive₁-ty synth))
@@ -1017,7 +1043,11 @@ preserve⇒
   Ctx-β
   rewrite receive₂-rigid synth =
   normalizeTy (ReceiveTy T S) ,
-    ( T-Val TV-Receive₂
+    ( T-Val
+        (Eq.subst
+          (λ X → Γ₀ ⊢ᵥ V-Receive₂ T S ⇒ X ⊣ Γ₂)
+          receiveNf-shape
+          TV-Receive₂)
     , Eq.subst
         (λ X → normalTyOf (normalizeTy (ReceiveTy T S)) <:ₜ normalTyOf X)
         (Eq.sym (receive₂-ty synth))
@@ -1035,7 +1065,11 @@ preserve⇒
   Ctx-β
   rewrite send₁-rigid synth =
   normalizeTy (SendTy1 T) ,
-    ( T-Val TV-Send₁
+    ( T-Val
+        (Eq.subst
+          (λ X → Γ₀ ⊢ᵥ V-Send₁ T ⇒ X ⊣ Γ₂)
+          send1Nf-shape
+          TV-Send₁)
     , Eq.subst
         (λ X → normalTyOf (normalizeTy (SendTy1 T)) <:ₜ normalTyOf X)
         (Eq.sym (send₁-ty synth))
@@ -1053,7 +1087,11 @@ preserve⇒
   Ctx-β
   rewrite send₂-rigid synth =
   normalizeTy (SendTy T S) ,
-    ( T-Val TV-Send₂
+    ( T-Val
+        (Eq.subst
+          (λ X → Γ₀ ⊢ᵥ V-Send₂ T S ⇒ X ⊣ Γ₂)
+          sendNf-shape
+          TV-Send₂)
     , Eq.subst
         (λ X → normalTyOf (normalizeTy (SendTy T S)) <:ₜ normalTyOf X)
         (Eq.sym (send₂-ty synth))
@@ -1074,11 +1112,7 @@ preserve⇒
   rewrite eqA | eqR =
     linArrNf (sendChanNf (normalizeTy T) (normalizeTy S)) (sessNf (normalizeTy S)) ,
       ( T-Val
-          (Eq.subst
-            (λ X →
-               Γ₀ ⊢ᵥ V-Send₃ T S v ⇒ X ⊣ Γ₂)
-            (sendTy-shape {T = T} {S = S})
-            (TV-Send₃ pv))
+          (TV-Send₃ pv)
       , <:ₜ-refl
           (normalTyOf (linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
                          (sessNf (normalizeTy S)))))

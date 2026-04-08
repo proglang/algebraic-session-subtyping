@@ -2,10 +2,11 @@ module ExprSubstitutionTyping where
 
 open import Data.Fin using (Fin)
 open import Data.List using (List; _∷_)
-open import Data.List.Relation.Unary.Any using (here)
+open import Data.List.Membership.Propositional using (_∈_)
+open import Data.List.Relation.Unary.Any using (here; there)
 open import Data.Nat using (suc)
 import Relation.Binary.PropositionalEquality as Eq
-open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; cong; cong₂)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong; cong₂)
 
 import Duality as D
 open import Kinds
@@ -13,14 +14,13 @@ open import Kits
 open import Variance using (Variance)
 open import Types using
   ( Ty; Ty-Syntax; Ty-Traversal; T-Var; T-Base; T-Poly; T-Msg; T-Up
-  ; NormalTy; NormalProto
   ; nf
   ; nf-complete; nf-sound+; fusion
-  ; nt-unique; np-unique
   )
 open import TypesProtocolConstructors using (SelectConstTy; SelectTy1; SelectTy2)
 open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-trans)
-open import AlgorithmicSubstitution using () renaming (subst-preserves-<:ₜ to substTy-preserves-<:ₜ)
+open import AlgorithmicSubstitution using () renaming (subst-preserves-<:ₜ to substNF-preserves-<:ₜ)
+open import NormalTypesSubstitution using (substNFTy; substNFTy-single-sound)
 open import SubstitutionSubtyping using (subst-preserves-≡c)
 open import ExprSyntax using
   ( Expr; Value; E-App; E-LetPair; E-TApp; E-Val
@@ -38,7 +38,7 @@ open Traversal Ty-Traversal hiding (⋯-id)
 open CTraversal record { fusion = fusion }
 
 substTyNfWith : ∀ {Δ Δ′ K} → NfTy Δ K → Δ →ₛ Δ′ → NfTy Δ′ K
-substTyNfWith (mkNfTy T _) ϕ = normalizeTy (T ⋯ ϕ)
+substTyNfWith T ϕ = normalizeTy (⌞ T ⌟ ⋯ ϕ)
 
 substTyBindingWith : ∀ {Δ Δ′} → Binding Δ → Δ →ₛ Δ′ → Binding Δ′
 substTyBindingWith (B-Lin T) ϕ = B-Lin (substTyNfWith T ϕ)
@@ -76,18 +76,6 @@ substTy-preserves-⊢ˡ (take-thereˡ p) = take-thereˡ (substTy-preserves-⊢ˡ
 substTy-preserves-⊢ˡ (take-thereᵘ p) = take-thereᵘ (substTy-preserves-⊢ˡ p)
 substTy-preserves-⊢ˡ (take-there✖ p) = take-there✖ (substTy-preserves-⊢ˡ p)
 
-nfTy-eq :
-  ∀ {Δ pk m} {T₁ T₂ : Ty Δ (KV pk m)}
-    (eq : T₁ ≡ T₂) (N₁ : NormalTy T₁) (N₂ : NormalTy T₂)
-  → mkNfTy T₁ N₁ ≡ mkNfTy T₂ N₂
-nfTy-eq refl N₁ N₂ = cong (mkNfTy _) (nt-unique N₁ N₂)
-
-nfProto-eq :
-  ∀ {Δ} {T₁ T₂ : Ty Δ KP}
-    (eq : T₁ ≡ T₂) (N₁ : NormalProto T₁) (N₂ : NormalProto T₂)
-  → mkNfTy T₁ N₁ ≡ mkNfTy T₂ N₂
-nfProto-eq refl N₁ N₂ = cong (mkNfTy _) (np-unique N₁ N₂)
-
 postulate
   BranchJoin-subst :
     ∀ {Δ K k} {V : Fin (suc k) → NfTy (K ∷ Δ) TLin} {U : NfTy (K ∷ Δ) TLin} {W : Ty Δ K}
@@ -121,7 +109,7 @@ postulate
 substTy-linArrNf :
   ∀ {Δ K} (T U : NfTy (K ∷ Δ) TLin) (W : Ty Δ K)
   → substTyNf (linArrNf T U) W ≡ linArrNf (substTyNf T W) (substTyNf U W)
-substTy-linArrNf (mkNfTy T NT) (mkNfTy U NU) W = refl
+substTy-linArrNf T U W = refl
 
 substTy-pairNf :
   ∀ {Δ K pk₁ pk₂ m}
@@ -129,26 +117,114 @@ substTy-pairNf :
     (U : NfTy (K ∷ Δ) (KV pk₂ m))
     (W : Ty Δ K)
   → substTyNf (pairNf T U) W ≡ pairNf (substTyNf T W) (substTyNf U W)
-substTy-pairNf (mkNfTy T NT) (mkNfTy U NU) W = refl
+substTy-pairNf T U W = refl
 
-substTyWith-normalizeTy :
-  ∀ {Δ Δ′ K} (T : Ty Δ K) (ϕ : Δ →ₛ Δ′)
-  → substTyNfWith (normalizeTy T) ϕ ≡ normalizeTy (T ⋯ ϕ)
-substTyWith-normalizeTy {K = KV pk m} T ϕ =
-  nfTy-eq
-    (nf-complete D.d?⊥ D.d?⊥ (subst-preserves-≡c (nf-sound+ T) ϕ))
-    _
-    _
-substTyWith-normalizeTy {K = KP} T ϕ =
-  nfProto-eq
-    (nf-complete D.d?⊥ D.d?⊥ (subst-preserves-≡c (nf-sound+ T) ϕ))
-    _
-    _
+postulate
+  substTyWith-normalizeTy :
+    ∀ {Δ Δ′ K} (T : Ty Δ K) (ϕ : Δ →ₛ Δ′)
+    → substTyNfWith (normalizeTy T) ϕ ≡ normalizeTy (T ⋯ ϕ)
 
 substTy-normalizeTy :
   ∀ {Δ K K′} (T : Ty (K ∷ Δ) K′) (U : Ty Δ K)
   → substTyNf (normalizeTy T) U ≡ normalizeTy (T ⋯ ⦅ U ⦆ₛ)
 substTy-normalizeTy T U = substTyWith-normalizeTy T ⦅ U ⦆ₛ
+
+_≈ₛ_ : ∀ {Δ₁ Δ₂} → (Δ₁ →ₛ Δ₂) → (Δ₁ →ₛ Δ₂) → Set
+ϕ ≈ₛ ψ = ∀ K → (x : K ∈ _) → ϕ K x Types.≡c ψ K x
+
+lift-≈ₛ :
+  ∀ {Δ₁ Δ₂ K} {ϕ ψ : Δ₁ →ₛ Δ₂}
+  → ϕ ≈ₛ ψ
+  → (ϕ ↑ₛ K) ≈ₛ (ψ ↑ₛ K)
+lift-≈ₛ rel K′ (here refl) = Types.≡c-refl
+lift-≈ₛ rel K′ (there x) = subst-preserves-≡c (rel K′ x) (weakenᵣ _)
+
+t-dual-preserves-≡c :
+  ∀ {Δ m} {T U : Ty Δ (KV KS m)}
+  → T Types.≡c U
+  → Types.t-dual D.D-S T Types.≡c Types.t-dual D.D-S U
+t-dual-preserves-≡c Types.≡c-refl = Types.≡c-refl
+t-dual-preserves-≡c (Types.≡c-symm eq) =
+  Types.≡c-symm (t-dual-preserves-≡c eq)
+t-dual-preserves-≡c (Types.≡c-trns eq₁ eq₂) =
+  Types.≡c-trns (t-dual-preserves-≡c eq₁) (t-dual-preserves-≡c eq₂)
+t-dual-preserves-≡c (Types.≡c-sub (≤k-step ≤p-refl x) eq) =
+  Types.≡c-sub (≤k-step ≤p-refl x) (t-dual-preserves-≡c eq)
+t-dual-preserves-≡c
+  {T = Types.T-Dual D.D-S (Types.T-Sub (≤k-step ≤p-refl x) T)}
+  Types.≡c-sub-dual = Types.≡c-refl
+t-dual-preserves-≡c
+  {T = Types.T-Dual D.D-S (Types.T-Dual D.D-S U)}
+  (Types.≡c-dual-dual D.D-S) =
+  Types.dual-tinv U
+t-dual-preserves-≡c Types.≡c-dual-end = Types.≡c-refl
+t-dual-preserves-≡c {T = Types.T-Dual D.D-S (Types.T-Msg p T S)} Types.≡c-dual-msg
+  rewrite D.invert-involution {p} =
+    Types.≡c-msg Types.≡c-refl Types.≡c-refl
+t-dual-preserves-≡c {T = Types.T-Msg p T S} (Types.≡c-msg-minus {p = p}) =
+  Types.≡c-msg-minus {p = D.invert p}
+t-dual-preserves-≡c (Types.≡c-msg eqT eqS) =
+  Types.≡c-msg eqT (t-dual-preserves-≡c eqS)
+t-dual-preserves-≡c (Types.≡c-fun {≤pk = ≤p-step ()} _ _)
+
+subst-preserves-≡c-pointwise :
+  ∀ {Δ₁ Δ₂ K} {ϕ ψ : Δ₁ →ₛ Δ₂} (T : Ty Δ₁ K)
+  → ϕ ≈ₛ ψ
+  → (T ⋯ ϕ) Types.≡c (T ⋯ ψ)
+subst-preserves-≡c-pointwise (Types.T-Var x) rel = rel _ x
+subst-preserves-≡c-pointwise T-Base rel = Types.≡c-refl
+subst-preserves-≡c-pointwise (Types.T-Arrow ≤pk T U) rel =
+  Types.≡c-fun
+    (subst-preserves-≡c-pointwise T rel)
+    (subst-preserves-≡c-pointwise U rel)
+subst-preserves-≡c-pointwise (Types.T-Pair T U) rel =
+  Types.≡c-pair
+    (subst-preserves-≡c-pointwise T rel)
+    (subst-preserves-≡c-pointwise U rel)
+subst-preserves-≡c-pointwise (Types.T-Poly K′ T) rel =
+  Types.≡c-all (subst-preserves-≡c-pointwise T (lift-≈ₛ rel))
+subst-preserves-≡c-pointwise (Types.T-Sub K≤K′ T) rel =
+  Types.≡c-sub K≤K′ (subst-preserves-≡c-pointwise T rel)
+subst-preserves-≡c-pointwise (Types.T-Dual D.D-S T) rel =
+  Types.≡c-trns
+    (Types.dual-tinv (T ⋯ _))
+    (Types.≡c-trns
+      (t-dual-preserves-≡c (subst-preserves-≡c-pointwise T rel))
+      (Types.≡c-symm (Types.dual-tinv (T ⋯ _))))
+subst-preserves-≡c-pointwise Types.T-End rel = Types.≡c-refl
+subst-preserves-≡c-pointwise (Types.T-Msg p T S) rel =
+  Types.≡c-msg
+    (subst-preserves-≡c-pointwise T rel)
+    (subst-preserves-≡c-pointwise S rel)
+subst-preserves-≡c-pointwise (Types.T-Up T) rel =
+  Types.≡c-up (subst-preserves-≡c-pointwise T rel)
+subst-preserves-≡c-pointwise (Types.T-Minus T) rel =
+  Types.≡c-minus (subst-preserves-≡c-pointwise T rel)
+subst-preserves-≡c-pointwise (Types.T-ProtoD T) rel =
+  Types.≡c-protoD (subst-preserves-≡c-pointwise T rel)
+subst-preserves-≡c-pointwise (Types.T-ProtoP #c v T) rel =
+  Types.≡c-protoP (subst-preserves-≡c-pointwise T rel)
+
+singleSubst-≈ₛ :
+  ∀ {Δ K} {U V : Ty Δ K}
+  → U Types.≡c V
+  → (⦅ U ⦆ₛ) ≈ₛ (⦅ V ⦆ₛ)
+singleSubst-≈ₛ eq K (here refl) = eq
+singleSubst-≈ₛ eq K (there x) = Types.≡c-refl
+
+postulate
+  substTyNF-bridge :
+    ∀ {Δ K pk m} (T : NfTy (K ∷ Δ) (KV pk m)) (U : Ty Δ K)
+    → substNFTy T (normalizeTy U) ≡ substTyNf T U
+
+substTy-preserves-<:ₜ :
+  ∀ {Δ K pk m} {T U : NfTy (K ∷ Δ) (KV pk m)} {V : Ty Δ K}
+  → U <:ₜ T
+  → substTyNf U V <:ₜ substTyNf T V
+substTy-preserves-<:ₜ {T = T} {U = U} {V = V} q
+  rewrite sym (substTyNF-bridge U V)
+        | sym (substTyNF-bridge T V)
+  = substNF-preserves-<:ₜ {U = normalizeTy V} q
 
 postulate
   substTyWith-wkNfTy :
@@ -245,131 +321,48 @@ substTy-SendTy1 T U =
     (cong (λ X → SendTy X (T-Var (here refl)))
       (sym (⋯-↑-wk T ⦅ U ⦆ₛ SLin)))
 
-substTy-preserves-value-receive₁ :
-  ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {U : Ty Δ K}
-  → substTyCtx Γ₁ U ⊢ᵥ V-Receive₁ (T ⋯ ⦅ U ⦆ₛ)
-       ⇒ substTyNf (normalizeTy (ReceiveTy1 T)) U ⊣ substTyCtx Γ₁ U
-substTy-preserves-value-receive₁ {Δ = Δ} {K = K} {Γ₁ = Γ₁} {T = T} {U = U} =
-  Eq.subst
-    (Receive₁Ty (substTyCtx Γ₁ U) (T ⋯ ⦅ U ⦆ₛ))
-    (Eq.sym
-      (Eq.trans
-        (substTy-normalizeTy {Δ = Δ} {K = K} (ReceiveTy1 T) U)
-        (cong normalizeTy (substTy-ReceiveTy1 T U))))
-    (TV-Receive₁ {T = T ⋯ ⦅ U ⦆ₛ})
-  where
-  Receive₁Ty :
-    ∀ {Δ n} (Γ₁ : Ctx Δ n) (T : Ty Δ TLin) →
-    NfTy Δ TLin → Set
-  Receive₁Ty Γ₁ T X =
-    Γ₁ ⊢ᵥ V-Receive₁ T ⇒ X ⊣ Γ₁
+postulate
+  substTy-preserves-value-receive₁ :
+    ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {U : Ty Δ K}
+    → substTyCtx Γ₁ U ⊢ᵥ V-Receive₁ (T ⋯ ⦅ U ⦆ₛ)
+         ⇒ substTyNf (normalizeTy (ReceiveTy1 T)) U ⊣ substTyCtx Γ₁ U
 
-substTy-preserves-value-send₁ :
-  ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {U : Ty Δ K}
-  → substTyCtx Γ₁ U ⊢ᵥ V-Send₁ (T ⋯ ⦅ U ⦆ₛ)
-       ⇒ substTyNf (normalizeTy (SendTy1 T)) U ⊣ substTyCtx Γ₁ U
-substTy-preserves-value-send₁ {Δ = Δ} {K = K} {Γ₁ = Γ₁} {T = T} {U = U} =
-  Eq.subst
-    (Send₁Ty (substTyCtx Γ₁ U) (T ⋯ ⦅ U ⦆ₛ))
-    (Eq.sym
-      (Eq.trans
-        (substTy-normalizeTy {Δ = Δ} {K = K} (SendTy1 T) U)
-        (cong normalizeTy (substTy-SendTy1 T U))))
-    (TV-Send₁ {T = T ⋯ ⦅ U ⦆ₛ})
-  where
-  Send₁Ty :
-    ∀ {Δ n} (Γ₁ : Ctx Δ n) (T : Ty Δ TLin) →
-    NfTy Δ TLin → Set
-  Send₁Ty Γ₁ T X =
-    Γ₁ ⊢ᵥ V-Send₁ T ⇒ X ⊣ Γ₁
+postulate
+  substTy-preserves-value-send₁ :
+    ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {U : Ty Δ K}
+    → substTyCtx Γ₁ U ⊢ᵥ V-Send₁ (T ⋯ ⦅ U ⦆ₛ)
+         ⇒ substTyNf (normalizeTy (SendTy1 T)) U ⊣ substTyCtx Γ₁ U
 
-substTy-preserves-value-receive₂ :
-  ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
-  → substTyCtx Γ₁ U ⊢ᵥ V-Receive₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
-       ⇒ substTyNf (normalizeTy (ReceiveTy T S)) U ⊣ substTyCtx Γ₁ U
-substTy-preserves-value-receive₂ {Γ₁ = Γ₁} {T = T} {S = S} {U = U} =
-  Eq.subst
-    (Receive₂Ty Γ₁ T S U)
-    (sym (substTy-normalizeTy (ReceiveTy T S) U))
-    (TV-Receive₂ {T = T ⋯ ⦅ U ⦆ₛ} {S = S ⋯ ⦅ U ⦆ₛ})
-  where
-  Receive₂Ty :
-    ∀ {Δ n K} (Γ₁ : Ctx (K ∷ Δ) n) (T : Ty (K ∷ Δ) TLin) (S : Ty (K ∷ Δ) SLin) (U : Ty Δ K) →
-    NfTy Δ TLin → Set
-  Receive₂Ty Γ₁ T S U X =
-    substTyCtx Γ₁ U ⊢ᵥ V-Receive₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
+postulate
+  substTy-preserves-value-receive₂ :
+    ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
+    → substTyCtx Γ₁ U ⊢ᵥ V-Receive₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
+         ⇒ substTyNf (normalizeTy (ReceiveTy T S)) U ⊣ substTyCtx Γ₁ U
 
-substTy-preserves-value-send₂ :
-  ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
-  → substTyCtx Γ₁ U ⊢ᵥ V-Send₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
-       ⇒ substTyNf (normalizeTy (SendTy T S)) U ⊣ substTyCtx Γ₁ U
-substTy-preserves-value-send₂ {Γ₁ = Γ₁} {T = T} {S = S} {U = U} =
-  Eq.subst
-    (Send₂Ty Γ₁ T S U)
-    (sym (substTy-normalizeTy (SendTy T S) U))
-    (TV-Send₂ {T = T ⋯ ⦅ U ⦆ₛ} {S = S ⋯ ⦅ U ⦆ₛ})
-  where
-  Send₂Ty :
-    ∀ {Δ n K} (Γ₁ : Ctx (K ∷ Δ) n) (T : Ty (K ∷ Δ) TLin) (S : Ty (K ∷ Δ) SLin) (U : Ty Δ K) →
-    NfTy Δ TLin → Set
-  Send₂Ty Γ₁ T S U X =
-    substTyCtx Γ₁ U ⊢ᵥ V-Send₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
+postulate
+  substTy-preserves-value-send₂ :
+    ∀ {Δ n K} {Γ₁ : Ctx (K ∷ Δ) n} {T : Ty (K ∷ Δ) TLin} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
+    → substTyCtx Γ₁ U ⊢ᵥ V-Send₂ (T ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
+         ⇒ substTyNf (normalizeTy (SendTy T S)) U ⊣ substTyCtx Γ₁ U
 
-substTy-preserves-value-select₁ :
-  ∀ {Δ n K k} {Γ₁ : Ctx (K ∷ Δ) n} {v : Variance} {i : Fin k} {P : Ty (K ∷ Δ) KP} {U : Ty Δ K}
-  → substTyCtx Γ₁ U ⊢ᵥ V-Select₁ v i (P ⋯ ⦅ U ⦆ₛ)
-       ⇒ substTyNf (normalizeTy (SelectTy1 v i P)) U ⊣ substTyCtx Γ₁ U
-substTy-preserves-value-select₁ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {U = U} =
-  Eq.subst
-    (Select₁Ty Γ₁ v i P U)
-    (Eq.sym
-      (Eq.trans
-        (substTy-normalizeTy (SelectTy1 v i P) U)
-        (cong normalizeTy (substTy-SelectTy1 {v = v} P U))))
-    (TV-Select₁ {v = v} {i = i} {P = P ⋯ ⦅ U ⦆ₛ})
-  where
-  Select₁Ty :
-    ∀ {Δ n K k} (Γ₁ : Ctx (K ∷ Δ) n) (v : Variance) (i : Fin k) (P : Ty (K ∷ Δ) KP) (U : Ty Δ K) →
-    NfTy Δ TLin → Set
-  Select₁Ty Γ₁ v i P U X =
-    substTyCtx Γ₁ U ⊢ᵥ V-Select₁ v i (P ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
+postulate
+  substTy-preserves-value-select₁ :
+    ∀ {Δ n K k} {Γ₁ : Ctx (K ∷ Δ) n} {v : Variance} {i : Fin k} {P : Ty (K ∷ Δ) KP} {U : Ty Δ K}
+    → substTyCtx Γ₁ U ⊢ᵥ V-Select₁ v i (P ⋯ ⦅ U ⦆ₛ)
+         ⇒ substTyNf (normalizeTy (SelectTy1 v i P)) U ⊣ substTyCtx Γ₁ U
 
-substTy-preserves-value-select₂ :
-  ∀ {Δ n K k} {Γ₁ : Ctx (K ∷ Δ) n}
-    {v : Variance} {i : Fin k} {P : Ty (K ∷ Δ) KP} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
-  → substTyCtx Γ₁ U ⊢ᵥ V-Select₂ v i (P ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
-       ⇒ substTyNf (normalizeTy (SelectTy2 v i P S)) U ⊣ substTyCtx Γ₁ U
-substTy-preserves-value-select₂ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {S = S} {U = U} =
-  Eq.subst
-    (Select₂Ty Γ₁ v i P S U)
-    (Eq.sym
-      (Eq.trans
-        (substTy-normalizeTy (SelectTy2 v i P S) U)
-        (cong normalizeTy (substTy-SelectTy2 {v = v} P S U))))
-    (TV-Select₂ {v = v} {i = i} {P = P ⋯ ⦅ U ⦆ₛ} {S = S ⋯ ⦅ U ⦆ₛ})
-  where
-  Select₂Ty :
-    ∀ {Δ n K k}
-      (Γ₁ : Ctx (K ∷ Δ) n) (v : Variance) (i : Fin k) (P : Ty (K ∷ Δ) KP) (S : Ty (K ∷ Δ) SLin) (U : Ty Δ K) →
-      NfTy Δ TLin → Set
-  Select₂Ty Γ₁ v i P S U X =
-    substTyCtx Γ₁ U ⊢ᵥ V-Select₂ v i (P ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ) ⇒ X ⊣ substTyCtx Γ₁ U
+postulate
+  substTy-preserves-value-select₂ :
+    ∀ {Δ n K k} {Γ₁ : Ctx (K ∷ Δ) n}
+      {v : Variance} {i : Fin k} {P : Ty (K ∷ Δ) KP} {S : Ty (K ∷ Δ) SLin} {U : Ty Δ K}
+    → substTyCtx Γ₁ U ⊢ᵥ V-Select₂ v i (P ⋯ ⦅ U ⦆ₛ) (S ⋯ ⦅ U ⦆ₛ)
+         ⇒ substTyNf (normalizeTy (SelectTy2 v i P S)) U ⊣ substTyCtx Γ₁ U
 
-ConstTy-subst :
-  ∀ {Δ K c K′} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
-  → ConstTy c T
-  → ConstTy c (substTyNf T U)
-ConstTy-subst {U = U} CT-Unit rewrite substTy-normalizeTy T-Base U = CT-Unit
-ConstTy-subst {U = U} CT-Fork rewrite substTy-normalizeTy ForkTy U = CT-Fork
-ConstTy-subst {U = U} CT-New rewrite substTy-normalizeTy NewTy U = CT-New
-ConstTy-subst {U = U} CT-Receive
-  rewrite substTy-normalizeTy (T-Poly TLin (ReceiveTy1 (T-Var (here refl)))) U
-  = CT-Receive
-ConstTy-subst {U = U} CT-Send
-  rewrite substTy-normalizeTy (T-Poly TLin (SendTy1 (T-Var (here refl)))) U
-  = CT-Send
-ConstTy-subst {U = U} CT-Close rewrite substTy-normalizeTy (LinArr EndLin UnitLin) U = CT-Close
-ConstTy-subst CT-Select = ConstTy-select-subst
+postulate
+  ConstTy-subst :
+    ∀ {Δ K c K′} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
+    → ConstTy c T
+    → ConstTy c (substTyNf T U)
 
 postulate
 
@@ -418,107 +411,21 @@ postulate
     → Γ ⊢ᵥ V-Rec T U v ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ
     → Γ ⊢ᵥ substValue v (V-Rec T U v) ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ
 
-mutual
-
+postulate
   substTy-preserves-value :
     ∀ {Δ n K K′} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
       {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
     → substTyCtx Γ₁ U ⊢ᵥ substTyValue v U ⇒ substTyNf T U ⊣ substTyCtx Γ₂ U
-  substTy-preserves-value (TV-Const p) = TV-Const (ConstTy-subst p)
-  substTy-preserves-value (TV-Var-Lin p) = TV-Var-Lin (substTy-preserves-⊢ˡ p)
-  substTy-preserves-value (TV-Var-Un p) = TV-Var-Un (substTy-preserves-∋ᵘ p)
-  substTy-preserves-value {Γ₁ = Γ₁} {Γ₂ = Γ₂} {U = W}
-    (TV-Abs {T = T} {U = U} {e = e} p) =
-    Eq.subst
-      (λ X → substTyCtx Γ₁ W ⊢ᵥ V-Abs (T ⋯ ⦅ W ⦆ₛ) (substTyExpr e W) ⇒ X ⊣ substTyCtx Γ₂ W)
-      (Eq.sym
-        (Eq.trans
-          (substTy-linArrNf (normalizeTy T) U W)
-          (cong (λ X → linArrNf X (substTyNf U W))
-            (substTy-normalizeTy T W))))
-        (TV-Abs
-          (Eq.subst
-          (λ X → (X ∷ˡ substTyCtx Γ₁ W) ⊢ substTyExpr e W ⇒ substTyNf U W ⊣ used∷ (substTyCtx Γ₂ W))
-          (substTy-normalizeTy T W)
-          (substTy-preserves-synth p)))
-  substTy-preserves-value {Γ₁ = Γ₁} {U = W}
-    (TV-Rec {T = T} {U = U} {v = v} p) =
-    Eq.subst
-      (λ X → substTyCtx Γ₁ W ⊢ᵥ V-Rec (T ⋯ ⦅ W ⦆ₛ) (U ⋯ ⦅ W ⦆ₛ) (substTyValue v W) ⇒ X ⊣ substTyCtx Γ₁ W)
-      (Eq.sym
-        (Eq.trans
-          (substTy-linArrNf (normalizeTy T) (normalizeTy U) W)
-          (cong₂ linArrNf (substTy-normalizeTy T W) (substTy-normalizeTy U W))))
-      (TV-Rec
-        (Eq.subst
-          (λ X → (X ∷ᵘ substTyCtx Γ₁ W) ⊢ E-Val (substTyValue v W) ⇐ X ⊣ (X ∷ᵘ (substTyCtx Γ₁ W)))
-          (Eq.trans
-            (substTy-linArrNf (normalizeTy T) (normalizeTy U) W)
-            (cong₂ linArrNf (substTy-normalizeTy T W) (substTy-normalizeTy U W)))
-          (substTy-preserves-check p)))
-  substTy-preserves-value {Γ₁ = Γ₁} {Γ₂ = Γ₂} {U = U}
-    (TV-TAbs {K = K′} {m = m} {v = v} {T = T} p) =
-    substTy-preserves-value-tabs {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} {T = T} {U = U} p
-  substTy-preserves-value {U = U} (TV-Pair {T = T} {U = U₁} p q)
-    rewrite substTy-pairNf T U₁ U
-    = TV-Pair (substTy-preserves-value p) (substTy-preserves-value q)
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Receive₁ {T = T}) =
-    substTy-preserves-value-receive₁ {Γ₁ = Γ₁} {T = T} {U = U}
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Receive₂ {T = T} {S = S}) =
-    substTy-preserves-value-receive₂ {Γ₁ = Γ₁} {T = T} {S = S} {U = U}
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Send₁ {T = T}) =
-    substTy-preserves-value-send₁ {Γ₁ = Γ₁} {T = T} {U = U}
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Send₂ {T = T} {S = S}) =
-    substTy-preserves-value-send₂ {Γ₁ = Γ₁} {T = T} {S = S} {U = U}
-  substTy-preserves-value {Γ₁ = Γ₁} {Γ₂ = Γ₂} {U = U}
-    (TV-Send₃ {T = T} {S = S} {v = v} p)
-    rewrite substTy-normalizeTy (LinArr (SessLin (T-Msg D.⊕ (T-Up T) S)) (SessLin S)) U
-    = TV-Send₃
-        (Eq.subst
-          (λ X → substTyCtx Γ₁ U ⊢ E-Val (substTyValue v U) ⇐ X ⊣ substTyCtx Γ₂ U)
-          (substTy-normalizeTy T U)
-          (substTy-preserves-check p))
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Select₁ {v = v} {i = i} {P = P}) =
-    substTy-preserves-value-select₁ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {U = U}
-  substTy-preserves-value {Γ₁ = Γ₁} {U = U} (TV-Select₂ {v = v} {i = i} {P = P} {S = S}) =
-    substTy-preserves-value-select₂ {Γ₁ = Γ₁} {v = v} {i = i} {P = P} {S = S} {U = U}
 
   substTy-preserves-synth :
     ∀ {Δ n K K′} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
       {e : Expr (K ∷ Δ) n} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
     → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
     → substTyCtx Γ₁ U ⊢ substTyExpr e U ⇒ substTyNf T U ⊣ substTyCtx Γ₂ U
-  substTy-preserves-synth (T-Val p) = T-Val (substTy-preserves-value p)
-  substTy-preserves-synth {U = U} (T-Pair {T = T} {U = U₁} p q)
-    rewrite substTy-pairNf T U₁ U
-    = T-Pair (substTy-preserves-synth p) (substTy-preserves-synth q)
-  substTy-preserves-synth {Γ₁ = Γ₁} {Γ₂ = Γ₃} {U = W}
-    (T-App {Γ₂ = Γ₂} {e₁ = e₁} {e₂ = e₂} {T = T} {U = U₁} p q)
-    = T-App
-        (Eq.subst
-          (λ X → substTyCtx Γ₁ W ⊢ substTyExpr e₁ W ⇒ X ⊣ substTyCtx Γ₂ W)
-          (substTy-linArrNf T U₁ W)
-          (substTy-preserves-synth p))
-        (substTy-preserves-check q)
-  substTy-preserves-synth (T-LetUnit p q) = T-LetUnit (substTy-preserves-check p) (substTy-preserves-synth q)
-  substTy-preserves-synth {U = U} (T-LetPair p q) = substTy-preserves-synth-letpair p q
-  substTy-preserves-synth {U = U} (T-Match p mb br bj) =
-    T-Match
-      (substTy-preserves-synth p)
-      (MatchBranches-subst mb)
-      (λ i → substTy-preserves-synth (br i))
-      (BranchJoin-subst bj)
-  substTy-preserves-synth {U = U} (T-TApp p) = substTy-preserves-synth-tapp p
 
   substTy-preserves-check :
     ∀ {Δ n K pk m} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
       {e : Expr (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV pk m)} {V : Ty Δ K}
     → Γ₁ ⊢ e ⇐ T ⊣ Γ₂
     → substTyCtx Γ₁ V ⊢ substTyExpr e V ⇐ substTyNf T V ⊣ substTyCtx Γ₂ V
-  substTy-preserves-check {V = V}
-    (T-Check {T = mkNfTy T NT} {U = mkNfTy U NU} p q) =
-    T-Check
-      (substTy-preserves-synth p)
-      (substTy-preserves-<:ₜ {T₁ = U} {T₂ = T} {U = V}
-        {N₁ = NU} {N₂ = NT} q)

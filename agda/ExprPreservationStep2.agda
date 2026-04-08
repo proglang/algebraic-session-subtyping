@@ -7,18 +7,30 @@ open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Relation.Unary.Any using (here; there)
 import Data.List.Relation.Unary.All as All
 open import Data.Nat using (ℕ; zero; suc; _+_; _⊔_)
-open import Data.Nat.Properties using (≤-refl)
+open import Data.Nat.Properties using (≤-refl; n≤1+n)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Unit using (⊤; tt)
 open import Data.Sum using (inj₁; inj₂)
 import Relation.Binary.PropositionalEquality as Eq
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst)
+open import Relation.Binary.PropositionalEquality using
+  (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst; inspect; Reveal_·_is_)
 
 import Duality
 open import Kinds
 open import Kits
 import Types
+open import NormalTypes using
+  ( N-Normal
+  ; N-Var
+  ; NV-Var
+  ; N-Sub
+  ; N-End
+  ; toNormalProto
+  ; toNormalTy
+  ; nfProtoTy-fromNormalProto
+  ; nfTyTy-fromNormalTy
+  )
 open import Variance using
   ( Variance
   ; ⊕
@@ -35,8 +47,18 @@ open import Variance using
   ; VarianceCovers
   ; compose-covers
   )
-open import Types using (Ty; T-Base; N-Sub; N-End)
-open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-sub; <:ₜ-msg; <:ₚ′-proto; <:ₜ-end)
+open import Types using (Ty; T-Base)
+open import AlgorithmicSubtyping using
+  ( _<:ₜ_
+  ; _<<:ₚ[_]_
+  ; <<:ₚ-refl
+  ; <:ₜ-refl
+  ; <:ₜ-trans
+  ; <:ₜ-sub
+  ; <:ₜ-msg
+  ; <:ₚ′-proto
+  ; <:ₜ-end
+  )
 open import Subtyping using
   ( _<:_
   ; _<<:[_]_
@@ -75,10 +97,31 @@ open import TypesProtocolConstructors using
   ; joinUsage
   ; composeUsage
   )
-open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; V-Send₁; V-Send₂; V-Send₃; V-Select₁; V-Select₂; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
+open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Send₃; V-Select₁; V-Select₂; C-New; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
 open import ExprSemantics using (Label; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send₃; Act-Send; Act-Sel; Act-Select₁; Act-Select₂; Act-Close; Act-AppL; Act-AppR; Act-TAppE; Act-PairL; Act-PairR; Act-MatchE; Act-LetPairE; Act-LetUnitE; _—[_]→_)
 import ExprSemantics as ES
 open import ExprNormalTyping
+open import NormalTypesSubstitution using
+  ( NFSub
+  ; nfSubTy
+  ; wkNFSub
+  ; singleNFSub
+  ; singleNFSub-sound
+  ; wkNFKind-sound
+  ; substNFTy
+  ; substNFProtoWith
+  ; substNFTyWith
+  ; substNFProto-sound
+  ; substNFTy-sound
+  ; msgNF-sound
+  )
+open import AlgorithmicSubstitution using
+  ( msgNF-preserves-<:
+  )
+open import AlgorithmicComplete using
+  ( complete-<<:ₚ
+  ; sizeₚ
+  )
 open import ExprSubstitution using (substTyValue)
 open import ExprSubstitutionTyping using
   ( rec-unfold-preserves-value
@@ -92,7 +135,6 @@ open import ExprSubstitutionTyping using
 import ExprSubstitutionTyping as EST
 open import SubstitutionSubtyping using (subst-preserves-≡c; subst-preserves; subst-preserves-<<:)
 open import AlgorithmicSound using (sound-algₜ; sound-<<:ₚ)
-open import AlgorithmicComplete using (complete-algₜ)
 import ExprContextReduction as ECR
 open import ExprContextReduction using
   (_—ctx[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint
@@ -113,44 +155,8 @@ open import ExprContextReduction using
   ; Ex-β; Ex-Fork; Ex-New; Ex-RecvVal; Ex-RecvLab; Ex-SendVal; Ex-SendLab; Ex-Close
   ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-SendVal; Compat-Select; Compat-Close
   )
-open import ExprTypingProperties using (frame-remove; replay-synth-allUsed; replay-check-allUsed)
+open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; frame-remove; replay-synth-allUsed; replay-check-allUsed)
 open import ExprTypingLeftover using (strip-value; leftover-synth)
-open import ExprPreservationStep using
-  ( closeTy-shape
-  ; close-inversion
-  ; fork-shape
-  ; new-shape
-  ; newInst-shape
-  ; sess-normalizeTy
-  ; sendTy-shape
-  ; receive₂-shape
-  ; send₃-shape
-  ; send₁-rigid
-  ; send₂-rigid
-  ; send₁-ty
-  ; send₂-ty
-  ; send₂-shape
-  ; receive₁-rigid
-  ; receive₂-rigid
-  ; receive₁-ty
-  ; receive₂-ty
-  ; recv-app-inversion
-  ; check-output-unique
-  ; merge-value
-   ; replace-take
-   ; replace-used-output
-  ; take-from-membership
-  ; take-unique
-  ; take-implies-membership
-  ; sendChan-subtype
-  ; sess-subtype
-  ; weaken-synth
-  ; arrow-subtype-inversion
-  ; substTy-wkCtx-id
-  ; remove-frame
-  ; merge-frame
-  )
-import ExprPreservationStep as EPS
 
 open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
@@ -161,7 +167,7 @@ extendUsed zero Γ = Γ
 extendUsed (suc k) Γ = B-Used ▻ extendUsed k Γ
 
 extendUsed-eq :
-  ∀ (k : ℕ) {n} (Γ : Ctx [] n) → EPS.extendUsed k Γ ≡ extendUsed k Γ
+  ∀ (k : ℕ) {n} (Γ : Ctx [] n) → extendUsed k Γ ≡ extendUsed k Γ
 extendUsed-eq zero Γ = refl
 extendUsed-eq (suc k) Γ = cong (B-Used ▻_) (extendUsed-eq k Γ)
 
@@ -169,6 +175,248 @@ extendUsedCR-eq :
   ∀ (k : ℕ) {n} (Γ : Ctx [] n) → ECR.extendUsed k Γ ≡ extendUsed k Γ
 extendUsedCR-eq zero Γ = refl
 extendUsedCR-eq (suc k) Γ = cong (B-Used ▻_) (extendUsedCR-eq k Γ)
+
+postulate
+  closeTy-shape :
+    normalizeTy {Δ = []} CloseTy
+      ≡ linArrNf (normalizeTy {Δ = []} EndLin) (normalizeTy {Δ = []} Types.T-Base)
+
+  close-inversion :
+    ∀ {n}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {W : NfTy [] TLin}
+    → Γ₁ ⊢ᵥ V-Const C-Close ⇒ W ⊣ Γ₂
+    → (Γ₁ ≡ Γ₂) × (W ≡ normalizeTy CloseTy)
+
+  fork-shape :
+    ∀ {n}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {A R : NfTy [] TLin}
+    → Γ₁ ⊢ᵥ V-Const C-Fork ⇒ linArrNf A R ⊣ Γ₂
+    → (Γ₁ ≡ Γ₂)
+      × ((A ≡ linArrNf unitLinNf unitLinNf)
+      × (R ≡ normalizeTy Types.T-Base))
+
+  new-shape :
+    ∀ {n}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {T : NfTy (SLin ∷ []) TLin}
+    → Γ₁ ⊢ᵥ V-Const C-New ⇒ polyNf T ⊣ Γ₂
+    → (Γ₁ ≡ Γ₂)
+      × (T ≡ normalizeTy (Ty.T-Pair (SessLin (Ty.T-Var (here refl)))
+                                 (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))))
+
+  newInst-shape :
+    ∀ {S : Ty [] SLin}
+    → normalizeTy (Ty.T-Pair (SessLin S) (SessLin (Types.T-Dual Duality.D-S S)))
+      ≡ pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
+
+  sess-normalizeTy :
+    ∀ {S : Ty [] SLin}
+    → normalizeTy (SessLin S) ≡ sessNf (normalizeTy S)
+
+  sendTy-shape :
+    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+    → normalizeTy (LinArr (SessLin (Types.T-Msg Duality.⊕ (Types.T-Up T) S)) (SessLin S))
+      ≡ linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
+          (sessNf (normalizeTy S))
+
+  receive₂-shape :
+    ∀ {n}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
+      {A R : NfTy [] TLin}
+    → Γ₁ ⊢ᵥ V-Receive₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γ₂
+    → (Γ₁ ≡ Γ₂)
+      × ((A ≡ recvChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ))
+      × (R ≡ pairNf (normalizeTy Tᵣ) (sessNf (normalizeTy Sᵣ))))
+
+  send₃-shape :
+    ∀ {n}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
+      {v : Value [] n} {A R : NfTy [] TLin}
+    → Γ₁ ⊢ᵥ V-Send₃ Tᵣ Sᵣ v ⇒ linArrNf A R ⊣ Γ₂
+    → (Γ₁ ⊢ E-Val v ⇐ normalizeTy Tᵣ ⊣ Γ₂)
+      × ((A ≡ sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ))
+      × (R ≡ sessNf (normalizeTy Sᵣ)))
+
+  send₁-rigid :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Const C-Send)) U ⇒ T ⊣ Γ′
+    → Γ ≡ Γ′
+
+  send₂-rigid :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
+    → Γ ≡ Γ′
+
+  send₁-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Const C-Send)) U ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (SendTy1 U)
+
+  send₂-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (SendTy U S)
+
+  send₁-shapeNF :
+    ∀ {T : Ty [] TLin}
+    → send1Nf (normalizeTy T) ≡ normalizeTy (SendTy1 T)
+
+  send₂-shapeNF :
+    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+    → sendNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (SendTy T S)
+
+  send₂-shape :
+    ∀ {n}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
+      {A R : NfTy [] TLin}
+    → Γ₁ ⊢ᵥ V-Send₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γ₂
+    → (Γ₁ ≡ Γ₂)
+      × ((A ≡ normalizeTy Tᵣ)
+      × (R ≡ linArrNf (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ))
+               (sessNf (normalizeTy Sᵣ))))
+
+  receive₁-rigid :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Const C-Receive)) U ⇒ T ⊣ Γ′
+    → Γ ≡ Γ′
+
+  receive₂-rigid :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Receive₁ U)) S ⇒ T ⊣ Γ′
+    → Γ ≡ Γ′
+
+  receive₁-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Const C-Receive)) U ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (ReceiveTy1 U)
+
+  receive₂-ty :
+    ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
+    → Γ ⊢ E-TApp (E-Val (V-Receive₁ U)) S ⇒ T ⊣ Γ′
+    → T ≡ normalizeTy (ReceiveTy U S)
+
+  receive₁-shapeNF :
+    ∀ {T : Ty [] TLin}
+    → receive1Nf (normalizeTy T) ≡ normalizeTy (ReceiveTy1 T)
+
+  receive₂-shapeNF :
+    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+    → receiveNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (ReceiveTy T S)
+
+  recv-app-inversion :
+    ∀ {n}
+      {Γ₀ Γ₂ : Ctx [] n}
+      {x : Fin n}
+      {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
+      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {R : NfTy [] TLin}
+    → Γ₀ ⊢ E-App (E-Val (V-Receive₂ Tᵣ Sᵣ)) (E-Val (V-Var x)) ⇒ R ⊣ Γ₂
+    → Γ₀ ∋ˡ x ∶ recvChanNf T S
+    → (Γ₀ ⊢ˡ x ∶ recvChanNf T S ⊣ Γ₂)
+      × ((normalTyOf T <:ₜ normalTyOf (normalizeTy Tᵣ))
+      × ((normalTyOf S <:ₜ normalTyOf (normalizeTy Sᵣ))
+      × (normalTyOf (pairNf T (sessNf S)) <:ₜ normalTyOf R)))
+
+  check-output-unique :
+    ∀ {Δ n pk m pk′ m′} {Γ : Ctx Δ n} {e : Expr Δ n}
+      {T : NfTy Δ (KV pk m)} {U : NfTy Δ (KV pk′ m′)} {Γ₁ Γ₂ : Ctx Δ n}
+    → Γ ⊢ e ⇐ T ⊣ Γ₁
+    → Γ ⊢ e ⇐ U ⊣ Γ₂
+    → Γ₁ ≡ Γ₂
+
+  merge-value :
+    ∀ {n K}
+      {Γx Γv Γ₁ Γv′ : Ctx [] n}
+      {v : Value [] n} {T : NfTy [] K}
+    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+    → AllUsed Γv′
+    → LinearDisjoint Γx Γv
+    → MergeCtx Γx Γv Γ₁
+    → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γx
+
+  replace-take :
+    ∀ {n K}
+      {Γ₀ Γx Γ₂ : Ctx [] n}
+      {x : Fin n} {T U : NfTy [] K}
+    → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
+    → ReplaceAt Γ₀ x (B-Lin U) Γx
+    → Γx ⊢ˡ x ∶ U ⊣ Γ₂
+
+  replace-used-output :
+    ∀ {n K}
+      {Γ₀ Γ₁ Γ₂ : Ctx [] n}
+      {x : Fin n} {T : NfTy [] K}
+    → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
+    → ReplaceAt Γ₀ x B-Used Γ₁
+    → Γ₁ ≡ Γ₂
+
+  take-from-membership :
+    ∀ {n K}
+      {Γ : Ctx [] n}
+      {x : Fin n} {T : NfTy [] K}
+    → Γ ∋ˡ x ∶ T
+    → Σ (Ctx [] n) λ Γ′ → Γ ⊢ˡ x ∶ T ⊣ Γ′
+
+  take-unique :
+    ∀ {n K}
+      {Γ : Ctx [] n}
+      {x : Fin n} {T U : NfTy [] K}
+      {Γ₁ Γ₂ : Ctx [] n}
+    → Γ ⊢ˡ x ∶ T ⊣ Γ₁
+    → Γ ⊢ˡ x ∶ U ⊣ Γ₂
+    → (T ≡ U) × (Γ₁ ≡ Γ₂)
+
+  take-implies-membership :
+    ∀ {Δ n K} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+    → Γ ⊢ˡ x ∶ T ⊣ Γ′
+    → Γ ∋ˡ x ∶ T
+
+  sendChan-subtype :
+    ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
+    → normalTyOf (sendChanNf T₁ S₁) <:ₜ normalTyOf (sendChanNf T₂ S₂)
+    → (normalTyOf T₂ <:ₜ normalTyOf T₁) × (normalTyOf S₁ <:ₜ normalTyOf S₂)
+
+  sess-subtype :
+    ∀ {S₁ S₂ : NfTy [] SLin}
+    → normalTyOf S₁ <:ₜ normalTyOf S₂
+    → normalTyOf (sessNf S₁) <:ₜ normalTyOf (sessNf S₂)
+
+  weaken-synth :
+    ∀ {n k K}
+      {Γ₁ Γ₂ : Ctx [] n}
+      {e : Expr [] n} {T : NfTy [] K}
+    → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
+    → extendUsed k Γ₁ ⊢ ES.weakenExprBy k e ⇒ T ⊣ extendUsed k Γ₂
+
+  arrow-subtype-inversion :
+    ∀ {A V U}
+    → normalTyOf U <:ₜ normalTyOf (linArrNf A V)
+    → Σ (NfTy [] TLin) λ A′ →
+        Σ (NfTy [] TLin) λ V′ →
+          (U ≡ linArrNf A′ V′)
+          × (normalTyOf A <:ₜ normalTyOf A′)
+          × (normalTyOf V′ <:ₜ normalTyOf V)
+
+  substTy-wkCtx-id :
+    ∀ {K n} (Γ : Ctx [] n) (U : Ty [] K) → EST.substTyCtx (wkCtx Γ) U ≡ Γ
+
+  remove-frame :
+    ∀ {n}
+      {Γ₀ Γv Γx : Ctx [] n}
+    → RemoveCtx Γ₀ Γv Γx
+    → FrameCtx Γx Γv Γ₀
+
+  merge-frame :
+    ∀ {n}
+      {Γx Γv Γ₁ : Ctx [] n}
+    → LinearDisjoint Γx Γv
+    → MergeCtx Γx Γv Γ₁
+    → FrameCtx Γx Γv Γ₁
 
 usedCtx : ∀ {n} → Ctx [] n → Ctx [] n
 usedCtx ∅ = ∅
@@ -281,7 +529,7 @@ end-subtype-invert :
   ∀ {U : NfTy [] TLin}
   → normalTyOf U <:ₜ normalTyOf (normalizeTy EndLin)
   → U ≡ normalizeTy EndLin
-end-subtype-invert {U = mkNfTy .EndLin (N-Sub _ N-End)} (<:ₜ-sub <:ₜ-end) = refl
+end-subtype-invert {U = N-Sub _ N-End} (<:ₜ-sub <:ₜ-end) = refl
 
 remove-disjoint :
   ∀ {n}
@@ -448,33 +696,6 @@ postulate
     → LinearDisjoint Γ₀ Γv
     → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
 
-  select₁-pres :
-    ∀ {n k}
-      {Γ Γ′ : Ctx [] n}
-      {v : Variance} {i : Fin k} {P : Ty [] KP}
-      {T : NfTy [] (KV KT Lin)}
-    → Γ ⊢ E-TApp (E-Val (V-Const (C-Select v i))) P ⇒ T ⊣ Γ′
-    → Γ ⊢ᵥ V-Select₁ v i P ⇒ T ⊣ Γ′
-
-  select₂-pres :
-    ∀ {n k}
-      {Γ Γ′ : Ctx [] n}
-      {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
-      {T : NfTy [] (KV KT Lin)}
-    → Γ ⊢ E-TApp (E-Val (V-Select₁ v i P)) S ⇒ T ⊣ Γ′
-    → Γ ⊢ᵥ V-Select₂ v i P S ⇒ T ⊣ Γ′
-
-  select-app-subtype :
-    ∀ {n k}
-      {Γ Γ′ : Ctx [] n}
-      {v₁ v₂ : Variance} {i : Fin k}
-      {P : Ty [] KP} {S : Ty [] SLin}
-      {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
-      {A R : NfTy [] TLin}
-    → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
-    → normalTyOf (selectInNf v₂ i P′ S′) <:ₜ normalTyOf A
-    → normalTyOf (selectOutNf v₂ i P′ S′) <:ₜ normalTyOf R
-
 _≈ₛ_ : ∀ {Δ₁ Δ₂} → (Δ₁ →ₛ Δ₂) → (Δ₁ →ₛ Δ₂) → Set
 _≈ₛ_ {Δ₁} ϕ ψ = ∀ K (x : K ∈ Δ₁) → (ϕ K x) Types.≡c (ψ K x)
 
@@ -640,6 +861,26 @@ singletonSubst-≈ᵥ :
 singletonSubst-≈ᵥ rel K (here refl) = rel
 singletonSubst-≈ᵥ rel K (there ())
 
+singletonSubst-compose :
+  ∀ {Δ₁ Δ₂}
+    {P : Ty Δ₁ KP}
+    {ϕ : Δ₁ →ₛ Δ₂}
+  → (singletonSubst P ·ₖ ϕ) ~ singletonSubst (P ⋯ ϕ)
+singletonSubst-compose KP (here refl) = refl
+singletonSubst-compose K (there ())
+
+instantiate-compose :
+  ∀ {Δ₁ Δ₂ K} {p : Duality.Polarity}
+    (T : Ty (KP ∷ []) K)
+    {P : Ty Δ₁ KP}
+    {ϕ : Δ₁ →ₛ Δ₂}
+  → instantiate ⦃ Kₛ ⦄ p T P ⋯ ϕ
+      ≡ instantiate ⦃ Kₛ ⦄ p T (P ⋯ ϕ)
+instantiate-compose T {P} {ϕ} =
+  trans
+    (fusion T (singletonSubst P) ϕ)
+    (⋯-cong T singletonSubst-compose)
+
 conv⇒<<: :
   ∀ {Δ K} {T₁ T₂ : Ty Δ K} {v : Variance}
   → T₁ Types.≡c T₂
@@ -681,6 +922,18 @@ swap-≈ᵥ :
   → SubstRelates ψ p (vswap v) ϕ
 swap-≈ᵥ {p = p} rel K x = swap-SubstRelVar {x = x} {p = p} (rel K x)
 
+≈ᵥ⊘⇒≈ₛ :
+  ∀ {Δ₁ Δ₂}
+    {ϕ ψ : Δ₁ →ₛ Δ₂}
+    {p : KP ∈ Δ₁}
+  → SubstRelates ϕ p ⊘ ψ
+  → ϕ ≈ₛ ψ
+≈ᵥ⊘⇒≈ₛ {p = here refl} rel K (here refl) = rel K (here refl)
+≈ᵥ⊘⇒≈ₛ {p = there q} rel K (here refl) = rel K (here refl)
+≈ᵥ⊘⇒≈ₛ {p = here refl} rel K (there x) = rel K (there x)
+≈ᵥ⊘⇒≈ₛ {p = there p} rel K (there x) =
+  ≈ᵥ⊘⇒≈ₛ {p = p} (λ K′ y → rel K′ (there y)) K x
+
 coerce-<<: :
   ∀ {Δ K}
     {T₁ T₂ : Ty Δ K}
@@ -718,6 +971,16 @@ coerce-≈ᵥ :
   → VarianceCovers v₁ v₂
   → (∀ K (x : K ∈ Δ₁) → SubstRelVar x p v₂ (ϕ K x) (ψ K x))
 coerce-≈ᵥ {p = p} rel cov K x = coerce-SubstRelVar {x = x} {p = p} (rel K x) cov
+
+swap-covers :
+  ∀ {v u}
+  → VarianceCovers v u
+  → VarianceCovers (vswap v) (vswap u)
+swap-covers {v = ⊕} {u = ⊕} cov = tt
+swap-covers {v = ⊝} {u = ⊝} cov = tt
+swap-covers {v = ⊘} {u = ⊕} cov = tt
+swap-covers {v = ⊘} {u = ⊝} cov = tt
+swap-covers {v = ⊘} {u = ⊘} cov = tt
 
 weaken-SubstRelVar :
   ∀ {Δ K Δ′ K′}
@@ -869,6 +1132,226 @@ msg-<<: {p = Duality.⊝} {v = ⊕} relT relS = <:-msg relT relS
 msg-<<: {p = Duality.⊝} {v = ⊝} relT relS = <:-msg relT relS
 msg-<<: {p = Duality.⊝} {v = ⊘} relT relS = Types.≡c-msg relT relS
 
+subst-preserves-<<:-used⊕ :
+  ∀ {Δ₁ Δ₂ K}
+    (T : Ty Δ₁ K)
+    {p : KP ∈ Δ₁}
+    {u v : Variance}
+    {ϕ ψ : Δ₁ →ₛ Δ₂}
+  → usageVariance T p ≡ used u
+  → SubstRelates ϕ p v ψ
+  → VarianceCovers v u
+  → (T ⋯ ϕ) <<:[ ⊕ ] (T ⋯ ψ)
+subst-preserves-<<:-used⊕ (Types.T-Var (here refl)) {p = here refl} {u = ⊕} refl rel cov =
+  coerce-<<: (rel _ (here refl)) cov
+subst-preserves-<<:-used⊕ (Types.T-Var (here refl)) {p = here refl} {u = ⊝} () rel cov
+subst-preserves-<<:-used⊕ (Types.T-Var (here refl)) {p = here refl} {u = ⊘} () rel cov
+subst-preserves-<<:-used⊕ (Types.T-Var (here refl)) {p = there q} () rel cov
+subst-preserves-<<:-used⊕ (Types.T-Var (there x)) {p = here refl} () rel cov
+subst-preserves-<<:-used⊕ (Types.T-Var (there x)) {p = there p} uv rel cov =
+  subst-preserves-<<:-used⊕ (Types.T-Var x) {p = p} uv (λ K′ y → rel K′ (there y)) cov
+subst-preserves-<<:-used⊕ T-Base () rel cov
+subst-preserves-<<:-used⊕ (Types.T-Arrow ≤pk T U) {p = p} {u = u} {v = v} uv rel cov
+  with usageVariance T p | inspect (usageVariance T) p
+     | usageVariance U p | inspect (usageVariance U) p
+     | uv
+... | unused | Eq.[ eqT ] | unused | Eq.[ eqU ] | ()
+... | unused | Eq.[ eqT ] | used uU | Eq.[ eqU ] | refl =
+  fun-<<:
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊝}
+      (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
+      tt)
+    (subst-preserves-<<:-used⊕ U {u = uU} eqU rel cov)
+... | used uT | Eq.[ eqT ] | unused | Eq.[ eqU ] | refl =
+  fun-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers cov))
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
+      (subst-preserves-≡c-unused U eqU (≈ᵥ⇒≈ᵤ rel))
+      tt)
+... | used uT | Eq.[ eqT ] | used uU | Eq.[ eqU ] | eqJoin =
+  fun-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers
+        (covers-trans
+          cov
+          (join-left-covers {u₁ = vswap uT} {u₂ = used uU} eqJoin))))
+    (subst-preserves-<<:-used⊕
+      U
+      {u = uU}
+      eqU
+      rel
+      (covers-trans
+        cov
+        (join-right-covers {u₂ = uU} {u₁ = used (vswap uT)} eqJoin)))
+subst-preserves-<<:-used⊕ (Types.T-Pair T U) {p = p} {u = u} {v = v} uv rel cov
+  with usageVariance T p | inspect (usageVariance T) p
+     | usageVariance U p | inspect (usageVariance U) p
+     | uv
+... | unused | Eq.[ eqT ] | unused | Eq.[ eqU ] | ()
+... | unused | Eq.[ eqT ] | used uU | Eq.[ eqU ] | refl =
+  pair-<<:
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
+      (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
+      tt)
+    (subst-preserves-<<:-used⊕ U {u = uU} eqU rel cov)
+... | used uT | Eq.[ eqT ] | unused | Eq.[ eqU ] | refl =
+  pair-<<:
+    (subst-preserves-<<:-used⊕ T {u = uT} eqT rel cov)
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
+      (subst-preserves-≡c-unused U eqU (≈ᵥ⇒≈ᵤ rel))
+      tt)
+... | used uT | Eq.[ eqT ] | used uU | Eq.[ eqU ] | eqJoin =
+  pair-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      rel
+      (covers-trans
+        cov
+        (join-left-covers {u₁ = uT} {u₂ = used uU} eqJoin)))
+    (subst-preserves-<<:-used⊕
+      U
+      {u = uU}
+      eqU
+      rel
+      (covers-trans
+        cov
+        (join-right-covers {u₂ = uU} {u₁ = used uT} eqJoin)))
+subst-preserves-<<:-used⊕ (Types.T-Poly K′ T) {p = p} uv rel cov =
+  all-<<: (subst-preserves-<<:-used⊕ T {p = there p} uv (lift-≈ᵥ rel) cov)
+subst-preserves-<<:-used⊕ (Types.T-Sub K≤K′ T) uv rel cov =
+  sub-<<: (subst-preserves-<<:-used⊕ T uv rel cov)
+subst-preserves-<<:-used⊕ (Types.T-Dual Duality.D-S T) {p = p} uv rel cov
+  with usageVariance T p | inspect (usageVariance T) p | uv
+... | unused | Eq.[ eqT ] | ()
+... | used uT | Eq.[ eqT ] | refl =
+  dual-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers cov))
+subst-preserves-<<:-used⊕ Types.T-End () rel cov
+subst-preserves-<<:-used⊕ (Types.T-Msg Duality.⊕ T S) {p = p} {u = u} {v = v} uv rel cov
+  with usageVariance S p | inspect (usageVariance S) p
+     | usageVariance T p | inspect (usageVariance T) p
+     | uv
+... | unused | Eq.[ eqS ] | unused | Eq.[ eqT ] | ()
+... | unused | Eq.[ eqS ] | used uT | Eq.[ eqT ] | refl =
+  msg-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers cov))
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
+      (subst-preserves-≡c-unused S eqS (≈ᵥ⇒≈ᵤ rel))
+      tt)
+... | used uS | Eq.[ eqS ] | unused | Eq.[ eqT ] | refl =
+  msg-<<:
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊝}
+      (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
+      tt)
+    (subst-preserves-<<:-used⊕ S {u = uS} eqS rel cov)
+... | used uS | Eq.[ eqS ] | used uT | Eq.[ eqT ] | eqJoin =
+  msg-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers
+        (covers-trans
+          cov
+          (join-right-covers {u₂ = vswap uT} {u₁ = used uS} eqJoin))))
+    (subst-preserves-<<:-used⊕
+      S
+      {u = uS}
+      eqS
+      rel
+      (covers-trans
+        cov
+        (join-left-covers {u₁ = uS} {u₂ = used (vswap uT)} eqJoin)))
+subst-preserves-<<:-used⊕ (Types.T-Msg Duality.⊝ T S) {p = p} {u = u} {v = v} uv rel cov
+  with usageVariance S p | inspect (usageVariance S) p
+     | usageVariance T p | inspect (usageVariance T) p
+     | uv
+... | unused | Eq.[ eqS ] | unused | Eq.[ eqT ] | ()
+... | unused | Eq.[ eqS ] | used uT | Eq.[ eqT ] | refl =
+  msg-<<:
+    (subst-preserves-<<:-used⊕ T {u = uT} eqT rel cov)
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
+      (subst-preserves-≡c-unused S eqS (≈ᵥ⇒≈ᵤ rel))
+      tt)
+... | used uS | Eq.[ eqS ] | unused | Eq.[ eqT ] | refl =
+  msg-<<:
+    (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
+      (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
+      tt)
+    (subst-preserves-<<:-used⊕ S {u = uS} eqS rel cov)
+... | used uS | Eq.[ eqS ] | used uT | Eq.[ eqT ] | eqJoin =
+  msg-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      rel
+      (covers-trans
+        cov
+        (join-right-covers {u₂ = uT} {u₁ = used uS} eqJoin)))
+    (subst-preserves-<<:-used⊕
+      S
+      {u = uS}
+      eqS
+      rel
+      (covers-trans
+        cov
+        (join-left-covers {u₁ = uS} {u₂ = used uT} eqJoin)))
+subst-preserves-<<:-used⊕ (Types.T-Up T) uv rel cov =
+  up-<<: (subst-preserves-<<:-used⊕ T uv rel cov)
+subst-preserves-<<:-used⊕ (Types.T-Minus T) {p = p} uv rel cov
+  with usageVariance T p | inspect (usageVariance T) p | uv
+... | unused | Eq.[ eqT ] | ()
+... | used uT | Eq.[ eqT ] | refl =
+  minus-<<:
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers cov))
+subst-preserves-<<:-used⊕ (Types.T-ProtoD T) uv rel cov =
+  protoD-<<: (subst-preserves-<<:-used⊕ T uv rel cov)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊕ T) uv rel cov =
+  protoP-<<: {v₁ = ⊕} {v₂ = ⊕}
+    (subst-preserves-<<:-used⊕ T uv rel cov)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊝ T) {p = p} uv rel cov
+  with usageVariance T p | inspect (usageVariance T) p | uv
+... | unused | Eq.[ eqT ] | ()
+... | used uT | Eq.[ eqT ] | refl =
+  protoP-<<: {v₁ = ⊝} {v₂ = ⊕}
+    (subst-preserves-<<:-used⊕
+      T
+      {u = uT}
+      eqT
+      (swap-≈ᵥ rel)
+      (swap-covers cov))
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {p = p} {u = ⊘} {v = ⊘} uv rel cov =
+  protoP-<<: {v₁ = ⊘} {v₂ = ⊕}
+    (subst-preserves-≡c-pointwise T (≈ᵥ⊘⇒≈ₛ rel))
+
 join-left-covers :
   ∀ {u₁ u u₂}
   → joinUsage (used u₁) u₂ ≡ used u
@@ -909,38 +1392,266 @@ unused≢used ()
 used≢unused : ∀ {u} → used u ≡ unused → ⊥
 used≢unused ()
 
+joinUsage-used-used≢unused :
+  ∀ {u₁ u₂}
+  → joinUsage (used u₁) (used u₂) ≡ unused
+  → ⊥
+joinUsage-used-used≢unused {u₁ = ⊕} {u₂ = ⊕} ()
+joinUsage-used-used≢unused {u₁ = ⊕} {u₂ = ⊝} ()
+joinUsage-used-used≢unused {u₁ = ⊕} {u₂ = ⊘} ()
+joinUsage-used-used≢unused {u₁ = ⊝} {u₂ = ⊕} ()
+joinUsage-used-used≢unused {u₁ = ⊝} {u₂ = ⊝} ()
+joinUsage-used-used≢unused {u₁ = ⊝} {u₂ = ⊘} ()
+joinUsage-used-used≢unused {u₁ = ⊘} {u₂ = ⊕} ()
+joinUsage-used-used≢unused {u₁ = ⊘} {u₂ = ⊝} ()
+joinUsage-used-used≢unused {u₁ = ⊘} {u₂ = ⊘} ()
+
+joinUsage-unused-left :
+  ∀ {u₁ u₂}
+  → joinUsage u₁ u₂ ≡ unused
+  → u₁ ≡ unused
+joinUsage-unused-left {u₁ = unused} {u₂ = unused} refl = refl
+joinUsage-unused-left {u₁ = unused} {u₂ = used u} ()
+joinUsage-unused-left {u₁ = used u} {u₂ = unused} ()
+joinUsage-unused-left {u₁ = used u₁} {u₂ = used u₂} eq =
+  ⊥-elim (joinUsage-used-used≢unused eq)
+
+joinUsage-unused-right :
+  ∀ {u₁ u₂}
+  → joinUsage u₁ u₂ ≡ unused
+  → u₂ ≡ unused
+joinUsage-unused-right {u₁ = unused} {u₂ = unused} refl = refl
+joinUsage-unused-right {u₁ = unused} {u₂ = used u} ()
+joinUsage-unused-right {u₁ = used u} {u₂ = unused} ()
+joinUsage-unused-right {u₁ = used u₁} {u₂ = used u₂} eq =
+  ⊥-elim (joinUsage-used-used≢unused eq)
+
+swapUsage-unused :
+  ∀ {u}
+  → swapUsage u ≡ unused
+  → u ≡ unused
+swapUsage-unused {u = unused} refl = refl
+swapUsage-unused {u = used v} ()
+
+composeUsage-unused :
+  ∀ {v u}
+  → composeUsage v u ≡ unused
+  → u ≡ unused
+composeUsage-unused {u = unused} refl = refl
+composeUsage-unused {u = used u} ()
+
+var-subst-ignores-unused :
+  ∀ {Δ K Δ′}
+    (x : K ∈ Δ)
+    (p : KP ∈ Δ)
+    {ϕ ψ : Δ →ₛ Δ′}
+  → usageVariance (Types.T-Var x) p ≡ unused
+  → SubstIgnores ϕ p ψ
+  → (ϕ K x) Types.≡c (ψ K x)
+var-subst-ignores-unused (here refl) (here refl) uv rel = ⊥-elim (used≢unused uv)
+var-subst-ignores-unused (here refl) (there q) uv rel = rel _ (here refl)
+var-subst-ignores-unused (there x) (here refl) uv rel = rel _ (there x)
+var-subst-ignores-unused (there x) (there p) uv rel =
+  var-subst-ignores-unused x p uv (λ K y → rel K (there y))
+
+subst-preserves-≡c-unused :
+  ∀ {Δ₁ Δ₂ K}
+    (T : Ty Δ₁ K)
+    {p : KP ∈ Δ₁}
+    {ϕ ψ : Δ₁ →ₛ Δ₂}
+  → usageVariance T p ≡ unused
+  → SubstIgnores ϕ p ψ
+  → (T ⋯ ϕ) Types.≡c (T ⋯ ψ)
+subst-preserves-≡c-unused (Types.T-Var x) {p = p} uv rel =
+  var-subst-ignores-unused x p uv rel
+subst-preserves-≡c-unused T-Base uv rel = Types.≡c-refl
+subst-preserves-≡c-unused (Types.T-Arrow ≤pk T U) {p = p} uv rel =
+  Types.≡c-fun
+    (subst-preserves-≡c-unused
+      T
+      (swapUsage-unused
+        (joinUsage-unused-left
+          {u₁ = swapUsage (usageVariance T p)}
+          {u₂ = usageVariance U p}
+          uv))
+      rel)
+    (subst-preserves-≡c-unused
+      U
+      (joinUsage-unused-right
+        {u₁ = swapUsage (usageVariance T p)}
+        {u₂ = usageVariance U p}
+        uv)
+      rel)
+subst-preserves-≡c-unused (Types.T-Pair T U) {p = p} uv rel =
+  Types.≡c-pair
+    (subst-preserves-≡c-unused
+      T
+      (joinUsage-unused-left
+        {u₁ = usageVariance T p}
+        {u₂ = usageVariance U p}
+        uv)
+      rel)
+    (subst-preserves-≡c-unused
+      U
+      (joinUsage-unused-right
+        {u₁ = usageVariance T p}
+        {u₂ = usageVariance U p}
+        uv)
+      rel)
+subst-preserves-≡c-unused (Types.T-Poly K′ T) uv rel =
+  Types.≡c-all (subst-preserves-≡c-unused T uv (lift-≈ᵤ rel))
+subst-preserves-≡c-unused (Types.T-Sub K≤K′ T) uv rel =
+  Types.≡c-sub K≤K′ (subst-preserves-≡c-unused T uv rel)
+subst-preserves-≡c-unused (Types.T-Dual Duality.D-S T) uv rel =
+  Types.≡c-trns
+    (Types.dual-tinv (T ⋯ _))
+    (Types.≡c-trns
+      (t-dual-preserves-≡c
+        (subst-preserves-≡c-unused T (swapUsage-unused uv) rel))
+      (Types.≡c-symm (Types.dual-tinv (T ⋯ _))))
+subst-preserves-≡c-unused Types.T-End uv rel = Types.≡c-refl
+subst-preserves-≡c-unused (Types.T-Msg Duality.⊕ T S) {p = p} uv rel =
+  Types.≡c-msg
+    (subst-preserves-≡c-unused
+      T
+      (swapUsage-unused
+        (joinUsage-unused-right
+          {u₁ = usageVariance S p}
+          {u₂ = swapUsage (usageVariance T p)}
+          uv))
+      rel)
+    (subst-preserves-≡c-unused
+      S
+      (joinUsage-unused-left
+        {u₁ = usageVariance S p}
+        {u₂ = swapUsage (usageVariance T p)}
+        uv)
+      rel)
+subst-preserves-≡c-unused (Types.T-Msg Duality.⊝ T S) {p = p} uv rel =
+  Types.≡c-msg
+    (subst-preserves-≡c-unused
+      T
+      (joinUsage-unused-right
+        {u₁ = usageVariance S p}
+        {u₂ = usageVariance T p}
+        uv)
+      rel)
+    (subst-preserves-≡c-unused
+      S
+      (joinUsage-unused-left
+        {u₁ = usageVariance S p}
+        {u₂ = usageVariance T p}
+        uv)
+      rel)
+subst-preserves-≡c-unused (Types.T-Up T) uv rel =
+  Types.≡c-up (subst-preserves-≡c-unused T uv rel)
+subst-preserves-≡c-unused (Types.T-Minus T) uv rel =
+  Types.≡c-minus (subst-preserves-≡c-unused T (swapUsage-unused uv) rel)
+subst-preserves-≡c-unused (Types.T-ProtoD T) uv rel =
+  Types.≡c-protoD (subst-preserves-≡c-unused T uv rel)
+subst-preserves-≡c-unused (Types.T-ProtoP #c v T) uv rel =
+  Types.≡c-protoP (subst-preserves-≡c-unused T (composeUsage-unused uv) rel)
+
+instantiate-unused-independent :
+  ∀ {Δ}
+    (T : Ty (KP ∷ []) KP)
+    {P Q : Ty Δ KP}
+  → usageVariance T (here refl) ≡ unused
+  → instantiate ⦃ Kₛ ⦄ Duality.⊕ T P
+      Types.≡c
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T Q
+instantiate-unused-independent T {P} {Q} uv =
+  subst-preserves-≡c-unused
+    T
+    {p = here refl}
+    {ϕ = singletonSubst P}
+    {ψ = singletonSubst Q}
+    uv
+    singletonSubst-≈ᵤ
+
 instantiate-normalized-raw :
-  ∀ {K} {p : Duality.Polarity}
+  ∀ {Δ K} {p : Duality.Polarity}
     (T : Ty (KP ∷ []) K)
-    {P : Ty [] KP}
+    {P : Ty Δ KP}
   → instantiate ⦃ Kₛ ⦄ p T ⌞ normalizeTy P ⌟
       Types.≡c instantiate ⦃ Kₛ ⦄ p T P
 instantiate-normalized-raw T {P} =
   subst-preserves-≡c-pointwise
-    {ϕ = singletonSubst (Types.nf Duality.⊕ Duality.d?⊥ P)}
+    {ϕ = singletonSubst ⌞ normalizeTy P ⌟}
     {ψ = singletonSubst P}
     T
-    (singletonSubst-≈ₛ (Types.nf-sound+ P))
+    (singletonSubst-≈ₛ
+      (Types.≡c-trns
+        (Types.≡c-refl-eq (nfProtoTy-fromNormalProto (Types.nf-normal-proto P)))
+        (Types.nf-sound+ P)))
+
+normalizeTy-raw :
+  ∀ {Δ K}
+    (T : Ty Δ K)
+  → ⌞ normalizeTy T ⌟ Types.≡c T
+normalizeTy-raw {K = KP} T =
+  Types.≡c-trns
+    (Types.≡c-refl-eq (nfProtoTy-fromNormalProto (Types.nf-normal-proto T)))
+    (Types.nf-sound+ T)
+normalizeTy-raw {K = KV pk m} T =
+  Types.≡c-trns
+    (Types.≡c-refl-eq (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ T)))
+    (Types.nf-sound+ T)
+
+msgNF-raw :
+  ∀ {Δ}
+    (p : Duality.Polarity)
+    (P : NfTy Δ KP)
+    (S : NfTy Δ SLin)
+  → ⌞ NormalTypesSubstitution.msgNF p P S ⌟ Types.≡c Types.T-Msg p ⌞ P ⌟ ⌞ S ⌟
+msgNF-raw p P S =
+  Types.≡c-trns
+    (Types.≡c-refl-eq (msgNF-sound p P S))
+    (Types.t-msg-≡c ⌞ P ⌟)
 
 materializeList-normalized-raw :
+  ∀ {Δ}
   (Ts : List (Ty (KP ∷ []) KP))
-  {P : Ty [] KP} {S : Ty [] SLin}
+  {P : Ty Δ KP} {S : Ty Δ SLin}
   → TypesProtocolConstructors.materializeList Ts Duality.⊕ ⌞ normalizeTy P ⌟ ⌞ normalizeTy S ⌟
       Types.≡c TypesProtocolConstructors.materializeList Ts Duality.⊕ P S
-materializeList-normalized-raw [] {S = S} = Types.nf-sound+ S
+materializeList-normalized-raw [] {S = S} =
+  Types.≡c-trns
+    (Types.≡c-refl-eq
+      (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S)))
+    (Types.nf-sound+ S)
 materializeList-normalized-raw (T ∷ Ts) {P} {S} =
   Types.≡c-msg
     (instantiate-normalized-raw {p = Duality.⊕} T {P = P})
     (materializeList-normalized-raw Ts {P} {S})
 
 materialize-normalized-raw :
-  ∀ {v}
+  ∀ {Δ v}
     (sig : ConstructorSignature v)
-    {P : Ty [] KP} {S : Ty [] SLin}
+    {P : Ty Δ KP} {S : Ty Δ SLin}
   → materialize sig Duality.⊕ ⌞ normalizeTy P ⌟ ⌞ normalizeTy S ⌟
       Types.≡c materialize sig Duality.⊕ P S
 materialize-normalized-raw (Ts , uv) {P} {S} =
   materializeList-normalized-raw Ts {P} {S}
+
+materializeListNf-raw :
+  ∀ {Δ}
+    (Ts : List (Ty (KP ∷ []) KP))
+    {P : NfTy Δ KP}
+    {S : NfTy Δ SLin}
+  → ⌞ materializeListNf Ts Duality.⊕ P S ⌟
+      Types.≡c
+    TypesProtocolConstructors.materializeList Ts Duality.⊕ ⌞ P ⌟ ⌞ S ⌟
+materializeListNf-raw [] = Types.≡c-refl
+materializeListNf-raw (T ∷ Ts) {P} {S} =
+  Types.≡c-trns
+    (msgNF-raw
+      Duality.⊕
+      (normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P ⌟))
+      (materializeListNf Ts Duality.⊕ P S))
+    (Types.≡c-msg
+      (normalizeTy-raw (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P ⌟))
+      (materializeListNf-raw Ts {P = P} {S = S}))
 
 select₂-inversion :
   ∀ {n k}
@@ -948,74 +1659,11 @@ select₂-inversion :
     {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
     {W : NfTy [] TLin}
   → Γ ⊢ᵥ V-Select₂ v i P S ⇒ W ⊣ Γ′
-  → (Γ ≡ Γ′) × (W ≡ normalizeTy (SelectTy2 v i P S))
+  → (Γ ≡ Γ′)
+    × (W ≡ linArrNf
+             (selectInNf v i (normalizeTy P) (normalizeTy S))
+             (selectOutNf v i (normalizeTy P) (normalizeTy S)))
 select₂-inversion TV-Select₂ = refl , refl
-
-selectTy2-shape :
-  ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
-  → normalizeTy (SelectTy2 v i P S)
-    ≡ linArrNf
-        (selectInNf v i (normalizeTy P) (normalizeTy S))
-        (selectOutNf v i (normalizeTy P) (normalizeTy S))
-selectTy2-shape {k} {v} {i} {P} {S} =
-  nfTyEq
-    (cong₂ (Types.T-Arrow (≤p-step <p-mt))
-      (cong ⌞_⌟ inputEq)
-      (cong ⌞_⌟ outputEq))
-    _
-    _
-  where
-  inputRaw : Ty [] SLin
-  inputRaw = Types.T-Msg Duality.⊕ (Types.T-ProtoP (Subset.⁅ i ⁆) v P) S
-
-  inputNorm : Ty [] SLin
-  inputNorm = Types.T-Msg Duality.⊕ (Types.T-ProtoP (Subset.⁅ i ⁆) v ⌞ normalizeTy P ⌟) ⌞ normalizeTy S ⌟
-
-  inputInnerEq : normalizeTy inputRaw ≡ normalizeTy inputNorm
-  inputInnerEq =
-    sym
-      (nfEq
-        (Types.nf-complete
-          Duality.d?⊥
-          Duality.d?⊥
-          (Types.≡c-msg
-            (Types.≡c-protoP (Types.nf-sound+ P))
-            (Types.nf-sound+ S)))
-        _
-        _)
-
-  inputEq :
-    normalizeTy (SessLin inputRaw)
-      ≡ selectInNf v i (normalizeTy P) (normalizeTy S)
-  inputEq =
-    trans
-      (sess-normalizeTy {S = inputRaw})
-      (cong sessNf inputInnerEq)
-
-  outputRaw : Ty [] SLin
-  outputRaw = materialize ((ProtocolConstructors k v) i) Duality.⊕ P S
-
-  outputNorm : Ty [] SLin
-  outputNorm = materialize ((ProtocolConstructors k v) i) Duality.⊕ ⌞ normalizeTy P ⌟ ⌞ normalizeTy S ⌟
-
-  outputInnerEq : normalizeTy outputRaw ≡ normalizeTy outputNorm
-  outputInnerEq =
-    sym
-      (nfEq
-        (Types.nf-complete
-          Duality.d?⊥
-          Duality.d?⊥
-          (materialize-normalized-raw ((ProtocolConstructors k v) i) {P} {S}))
-        _
-        _)
-
-  outputEq :
-    normalizeTy (SessLin outputRaw)
-      ≡ selectOutNf v i (normalizeTy P) (normalizeTy S)
-  outputEq =
-    trans
-      (sess-normalizeTy {S = outputRaw})
-      (cong sessNf outputInnerEq)
 
 select₂-shape :
   ∀ {n k}
@@ -1029,7 +1677,7 @@ select₂-shape :
 select₂-shape {v = v} {i = i} {P = P} {S = S} vr
   with select₂-inversion vr
 ... | refl , eqSelect
-  with linArrNf-injective (trans eqSelect (selectTy2-shape {v = v} {i = i} {P = P} {S = S}))
+  with linArrNf-injective eqSelect
 ... | eqA , eqR = refl , eqA , eqR
 
 selectIn-subtype :
@@ -1039,48 +1687,217 @@ selectIn-subtype :
     {S₁ S₂ : NfTy [] SLin}
   → normalTyOf (selectInNf v₁ i P₁ S₁) <:ₜ normalTyOf (selectInNf v₂ i P₂ S₂)
   → (v₁ ≡ v₂)
-    × (⌞ P₂ ⌟ <<:[ v₁ ] ⌞ P₁ ⌟)
-    × (⌞ S₁ ⌟ <: ⌞ S₂ ⌟)
+    × (P₂ <<:ₚ[ v₁ ] P₁)
+    × (S₁ <:ₜ S₂)
 selectIn-subtype
   {v₁ = v₁}
-  {P₁ = mkNfTy P₁ NP₁} {P₂ = mkNfTy P₂ NP₂}
-  {S₁ = mkNfTy S₁ NS₁} {S₂ = mkNfTy S₂ NS₂}
   (<:ₜ-sub (<:ₜ-msg (<:ₚ′-proto ss paramRel) Ssub)) =
-  refl , pRel , sRel
+  refl , paramRel , Ssub
+
+covers-refl : ∀ {v} → VarianceCovers v v
+covers-refl {v = ⊕} = tt
+covers-refl {v = ⊝} = tt
+covers-refl {v = ⊘} = tt
+
+covers-trans :
+  ∀ {v₁ v₂ v₃}
+  → VarianceCovers v₁ v₂
+  → VarianceCovers v₂ v₃
+  → VarianceCovers v₁ v₃
+covers-trans {v₁ = ⊕} {v₂ = ⊕} {v₃ = ⊕} _ _ = tt
+covers-trans {v₁ = ⊝} {v₂ = ⊝} {v₃ = ⊝} _ _ = tt
+covers-trans {v₁ = ⊘} _ _ = tt
+
+materialize-head-used :
+  ∀
+    (T : Ty (KP ∷ []) KP)
+    {u v : Variance}
+    {P₁ P₂ : NfTy [] KP}
+  → usageVariance T (here refl) ≡ used u
+  → P₂ <<:ₚ[ v ] P₁
+  → VarianceCovers v u
+  → normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+       <<:ₚ[ ⊝ ]
+    normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+materialize-head-used T {u = u} {v = v} {P₁} {P₂} uv pu cov =
+  complete-<<:ₚ
+    (suc (sizeₚ N₁ ⊔ sizeₚ N₂))
+    rawMinus
+    {N₁ = N₁}
+    {N₂ = N₂}
+    (n≤1+n _)
   where
-  pRel₀ : Types.nf Duality.⊕ Duality.d?⊥ P₂ <<:[ v₁ ] Types.nf Duality.⊕ Duality.d?⊥ P₁
-  pRel₀ = sound-<<:ₚ paramRel
+  N₁ : NfTy [] KP
+  N₁ = normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
 
-  pRel₁ : P₂ <<:[ v₁ ] Types.nf Duality.⊕ Duality.d?⊥ P₁
-  pRel₁ =
-    subst
-      (λ X → X <<:[ v₁ ] Types.nf Duality.⊕ Duality.d?⊥ P₁)
-      (Types.nfp-idempotent NP₂)
-      pRel₀
+  N₂ : NfTy [] KP
+  N₂ = normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
 
-  pRel : P₂ <<:[ v₁ ] P₁
-  pRel =
-    subst
-      (λ Y → P₂ <<:[ v₁ ] Y)
-      (Types.nfp-idempotent NP₁)
-      pRel₁
+  rawPlus :
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟
+      <<:[ ⊕ ]
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟
+  rawPlus =
+    subst-preserves-<<:-used⊕
+      T
+      {p = here refl}
+      {u = u}
+      {v = v}
+      {ϕ = singletonSubst ⌞ P₂ ⌟}
+      {ψ = singletonSubst ⌞ P₁ ⌟}
+      uv
+      (singletonSubst-≈ᵥ (sound-<<:ₚ pu))
+      cov
 
-  sRel₀ : Types.nf Duality.⊕ Duality.d?⊥ S₁ <: Types.nf Duality.⊕ Duality.d?⊥ S₂
-  sRel₀ = sound-algₜ Ssub
+  rawMinus :
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟
+      <<:[ ⊝ ]
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟
+  rawMinus = swap-<<: {v = ⊕} rawPlus
 
-  sRel₁ : S₁ <: Types.nf Duality.⊕ Duality.d?⊥ S₂
-  sRel₁ =
-    subst
-      (λ X → X <: Types.nf Duality.⊕ Duality.d?⊥ S₂)
-      (Types.nf-idempotent NS₁)
-      sRel₀
+materialize-head-unused :
+  ∀
+    (T : Ty (KP ∷ []) KP)
+    {P₁ P₂ : NfTy [] KP}
+  → usageVariance T (here refl) ≡ unused
+  → normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+       <<:ₚ[ ⊝ ]
+     normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+materialize-head-unused T {P₁} {P₂} uv =
+  subst
+    (λ X →
+      X <<:ₚ[ ⊝ ]
+      normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟))
+    (sym eqNf)
+    (<<:ₚ-refl {⊙ = ⊝}
+      (normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)))
+  where
+  eqNf :
+    normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+      ≡
+    normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+  eqNf = nfEq eqRaw
+    where
+    eqConv :
+      instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟
+        Types.≡c
+      instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟
+    eqConv =
+      instantiate-unused-independent
+        T
+        {P = ⌞ P₁ ⌟}
+        {Q = ⌞ P₂ ⌟}
+        uv
 
-  sRel : S₁ <: S₂
-  sRel =
-    subst
-      (λ Y → S₁ <: Y)
-      (Types.nf-idempotent NS₂)
-      sRel₁
+    eqRaw :
+      ⌞ normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟) ⌟
+        ≡
+      ⌞ normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟) ⌟
+    eqRaw =
+      trans
+        (nfProtoTy-fromNormalProto
+          (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)))
+        (trans
+          (Types.nf-complete Duality.d?⊥ Duality.d?⊥ eqConv)
+          (sym
+            (nfProtoTy-fromNormalProto
+              (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)))))
+
+mutual
+
+  materializeListNf-sub-used :
+    ∀
+      (Ts : List (Ty (KP ∷ []) KP))
+      {u v : Variance}
+      {P₁ P₂ : NfTy [] KP}
+      {S₁ S₂ : NfTy [] SLin}
+    → allUsageVariance Ts (here refl) ≡ used u
+    → P₂ <<:ₚ[ v ] P₁
+    → VarianceCovers v u
+    → S₁ <:ₜ S₂
+    → materializeListNf Ts Duality.⊕ P₁ S₁
+         <:ₜ
+       materializeListNf Ts Duality.⊕ P₂ S₂
+
+  materializeListNf-sub-unused :
+    ∀
+      (Ts : List (Ty (KP ∷ []) KP))
+      {P₁ P₂ : NfTy [] KP}
+      {S₁ S₂ : NfTy [] SLin}
+    → allUsageVariance Ts (here refl) ≡ unused
+    → S₁ <:ₜ S₂
+    → materializeListNf Ts Duality.⊕ P₁ S₁
+         <:ₜ
+       materializeListNf Ts Duality.⊕ P₂ S₂
+
+  materializeListNf-sub-used [] ()
+  materializeListNf-sub-used (T ∷ Ts) {u = u} {v = v} {P₁} {P₂} {S₁} {S₂} eq pu cov ssub
+    with usageVariance T (here refl) | inspect (usageVariance T) (here refl)
+       | allUsageVariance Ts (here refl) | inspect (allUsageVariance Ts) (here refl)
+       | eq
+  ... | unused | Eq.[ eqT ] | used uTs | Eq.[ eqTs ] | refl =
+    msgNF-preserves-<:
+      (materialize-head-unused T {P₁ = P₁} {P₂ = P₂} eqT)
+      (materializeListNf-sub-used Ts eqTs pu cov ssub)
+  ... | used uT | Eq.[ eqT ] | unused | Eq.[ eqTs ] | refl =
+    msgNF-preserves-<:
+      (materialize-head-used T {u = uT} {v = v} {P₁ = P₁} {P₂ = P₂}
+        eqT pu (covers-trans cov (join-left-covers {u₂ = unused} refl)))
+      (materializeListNf-sub-unused Ts eqTs ssub)
+  ... | used uT | Eq.[ eqT ] | used uTs | Eq.[ eqTs ] | eqJoin =
+    msgNF-preserves-<:
+      (materialize-head-used T {u = uT} {v = v} {P₁ = P₁} {P₂ = P₂}
+        eqT pu (covers-trans cov (join-left-covers {u₂ = used uTs} eqJoin)))
+      (materializeListNf-sub-used Ts eqTs pu
+        (covers-trans cov (join-right-covers {u₂ = uTs} {u₁ = used uT} eqJoin))
+        ssub)
+
+  materializeListNf-sub-unused [] _ ssub = ssub
+  materializeListNf-sub-unused (T ∷ Ts) {P₁} {P₂} {S₁} {S₂} eq ssub
+    with usageVariance T (here refl) | inspect (usageVariance T) (here refl)
+       | allUsageVariance Ts (here refl) | inspect (allUsageVariance Ts) (here refl)
+       | eq
+  ... | unused | Eq.[ eqT ] | unused | Eq.[ eqTs ] | refl =
+    msgNF-preserves-<:
+      (materialize-head-unused T {P₁ = P₁} {P₂ = P₂} eqT)
+      (materializeListNf-sub-unused Ts eqTs ssub)
+  ... | used uT | Eq.[ eqT ] | unused | Eq.[ eqTs ] | ()
+  ... | used uT | Eq.[ eqT ] | used uTs | Eq.[ eqTs ] | eqJoin =
+    ⊥-elim (joinUsage-used-used≢unused eqJoin)
+
+select-app-subtype :
+  ∀ {n k}
+    {Γ Γ′ : Ctx [] n}
+    {v₁ v₂ : Variance} {i : Fin k}
+    {P : Ty [] KP} {S : Ty [] SLin}
+    {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
+    {A R : NfTy [] TLin}
+  → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
+  → normalTyOf (selectInNf v₂ i P′ S′) <:ₜ normalTyOf A
+  → normalTyOf (selectOutNf v₂ i P′ S′) <:ₜ normalTyOf R
+select-app-subtype
+  {v₁ = v₁} {i = i} {P = P} {S = S}
+  {P′ = P′} {S′ = S′}
+  vr selSub
+  with select₂-shape vr
+... | refl , refl , refl
+  with selectIn-subtype selSub
+... | refl , psub , ssub
+  with ProtocolConstructors _ v₁ i
+... | Ts , inj₁ usedTs =
+  <:ₜ-sub
+    (materializeListNf-sub-used
+      Ts
+      usedTs
+      psub
+      covers-refl
+      ssub)
+... | Ts , inj₂ unusedTs =
+  <:ₜ-sub
+    (materializeListNf-sub-unused
+      Ts
+      unusedTs
+      ssub)
 
 basePres :
   ∀ {n pk mult}
@@ -1398,6 +2215,524 @@ send-extract-disjoint
 
 basePres step lbl ex compat synth sub =
   basePres-proof step lbl ex compat synth sub
+
+wkNfProto-normalizeTy :
+  ∀ {K} {P : Ty [] KP}
+  → wkNfTy {K′ = K} (normalizeTy P) ≡ normalizeTy (P ⋯ weakenᵣ K)
+wkNfProto-normalizeTy {K} {P} =
+  trans
+    (sym (normalizeTy-id (wkNfTy {K′ = K} (normalizeTy P))))
+    (nfEq eqRaw)
+  where
+  eqcNorm : ⌞ normalizeTy P ⌟ Types.≡c P
+  eqcNorm =
+    Types.≡c-trns
+      (Types.≡c-refl-eq (nfProtoTy-fromNormalProto (Types.nf-normal-proto P)))
+      (Types.nf-sound+ P)
+
+  eqcWk : ⌞ wkNfTy {K′ = K} (normalizeTy P) ⌟ Types.≡c (P ⋯ weakenᵣ K)
+  eqcWk =
+    subst
+      (λ X → X Types.≡c (P ⋯ weakenᵣ K))
+      (sym (wkNFKind-sound {K = KP} {K′ = K} (normalizeTy P)))
+      (subst-preserves-≡c eqcNorm (weakenᵣ K))
+
+  eqRaw :
+    ⌞ normalizeTy ⌞ wkNfTy {K′ = K} (normalizeTy P) ⌟ ⌟
+      ≡
+    ⌞ normalizeTy (P ⋯ weakenᵣ K) ⌟
+  eqRaw =
+    trans
+      (nfProtoTy-fromNormalProto (Types.nf-normal-proto ⌞ wkNfTy {K′ = K} (normalizeTy P) ⌟))
+      (trans
+        (Types.nf-complete Duality.d?⊥ Duality.d?⊥ eqcWk)
+        (sym (nfProtoTy-fromNormalProto (Types.nf-normal-proto (P ⋯ weakenᵣ K)))))
+
+substNFProtoWith-normalizeTy :
+  ∀ {Δ₁ Δ₂}
+    (σ : NFSub Δ₁ Δ₂)
+    (P : Ty Δ₁ KP)
+  → substNFProtoWith σ (normalizeTy P)
+      ≡ normalizeTy (P ⋯ nfSubTy σ)
+substNFProtoWith-normalizeTy σ P = nfEq raw
+  where
+  eqcNorm : ⌞ normalizeTy P ⌟ Types.≡c P
+  eqcNorm =
+    Types.≡c-trns
+      (Types.≡c-refl-eq (nfProtoTy-fromNormalProto (Types.nf-normal-proto P)))
+      (Types.nf-sound+ P)
+
+  eqcSubst : (⌞ normalizeTy P ⌟ ⋯ nfSubTy σ) Types.≡c (P ⋯ nfSubTy σ)
+  eqcSubst =
+    subst-preserves-≡c eqcNorm (nfSubTy σ)
+
+  raw :
+    ⌞ substNFProtoWith σ (normalizeTy P) ⌟
+      ≡
+    ⌞ normalizeTy (P ⋯ nfSubTy σ) ⌟
+  raw =
+    trans
+      (substNFProto-sound σ (normalizeTy P))
+      (trans
+        (Types.nf-complete Duality.d?⊥ Duality.d?⊥ eqcSubst)
+        (sym (nfProtoTy-fromNormalProto (Types.nf-normal-proto (P ⋯ nfSubTy σ)))))
+
+select₁-materialize-head :
+  ∀ (T : Ty (KP ∷ []) KP) {P : Ty [] KP}
+  → substNFProtoWith
+      (wkNFSub {K = SLin} (singleNFSub (normalizeTy P)))
+      (normalizeTy
+        (instantiate
+          ⦃ Kₛ ⦄
+          Duality.⊕
+          T
+          (Types.T-Var (there (here refl)))))
+      ≡
+    normalizeTy
+      (instantiate
+        ⦃ Kₛ ⦄
+        Duality.⊕
+        T
+        ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟)
+select₁-materialize-head T {P} =
+  trans
+    (substNFProtoWith-normalizeTy
+      (wkNFSub {K = SLin} (singleNFSub (normalizeTy P)))
+      (instantiate
+        ⦃ Kₛ ⦄
+        Duality.⊕
+        T
+        (Types.T-Var (there (here refl)))))
+    (cong normalizeTy
+      (instantiate-compose
+        {Δ₁ = SLin ∷ KP ∷ []}
+        {Δ₂ = SLin ∷ []}
+        {K = KP}
+        {p = Duality.⊕}
+        T
+        {P = Types.T-Var (there (here refl))}
+        {ϕ = nfSubTy (wkNFSub {K = SLin} (singleNFSub (normalizeTy P)))}))
+
+materializeList-select₁-compose :
+  ∀ (Ts : List (Ty (KP ∷ []) KP)) {P : Ty [] KP}
+  → TypesProtocolConstructors.materializeList
+      Ts
+      Duality.⊕
+      (Types.T-Var (there (here refl)))
+      (Types.T-Var (here refl))
+      ⋯ nfSubTy (wkNFSub {K = SLin} (singleNFSub (normalizeTy P)))
+      ≡
+    TypesProtocolConstructors.materializeList
+      Ts
+      Duality.⊕
+      ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+      (Types.T-Var (here refl))
+materializeList-select₁-compose [] = refl
+materializeList-select₁-compose (T ∷ Ts) {P}
+  rewrite instantiate-compose
+            {Δ₁ = SLin ∷ KP ∷ []}
+            {Δ₂ = SLin ∷ []}
+            {K = KP}
+            {p = Duality.⊕}
+            T
+            {P = Types.T-Var (there (here refl))}
+            {ϕ = nfSubTy (wkNFSub {K = SLin} (singleNFSub (normalizeTy P)))}
+        | materializeList-select₁-compose Ts {P} =
+  refl
+
+materializeListNf-select₁ :
+  ∀ (Ts : List (Ty (KP ∷ []) KP)) {P : Ty [] KP}
+  → substNFTyWith
+      (wkNFSub {K = SLin} (singleNFSub (normalizeTy P)))
+      (materializeListNf
+        Ts
+        Duality.⊕
+        (normalizeTy (Types.T-Var (there (here refl))))
+        (normalizeTy (Types.T-Var (here refl))))
+      ≡
+    materializeListNf
+      Ts
+      Duality.⊕
+      (wkNfTy {K′ = SLin} (normalizeTy P))
+      (normalizeTy (Types.T-Var (here refl)))
+materializeListNf-select₁ Ts {P} = nfEq raw
+  where
+  σ : NFSub (SLin ∷ KP ∷ []) (SLin ∷ [])
+  σ = wkNFSub {K = SLin} (singleNFSub (normalizeTy P))
+
+  leftNF : NfTy (SLin ∷ KP ∷ []) SLin
+  leftNF =
+    materializeListNf
+      Ts
+      Duality.⊕
+      (normalizeTy (Types.T-Var (there (here refl))))
+      (normalizeTy (Types.T-Var (here refl)))
+
+  rightNF : NfTy (SLin ∷ []) SLin
+  rightNF =
+    materializeListNf
+      Ts
+      Duality.⊕
+      (wkNfTy {K′ = SLin} (normalizeTy P))
+      (normalizeTy (Types.T-Var (here refl)))
+
+  rightRaw :
+    Ty (SLin ∷ []) SLin
+  rightRaw =
+    TypesProtocolConstructors.materializeList
+      Ts
+      Duality.⊕
+      ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+      (Types.T-Var (here refl))
+
+  raw :
+    ⌞ substNFTyWith σ leftNF ⌟ ≡ ⌞ rightNF ⌟
+  raw = trans eq₁ (trans eq₂ (trans eq₃ eq₄))
+    where
+    eq₁ :
+      ⌞ substNFTyWith σ leftNF ⌟
+        ≡
+      Types.nf Duality.⊕ Duality.d?⊥ (⌞ leftNF ⌟ ⋯ nfSubTy σ)
+    eq₁ = substNFTy-sound σ leftNF
+
+    eq₂ :
+      Types.nf Duality.⊕ Duality.d?⊥ (⌞ leftNF ⌟ ⋯ nfSubTy σ)
+        ≡
+      Types.nf Duality.⊕ Duality.d?⊥
+        (TypesProtocolConstructors.materializeList
+          Ts
+          Duality.⊕
+          (Types.T-Var (there (here refl)))
+          (Types.T-Var (here refl))
+          ⋯ nfSubTy σ)
+    eq₂ =
+      Types.nf-complete
+        Duality.d?⊥
+        Duality.d?⊥
+        (subst-preserves-≡c
+          (materializeListNf-raw
+            Ts
+            {P = normalizeTy (Types.T-Var (there (here refl)))}
+            {S = normalizeTy (Types.T-Var (here refl))})
+          (nfSubTy σ))
+
+    eq₃ :
+      Types.nf Duality.⊕ Duality.d?⊥
+        (TypesProtocolConstructors.materializeList
+          Ts
+          Duality.⊕
+          (Types.T-Var (there (here refl)))
+          (Types.T-Var (here refl))
+          ⋯ nfSubTy σ)
+        ≡
+      Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+    eq₃ =
+      cong
+        (Types.nf Duality.⊕ Duality.d?⊥)
+        (materializeList-select₁-compose Ts {P})
+
+    eq₄ :
+      Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+        ≡
+      ⌞ rightNF ⌟
+    eq₄ = trans eq₄a eq₄b
+      where
+      eq₄a :
+        Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+          ≡
+        Types.nf Duality.⊕ Duality.d?⊥ ⌞ rightNF ⌟
+      eq₄a =
+        sym
+          (Types.nf-complete
+            Duality.d?⊥
+            Duality.d?⊥
+            (materializeListNf-raw
+              Ts
+              {P = wkNfTy {K′ = SLin} (normalizeTy P)}
+              {S = normalizeTy (Types.T-Var (here refl))}))
+
+      eq₄b :
+        Types.nf Duality.⊕ Duality.d?⊥ ⌞ rightNF ⌟
+          ≡
+        ⌞ rightNF ⌟
+      eq₄b = Types.nf-idempotent (toNormalTy rightNF)
+
+wkNfTy-normalizeTy-subst-raw :
+  ∀ {K} {P : Ty [] KP} {U : Ty [] K}
+  → ⌞ wkNfTy {K′ = K} (normalizeTy P) ⌟ ⋯ ⦅ ⌞ normalizeTy U ⌟ ⦆ₛ
+      ≡
+    ⌞ normalizeTy P ⌟
+wkNfTy-normalizeTy-subst-raw {K} {P} {U} =
+  trans
+    (cong
+      (λ X → X ⋯ ⦅ ⌞ normalizeTy U ⌟ ⦆ₛ)
+      (wkNFKind-sound {K = KP} {K′ = K} (normalizeTy P)))
+    (wk-cancels-⦅⦆-⋯ ⌞ normalizeTy P ⌟ ⌞ normalizeTy U ⌟)
+
+wkNfTy-normalizeTy-subst :
+  ∀ {K} {P : Ty [] KP} {U : Ty [] K}
+  → substNFProtoWith
+      (singleNFSub (normalizeTy U))
+      (wkNfTy {K′ = K} (normalizeTy P))
+      ≡
+    normalizeTy P
+wkNfTy-normalizeTy-subst {K} {P} {U} = nfEq raw
+  where
+  σ : NFSub (K ∷ []) []
+  σ = singleNFSub (normalizeTy U)
+
+  raw :
+    ⌞ substNFProtoWith σ (wkNfTy {K′ = K} (normalizeTy P)) ⌟
+      ≡
+    ⌞ normalizeTy P ⌟
+  raw =
+    trans
+      (substNFProto-sound σ (wkNfTy {K′ = K} (normalizeTy P)))
+      (trans
+        (cong
+          (Types.nf Duality.⊕ Duality.d?⊥)
+          (trans
+            (⋯-cong
+              ⌞ wkNfTy {K′ = K} (normalizeTy P) ⌟
+              (singleNFSub-sound (normalizeTy U)))
+            (wkNfTy-normalizeTy-subst-raw {K = K} {P = P} {U = U})))
+        (Types.nfp-idempotent (toNormalProto (normalizeTy P))))
+
+materializeList-select₂-compose :
+  ∀ (Ts : List (Ty (KP ∷ []) KP)) {P : Ty [] KP} {S : Ty [] SLin}
+  → TypesProtocolConstructors.materializeList
+      Ts
+      Duality.⊕
+      ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+      (Types.T-Var (here refl))
+      ⋯ ⦅ ⌞ normalizeTy S ⌟ ⦆ₛ
+      ≡
+    TypesProtocolConstructors.materializeList
+      Ts
+      Duality.⊕
+      ⌞ normalizeTy P ⌟
+      ⌞ normalizeTy S ⌟
+materializeList-select₂-compose [] = refl
+materializeList-select₂-compose (T ∷ Ts) {P} {S}
+  rewrite instantiate-compose
+            {Δ₁ = SLin ∷ []}
+            {Δ₂ = []}
+            {K = KP}
+            {p = Duality.⊕}
+            T
+            {P = ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟}
+            {ϕ = ⦅ ⌞ normalizeTy S ⌟ ⦆ₛ}
+        | wkNfTy-normalizeTy-subst-raw {K = SLin} {P = P} {U = S}
+        | materializeList-select₂-compose Ts {P} {S} =
+  refl
+
+materializeListNf-select₂ :
+  ∀ (Ts : List (Ty (KP ∷ []) KP)) {P : Ty [] KP} {S : Ty [] SLin}
+  → substNFTyWith
+      (singleNFSub (normalizeTy S))
+      (materializeListNf
+        Ts
+        Duality.⊕
+        (wkNfTy {K′ = SLin} (normalizeTy P))
+        (normalizeTy (Types.T-Var (here refl))))
+      ≡
+    materializeListNf
+      Ts
+      Duality.⊕
+      (normalizeTy P)
+      (normalizeTy S)
+materializeListNf-select₂ Ts {P} {S} = nfEq raw
+  where
+  σ : NFSub (SLin ∷ []) []
+  σ = singleNFSub (normalizeTy S)
+
+  leftNF : NfTy (SLin ∷ []) SLin
+  leftNF =
+    materializeListNf
+      Ts
+      Duality.⊕
+      (wkNfTy {K′ = SLin} (normalizeTy P))
+      (normalizeTy (Types.T-Var (here refl)))
+
+  rightNF : NfTy [] SLin
+  rightNF =
+    materializeListNf
+      Ts
+      Duality.⊕
+      (normalizeTy P)
+      (normalizeTy S)
+
+  rightRaw : Ty [] SLin
+  rightRaw =
+    TypesProtocolConstructors.materializeList
+      Ts
+      Duality.⊕
+      ⌞ normalizeTy P ⌟
+      ⌞ normalizeTy S ⌟
+
+  raw :
+    ⌞ substNFTyWith σ leftNF ⌟ ≡ ⌞ rightNF ⌟
+  raw = trans eq₁ (trans eq₂ (trans eq₃ eq₄))
+    where
+    eq₁ :
+      ⌞ substNFTyWith σ leftNF ⌟
+        ≡
+      Types.nf Duality.⊕ Duality.d?⊥ (⌞ leftNF ⌟ ⋯ nfSubTy σ)
+    eq₁ = substNFTy-sound σ leftNF
+
+    eq₂ :
+      Types.nf Duality.⊕ Duality.d?⊥ (⌞ leftNF ⌟ ⋯ nfSubTy σ)
+        ≡
+      Types.nf Duality.⊕ Duality.d?⊥
+        (TypesProtocolConstructors.materializeList
+          Ts
+          Duality.⊕
+          ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+          (Types.T-Var (here refl))
+          ⋯ nfSubTy σ)
+    eq₂ =
+      Types.nf-complete
+        Duality.d?⊥
+        Duality.d?⊥
+        (subst-preserves-≡c
+          (materializeListNf-raw
+            Ts
+            {P = wkNfTy {K′ = SLin} (normalizeTy P)}
+            {S = normalizeTy (Types.T-Var (here refl))})
+          (nfSubTy σ))
+
+    eq₃ :
+      Types.nf Duality.⊕ Duality.d?⊥
+        (TypesProtocolConstructors.materializeList
+          Ts
+          Duality.⊕
+          ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+          (Types.T-Var (here refl))
+          ⋯ nfSubTy σ)
+        ≡
+      Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+    eq₃ = trans eq₃a eq₃b
+      where
+      eq₃a :
+        Types.nf Duality.⊕ Duality.d?⊥
+          (TypesProtocolConstructors.materializeList
+            Ts
+            Duality.⊕
+            ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+            (Types.T-Var (here refl))
+            ⋯ nfSubTy σ)
+          ≡
+        Types.nf Duality.⊕ Duality.d?⊥
+          (TypesProtocolConstructors.materializeList
+            Ts
+            Duality.⊕
+            ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+            (Types.T-Var (here refl))
+            ⋯ ⦅ ⌞ normalizeTy S ⌟ ⦆ₛ)
+      eq₃a =
+        cong
+          (Types.nf Duality.⊕ Duality.d?⊥)
+          (⋯-cong
+            (TypesProtocolConstructors.materializeList
+              Ts
+              Duality.⊕
+              ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+              (Types.T-Var (here refl)))
+            (singleNFSub-sound (normalizeTy S)))
+
+      eq₃b :
+        Types.nf Duality.⊕ Duality.d?⊥
+          (TypesProtocolConstructors.materializeList
+            Ts
+            Duality.⊕
+            ⌞ wkNfTy {K′ = SLin} (normalizeTy P) ⌟
+            (Types.T-Var (here refl))
+            ⋯ ⦅ ⌞ normalizeTy S ⌟ ⦆ₛ)
+          ≡
+        Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+      eq₃b =
+        cong
+          (Types.nf Duality.⊕ Duality.d?⊥)
+          (materializeList-select₂-compose Ts {P} {S})
+
+    eq₄ :
+      Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+        ≡
+      ⌞ rightNF ⌟
+    eq₄ = trans eq₄a eq₄b
+      where
+      eq₄a :
+        Types.nf Duality.⊕ Duality.d?⊥ rightRaw
+          ≡
+        Types.nf Duality.⊕ Duality.d?⊥ ⌞ rightNF ⌟
+      eq₄a =
+        sym
+          (Types.nf-complete
+            Duality.d?⊥
+            Duality.d?⊥
+            (materializeListNf-raw
+              Ts
+              {P = normalizeTy P}
+              {S = normalizeTy S}))
+
+      eq₄b :
+        Types.nf Duality.⊕ Duality.d?⊥ ⌞ rightNF ⌟
+          ≡
+        ⌞ rightNF ⌟
+      eq₄b = Types.nf-idempotent (toNormalTy rightNF)
+
+select₁-body :
+  ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP}
+  → substNFTy
+      (select1Nf v i (N-Normal (N-Var (here refl))))
+      (normalizeTy P)
+      ≡
+    select1Nf v i (normalizeTy P)
+select₁-body {v = v} {i = i} {P = P}
+  rewrite materializeListNf-select₁ (proj₁ (ProtocolConstructors _ v i)) {P = P} =
+  refl
+
+select₂-body :
+  ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
+  → substNFTy
+      (selectNf v i (wkNfTy {K′ = SLin} (normalizeTy P)) (N-Var (NV-Var (here refl))))
+      (normalizeTy S)
+      ≡
+    selectNf v i (normalizeTy P) (normalizeTy S)
+select₂-body {v = v} {i = i} {P = P} {S = S}
+  rewrite wkNfTy-normalizeTy-subst {K = SLin} {P = P} {U = S}
+        | materializeListNf-select₂ (proj₁ (ProtocolConstructors _ v i)) {P = P} {S = S} =
+  refl
+
+select₁-pres :
+  ∀ {n k}
+    {Γ Γ′ : Ctx [] n}
+    {v : Variance} {i : Fin k} {P : Ty [] KP}
+    {T : NfTy [] (KV KT Lin)}
+  → Γ ⊢ E-TApp (E-Val (V-Const (C-Select v i))) P ⇒ T ⊣ Γ′
+  → Γ ⊢ᵥ V-Select₁ v i P ⇒ T ⊣ Γ′
+select₁-pres
+  {Γ = Γ}
+  {Γ′ = Γ′}
+  {v = v} {i = i} {P = P}
+  (T-TApp (T-Val (TV-Const CT-Select)))
+  rewrite select₁-body {v = v} {i = i} {P = P} =
+  TV-Select₁
+
+select₂-pres :
+  ∀ {n k}
+    {Γ Γ′ : Ctx [] n}
+    {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
+    {T : NfTy [] (KV KT Lin)}
+  → Γ ⊢ E-TApp (E-Val (V-Select₁ v i P)) S ⇒ T ⊣ Γ′
+  → Γ ⊢ᵥ V-Select₂ v i P S ⇒ T ⊣ Γ′
+select₂-pres
+  {Γ = Γ}
+  {Γ′ = Γ′}
+  {v = v} {i = i} {P = P} {S = S}
+  (T-TApp (T-Val TV-Select₁))
+  rewrite select₂-body {v = v} {i = i} {P = P} {S = S} =
+  TV-Select₂
 
 mutual
 
@@ -1791,7 +3126,7 @@ weaken-val-synth {k = k} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} dv =
     (λ G₁′ → G₁′ ⊢ E-Val (ES.weakenValueBy k v) ⇒ _ ⊣ extendUsed k Γ₂)
     (extendUsed-eq k Γ₁)
     (subst
-      (λ G₂′ → EPS.extendUsed k Γ₁ ⊢ E-Val (ES.weakenValueBy k v) ⇒ _ ⊣ G₂′)
+      (λ G₂′ → extendUsed k Γ₁ ⊢ E-Val (ES.weakenValueBy k v) ⇒ _ ⊣ G₂′)
       (extendUsed-eq k Γ₂)
       (weaken-synth {k = k} (T-Val dv)))
 
@@ -2122,18 +3457,21 @@ mutual
     (Act-TApp {K = K} {T = T} {v = v})
     lbl@(Label-β _ auv) ex _
     with tabs-inversion vr
-  ... | mkNfTy T₀ N₀ , eq , p
+  ... | T₀ , eq , p
     rewrite polyNf-injective {Δ = []} eq =
-      basePres {Γ₀ = Γ₀} {Γ₂ = Γ₂} {U = normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ)} Ctx-β lbl ex (beta-compatible lbl ex)
+      basePres {Γ₀ = Γ₀} {Γ₂ = Γ₂} {U = EST.substTyNf T₀ T} Ctx-β lbl ex (beta-compatible lbl ex)
         (T-Val
           (subst
-            (λ X → X ⊢ᵥ substTyValue v T ⇒ normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ) ⊣ Γ₂)
+            (λ X → X ⊢ᵥ substTyValue v T ⇒ EST.substTyNf T₀ T ⊣ Γ₂)
             (substTy-wkCtx-id Γ₀ T)
             (subst
-              (λ X → EST.substTyCtx (wkCtx Γ₀) T ⊢ᵥ substTyValue v T ⇒ normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ) ⊣ X)
+              (λ X → EST.substTyCtx (wkCtx Γ₀) T ⊢ᵥ substTyValue v T ⇒ EST.substTyNf T₀ T ⊣ X)
               (substTy-wkCtx-id Γ₂ T)
               (substTy-preserves-value p))))
-        (<:ₜ-refl (normalTyOf (normalizeTy (T₀ ⋯ ⦅ T ⦆ₛ))))
+        (subst
+          (λ X → normalTyOf (EST.substTyNf T₀ T) <:ₜ normalTyOf X)
+          (sym (EST.substTyNF-bridge T₀ T))
+          (<:ₜ-refl (normalTyOf (EST.substTyNf T₀ T))))
   preserve⇒ {Γ₀ = Γ₀} {Γ₂ = Γ₂} {T = T}
     (T-LetUnit (T-Check (T-Val (TV-Const CT-Unit)) _) d₂)
     Act-LetUnit lbl@(Label-β _ auv) ex _ =
@@ -2223,9 +3561,18 @@ mutual
                 (TV-Var-Lin take-here)
                 (TV-Var-Lin (take-there✖ take-here)))
         ; subtype =
+            let
+              pairTy = Ty.T-Pair
+                (SessLin (Ty.T-Var (here refl)))
+                (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))
+            in
             subst
               (λ X → normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))) <:ₜ normalTyOf X)
-              (sym (newInst-shape {S = S}))
+              (trans
+                (trans
+                  (sym (newInst-shape {S = S}))
+                  (sym (EST.substTy-normalizeTy pairTy S)))
+                (sym (EST.substTyNF-bridge (normalizeTy pairTy) S)))
               (<:ₜ-refl (normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S)))))
         }
   preserve⇒
@@ -2238,13 +3585,13 @@ mutual
     rewrite sym (send₁-rigid d) =
       basePres
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
-        {U = normalizeTy (SendTy1 T)}
+        {U = send1Nf (normalizeTy T)}
         Ctx-β lbl ex (beta-compatible lbl ex)
         (T-Val TV-Send₁)
         (subst
-          (λ X → normalTyOf (normalizeTy (SendTy1 T)) <:ₜ normalTyOf X)
-          (sym (send₁-ty d))
-          (<:ₜ-refl (normalTyOf (normalizeTy (SendTy1 T)))))
+          (λ X → normalTyOf (send1Nf (normalizeTy T)) <:ₜ normalTyOf X)
+          (trans (send₁-shapeNF {T = T}) (sym (send₁-ty d)))
+          (<:ₜ-refl (normalTyOf (send1Nf (normalizeTy T)))))
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
@@ -2255,13 +3602,13 @@ mutual
     rewrite sym (send₂-rigid d) =
       basePres
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
-        {U = normalizeTy (SendTy T S)}
+        {U = sendNf (normalizeTy T) (normalizeTy S)}
         Ctx-β lbl ex (beta-compatible lbl ex)
         (T-Val TV-Send₂)
         (subst
-          (λ X → normalTyOf (normalizeTy (SendTy T S)) <:ₜ normalTyOf X)
-          (sym (send₂-ty d))
-          (<:ₜ-refl (normalTyOf (normalizeTy (SendTy T S)))))
+          (λ X → normalTyOf (sendNf (normalizeTy T) (normalizeTy S)) <:ₜ normalTyOf X)
+          (trans (send₂-shapeNF {T = T} {S = S}) (sym (send₂-ty d)))
+          (<:ₜ-refl (normalTyOf (sendNf (normalizeTy T) (normalizeTy S)))))
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
@@ -2277,11 +3624,7 @@ mutual
         {U = linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
              (sessNf (normalizeTy S))}
         Ctx-β lbl ex (beta-compatible lbl ex)
-        (T-Val
-          (subst
-            (λ X → Γ₀ ⊢ᵥ V-Send₃ T S v ⇒ X ⊣ Γ₂)
-            (sendTy-shape {T = T} {S = S})
-            (TV-Send₃ pv)))
+        (T-Val (TV-Send₃ pv))
         (<:ₜ-refl
           (normalTyOf
             (linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
@@ -2416,13 +3759,13 @@ mutual
     rewrite tapp-receive-output-id d =
       basePres
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
-        {U = normalizeTy (ReceiveTy1 T)}
+        {U = receive1Nf (normalizeTy T)}
         Ctx-β lbl ex (beta-compatible lbl ex)
         (T-Val TV-Receive₁)
         (subst
-          (λ X → normalTyOf (normalizeTy (ReceiveTy1 T)) <:ₜ normalTyOf X)
-          (sym (receive₁-ty d))
-          (<:ₜ-refl (normalTyOf (normalizeTy (ReceiveTy1 T)))))
+          (λ X → normalTyOf (receive1Nf (normalizeTy T)) <:ₜ normalTyOf X)
+          (trans (receive₁-shapeNF {T = T}) (sym (receive₁-ty d)))
+          (<:ₜ-refl (normalTyOf (receive1Nf (normalizeTy T)))))
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
@@ -2433,13 +3776,13 @@ mutual
     rewrite tapp-receive₁-output-id d =
       basePres
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
-        {U = normalizeTy (ReceiveTy T S)}
+        {U = receiveNf (normalizeTy T) (normalizeTy S)}
         Ctx-β lbl ex (beta-compatible lbl ex)
         (T-Val TV-Receive₂)
         (subst
-          (λ X → normalTyOf (normalizeTy (ReceiveTy T S)) <:ₜ normalTyOf X)
-          (sym (receive₂-ty d))
-          (<:ₜ-refl (normalTyOf (normalizeTy (ReceiveTy T S)))))
+          (λ X → normalTyOf (receiveNf (normalizeTy T) (normalizeTy S)) <:ₜ normalTyOf X)
+          (trans (receive₂-shapeNF {T = T} {S = S}) (sym (receive₂-ty d)))
+          (<:ₜ-refl (normalTyOf (receiveNf (normalizeTy T) (normalizeTy S)))))
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
@@ -2528,7 +3871,7 @@ mutual
           (λ G₂′ → G₂′ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃)
           (extendUsed-eq k Γ₂)
           (subst
-            (λ G₃′ → EPS.extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
+            (λ G₃′ → extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
             (extendUsed-eq k Γ₃)
             (weaken-synth {k = k} pArg))
     in

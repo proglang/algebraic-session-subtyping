@@ -21,40 +21,85 @@ module AlgorithmicInference where
 open import Util
 open import Kinds
 open import Duality
-open import Types
+open import Types hiding
+  ( NormalTy
+  ; NormalProto
+  ; NormalProto′
+  ; NormalVar
+  ; N-Var
+  ; N-Base
+  ; N-Arrow
+  ; N-Pair
+  ; N-Poly
+  ; N-Sub
+  ; N-End
+  ; N-Msg
+  ; N-ProtoD
+  ; N-ProtoP
+  ; N-Up
+  ; N-Normal
+  ; N-Minus
+  ; NV-Var
+  ; NV-Dual
+  )
 open import TypesDecidable
+open import NormalTypes using
+  ( NFProto
+  ; NFProto′
+  ; NFVar
+  ; NFTy
+  ; nfVarTy
+  ; nfVarTy-injective
+  ; nfProtoTy
+  ; nfProto′Ty
+  ; nfTyTy
+  ; N-Var
+  ; N-Base
+  ; N-Arrow
+  ; N-Pair
+  ; N-Poly
+  ; N-Sub
+  ; N-End
+  ; N-Msg
+  ; N-ProtoD
+  ; N-ProtoP
+  ; N-Up
+  ; N-Normal
+  ; N-Minus
+  ; NV-Var
+  ; NV-Dual
+  )
 open import Subtyping
 open import SubtypingProperties
 open import AlgorithmicSubtyping
 open import AlgorithmicSound
 
 
-
-subtype-inference-var : ∀  {T : Ty Δ K} (NV₁ NV₂ : NormalVar T)
+subtype-inference-var : ∀  {K} (NV₁ NV₂ : NFVar Δ K)
   → Dec (NV₁ ≡ NV₂)
-subtype-inference-var NV-Var NV-Var = yes refl
-subtype-inference-var (NV-Dual D-S x) (NV-Dual d x₁) = yes refl
+subtype-inference-var NV₁ NV₂
+  with ty-equal (nfVarTy NV₁) (nfVarTy NV₂)
+... | yes eq = yes (nfVarTy-injective eq)
+... | no neq = no (λ eq → neq (cong nfVarTy eq))
 
-subtype-inference : ∀ {T₁ T₂ : Ty Δ (KV pk m)}
-  (N₁ : NormalTy T₁)(N₂ : NormalTy T₂)
+subtype-inference : ∀ {pk m}
+  (N₁ : NFTy Δ (KV pk m))(N₂ : NFTy Δ (KV pk m))
   → Dec (N₁ <:ₜ N₂)
-subtype-inference-<<:ₚ′ : ∀ {T₁ T₂ : Ty Δ KP}
-  (N₁ : NormalProto′ T₁) (N₂ : NormalProto′ T₂)
+subtype-inference-<<:ₚ′ : ∀
+  (N₁ : NFProto′ Δ) (N₂ : NFProto′ Δ)
   → Dec (N₁ <<:ₚ′[ injᵥ p ] N₂)
-subtype-inference-<:ₚ′ : ∀ {T₁ T₂ : Ty Δ KP}
-  (N₁ : NormalProto′ T₁) (N₂ : NormalProto′ T₂)
+subtype-inference-<:ₚ′ : ∀
+  (N₁ : NFProto′ Δ) (N₂ : NFProto′ Δ)
   → Dec (N₁ <:ₚ′ N₂)
-subtype-inference-<<:ₚ :  ∀ {⊙} {T₁ T₂ : Ty Δ KP}
-  (N₁ : NormalProto T₁) (N₂ : NormalProto T₂)
+subtype-inference-<<:ₚ :  ∀ {⊙}
+  (N₁ : NFProto Δ) (N₂ : NFProto Δ)
   → Dec (N₁ <<:ₚ[ ⊙ ] N₂)
-subtype-inference-<:ₚ :  ∀ {T₁ T₂ : Ty Δ KP}
-  (N₁ : NormalProto T₁) (N₂ : NormalProto T₂)
+subtype-inference-<:ₚ :  ∀
+  (N₁ : NFProto Δ) (N₂ : NFProto Δ)
   → Dec (N₁ <:ₚ N₂)
 
-subtype-inference {T₁ = T₁} {T₂} (N-Var NV) (N-Var NV₁)
-  with ty-equal T₁ T₂
-... | yes refl = map′ (λ{ refl → <:ₜ-var}) (λ{ <:ₜ-var → refl}) (subtype-inference-var NV NV₁)
-... | no T₁≢T₂ = no (λ{ <:ₜ-var → T₁≢T₂ refl})
+subtype-inference (N-Var NV) (N-Var NV₁) =
+  map′ (λ{ refl → <:ₜ-var}) (λ{ <:ₜ-var → refl}) (subtype-inference-var NV NV₁)
 subtype-inference (N-Var NV) N-Base = no (λ())
 subtype-inference (N-Var NV) (N-Arrow _ N₂ N₃) = no (λ ())
 subtype-inference (N-Var NV) (N-Pair N₂ N₃) = no λ()
@@ -153,7 +198,7 @@ subtype-inference (N-ProtoD N₁) (N-ProtoD N₂) = map′ <:ₜ-data (λ{ (<:�
 subtype-inference-<<:ₚ′ {p = ⊕} N₁ N₂ = subtype-inference-<:ₚ′ N₂ N₁
 subtype-inference-<<:ₚ′ {p = ⊝} N₁ N₂ = subtype-inference-<:ₚ′ N₁ N₂
 
-subtype-inference-<:ₚ′ {T₁ = T-ProtoP {k = k₁} #c₁ ⊙₁ T₁} {T₂ = T-ProtoP {k = k₂} #c₂ ⊙₂ T₂} (N-ProtoP _ _ N) (N-ProtoP _ _ N₁)
+subtype-inference-<:ₚ′ (N-ProtoP {k = k₁} #c₁ ⊙₁ N) (N-ProtoP {k = k₂} #c₂ ⊙₂ N₁)
   with k₁ ≟ k₂
 ... | no k₁≢k₂ = no (λ{ (<:ₚ′-proto x x₁) → k₁≢k₂ refl})
 ... | yes refl
@@ -164,26 +209,26 @@ subtype-inference-<:ₚ′ {T₁ = T-ProtoP {k = k₁} #c₁ ⊙₁ T₁} {T₂ 
 ... | no ¬c₁⊆c₂ = no (λ{ (<:ₚ′-proto x x₁) → ¬c₁⊆c₂ x})
 ... | yes c₁⊆c₂ = map′ (<:ₚ′-proto c₁⊆c₂) (λ{ (<:ₚ′-proto x x₁) → x₁}) (subtype-inference-<<:ₚ N N₁)
 subtype-inference-<:ₚ′ (N-ProtoP _ _ N) (N-Up N₁) = no λ()
-subtype-inference-<:ₚ′ (N-ProtoP _ _ N) N-Var = no λ()
+subtype-inference-<:ₚ′ (N-ProtoP _ _ N) (N-Var x) = no λ()
 subtype-inference-<:ₚ′ (N-Up N) (N-ProtoP _ _ N₁) = no λ()
-subtype-inference-<:ₚ′ {T₁ = T-Up {pk₁} {m₁} T₁} {T-Up {pk₂} {m₂} T₂} (N-Up N) (N-Up N₁)
+subtype-inference-<:ₚ′ (N-Up {pk = pk₁} {m = m₁} N) (N-Up {pk = pk₂} {m = m₂} N₁)
   with eq-prekind pk₁ pk₂
 ... | no pk₁≢pk₂ = no (λ{ (<:ₚ′-up x) → pk₁≢pk₂ refl})
 ... | yes refl
   with eq-multiplicity m₁ m₂
 ... | no m₁≢m₂ = no (λ { (<:ₚ′-up x) → m₁≢m₂ refl })
 ... | yes refl = map′ <:ₚ′-up (λ{ (<:ₚ′-up x) → x}) (subtype-inference N N₁)
-subtype-inference-<:ₚ′ (N-Up N) N-Var = no λ()
-subtype-inference-<:ₚ′ N-Var (N-ProtoP _ _ N) = no λ()
-subtype-inference-<:ₚ′ N-Var (N-Up N) = no λ()
-subtype-inference-<:ₚ′ {T₁ = T₁}{T₂ = T₂} N-Var N-Var
-  with ty-equal T₁ T₂
-... | no T₁≢T₂ = no (λ{ <:ₚ′-var → T₁≢T₂ refl})
+subtype-inference-<:ₚ′ (N-Up N) (N-Var x) = no λ()
+subtype-inference-<:ₚ′ (N-Var x) (N-ProtoP _ _ N) = no λ()
+subtype-inference-<:ₚ′ (N-Var x) (N-Up N) = no λ()
+subtype-inference-<:ₚ′ (N-Var x) (N-Var y)
+  with ty-equal (nfProto′Ty (N-Var x)) (nfProto′Ty (N-Var y))
+... | no neq = no (λ{ <:ₚ′-var → neq refl})
 ... | yes refl = yes <:ₚ′-var
 
 subtype-inference-<<:ₚ {⊙ = ⊕} N₁ N₂ = subtype-inference-<:ₚ N₁ N₂
 subtype-inference-<<:ₚ {⊙ = ⊝} N₁ N₂ = subtype-inference-<:ₚ N₂ N₁
-subtype-inference-<<:ₚ {⊙ = ⊘} {T₁} {T₂} N₁ N₂ = ty-equal T₁ T₂
+subtype-inference-<<:ₚ {⊙ = ⊘} N₁ N₂ = ty-equal (nfProtoTy N₁) (nfProtoTy N₂)
 
 subtype-inference-<:ₚ (N-Normal NP) (N-Normal NP₁) = map′ <:ₚ-plus (λ{ (<:ₚ-plus x) → x}) (subtype-inference-<:ₚ′ NP NP₁)
 subtype-inference-<:ₚ (N-Normal NP) (N-Minus NP₁) = no λ()
