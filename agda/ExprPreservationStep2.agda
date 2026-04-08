@@ -120,7 +120,7 @@ open import NormalTypesSubstitution using
 open import AlgorithmicNFSubstitution using
   ( msgNF-preserves-<:
   )
-open import AlgorithmicNFComplete1 using
+open import AlgorithmicNFComplete using
   ( complete-<<:ₚ
   )
 open import ExprSubstitution using (substTyValue)

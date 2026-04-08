@@ -1,451 +1,439 @@
-{-# OPTIONS --termination-depth=5 #-}
+module AlgorithmicNFComplete where
 
-open import Data.Empty using (⊥-elim)
--- open import Data.Fin
-open import Data.Nat using (ℕ; zero; suc; _⊔_; _≤_; s≤s; z≤n; s≤s⁻¹)
-open import Data.Nat.Properties using (≤-reflexive; ≤-refl; ≤-trans; n≤1+n; ⊔-comm; ⊔-assoc)
-open import Data.Fin.Subset as Subset using (_⊆_)
-open import Data.Fin.Subset.Properties using (⊆-refl; ⊆-antisym)
--- open import Data.List
-open import Data.Product
--- open import Data.Sum
-open import Relation.Nullary using (¬_)
+open import Data.List using (List)
+open import Data.Nat using (ℕ; _⊔_; _≤_)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; dcong; cong-app; subst; subst₂; module ≡-Reasoning)
-open ≡-Reasoning
-
-open import Function using (const; _$_; case_of_)
-
-module AlgorithmicNFComplete  where
+open Eq using (_≡_; refl; sym; cong₂; subst; subst₂)
 
 open import Util
 open import Kinds
 open import Duality
-open import Types hiding
-  ( NormalTy
-  ; NormalProto
-  ; NormalProto′
-  ; N-Var
-  ; N-Base
-  ; N-Arrow
-  ; N-Pair
-  ; N-Poly
-  ; N-Sub
-  ; N-End
-  ; N-Msg
-  ; N-ProtoD
-  ; N-ProtoP
-  ; N-Up
-  ; N-Normal
-  ; N-Minus
-  ; sizeₜ
-  ; sizeₚ
-  ; sizeₚ′
-  ; nf-normal-type
-  ; nf-normal-proto
-  ; nf-normal-proto-inverted
-  )
+open import Variance
+open import Types using (Ty; _≡c_; nf; t-minus)
+open import Subtyping using (_<:_; _<<:[_]_; injᵥ)
 open import NormalTypes using
-  ( NFTy
-  ; NFProto
+  ( NFProto
   ; NFProto′
-  ; N-Var
-  ; N-Base
-  ; N-Arrow
-  ; N-Pair
-  ; N-Poly
-  ; N-Sub
-  ; N-End
-  ; N-Msg
-  ; N-ProtoD
-  ; N-ProtoP
-  ; N-Up
-  ; N-Normal
-  ; N-Minus
-  ; nf-normal-type
-  ; nf-normal-proto
-  ; nf-normal-proto-inverted
-  ; toNormalTy
+  ; NFTy
+  ; nfProtoTy
+  ; nfProto′Ty
+  ; nfTyTy
+  ; nfProtoTy-injective
+  ; nfProto′Ty-injective
+  ; nfTyTy-injective
   ; toNormalProto
   ; toNormalProto′
-  ; sizeₜ
+  ; toNormalTy
+  ; fromNormalProto
+  ; fromNormalProto′
+  ; fromNormalTy
+  ; nfProtoTy-fromNormalProto
+  ; nfProto′Ty-fromNormalProto′
+  ; nfTyTy-fromNormalTy
   ; sizeₚ
   ; sizeₚ′
-  ; sizeₜ-toNormal
+  ; sizeₜ
   ; sizeₚ-toNormal
   ; sizeₚ′-toNormal
+  ; sizeₜ-toNormal
   )
-open import Subtyping
-open import SubtypingProperties
 open import AlgorithmicNFSubtyping
-open import AlgorithmicNFSound
 
-⊔-≤ₗ : ∀ {m n o} → m ⊔ n ≤ o → m ≤ o
-⊔-≤ₗ {zero} mn≤o = z≤n
-⊔-≤ₗ {suc m} {zero} mn≤o = mn≤o
-⊔-≤ₗ {suc m} {suc n} (s≤s mn≤o) = s≤s (⊔-≤ₗ mn≤o)
+import Types
+import NormalTypes as NF
+import AlgorithmicSubtyping as A
+import AlgorithmicComplete as C
 
-⊔-≤ᵣ : ∀ {m n o} → m ⊔ n ≤ o → n ≤ o
-⊔-≤ᵣ {zero} mn≤o = mn≤o
-⊔-≤ᵣ {suc m} {zero} mn≤o = z≤n
-⊔-≤ᵣ {suc m} {suc n} (s≤s mn≤o) = s≤s (⊔-≤ᵣ mn≤o)
+private
+  variable
+    Δ : List Kind
 
+fromNormalProto∘toNormalProto :
+  (N : NFProto Δ) → fromNormalProto (toNormalProto N) ≡ N
+fromNormalProto∘toNormalProto N =
+  nfProtoTy-injective (nfProtoTy-fromNormalProto (toNormalProto N))
 
-shuffle-⊔ : ∀ x₁ x₂ y₁ y₂ → (x₁ ⊔ x₂) ⊔ (y₁ ⊔ y₂) ≡ (x₁ ⊔ y₁) ⊔ (x₂ ⊔ y₂)
-shuffle-⊔ x₁ x₂ y₁ y₂ =
-  begin
-    x₁ ⊔ x₂ ⊔ (y₁ ⊔ y₂)
-  ≡⟨ ⊔-assoc x₁ x₂ (y₁ ⊔ y₂) ⟩
-    x₁ ⊔ (x₂ ⊔ (y₁ ⊔ y₂))
-  ≡⟨ cong (x₁ ⊔_) (sym (⊔-assoc x₂ y₁ y₂)) ⟩
-    x₁ ⊔ ((x₂ ⊔ y₁) ⊔ y₂)
-  ≡⟨ cong (x₁ ⊔_) (cong (_⊔ y₂) (⊔-comm x₂ y₁)) ⟩
-    x₁ ⊔ ((y₁ ⊔ x₂) ⊔ y₂)
-  ≡⟨ cong (x₁ ⊔_) (⊔-assoc y₁ x₂ y₂) ⟩
-    x₁ ⊔ (y₁ ⊔ (x₂ ⊔ y₂))
-  ≡⟨ sym (⊔-assoc x₁ y₁ (x₂ ⊔ y₂)) ⟩
-    x₁ ⊔ y₁ ⊔ (x₂ ⊔ y₂)
-  ∎
+fromNormalProto′∘toNormalProto′ :
+  (N : NFProto′ Δ) → fromNormalProto′ (toNormalProto′ N) ≡ N
+fromNormalProto′∘toNormalProto′ N =
+  nfProto′Ty-injective (nfProto′Ty-fromNormalProto′ (toNormalProto′ N))
 
-nfp-size-nf :
-  (T₁ T₂ : Ty Δ KP) → T₁ <: T₂
-  → ∀ {p f₁} (N₁ : NFProto Δ) (N₂ : NFProto Δ)
-  → sizeₚ N₁ ≡ sizeₚ N₂
-nfp-size-nf T₁ T₂ T₁<:T₂ {p} {f₁} N₁ N₂ =
-  trans
-    (sym (sizeₚ-toNormal N₁))
-    (trans
-      (SubtypingProperties.nfp-size T₁ T₂ T₁<:T₂ {p = p} {f₁ = f₁}
-        (toNormalProto N₁) (toNormalProto N₂))
-      (sizeₚ-toNormal N₂))
+fromNormalTy∘toNormalTy :
+  (N : NFTy Δ (KV pk m)) → fromNormalTy (toNormalTy N) ≡ N
+fromNormalTy∘toNormalTy N =
+  nfTyTy-injective (nfTyTy-fromNormalTy (toNormalTy N))
 
-nfp-invert-size-nf :
-  (T₁ T₂ : Ty Δ KP) → T₂ <: T₁
-  → ∀ {p f₁} (N₁ : NFProto Δ) (N₂ : NFProto Δ)
-  → sizeₚ N₁ ≡ sizeₚ N₂
-nfp-invert-size-nf T₁ T₂ T₂<:T₁ {p} {f₁} N₁ N₂ =
-  trans
-    (sym (sizeₚ-toNormal N₁))
-    (trans
-      (SubtypingProperties.nfp-invert-size T₁ T₂ T₂<:T₁ {p} {f₁}
-        (toNormalProto N₁) (toNormalProto N₂))
-      (sizeₚ-toNormal N₂))
+fromNormalProto-subst-toNormal :
+  ∀ {T : Ty Δ KP} {N : NFProto Δ}
+  → (eq : nfProtoTy N ≡ T)
+  → fromNormalProto (subst Types.NormalProto eq (toNormalProto N)) ≡ N
+fromNormalProto-subst-toNormal {N = N} refl =
+  fromNormalProto∘toNormalProto N
 
-nft-size-nf :
-  (T₁ T₂ : Ty Δ (KV pk m)) → T₁ <: T₂
-  → ∀ {p f₁ f₂} (N₁ : NFTy Δ (KV pk m)) (N₂ : NFTy Δ (KV pk m))
-  → sizeₜ N₁ ≡ sizeₜ N₂
-nft-size-nf T₁ T₂ T₁<:T₂ {p} {f₁} {f₂} N₁ N₂ =
-  trans
-    (sym (sizeₜ-toNormal N₁))
-    (trans
-      (SubtypingProperties.nft-size T₁ T₂ T₁<:T₂ {p = p} {f₁ = f₁} {f₂ = f₂}
-        (toNormalTy N₁) (toNormalTy N₂))
-      (sizeₜ-toNormal N₂))
+fromNormalProto′-subst-toNormal :
+  ∀ {T : Ty Δ KP} {N : NFProto′ Δ}
+  → (eq : nfProto′Ty N ≡ T)
+  → fromNormalProto′ (subst Types.NormalProto′ eq (toNormalProto′ N)) ≡ N
+fromNormalProto′-subst-toNormal {N = N} refl =
+  fromNormalProto′∘toNormalProto′ N
 
--- algorithmic subtyping is complete
+fromNormalTy-subst-toNormal :
+  ∀ {T : Ty Δ (KV pk m)} {N : NFTy Δ (KV pk m)}
+  → (eq : nfTyTy N ≡ T)
+  → fromNormalTy (subst Types.NormalTy eq (toNormalTy N)) ≡ N
+fromNormalTy-subst-toNormal {N = N} refl =
+  fromNormalTy∘toNormalTy N
 
-complete-algₚ : ∀ n {T₁ T₂ : Ty Δ KP}
+mutual
+
+  old→nf-core-<:ₜ :
+    ∀ {T₁ T₂ : Ty Δ (KV pk m)}
+      {M₁ : Types.NormalTy T₁} {M₂ : Types.NormalTy T₂}
+    → A._<:ₜ_ M₁ M₂
+    → fromNormalTy M₁ <:ₜ fromNormalTy M₂
+  old→nf-core-<:ₜ A.<:ₜ-var = <:ₜ-var
+  old→nf-core-<:ₜ A.<:ₜ-base = <:ₜ-base
+  old→nf-core-<:ₜ (A.<:ₜ-arrow N₂<:N₁ N₁<:N₂) =
+    <:ₜ-arrow (old→nf-core-<:ₜ N₂<:N₁) (old→nf-core-<:ₜ N₁<:N₂)
+  old→nf-core-<:ₜ (A.<:ₜ-pair N₁<:N₂ M₁<:M₂) =
+    <:ₜ-pair (old→nf-core-<:ₜ N₁<:N₂) (old→nf-core-<:ₜ M₁<:M₂)
+  old→nf-core-<:ₜ (A.<:ₜ-poly N₁<:N₂) =
+    <:ₜ-poly (old→nf-core-<:ₜ N₁<:N₂)
+  old→nf-core-<:ₜ (A.<:ₜ-sub N₁<:N₂) =
+    <:ₜ-sub (old→nf-core-<:ₜ N₁<:N₂)
+  old→nf-core-<:ₜ A.<:ₜ-end = <:ₜ-end
+  old→nf-core-<:ₜ (A.<:ₜ-msg NP₁<<:NP₂ S₁<:S₂) =
+    <:ₜ-msg (old→nf-core-<<:ₚ′ NP₁<<:NP₂) (old→nf-core-<:ₜ S₁<:S₂)
+  old→nf-core-<:ₜ (A.<:ₜ-data N₁<:N₂) =
+    <:ₜ-data (old→nf-core-<:ₜ N₁<:N₂)
+
+  old→nf-core-<:ₚ′ :
+    ∀ {T₁ T₂ : Ty Δ KP}
+      {M₁ : Types.NormalProto′ T₁} {M₂ : Types.NormalProto′ T₂}
+    → A._<:ₚ′_ M₁ M₂
+    → fromNormalProto′ M₁ <:ₚ′ fromNormalProto′ M₂
+  old→nf-core-<:ₚ′ (A.<:ₚ′-proto #c₁⊆#c₂ N₁<<:N₂) =
+    <:ₚ′-proto #c₁⊆#c₂ (old→nf-core-<<:ₚ N₁<<:N₂)
+  old→nf-core-<:ₚ′ (A.<:ₚ′-up N₁<:N₂) =
+    <:ₚ′-up (old→nf-core-<:ₜ N₁<:N₂)
+  old→nf-core-<:ₚ′ A.<:ₚ′-var = <:ₚ′-var
+
+  old→nf-core-<:ₚ :
+    ∀ {T₁ T₂ : Ty Δ KP}
+      {M₁ : Types.NormalProto T₁} {M₂ : Types.NormalProto T₂}
+    → A._<:ₚ_ M₁ M₂
+    → fromNormalProto M₁ <:ₚ fromNormalProto M₂
+  old→nf-core-<:ₚ (A.<:ₚ-plus N₁<:N₂) =
+    <:ₚ-plus (old→nf-core-<:ₚ′ N₁<:N₂)
+  old→nf-core-<:ₚ (A.<:ₚ-minus N₂<:N₁) =
+    <:ₚ-minus (old→nf-core-<:ₚ′ N₂<:N₁)
+
+  old→nf-core-<<:ₚ′ :
+    ∀ {⊙} {T₁ T₂ : Ty Δ KP}
+      {M₁ : Types.NormalProto′ T₁} {M₂ : Types.NormalProto′ T₂}
+    → A._<<:ₚ′[_]_ M₁ ⊙ M₂
+    → fromNormalProto′ M₁ <<:ₚ′[ ⊙ ] fromNormalProto′ M₂
+  old→nf-core-<<:ₚ′ {⊙ = Variance.⊕} N₁<<:N₂ = old→nf-core-<:ₚ′ N₁<<:N₂
+  old→nf-core-<<:ₚ′ {⊙ = Variance.⊘} {M₁ = M₁} {M₂ = M₂} N₁≡N₂
+    rewrite nfProto′Ty-fromNormalProto′ M₁
+          | nfProto′Ty-fromNormalProto′ M₂
+    = N₁≡N₂
+  old→nf-core-<<:ₚ′ {⊙ = Variance.⊝} N₂<<:N₁ = old→nf-core-<:ₚ′ N₂<<:N₁
+
+  old→nf-core-<<:ₚ :
+    ∀ {⊙} {T₁ T₂ : Ty Δ KP}
+      {M₁ : Types.NormalProto T₁} {M₂ : Types.NormalProto T₂}
+    → A._<<:ₚ[_]_ M₁ ⊙ M₂
+    → fromNormalProto M₁ <<:ₚ[ ⊙ ] fromNormalProto M₂
+  old→nf-core-<<:ₚ {⊙ = Variance.⊕} N₁<<:N₂ = old→nf-core-<:ₚ N₁<<:N₂
+  old→nf-core-<<:ₚ {⊙ = Variance.⊘} {M₁ = M₁} {M₂ = M₂} N₁≡N₂
+    rewrite nfProtoTy-fromNormalProto M₁
+          | nfProtoTy-fromNormalProto M₂
+    = N₁≡N₂
+  old→nf-core-<<:ₚ {⊙ = Variance.⊝} N₂<<:N₁ = old→nf-core-<:ₚ N₂<<:N₁
+
+  old→nf-core-<<:ₜ :
+    ∀ {p} {T₁ T₂ : Ty Δ (KV pk m)}
+      {M₁ : Types.NormalTy T₁} {M₂ : Types.NormalTy T₂}
+    → A._<<:ₜ[_]_ M₁ p M₂
+    → fromNormalTy M₁ <<:ₜ[ p ] fromNormalTy M₂
+  old→nf-core-<<:ₜ {p = Duality.⊕} N₁<<:N₂ = old→nf-core-<:ₜ N₁<<:N₂
+  old→nf-core-<<:ₜ {p = Duality.⊝} N₂<<:N₁ = old→nf-core-<:ₜ N₂<<:N₁
+
+old→nf-<:ₜ :
+  ∀ {N₁ N₂ : NFTy Δ (KV pk m)}
+  → A._<:ₜ_ (toNormalTy N₁) (toNormalTy N₂)
+  → N₁ <:ₜ N₂
+old→nf-<:ₜ {N₁ = N₁} {N₂ = N₂} rel =
+  subst₂
+    (λ X Y → X <:ₜ Y)
+    (fromNormalTy∘toNormalTy N₁)
+    (fromNormalTy∘toNormalTy N₂)
+    (old→nf-core-<:ₜ rel)
+
+old→nf-<:ₚ′ :
+  ∀ {N₁ N₂ : NFProto′ Δ}
+  → A._<:ₚ′_ (toNormalProto′ N₁) (toNormalProto′ N₂)
+  → N₁ <:ₚ′ N₂
+old→nf-<:ₚ′ {N₁ = N₁} {N₂ = N₂} rel =
+  subst₂
+    (λ X Y → X <:ₚ′ Y)
+    (fromNormalProto′∘toNormalProto′ N₁)
+    (fromNormalProto′∘toNormalProto′ N₂)
+    (old→nf-core-<:ₚ′ rel)
+
+old→nf-<:ₚ :
+  ∀ {N₁ N₂ : NFProto Δ}
+  → A._<:ₚ_ (toNormalProto N₁) (toNormalProto N₂)
+  → N₁ <:ₚ N₂
+old→nf-<:ₚ {N₁ = N₁} {N₂ = N₂} rel =
+  subst₂
+    (λ X Y → X <:ₚ Y)
+    (fromNormalProto∘toNormalProto N₁)
+    (fromNormalProto∘toNormalProto N₂)
+    (old→nf-core-<:ₚ rel)
+
+old→nf-<<:ₚ′ :
+  ∀ {⊙} {N₁ N₂ : NFProto′ Δ}
+  → A._<<:ₚ′[_]_ (toNormalProto′ N₁) ⊙ (toNormalProto′ N₂)
+  → N₁ <<:ₚ′[ ⊙ ] N₂
+old→nf-<<:ₚ′ {⊙ = Variance.⊕} N₁<<:N₂ = old→nf-<:ₚ′ N₁<<:N₂
+old→nf-<<:ₚ′ {⊙ = Variance.⊘} N₁≡N₂ = N₁≡N₂
+old→nf-<<:ₚ′ {⊙ = Variance.⊝} N₂<<:N₁ = old→nf-<:ₚ′ N₂<<:N₁
+
+old→nf-<<:ₚ :
+  ∀ {⊙} {N₁ N₂ : NFProto Δ}
+  → A._<<:ₚ[_]_ (toNormalProto N₁) ⊙ (toNormalProto N₂)
+  → N₁ <<:ₚ[ ⊙ ] N₂
+old→nf-<<:ₚ {⊙ = Variance.⊕} N₁<<:N₂ = old→nf-<:ₚ N₁<<:N₂
+old→nf-<<:ₚ {⊙ = Variance.⊘} N₁≡N₂ = N₁≡N₂
+old→nf-<<:ₚ {⊙ = Variance.⊝} N₂<<:N₁ = old→nf-<:ₚ N₂<<:N₁
+
+old→nf-<<:ₜ :
+  ∀ {p} {N₁ N₂ : NFTy Δ (KV pk m)}
+  → A._<<:ₜ[_]_ (toNormalTy N₁) p (toNormalTy N₂)
+  → N₁ <<:ₜ[ p ] N₂
+old→nf-<<:ₜ {p = Duality.⊕} N₁<<:N₂ = old→nf-<:ₜ N₁<<:N₂
+old→nf-<<:ₜ {p = Duality.⊝} N₂<<:N₁ = old→nf-<:ₜ N₂<<:N₁
+
+sizeₚ≤-toOld :
+  ∀ {n : ℕ} {N₁ N₂ : NFProto Δ}
+  → sizeₚ N₁ ⊔ sizeₚ N₂ ≤ n
+  → Types.sizeₚ (toNormalProto N₁) ⊔ Types.sizeₚ (toNormalProto N₂) ≤ n
+sizeₚ≤-toOld {n = n} {N₁} {N₂} sz≤ =
+  subst
+    (λ x → x ≤ n)
+    (sym (cong₂ _⊔_ (sizeₚ-toNormal N₁) (sizeₚ-toNormal N₂)))
+    sz≤
+
+sizeₚ′≤-toOld :
+  ∀ {n : ℕ} {N₁ N₂ : NFProto′ Δ}
+  → sizeₚ′ N₁ ⊔ sizeₚ′ N₂ ≤ n
+  → Types.sizeₚ′ (toNormalProto′ N₁) ⊔ Types.sizeₚ′ (toNormalProto′ N₂) ≤ n
+sizeₚ′≤-toOld {n = n} {N₁} {N₂} sz≤ =
+  subst
+    (λ x → x ≤ n)
+    (sym (cong₂ _⊔_ (sizeₚ′-toNormal N₁) (sizeₚ′-toNormal N₂)))
+    sz≤
+
+sizeₜ≤-toOld :
+  ∀ {n : ℕ} {N₁ N₂ : NFTy Δ (KV pk m)}
+  → sizeₜ N₁ ⊔ sizeₜ N₂ ≤ n
+  → Types.sizeₜ (toNormalTy N₁) ⊔ Types.sizeₜ (toNormalTy N₂) ≤ n
+sizeₜ≤-toOld {n = n} {N₁} {N₂} sz≤ =
+  subst
+    (λ x → x ≤ n)
+    (sym (cong₂ _⊔_ (sizeₜ-toNormal N₁) (sizeₜ-toNormal N₂)))
+    sz≤
+
+sizeₚ≤-cast :
+  ∀ {n : ℕ} {N₁ N₂ : NFProto Δ}
+    {T₁ T₂ : Ty Δ KP}
+  → (eq₁ : nfProtoTy N₁ ≡ T₁)
+  → (eq₂ : nfProtoTy N₂ ≡ T₂)
+  → sizeₚ N₁ ⊔ sizeₚ N₂ ≤ n
+  → Types.sizeₚ (subst Types.NormalProto eq₁ (toNormalProto N₁))
+      ⊔ Types.sizeₚ (subst Types.NormalProto eq₂ (toNormalProto N₂))
+      ≤ n
+sizeₚ≤-cast {n = n} {N₁} {N₂} eq₁ eq₂ sz≤ =
+  subst
+    (λ x → x ≤ n)
+    (cong₂ _⊔_
+      (Types.sizeₚ-subst (toNormalProto N₁) eq₁)
+      (Types.sizeₚ-subst (toNormalProto N₂) eq₂))
+    (sizeₚ≤-toOld {N₁ = N₁} {N₂ = N₂} sz≤)
+
+sizeₚ′≤-cast :
+  ∀ {n : ℕ} {N₁ N₂ : NFProto′ Δ}
+    {T₁ T₂ : Ty Δ KP}
+  → (eq₁ : nfProto′Ty N₁ ≡ T₁)
+  → (eq₂ : nfProto′Ty N₂ ≡ T₂)
+  → sizeₚ′ N₁ ⊔ sizeₚ′ N₂ ≤ n
+  → Types.sizeₚ′ (subst Types.NormalProto′ eq₁ (toNormalProto′ N₁))
+      ⊔ Types.sizeₚ′ (subst Types.NormalProto′ eq₂ (toNormalProto′ N₂))
+      ≤ n
+sizeₚ′≤-cast {n = n} {N₁} {N₂} eq₁ eq₂ sz≤ =
+  subst
+    (λ x → x ≤ n)
+    (cong₂ _⊔_
+      (Types.sizeₚ′-subst (toNormalProto′ N₁) eq₁)
+      (Types.sizeₚ′-subst (toNormalProto′ N₂) eq₂))
+    (sizeₚ′≤-toOld {N₁ = N₁} {N₂ = N₂} sz≤)
+
+sizeₜ≤-cast :
+  ∀ {n : ℕ} {N₁ N₂ : NFTy Δ (KV pk m)}
+    {T₁ T₂ : Ty Δ (KV pk m)}
+  → (eq₁ : nfTyTy N₁ ≡ T₁)
+  → (eq₂ : nfTyTy N₂ ≡ T₂)
+  → sizeₜ N₁ ⊔ sizeₜ N₂ ≤ n
+  → Types.sizeₜ (subst Types.NormalTy eq₁ (toNormalTy N₁))
+      ⊔ Types.sizeₜ (subst Types.NormalTy eq₂ (toNormalTy N₂))
+      ≤ n
+sizeₜ≤-cast {n = n} {N₁} {N₂} eq₁ eq₂ sz≤ =
+  subst
+    (λ x → x ≤ n)
+    (cong₂ _⊔_
+      (Types.sizeₜ-subst (toNormalTy N₁) eq₁)
+      (Types.sizeₜ-subst (toNormalTy N₂) eq₂))
+    (sizeₜ≤-toOld {N₁ = N₁} {N₂ = N₂} sz≤)
+
+complete-algₚ :
+  ∀ n {T₁ T₂ : Ty Δ KP}
   → T₁ <: T₂
   → ∀ {f₁ f₂} {N₁ : NFProto Δ}{N₂ : NFProto Δ}
+  → nfProtoTy N₁ ≡ nf Duality.⊕ f₁ T₁
+  → nfProtoTy N₂ ≡ nf Duality.⊕ f₂ T₂
   → sizeₚ N₁ ⊔ sizeₚ N₂ ≤ n
   → N₁ <:ₚ N₂
+complete-algₚ n {T₁ = T₁} {T₂ = T₂} T₁<:T₂ {f₁ = f₁} {f₂ = f₂} {N₁ = N₁} {N₂ = N₂} eq₁ eq₂ sz≤ =
+  subst₂
+    (λ X Y → X <:ₚ Y)
+    (fromNormalProto-subst-toNormal eq₁)
+    (fromNormalProto-subst-toNormal eq₂)
+    (old→nf-core-<:ₚ
+      (C.complete-algₚ n T₁<:T₂ {f₁ = f₁} {f₂ = f₂}
+        {N₁ = subst Types.NormalProto eq₁ (toNormalProto N₁)}
+        {N₂ = subst Types.NormalProto eq₂ (toNormalProto N₂)}
+        (sizeₚ≤-cast
+          {N₁ = N₁} {N₂ = N₂}
+          {T₁ = nf Duality.⊕ f₁ T₁}
+          {T₂ = nf Duality.⊕ f₂ T₂}
+          eq₁ eq₂ sz≤)))
 
-complete-algₚ-inverted : ∀ n {T₁ T₂ : Ty Δ KP}
+complete-algₚ-inverted :
+  ∀ n {T₁ T₂ : Ty Δ KP}
   → T₁ <: T₂
   → ∀ {f₁ f₂} {N₁ : NFProto Δ}{N₂ : NFProto Δ}
+  → nfProtoTy N₁ ≡ t-minus (nf Duality.⊕ f₁ T₁)
+  → nfProtoTy N₂ ≡ t-minus (nf Duality.⊕ f₂ T₂)
   → sizeₚ N₁ ⊔ sizeₚ N₂ ≤ n
   → N₂ <:ₚ N₁
+complete-algₚ-inverted n {T₁ = T₁} {T₂ = T₂} T₁<:T₂ {f₁ = f₁} {f₂ = f₂} {N₁ = N₁} {N₂ = N₂} eq₁ eq₂ sz≤ =
+  subst₂
+    (λ X Y → X <:ₚ Y)
+    (fromNormalProto-subst-toNormal eq₂)
+    (fromNormalProto-subst-toNormal eq₁)
+    (old→nf-core-<:ₚ
+      (C.complete-algₚ-inverted n T₁<:T₂ {f₁ = f₁} {f₂ = f₂}
+        {N₁ = subst Types.NormalProto eq₁ (toNormalProto N₁)}
+        {N₂ = subst Types.NormalProto eq₂ (toNormalProto N₂)}
+        (sizeₚ≤-cast
+          {N₁ = N₁} {N₂ = N₂}
+          {T₁ = t-minus (nf Duality.⊕ f₁ T₁)}
+          {T₂ = t-minus (nf Duality.⊕ f₂ T₂)}
+          eq₁ eq₂ sz≤)))
 
-complete-<<:ₚ : ∀ n {⊙} {T₁ T₂ : Ty Δ KP}
+complete-<<:ₚ :
+  ∀ n {⊙} {T₁ T₂ : Ty Δ KP}
   → T₁ <<:[ ⊙ ] T₂
   → ∀ {f₁ f₂} {N₁ : NFProto Δ}{N₂ : NFProto Δ}
+  → nfProtoTy N₁ ≡ nf Duality.⊕ f₁ T₁
+  → nfProtoTy N₂ ≡ nf Duality.⊕ f₂ T₂
   → sizeₚ N₁ ⊔ sizeₚ N₂ ≤ n
   → N₁ <<:ₚ[ ⊙ ] N₂
+complete-<<:ₚ n {⊙ = ⊙} {T₁ = T₁} {T₂ = T₂} T₁<<:T₂ {f₁ = f₁} {f₂ = f₂} {N₁ = N₁} {N₂ = N₂} eq₁ eq₂ sz≤ =
+  subst₂
+    (λ X Y → X <<:ₚ[ ⊙ ] Y)
+    (fromNormalProto-subst-toNormal eq₁)
+    (fromNormalProto-subst-toNormal eq₂)
+    (old→nf-core-<<:ₚ
+      (C.complete-<<:ₚ n T₁<<:T₂ {f₁ = f₁} {f₂ = f₂}
+        {N₁ = subst Types.NormalProto eq₁ (toNormalProto N₁)}
+        {N₂ = subst Types.NormalProto eq₂ (toNormalProto N₂)}
+        (sizeₚ≤-cast
+          {N₁ = N₁} {N₂ = N₂}
+          {T₁ = nf Duality.⊕ f₁ T₁}
+          {T₂ = nf Duality.⊕ f₂ T₂}
+          eq₁ eq₂ sz≤)))
 
-complete-<<:ₚ′ : ∀ n {⊙} {T₁ T₂ : Ty Δ KP}
+complete-<<:ₚ′ :
+  ∀ n {⊙} {T₁ T₂ : Ty Δ KP}
   → T₁ <<:[ injᵥ ⊙ ] T₂
   → ∀ {f₁ f₂} {N₁ : NFProto′ Δ}{N₂ : NFProto′ Δ}
+  → nfProto′Ty N₁ ≡ nf Duality.⊕ f₁ T₁
+  → nfProto′Ty N₂ ≡ nf Duality.⊕ f₂ T₂
   → sizeₚ′ N₁ ⊔ sizeₚ′ N₂ ≤ n
   → N₁ <<:ₚ′[ injᵥ ⊙ ] N₂
+complete-<<:ₚ′ n {⊙ = ⊙} {T₁ = T₁} {T₂ = T₂} T₁<<:T₂ {f₁ = f₁} {f₂ = f₂} {N₁ = N₁} {N₂ = N₂} eq₁ eq₂ sz≤ =
+  subst₂
+    (λ X Y → X <<:ₚ′[ injᵥ ⊙ ] Y)
+    (fromNormalProto′-subst-toNormal eq₁)
+    (fromNormalProto′-subst-toNormal eq₂)
+    (old→nf-core-<<:ₚ′
+      (C.complete-<<:ₚ′ n T₁<<:T₂ {f₁ = f₁} {f₂ = f₂}
+        {N₁ = subst Types.NormalProto′ eq₁ (toNormalProto′ N₁)}
+        {N₂ = subst Types.NormalProto′ eq₂ (toNormalProto′ N₂)}
+        (sizeₚ′≤-cast
+          {N₁ = N₁} {N₂ = N₂}
+          {T₁ = nf Duality.⊕ f₁ T₁}
+          {T₂ = nf Duality.⊕ f₂ T₂}
+          eq₁ eq₂ sz≤)))
 
-complete-<<:ₚ′-inverted : ∀ n {⊙} {T₁ T₂ : Ty Δ KP}
+complete-<<:ₚ′-inverted :
+  ∀ n {⊙} {T₁ T₂ : Ty Δ KP}
   → T₁ <<:[ injᵥ ⊙ ] T₂
   → ∀ {f₁ f₂} {N₁ : NFProto′ Δ}{N₂ : NFProto′ Δ}
+  → nfProto′Ty N₁ ≡ t-minus (nf Duality.⊕ f₁ T₁)
+  → nfProto′Ty N₂ ≡ t-minus (nf Duality.⊕ f₂ T₂)
   → sizeₚ′ N₁ ⊔ sizeₚ′ N₂ ≤ n
   → N₂ <<:ₚ′[ injᵥ ⊙ ] N₁
+complete-<<:ₚ′-inverted n {⊙ = ⊙} {T₁ = T₁} {T₂ = T₂} T₁<<:T₂ {f₁ = f₁} {f₂ = f₂} {N₁ = N₁} {N₂ = N₂} eq₁ eq₂ sz≤ =
+  subst₂
+    (λ X Y → X <<:ₚ′[ injᵥ ⊙ ] Y)
+    (fromNormalProto′-subst-toNormal eq₂)
+    (fromNormalProto′-subst-toNormal eq₁)
+    (old→nf-core-<<:ₚ′
+      (C.complete-<<:ₚ′-inverted n T₁<<:T₂ {f₁ = f₁} {f₂ = f₂}
+        {N₁ = subst Types.NormalProto′ eq₁ (toNormalProto′ N₁)}
+        {N₂ = subst Types.NormalProto′ eq₂ (toNormalProto′ N₂)}
+        (sizeₚ′≤-cast
+          {N₁ = N₁} {N₂ = N₂}
+          {T₁ = t-minus (nf Duality.⊕ f₁ T₁)}
+          {T₂ = t-minus (nf Duality.⊕ f₂ T₂)}
+          eq₁ eq₂ sz≤)))
 
-complete-algₜ : ∀ n {p : Polarity} {T₁ T₂ : Ty Δ (KV pk m)}
+complete-algₜ :
+  ∀ n {p : Polarity} {T₁ T₂ : Ty Δ (KV pk m)}
   → T₁ <: T₂
   → ∀ {f₁ f₂} {N₁ : NFTy Δ (KV pk m)}{N₂ : NFTy Δ (KV pk m)}
+  → nfTyTy N₁ ≡ nf p f₁ T₁
+  → nfTyTy N₂ ≡ nf p f₂ T₂
   → sizeₜ N₁ ⊔ sizeₜ N₂ ≤ n
   → N₁ <<:ₜ[ p ] N₂
-
-----
-
-complete-algₚ (suc n) {T₁ = T₁} {T₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) {f₁} {f₂} {N₁} {N₃} sz≤
-  using N₂ ← nf-normal-proto T₂
-  rewrite dual-all-irrelevant f₁ d?⊥ | dual-all-irrelevant f₂ d?⊥
-  = <:ₚ-trans (complete-algₚ (suc n) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} (≤-trans (≤-reflexive (cong (sizeₚ N₁ ⊔_) (nfp-size-nf _ _ T₂<:T₃ N₂ N₃))) sz≤))
-              (complete-algₚ (suc n) T₂<:T₃ {N₁ = N₂} {N₂ = N₃} (≤-trans (≤-reflexive (cong (_⊔ sizeₚ N₃) (sym (nfp-size-nf _ _ T₁<:T₂ N₁ N₂)))) sz≤))
-complete-algₚ (suc n) {T₁ = T₁} {T₂} <:-var {f₁} {f₂} {N-Normal N-Var} {N-Normal N-Var} sz≤ = <:ₚ-plus <:ₚ′-var
-complete-algₚ (suc n) {T₁ = T₁} {T₂}  (<:-up T₁<:T₂) {f₁} {f₂} {N-Normal (N-Up N₁)} {N-Normal (N-Up N₂)} (s≤s sz≤)
-  = <:ₚ-plus (<:ₚ′-up (complete-algₜ n T₁<:T₂ {N₁ = N₁}{N₂ = N₂} (≤-trans (n≤1+n _) sz≤)))
-complete-algₚ (suc n) {T₁ = T₁} {T₂} (<:-proto #c⊆#d T₁<<:T₂) {f₁} {f₂} {N-Normal (N-ProtoP _ _ N₁)} {N-Normal (N-ProtoP _ _ N₂)} sz≤ = <:ₚ-plus (<:ₚ′-proto #c⊆#d (complete-<<:ₚ n T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} (≤-trans (n≤1+n _) (s≤s⁻¹ sz≤))))
-complete-algₚ (suc n) {T₁ = T-Minus T₁} {T-Minus T₂} (<:-minus T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
-  rewrite ⊔-comm (sizeₚ N₁) (sizeₚ N₂)
-  = complete-algₚ-inverted (suc n) T₁<:T₂ {N₁ = N₂} {N₂ = N₁} sz≤
-complete-algₚ (suc n) {T₁ = T-Minus (T-Minus T₁)} {T₂}  (<:-minus-minus-l T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  = complete-algₚ (suc n) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
--- complete-algₚ (suc n) {T₁ = T-Minus (T-Minus T₁)} {T₂}  (<:-minus-minus-l T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
---   = let eq = t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
---         r  = complete-algₚ (suc n) T₁<:T₂ {N₁ = subst NormalProto eq N₁} {N₂ = N₂} (≤-trans (≤-reflexive (cong (_⊔ sizeₚ N₂) (sym $ sizeₚ-subst N₁ eq))) sz≤)
---     in {!subst-<:ₚ ? r!}
-complete-algₚ (suc n) {T₁ = T₁} {_} (<:-minus-minus-r {T₂ = T₃} T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
-  using eq ← t-minus-involution (nf ⊕ d?⊥ T₃) (nf-normal-proto T₃)
-  using r ← complete-algₚ (suc n) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
-  = subst-<:ₚ eq r 
-
-----
-
-complete-algₚ-inverted (suc n) {T₁ = T₁} {T₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) {f₁} {f₂} {N₁} {N₃} sz≤
-  using N₂ ← nf-normal-proto-inverted T₂
-  rewrite dual-all-irrelevant f₁ d?⊥ | dual-all-irrelevant f₂ d?⊥
-   = <:ₚ-trans (complete-algₚ-inverted (suc n) T₂<:T₃ {N₁ = N₂} {N₂ = N₃} (≤-trans (≤-reflexive (cong (_⊔ sizeₚ N₃) (nfp-invert-size-nf _ _ T₁<:T₂ N₂ N₁))) sz≤))
-               (complete-algₚ-inverted (suc n) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} (≤-trans (≤-reflexive (cong (sizeₚ N₁ ⊔_) (sym $ nfp-invert-size-nf _ _ T₂<:T₃ N₃ N₂))) sz≤)) -- N2=N3
-complete-algₚ-inverted (suc n) {T₁ = T₁} {T₂} <:-var {f₁} {f₂} {N-Minus N-Var} {N-Minus N-Var} sz≤ = <:ₚ-minus <:ₚ′-var
-complete-algₚ-inverted (suc n) {T₁ = T₁} {T₂} (<:-up T₁<:T₂) {f₁} {f₂} {N-Minus (N-Up N₁)} {N-Minus (N-Up N₂)} (s≤s sz≤)
-  = <:ₚ-minus (<:ₚ′-up (complete-algₜ n T₁<:T₂ {N₁ = N₁} {N₂ = N₂} (≤-trans (n≤1+n _) sz≤)))
-complete-algₚ-inverted (suc n) {T₁ = T₁} {T₂} (<:-proto #c⊆#d T₁<<:T₂) {f₁} {f₂} {N-Minus (N-ProtoP _ _ N₁)} {N-Minus (N-ProtoP _ _ N₂)} (s≤s sz≤) = <:ₚ-minus (<:ₚ′-proto #c⊆#d (complete-<<:ₚ n T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} (≤-trans (n≤1+n _) sz≤)))
-complete-algₚ-inverted (suc n) {T₁ = T-Minus T₁} {T-Minus T₂} (<:-minus T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁) |  t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  | ⊔-comm (sizeₚ N₁) (sizeₚ N₂)
-  = complete-algₚ (suc n) T₁<:T₂ {N₁ = N₂} {N₂ = N₁} sz≤
-complete-algₚ-inverted (suc n) {T₁ = T-Minus (T-Minus T₁)} {T₂} (<:-minus-minus-l T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  = complete-algₚ-inverted (suc n) T₁<:T₂ {N₁ = N₁}{N₂ = N₂} sz≤
-complete-algₚ-inverted (suc n) {T₁ = T₁} {T-Minus (T-Minus T₂)} (<:-minus-minus-r T₁<:T₂) {f₁} {f₂} {N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-algₚ-inverted (suc n) T₁<:T₂ {N₁ = N₁}{N₂ = N₂} sz≤
-
-----
-
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} {T₁} {T₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃) {f₁}{f₂} {N₁ = N₁} {N₃} sz≤
-  rewrite dual-all-irrelevant f₁ d?⊥
-  using N₂ ← normal-proto′-<:-minus _ _ T₂<<:T₃ N₁
-  using N₁<:N₂ ← complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} T₂<<:T₃ {N₁ = N₂}{N₂ = N₁} (≤-trans (≤-trans (≤-reflexive (cong (_⊔ sizeₚ′ N₁) (nfp′-invert-size _ _ T₁<<:T₂ N₂ N₃))) (≤-reflexive (⊔-comm (sizeₚ′ N₃) (sizeₚ′ N₁)))) sz≤)
-  using N₂<:N₃ ← complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝}  T₁<<:T₂ {N₁ = N₃}{N₂ = N₂} (≤-trans (≤-trans (≤-reflexive (cong (sizeₚ′ N₃ ⊔_) $ sym $ nfp′-invert-size _ _ T₂<<:T₃ N₁ N₂)) (≤-reflexive (⊔-comm (sizeₚ′ N₃) (sizeₚ′ N₁)))) sz≤)
-  = <:ₚ′-trans N₁<:N₂ N₂<:N₃ 
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} {_} {_} (<:-minus {T₂ = T₁}{T₁ = T₂} T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  | t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-<<:ₚ′ (suc n) {⊙ = ⊝} T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} {T₁} {T-Minus (T-Minus T₂)} (<:-minus-minus-l T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} {T-Minus (T-Minus T₁)} {T₂} (<:-minus-minus-r T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  = complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
-
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} {T₁} {T₃} (<:-trans T₁<<:T₂ T₂<<:T₃) {f₁ = f₁}{f₂ = f₂} {N₁ = N₁} {N₃} sz≤
-  rewrite dual-all-irrelevant f₂ d?⊥
-  using N₂ ← normal-proto′-<:-minus _ _ T₂<<:T₃ N₃
-  using N₃<:N₂ ← complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} T₂<<:T₃ {N₁ = N₃}{N₂ = N₂} (≤-trans (≤-reflexive (trans (cong (sizeₚ′ N₃ ⊔_) $ nfp′-invert-size _ _ T₁<<:T₂ N₂ N₁) (⊔-comm (sizeₚ′ N₃) (sizeₚ′ N₁)))) sz≤)
-  using N₂<:N₁ ← complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} T₁<<:T₂ {N₁ = N₂}{N₂ = N₁} (≤-trans (≤-reflexive (trans (cong (_⊔ sizeₚ′ N₁) $ sym $ nfp′-invert-size _ _ T₂<<:T₃ N₃ N₂) (⊔-comm (sizeₚ′ N₃) (sizeₚ′ N₁)))) sz≤)
-  = <:ₚ′-trans N₃<:N₂ N₂<:N₁
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} {T-Minus T₁} {T-Minus T₂} (<:-minus T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  | t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-<<:ₚ′ (suc n) {⊙ = ⊕} T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} {T-Minus (T-Minus T₁)} {T₂} (<:-minus-minus-l T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  = complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} T₁<<:T₂ {N₁ = N₁}{N₂ = N₂} sz≤
-complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} {T₁} {T-Minus (T-Minus T₂)} (<:-minus-minus-r T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} T₁<<:T₂ {N₁ = N₁}{N₂ = N₂} sz≤
-
-complete-<<:ₚ′(suc n) {⊙ = ⊕} {T₁} {T₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃) {f₁}{f₂} {N₁ = N₁} {N₃} sz≤
-  rewrite dual-all-irrelevant f₂ d?⊥
-  using N₂ ← normal-proto′-<: _ _ T₁<<:T₂ N₃
-  using N₃<:N₂ ← complete-<<:ₚ′ (suc n) {⊙ = ⊝} {T₁ = T₃}{T₂ = T₂} T₁<<:T₂ {N₁ = N₃}{N₂ = N₂} (≤-trans (≤-reflexive (trans (cong (sizeₚ′ N₃ ⊔_) $ nfp′-size _ _ T₂<<:T₃ N₂ N₁) (⊔-comm (sizeₚ′ N₃) (sizeₚ′ N₁)))) sz≤)
-  using N₁<:N₂ ← complete-<<:ₚ′ (suc n) {⊙ = ⊝} {T₁ = T₂}{T₂ = T₁}  T₂<<:T₃ {N₁ = N₂}{N₂ = N₁} (≤-trans (≤-reflexive (trans (cong (_⊔ sizeₚ′ N₁) $ sym $ nfp′-size _ _ T₁<<:T₂ N₃ N₂) (⊔-comm (sizeₚ′ N₃) (sizeₚ′ N₁)))) sz≤)
-  = <:ₚ′-trans N₃<:N₂ N₁<:N₂
-complete-<<:ₚ′ (suc n) {⊙ = ⊕}  <:-var {N₁ = N-Var} {N-Var} sz≤ = <:ₚ′-var
-complete-<<:ₚ′ (suc n) {⊙ = ⊕} (<:-up T₁<<:T₂) {N₁ = N-Up N₁} {N-Up N₂} (s≤s sz≤)
-  rewrite ⊔-comm (sizeₜ N₁) (sizeₜ N₂)
-  = <:ₚ′-up (complete-algₜ n {p = ⊕} T₁<<:T₂ {N₁ = N₂} {N₂ = N₁} sz≤)
-complete-<<:ₚ′ (suc n) {⊙ = ⊕} (<:-proto {⊙ = ⊙} #c⊆#d T₁<<:T₂) {N₁ = N-ProtoP _ _ N₁} {N-ProtoP _ _ N₂} (s≤s sz≤)
-  rewrite ⊔-comm (sizeₚ N₁) (sizeₚ N₂)
-  = <:ₚ′-proto #c⊆#d (complete-<<:ₚ n {⊙ = ⊙} T₁<<:T₂ sz≤)
-complete-<<:ₚ′ (suc n) {⊙ = ⊕} (<:-minus T₁<<:T₂) {N₁ = N₁} {N₂} sz≤ = complete-<<:ₚ′-inverted (suc n) {⊙ = ⊝} T₁<<:T₂ sz≤
-complete-<<:ₚ′ (suc n) {⊙ = ⊕} (<:-minus-minus-l {T₁} T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  = complete-<<:ₚ′ (suc n) {⊙ = ⊕} T₁<<:T₂ sz≤
-complete-<<:ₚ′ (suc n) {⊙ = ⊕} (<:-minus-minus-r {T₂ = T₂} T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-<<:ₚ′ (suc n) {⊙ = ⊕} T₁<<:T₂ sz≤
-
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} {T₁} {T₃} (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃) {f₁}{f₂} {N₁ = N₁} {N₃} sz≤
-  rewrite dual-all-irrelevant f₁ d?⊥
-  using N₂ ← normal-proto′-<: _ _ T₁<<:T₂ N₁
-  using N₁<:N₂ ← complete-<<:ₚ′ (suc n) {⊙ = ⊝} {T₁ = T₁}{T₂ = T₂} T₁<<:T₂ {N₁ = N₁}{N₂ = N₂} (≤-trans (≤-reflexive (cong (sizeₚ′ N₁ ⊔_) $ nfp′-size _ _ T₂<<:T₃ N₂ N₃)) sz≤)
-  using N₂<:N₃ ← complete-<<:ₚ′ (suc n) {⊙ = ⊝} {T₁ = T₂}{T₂ = T₃} T₂<<:T₃ {N₁ = N₂}{N₂ = N₃} (≤-trans (≤-reflexive (cong (_⊔ sizeₚ′ N₃) $ sym $ nfp′-size _ _ T₁<<:T₂ N₁ N₂)) sz≤)
-  = <:ₚ′-trans N₁<:N₂ N₂<:N₃
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} <:-var {N₁ = N-Var} {N-Var} sz≤ = <:ₚ′-var
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-up T₁<<:T₂) {N₁ = N-Up N₁} {N-Up N₂} (s≤s sz≤) = <:ₚ′-up (complete-algₜ n {p = ⊕} T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤)
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-proto {⊙ = ⊕} #c⊆#d T₁<<:T₂) {N₁ = N-ProtoP _ _ N₁} {N-ProtoP _ _ N₂} (s≤s sz≤) = <:ₚ′-proto #c⊆#d (complete-algₚ n T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤)
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-proto {⊙ = ⊝} #c⊆#d T₁<<:T₂) {N₁ = N-ProtoP _ _ N₁} {N-ProtoP _ _ N₂} (s≤s sz≤) = <:ₚ′-proto #c⊆#d (complete-algₚ n T₁<<:T₂ {N₁ = N₂} {N₂ = N₁} (≤-trans (≤-reflexive (⊔-comm (sizeₚ N₂) (sizeₚ N₁))) sz≤))
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-proto {⊙ = ⊘} #c⊆#d T₁≡cT₂) {N₁ = N-ProtoP _ _ N₁} {N-ProtoP _ _ N₂} (s≤s sz≤) = <:ₚ′-proto #c⊆#d (nf-complete d?⊥ d?⊥ T₁≡cT₂)
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-minus T₁<<:T₂) {N₁ = N₁} {N₂} sz≤ = complete-<<:ₚ′-inverted (suc n) {⊙ = ⊕} T₁<<:T₂ sz≤
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-minus-minus-l {T₁} T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₁) (nf-normal-proto T₁)
-  = complete-<<:ₚ′ (suc n) {⊙ = ⊝} T₁<<:T₂ sz≤
-complete-<<:ₚ′ (suc n) {⊙ = ⊝} (<:-minus-minus-r {T₂ = T₂} T₁<<:T₂) {N₁ = N₁} {N₂} sz≤
-  rewrite t-minus-involution (nf ⊕ d?⊥ T₂) (nf-normal-proto T₂)
-  = complete-<<:ₚ′ (suc n) {⊙ = ⊝} T₁<<:T₂ sz≤
-
-----
-
-complete-<<:ₚ (suc n) {⊙ = ⊕} T₁<<:T₂ sz≤ = complete-algₚ (suc n) T₁<<:T₂ sz≤
-complete-<<:ₚ (suc n) {⊙ = ⊝} T₁<<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤
-  rewrite ⊔-comm (sizeₚ N₁) (sizeₚ N₂)
-  = complete-algₚ (suc n) T₁<<:T₂ sz≤
-complete-<<:ₚ (suc n) {⊙ = ⊘} T₁≡cT₂ sz≤ = nf-complete _ _ T₁≡cT₂
-
-
-complete-algₜ (suc n) {p = ⊕} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂) {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (s≤s sz≤)
-  rewrite shuffle-⊔ (sizeₚ′ N₁) (sizeₜ NS₁) (sizeₚ′ N₂) (sizeₜ NS₂)
-  rewrite t-loop-sub-<<: p₃ p₃ T₁<<:T₂
-  using eq₁ ← (nfp′-idempotent N₁)
-  using eq₂ ← (nfp′-idempotent N₂)
-  with       (complete-algₜ n S₁<:S₂ {N₁ = NS₁} {N₂ = NS₂} (⊔-≤ᵣ {sizeₚ′ N₁ ⊔ sizeₚ′ N₂} {sizeₜ NS₁ ⊔ sizeₜ NS₂} sz≤))
-  |          complete-<<:ₚ′ n {⊙ = (t-loop p₃ (nf ⊕ d?⊥ T₁) .proj₁)}
-                           {T₁ = t-loop p₃ (nf ⊕ d?⊥ T₁) .proj₂}{T₂ = t-loop p₃ (nf ⊕ d?⊥ T₂) .proj₂}
-                           (lemma-sub-loop {p₃ = p₃} T₁<<:T₂)
-                           {N₁ = N₁}{N₂ = N₂}
-                           (subst₂ (λ s₁ s₂ → s₁ ⊔ s₂ ≤ n)
-                             (sizeₚ′-subst N₁ (sym eq₁))
-                             (sizeₚ′-subst N₂ (sym eq₂))
-                             (⊔-≤ₗ {sizeₚ′ N₁ ⊔ sizeₚ′ N₂} {sizeₜ NS₁ ⊔ sizeₜ NS₂} sz≤))
-... | ihS | ihT
-  rewrite t-loop-sub-<<: p₃ p₃ T₁<<:T₂
-  = <:ₜ-msg (subst-<<: (sym eq₁) (sym eq₂) ihT) ihS
-
-
-complete-algₜ (suc n) {p = ⊝} (<:-msg {T₁ = T₁} {p = p₃} {T₂ = T₂} T₁<<:T₂ S₁<:S₂) {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ N₁ NS₁} {N-Msg p₂ N₂ NS₂} (s≤s sz≤)
-  rewrite shuffle-⊔ (sizeₚ′ N₁) (sizeₜ NS₁) (sizeₚ′ N₂) (sizeₜ NS₂)
-  rewrite sym (t-loop-sub-<<: p₃ (invert p₃) T₁<<:T₂)
-  using eq₁ ← nfp′-idempotent N₁
-  using eq₂ ← nfp′-idempotent N₂
-  with (complete-algₜ n S₁<:S₂ {N₁ = NS₁} {N₂ = NS₂} (⊔-≤ᵣ {sizeₚ′ N₁ ⊔ sizeₚ′ N₂} {sizeₜ NS₁ ⊔ sizeₜ NS₂} sz≤))
-  |    complete-<<:ₚ′ n {⊙ = t-loop (invert p₃) (nf ⊕ d?⊥ T₁) .proj₁}
-                      (lemma-sub-loop-right {p₃ = invert p₃} (<<:-invert T₁<<:T₂))
-                      {f₁ = d?⊥}{f₂ = d?⊥}
-                      {N₁ = N₂} {N₂ = N₁}
-                      (subst₂ (λ s₁ s₂ → s₁ ⊔ s₂ ≤ n)
-                        (sizeₚ′-subst N₂ (sym eq₂))
-                        (sizeₚ′-subst N₁ (sym eq₁))
-                        (≤-trans (≤-reflexive (⊔-comm (sizeₚ′ N₂) (sizeₚ′ N₁))) ((⊔-≤ₗ {sizeₚ′ N₁ ⊔ sizeₚ′ N₂} {sizeₜ NS₁ ⊔ sizeₜ NS₂} sz≤))))
-... | ihS | ihT
-  = <:ₜ-msg (subst-<<: (sym eq₂) (sym eq₁) ihT) ihS
-
-complete-algₜ (suc n) {p = p} {T₁ = T₁} {T₃} (<:-trans {T₂ = T₂} T₁<:T₂ T₂<:T₃) {f₁ = f₁} {f₂} {N₁ = N₁} {N₃} sz≤
-  using N₂ ← nf-normal-type p f₁ T₂
-  using N₁<<:N₂ ← complete-algₜ (suc n) {T₁ = T₁}{T₂} T₁<:T₂ {N₁ = N₁}{N₂ = N₂} (≤-trans (≤-reflexive (cong (sizeₜ N₁ ⊔_) (nft-size-nf _ _ T₂<:T₃ N₂ N₃))) sz≤)
-  using N₂<<:N₁ ← complete-algₜ (suc n) {T₁ = T₂}{T₃} T₂<:T₃ {N₁ = N₂}{N₂ = N₃} (≤-trans (≤-reflexive (cong (_⊔ sizeₜ N₃) (sym $ nft-size-nf _ _ T₁<:T₂ N₁ N₂))) sz≤) -- N2=N1
-  = <<:ₜ-trans N₁<<:N₂ N₂<<:N₁
-complete-algₜ (suc n) {p = p} (<:-sub {T₁ = T₁}{T₂ = T₂} K≤K′ T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-Sub _ N₁} {N-Sub _ N₂} (s≤s sz≤)
-  = <<:ₜ-sub{T₁ = T₁}{T₂ = T₂}{f₁ = λ x → dualizable-sub (f₁ x) K≤K′}{f₂ = λ x → dualizable-sub (f₂ x) K≤K′}{km≤ = K≤K′} (complete-algₜ n {p = p} T₁<:T₂ {N₁ = N₁}{N₂ = N₂} sz≤)
-complete-algₜ (suc n) {p = p} {T₁ = T-Dual D-S (T-Sub (≤k-step ≤p-refl _) T)} {T₂ = T-Sub K≤K′ (T-Dual D-S T)} (<:-sub-dual-l {T = T} {K≤K′ = K≤K′}) {f₁ = f₁} {f₂} {N₁ = N-Sub _ N₁} {N-Sub _ N₂} sz≤
-  rewrite nt-unique N₁ N₂
-  = <<:ₜ-sub-invert {p = p}{T₁ = T}{T₂ = T}{f₁ = const D-S}{f₂ = const D-S}{km≤ = K≤K′} (<<:ₜ-refl {T = (nf (invert p) (λ x₁ → D-S) T)} N₂)
-complete-algₜ (suc n) {p = p} {T₁ = T-Sub K≤K′ (T-Dual D-S T)} {T₂ = T-Dual D-S (T-Sub (≤k-step ≤p-refl _) T)} <:-sub-dual-r {f₁ = f₁} {f₂} {N₁ = N-Sub _ N₁} {N-Sub _ N₂} sz≤
-  rewrite nt-unique N₁ N₂
-  = <<:ₜ-sub-invert {p = p}{T₁ = T}{T₂ = T}{f₁ = const D-S}{f₂ = const D-S}{km≤ = K≤K′} (<<:ₜ-refl {T = (nf (invert p) (λ x₁ → D-S) T)} N₂)
-complete-algₜ (suc n) {p = ⊕}{T₁ = T-Var x} <:-var {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} sz≤
-  rewrite nt-unique N₁ N₂
-  = <<:ₜ-refl {T = T-Var x}{⊕} N₂
-complete-algₜ (suc n) {p = ⊝} <:-var {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} sz≤
-  rewrite dual-all-irrelevant f₁ f₂ | nt-unique N₁ N₂
-  = <<:ₜ-refl {T = T-Dual _ (T-Var _)} {p = ⊝} N₂
-complete-algₜ (suc n) {p = ⊕} <:-dual-var {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} sz≤
-  rewrite nt-unique N₁ N₂
-  = <<:ₜ-refl {T = T-Dual D-S (T-Var _)} {p = ⊕} N₂
-complete-algₜ (suc n) {p = ⊝} {T₁ = T-Dual D-S (T-Var x)} <:-dual-var {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} sz≤
-  rewrite nt-unique N₁ N₂
-  = <<:ₜ-refl {T = T-Var x}{⊝} N₂
-complete-algₜ (suc n) {p = p} <:-base {f₁ = f₁} {f₂} {N₁ = N-Base} {N-Base} sz≤ = <<:ₜ-base
-complete-algₜ (suc n) {p = ⊕} (<:-fun T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow _ N₁ N₃} {N-Arrow _ N₂ N₄} (s≤s sz≤)
-  rewrite shuffle-⊔ (sizeₜ N₁) (sizeₜ N₃) (sizeₜ N₂) (sizeₜ N₄)
-  = <:ₜ-arrow (complete-algₜ n T₁<:T₂ {N₁ = N₂}{N₂ = N₁} (≤-trans (≤-reflexive (⊔-comm (sizeₜ N₂) (sizeₜ N₁))) (⊔-≤ₗ {sizeₜ N₁ ⊔ sizeₜ N₂} {sizeₜ N₃ ⊔ sizeₜ N₄} sz≤)))
-              (complete-algₜ n T₁<:T₃ {N₁ = N₃} {N₂ = N₄} (⊔-≤ᵣ {sizeₜ N₁ ⊔ sizeₜ N₂} {sizeₜ N₃ ⊔ sizeₜ N₄} sz≤))
-complete-algₜ (suc n) {p = ⊝} (<:-fun {≤pk = ≤p-refl} T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow _ N₁ N₃} {N-Arrow _ N₂ N₄} sz≤
-  with () ←  f₁ refl
-complete-algₜ (suc n) {p = ⊝} (<:-fun {≤pk = ≤p-step <p-mt} T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow _ N₁ N₃} {N-Arrow _ N₂ N₄} sz≤
-  with () ← f₁ refl
-complete-algₜ (suc n) {p = ⊕} (<:-pair T₁<:T₂ T₃<:T₄) {f₁ = f₁} {f₂} {N₁ = N-Pair N₁ N₂} {N-Pair N₃ N₄} (s≤s sz≤)
-  rewrite shuffle-⊔ (sizeₜ N₁) (sizeₜ N₂) (sizeₜ N₃) (sizeₜ N₄)
-  = <:ₜ-pair (complete-algₜ n T₁<:T₂ {N₁ = N₁} {N₂ = N₃} (⊔-≤ₗ {sizeₜ N₁ ⊔ sizeₜ N₃} {sizeₜ N₂ ⊔ sizeₜ N₄} sz≤))
-              (complete-algₜ n T₃<:T₄ {N₁ = N₂} {N₂ = N₄} (⊔-≤ᵣ {sizeₜ N₁ ⊔ sizeₜ N₃} {sizeₜ N₂ ⊔ sizeₜ N₄} sz≤))
-complete-algₜ (suc n) {p = ⊝} (<:-pair T₁<:T₂ T₃<:T₄) {f₁ = f₁} {f₂} {N₁ = N-Pair N₁ N₂} {N-Pair N₃ N₄} sz≤
-  with () ← f₁ refl
-complete-algₜ (suc n) {p = ⊕} (<:-protoD T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} (s≤s sz≤) = <:ₜ-data (complete-algₜ n T₁<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤)
-complete-algₜ (suc n) {p = ⊝} (<:-protoD T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-ProtoD N₁} {N-ProtoD N₂} sz≤
-  with () ← f₁ refl
-complete-algₜ (suc n) {p = ⊕} (<:-all T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-Poly _ N₁} {N-Poly _ N₂} (s≤s sz≤) = <:ₜ-poly (complete-algₜ n T₁<:T₂ {N₁ = N₁} {N₂ = N₂} sz≤)
-complete-algₜ (suc n) {p = ⊝} (<:-all T₁<:T₂) {f₁ = f₁} {f₂} {N₁ = N-Poly _ N₁} {N-Poly _ N₂} sz≤
-  with () ← f₁ refl
-complete-algₜ (suc n) {p = ⊕} {T₁ = T-Msg p₁ T₁ (T-Dual D-S S₁)} {T₂ = T-Dual D-S (T-Msg .(invert p₁) T₁ S₁)} (<:-dual-msg-l-new refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} sz≤
-  rewrite invert-involution {p₁} | nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
-  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = ⊝} {T₁ = T-Msg p₁ T₁ (T-Dual D-S S₁)} {T₂ = T-Dual D-S (T-Msg .(invert p₁) T₁ S₁)} (<:-dual-msg-l-new refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} sz≤
-  rewrite nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
-  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = ⊕} {T₁ = T-Dual D-S (T-Msg p₁ T S)} {T₂ = T-Msg p₁′ T (T-Dual D-S S)} (<:-dual-msg-r-new refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} sz≤
-  rewrite invert-involution {p₁′} | nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
-  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = ⊝} {T₁ = T-Dual D-S (T-Msg p₁ T S)} {T₂ = T-Msg p₁′ T (T-Dual D-S S)} (<:-dual-msg-r-new refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₂ NT₁ NS₁} {N-Msg p₃ NT₂ NS₂} sz≤
-  rewrite nt-unique NS₁ NS₂ | np′-unique NT₁ NT₂
-  = <:ₜ-msg (<<:ₚ′-refl NT₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = p} <:-dual-end-l {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} sz≤ = <<:ₜ-end
-complete-algₜ (suc n) {p = p} <:-dual-end-r {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} sz≤ = <<:ₜ-end
-complete-algₜ (suc n) {p = p} <:-end {f₁ = f₁} {f₂} {N₁ = N-End} {N-End} sz≤ = <<:ₜ-end
-complete-algₜ (suc n) {p = p} (<:-dual-dual-l-new D-S) {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} sz≤
-  rewrite invert-involution {p} | dual-all-irrelevant (const D-S) f₂ | nt-unique N₁ N₂
-  = <<:ₜ-refl N₂ 
-complete-algₜ (suc n) {p = p} (<:-dual-dual-r-new D-S) {f₁ = f₁} {f₂} {N₁ = N₁} {N₂} sz≤
-  rewrite invert-involution {p} | dual-all-irrelevant (const D-S) f₁ | nt-unique N₁ N₂
-  = <<:ₜ-refl N₂
-complete-algₜ (suc n) {p = ⊕} (<:-msg-minus {p₁ = p₃} {T} refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} sz≤
-  rewrite t-loop-minus {p = p₃} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ | nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
-  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = ⊝} {T₁ = T-Msg p (T-Minus T) S}{T₂ = T-Msg .(invert p) T S} (<:-msg-minus {p₁ = p₃} refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} sz≤
-  rewrite invert-involution {p₃}
-  rewrite t-loop-minus-invert {p = p} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ | nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
-  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = ⊕} (<:-minus-msg {p₂ = p₃} {T = T} refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} sz≤
-  rewrite t-loop-minus-invert {p = p₃} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ |  nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
-  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
-complete-algₜ (suc n) {p = ⊝} (<:-minus-msg {p₂ = p₃} {T = T} refl) {f₁ = f₁} {f₂} {N₁ = N-Msg p₁ NP₁ NS₁} {N-Msg p₂ NP₂ NS₂} sz≤
-  rewrite invert-involution {p₃} | t-loop-minus {p = p₃} (nf ⊕ d?⊥ T) | dual-all-irrelevant f₁ f₂ |  nt-unique NS₁ NS₂ | np′-unique NP₁ NP₂
-  = <:ₜ-msg (<<:ₚ′-refl NP₂) (<:ₜ-refl NS₂)
-
-
+complete-algₜ n {p = p} {T₁ = T₁} {T₂ = T₂} T₁<:T₂ {f₁ = f₁} {f₂ = f₂} {N₁ = N₁} {N₂ = N₂} eq₁ eq₂ sz≤ =
+  subst₂
+    (λ X Y → X <<:ₜ[ p ] Y)
+    (fromNormalTy-subst-toNormal eq₁)
+    (fromNormalTy-subst-toNormal eq₂)
+    (old→nf-core-<<:ₜ
+      (C.complete-algₜ n {p = p} T₁<:T₂ {f₁ = f₁} {f₂ = f₂}
+        {N₁ = subst Types.NormalTy eq₁ (toNormalTy N₁)}
+        {N₂ = subst Types.NormalTy eq₂ (toNormalTy N₂)}
+        (sizeₜ≤-cast
+          {N₁ = N₁} {N₂ = N₂}
+          {T₁ = nf p f₁ T₁}
+          {T₂ = nf p f₂ T₂}
+          eq₁ eq₂ sz≤)))
 
 subty⇒conv : {T₁ T₂ : Ty Δ K} → T₁ <: T₂ → T₂ <: T₁ → T₁ ≡c T₂
-subty⇒conv {K = KV x x₁}{T₁ = T₁}{T₂ = T₂} T₁<:T₂ T₂<:T₁
-  using N₁ ← nf-normal-type ⊕ d?⊥ T₁
-  using N₂ ← nf-normal-type ⊕ d?⊥ T₂
-  using N₁<:N₂ ← complete-algₜ (sizeₜ N₁ ⊔ sizeₜ N₂) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} ≤-refl
-  using N₂<:N₁ ← complete-algₜ (sizeₜ N₂ ⊔ sizeₜ N₁) T₂<:T₁ {N₁ = N₂} {N₂ = N₁} ≤-refl
-  using nfT₁≡nfT₂ ← <:ₜ-antisym N₁<:N₂ N₂<:N₁
-  = ≡c-trns (≡c-trns (≡c-symm (nf-sound+ T₁)) (≡c-refl-eq nfT₁≡nfT₂)) (nf-sound+ T₂)
-
-subty⇒conv {K = KP} {T₁} {T₂} T₁<:T₂ T₂<:T₁
-  using N₁ ← nf-normal-proto T₁
-  using N₂ ← nf-normal-proto T₂
-  using N₁<:N₂ ← complete-algₚ (sizeₚ N₁ ⊔ sizeₚ N₂) T₁<:T₂ {N₁ = N₁} {N₂ = N₂} ≤-refl
-  using N₂<:N₁ ← complete-algₚ (sizeₚ N₂ ⊔ sizeₚ N₁) T₂<:T₁ {N₁ = N₂} {N₂ = N₁} ≤-refl
-  using nfT₁≡nfT₂ ← <:ₚ-antisym N₁<:N₂ N₂<:N₁
-  = ≡c-trns (≡c-trns (≡c-symm (nf-sound+ T₁)) (≡c-refl-eq nfT₁≡nfT₂)) (nf-sound+ T₂)
+subty⇒conv = C.subty⇒conv
