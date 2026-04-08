@@ -22,7 +22,7 @@ open import Kits
 import Types
 open import Variance
 open import Types using (Ty; T-Base; N-Sub; N-End)
-open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-sub; <:ₜ-msg; <:ₚ′-proto; <:ₜ-end)
+open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-sub; <:ₜ-msg; <:ₚ′-proto; <:ₜ-end)
 open import Subtyping using
   ( _<:_
   ; _<<:[_]_
@@ -77,8 +77,8 @@ open import ExprSubstitutionTyping using
   )
 import ExprSubstitutionTyping as EST
 open import SubstitutionSubtyping using (subst-preserves-≡c; subst-preserves; subst-preserves-<<:)
-open import AlgorithmicSound using (sound-algₜ; sound-<<:ₚ)
-open import AlgorithmicComplete using (complete-algₜ)
+open import AlgorithmicNFSound using (sound-algₜ; sound-<<:ₚ)
+open import AlgorithmicNFComplete using (complete-algₜ)
 import ExprContextReduction as ECR
 open import ExprContextReduction using
   (_—ctx[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint

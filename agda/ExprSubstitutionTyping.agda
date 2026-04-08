@@ -18,8 +18,8 @@ open import Types using
   ; nf-complete; nf-sound+; fusion
   )
 open import TypesProtocolConstructors using (SelectConstTy; SelectTy1; SelectTy2)
-open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-trans)
-open import AlgorithmicSubstitution using () renaming (subst-preserves-<:ₜ to substNF-preserves-<:ₜ)
+open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-trans)
+open import AlgorithmicNFSubstitution using () renaming (subst-preserves-<:ₜ to substNF-preserves-<:ₜ)
 open import NormalTypesSubstitution using (substNFTy; substNFTy-single-sound)
 open import SubstitutionSubtyping using (subst-preserves-≡c)
 open import ExprSyntax using

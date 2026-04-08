@@ -83,8 +83,8 @@ open import NormalTypesSubstitution using
   ; msgNF
   )
 open import ExprSyntax hiding (Binding; Ctx)
-open import AlgorithmicSubtyping
-open import AlgorithmicMerge
+open import AlgorithmicNFSubtyping
+open import AlgorithmicNFMerge
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
 open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)

@@ -28,8 +28,10 @@ open import NormalTypes using
   ; N-End
   ; toNormalProto
   ; toNormalTy
+  ; nfProtoTy
   ; nfProtoTy-fromNormalProto
   ; nfTyTy-fromNormalTy
+  ; sizeₚ
   )
 open import Variance using
   ( Variance
@@ -48,7 +50,7 @@ open import Variance using
   ; compose-covers
   )
 open import Types using (Ty; T-Base)
-open import AlgorithmicSubtyping using
+open import AlgorithmicNFSubtyping using
   ( _<:ₜ_
   ; _<<:ₚ[_]_
   ; <<:ₚ-refl
@@ -115,12 +117,11 @@ open import NormalTypesSubstitution using
   ; substNFTy-sound
   ; msgNF-sound
   )
-open import AlgorithmicSubstitution using
+open import AlgorithmicNFSubstitution using
   ( msgNF-preserves-<:
   )
-open import AlgorithmicComplete using
+open import AlgorithmicNFComplete1 using
   ( complete-<<:ₚ
-  ; sizeₚ
   )
 open import ExprSubstitution using (substTyValue)
 open import ExprSubstitutionTyping using
@@ -134,7 +135,7 @@ open import ExprSubstitutionTyping using
   )
 import ExprSubstitutionTyping as EST
 open import SubstitutionSubtyping using (subst-preserves-≡c; subst-preserves; subst-preserves-<<:)
-open import AlgorithmicSound using (sound-algₜ; sound-<<:ₚ)
+open import AlgorithmicNFSound using (sound-algₜ; sound-<<:ₚ)
 import ExprContextReduction as ECR
 open import ExprContextReduction using
   (_—ctx[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint
@@ -982,6 +983,18 @@ swap-covers {v = ⊘} {u = ⊕} cov = tt
 swap-covers {v = ⊘} {u = ⊝} cov = tt
 swap-covers {v = ⊘} {u = ⊘} cov = tt
 
+vswap-involutive : ∀ v → vswap (vswap v) ≡ v
+vswap-involutive ⊕ = refl
+vswap-involutive ⊝ = refl
+vswap-involutive ⊘ = refl
+
+swap-covers-invol :
+  ∀ {v u}
+  → VarianceCovers v (vswap u)
+  → VarianceCovers (vswap v) u
+swap-covers-invol {v = v} {u = u} cov =
+  subst (VarianceCovers (vswap v)) (vswap-involutive u) (swap-covers cov)
+
 weaken-SubstRelVar :
   ∀ {Δ K Δ′ K′}
     {x : K ∈ Δ} {p : KP ∈ Δ}
@@ -1132,6 +1145,50 @@ msg-<<: {p = Duality.⊝} {v = ⊕} relT relS = <:-msg relT relS
 msg-<<: {p = Duality.⊝} {v = ⊝} relT relS = <:-msg relT relS
 msg-<<: {p = Duality.⊝} {v = ⊘} relT relS = Types.≡c-msg relT relS
 
+subst-preserves-≡c-unused :
+  ∀ {Δ₁ Δ₂ K}
+    (T : Ty Δ₁ K)
+    {p : KP ∈ Δ₁}
+    {ϕ ψ : Δ₁ →ₛ Δ₂}
+  → usageVariance T p ≡ unused
+  → SubstIgnores ϕ p ψ
+  → (T ⋯ ϕ) Types.≡c (T ⋯ ψ)
+
+join-left-covers :
+  ∀ {u₁ u u₂}
+  → joinUsage (used u₁) u₂ ≡ used u
+  → VarianceCovers u u₁
+
+join-right-covers :
+  ∀ {u₂ u u₁}
+  → joinUsage u₁ (used u₂) ≡ used u
+  → VarianceCovers u u₂
+
+covers-trans :
+  ∀ {v₁ v₂ v₃}
+  → VarianceCovers v₁ v₂
+  → VarianceCovers v₂ v₃
+  → VarianceCovers v₁ v₃
+
+composeUsage-⊕-used :
+  ∀ {u v}
+  → composeUsage ⊕ u ≡ used v
+  → u ≡ used v
+composeUsage-⊕-used {u = unused} ()
+composeUsage-⊕-used {u = used u} refl = refl
+
+composeUsage-⊘-used≢⊕ :
+  ∀ {u}
+  → composeUsage ⊘ u ≢ used ⊕
+composeUsage-⊘-used≢⊕ {u = unused} ()
+composeUsage-⊘-used≢⊕ {u = used u} ()
+
+composeUsage-⊘-used≢⊝ :
+  ∀ {u}
+  → composeUsage ⊘ u ≢ used ⊝
+composeUsage-⊘-used≢⊝ {u = unused} ()
+composeUsage-⊘-used≢⊝ {u = used u} ()
+
 subst-preserves-<<:-used⊕ :
   ∀ {Δ₁ Δ₂ K}
     (T : Ty Δ₁ K)
@@ -1157,30 +1214,30 @@ subst-preserves-<<:-used⊕ (Types.T-Arrow ≤pk T U) {p = p} {u = u} {v = v} uv
      | uv
 ... | unused | Eq.[ eqT ] | unused | Eq.[ eqU ] | ()
 ... | unused | Eq.[ eqT ] | used uU | Eq.[ eqU ] | refl =
-  fun-<<:
+  fun-<<: {v = ⊕}
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊝}
       (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
       tt)
     (subst-preserves-<<:-used⊕ U {u = uU} eqU rel cov)
 ... | used uT | Eq.[ eqT ] | unused | Eq.[ eqU ] | refl =
-  fun-<<:
+  fun-<<: {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers cov))
+      (swap-covers-invol cov))
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
       (subst-preserves-≡c-unused U eqU (≈ᵥ⇒≈ᵤ rel))
       tt)
 ... | used uT | Eq.[ eqT ] | used uU | Eq.[ eqU ] | eqJoin =
-  fun-<<:
+  fun-<<: {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers
+      (swap-covers-invol
         (covers-trans
           cov
           (join-left-covers {u₁ = vswap uT} {u₂ = used uU} eqJoin))))
@@ -1198,19 +1255,19 @@ subst-preserves-<<:-used⊕ (Types.T-Pair T U) {p = p} {u = u} {v = v} uv rel co
      | uv
 ... | unused | Eq.[ eqT ] | unused | Eq.[ eqU ] | ()
 ... | unused | Eq.[ eqT ] | used uU | Eq.[ eqU ] | refl =
-  pair-<<:
+  pair-<<: {v = ⊕}
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
       (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
       tt)
     (subst-preserves-<<:-used⊕ U {u = uU} eqU rel cov)
 ... | used uT | Eq.[ eqT ] | unused | Eq.[ eqU ] | refl =
-  pair-<<:
+  pair-<<: {v = ⊕}
     (subst-preserves-<<:-used⊕ T {u = uT} eqT rel cov)
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
       (subst-preserves-≡c-unused U eqU (≈ᵥ⇒≈ᵤ rel))
       tt)
 ... | used uT | Eq.[ eqT ] | used uU | Eq.[ eqU ] | eqJoin =
-  pair-<<:
+  pair-<<: {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
@@ -1228,20 +1285,20 @@ subst-preserves-<<:-used⊕ (Types.T-Pair T U) {p = p} {u = u} {v = v} uv rel co
         cov
         (join-right-covers {u₂ = uU} {u₁ = used uT} eqJoin)))
 subst-preserves-<<:-used⊕ (Types.T-Poly K′ T) {p = p} uv rel cov =
-  all-<<: (subst-preserves-<<:-used⊕ T {p = there p} uv (lift-≈ᵥ rel) cov)
+  all-<<: {v = ⊕} (subst-preserves-<<:-used⊕ T {p = there p} uv (lift-≈ᵥ rel) cov)
 subst-preserves-<<:-used⊕ (Types.T-Sub K≤K′ T) uv rel cov =
-  sub-<<: (subst-preserves-<<:-used⊕ T uv rel cov)
+  sub-<<: {v = ⊕} (subst-preserves-<<:-used⊕ T uv rel cov)
 subst-preserves-<<:-used⊕ (Types.T-Dual Duality.D-S T) {p = p} uv rel cov
   with usageVariance T p | inspect (usageVariance T) p | uv
 ... | unused | Eq.[ eqT ] | ()
 ... | used uT | Eq.[ eqT ] | refl =
-  dual-<<:
+  dual-<<: {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers cov))
+      (swap-covers-invol cov))
 subst-preserves-<<:-used⊕ Types.T-End () rel cov
 subst-preserves-<<:-used⊕ (Types.T-Msg Duality.⊕ T S) {p = p} {u = u} {v = v} uv rel cov
   with usageVariance S p | inspect (usageVariance S) p
@@ -1249,30 +1306,30 @@ subst-preserves-<<:-used⊕ (Types.T-Msg Duality.⊕ T S) {p = p} {u = u} {v = v
      | uv
 ... | unused | Eq.[ eqS ] | unused | Eq.[ eqT ] | ()
 ... | unused | Eq.[ eqS ] | used uT | Eq.[ eqT ] | refl =
-  msg-<<:
+  msg-<<: {p = Duality.⊕} {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers cov))
+      (swap-covers-invol cov))
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
       (subst-preserves-≡c-unused S eqS (≈ᵥ⇒≈ᵤ rel))
       tt)
 ... | used uS | Eq.[ eqS ] | unused | Eq.[ eqT ] | refl =
-  msg-<<:
+  msg-<<: {p = Duality.⊕} {v = ⊕}
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊝}
       (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
       tt)
     (subst-preserves-<<:-used⊕ S {u = uS} eqS rel cov)
 ... | used uS | Eq.[ eqS ] | used uT | Eq.[ eqT ] | eqJoin =
-  msg-<<:
+  msg-<<: {p = Duality.⊕} {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers
+      (swap-covers-invol
         (covers-trans
           cov
           (join-right-covers {u₂ = vswap uT} {u₁ = used uS} eqJoin))))
@@ -1290,19 +1347,19 @@ subst-preserves-<<:-used⊕ (Types.T-Msg Duality.⊝ T S) {p = p} {u = u} {v = v
      | uv
 ... | unused | Eq.[ eqS ] | unused | Eq.[ eqT ] | ()
 ... | unused | Eq.[ eqS ] | used uT | Eq.[ eqT ] | refl =
-  msg-<<:
+  msg-<<: {p = Duality.⊝} {v = ⊕}
     (subst-preserves-<<:-used⊕ T {u = uT} eqT rel cov)
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
       (subst-preserves-≡c-unused S eqS (≈ᵥ⇒≈ᵤ rel))
       tt)
 ... | used uS | Eq.[ eqS ] | unused | Eq.[ eqT ] | refl =
-  msg-<<:
+  msg-<<: {p = Duality.⊝} {v = ⊕}
     (coerce-<<: {v₁ = ⊘} {v₂ = ⊕}
       (subst-preserves-≡c-unused T eqT (≈ᵥ⇒≈ᵤ rel))
       tt)
     (subst-preserves-<<:-used⊕ S {u = uS} eqS rel cov)
 ... | used uS | Eq.[ eqS ] | used uT | Eq.[ eqT ] | eqJoin =
-  msg-<<:
+  msg-<<: {p = Duality.⊝} {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
@@ -1320,23 +1377,23 @@ subst-preserves-<<:-used⊕ (Types.T-Msg Duality.⊝ T S) {p = p} {u = u} {v = v
         cov
         (join-left-covers {u₁ = uS} {u₂ = used uT} eqJoin)))
 subst-preserves-<<:-used⊕ (Types.T-Up T) uv rel cov =
-  up-<<: (subst-preserves-<<:-used⊕ T uv rel cov)
+  up-<<: {v = ⊕} (subst-preserves-<<:-used⊕ T uv rel cov)
 subst-preserves-<<:-used⊕ (Types.T-Minus T) {p = p} uv rel cov
   with usageVariance T p | inspect (usageVariance T) p | uv
 ... | unused | Eq.[ eqT ] | ()
 ... | used uT | Eq.[ eqT ] | refl =
-  minus-<<:
+  minus-<<: {v = ⊕}
     (subst-preserves-<<:-used⊕
       T
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers cov))
+      (swap-covers-invol cov))
 subst-preserves-<<:-used⊕ (Types.T-ProtoD T) uv rel cov =
-  protoD-<<: (subst-preserves-<<:-used⊕ T uv rel cov)
+  protoD-<<: {v = ⊕} (subst-preserves-<<:-used⊕ T uv rel cov)
 subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊕ T) uv rel cov =
   protoP-<<: {v₁ = ⊕} {v₂ = ⊕}
-    (subst-preserves-<<:-used⊕ T uv rel cov)
+    (subst-preserves-<<:-used⊕ T (composeUsage-⊕-used uv) rel cov)
 subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊝ T) {p = p} uv rel cov
   with usageVariance T p | inspect (usageVariance T) p | uv
 ... | unused | Eq.[ eqT ] | ()
@@ -1347,15 +1404,25 @@ subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊝ T) {p = p} uv rel cov
       {u = uT}
       eqT
       (swap-≈ᵥ rel)
-      (swap-covers cov))
+      (swap-covers-invol cov))
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊕} {v = ⊕} uv rel cov =
+  ⊥-elim (composeUsage-⊘-used≢⊕ uv)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊝} {v = ⊕} uv rel cov =
+  ⊥-elim (composeUsage-⊘-used≢⊝ uv)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊘} {v = ⊕} uv rel ()
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊕} {v = ⊝} uv rel cov =
+  ⊥-elim (composeUsage-⊘-used≢⊕ uv)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊝} {v = ⊝} uv rel cov =
+  ⊥-elim (composeUsage-⊘-used≢⊝ uv)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊘} {v = ⊝} uv rel ()
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊕} {v = ⊘} uv rel cov =
+  ⊥-elim (composeUsage-⊘-used≢⊕ uv)
+subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {u = ⊝} {v = ⊘} uv rel cov =
+  ⊥-elim (composeUsage-⊘-used≢⊝ uv)
 subst-preserves-<<:-used⊕ (Types.T-ProtoP #c ⊘ T) {p = p} {u = ⊘} {v = ⊘} uv rel cov =
   protoP-<<: {v₁ = ⊘} {v₂ = ⊕}
     (subst-preserves-≡c-pointwise T (≈ᵥ⊘⇒≈ₛ rel))
 
-join-left-covers :
-  ∀ {u₁ u u₂}
-  → joinUsage (used u₁) u₂ ≡ used u
-  → VarianceCovers u u₁
 join-left-covers {u₁ = ⊕} {u = ⊕} {u₂ = unused} refl = tt
 join-left-covers {u₁ = ⊕} {u = ⊕} {u₂ = used ⊕} refl = tt
 join-left-covers {u₁ = ⊕} {u = ⊘} {u₂ = used ⊝} refl = tt
@@ -1369,10 +1436,6 @@ join-left-covers {u₁ = ⊘} {u = ⊘} {u₂ = used ⊕} refl = tt
 join-left-covers {u₁ = ⊘} {u = ⊘} {u₂ = used ⊝} refl = tt
 join-left-covers {u₁ = ⊘} {u = ⊘} {u₂ = used ⊘} refl = tt
 
-join-right-covers :
-  ∀ {u₂ u u₁}
-  → joinUsage u₁ (used u₂) ≡ used u
-  → VarianceCovers u u₂
 join-right-covers {u₂ = ⊕} {u = ⊕} {u₁ = unused} refl = tt
 join-right-covers {u₂ = ⊕} {u = ⊕} {u₁ = used ⊕} refl = tt
 join-right-covers {u₂ = ⊕} {u = ⊘} {u₁ = used ⊝} refl = tt
@@ -1454,14 +1517,6 @@ var-subst-ignores-unused (there x) (here refl) uv rel = rel _ (there x)
 var-subst-ignores-unused (there x) (there p) uv rel =
   var-subst-ignores-unused x p uv (λ K y → rel K (there y))
 
-subst-preserves-≡c-unused :
-  ∀ {Δ₁ Δ₂ K}
-    (T : Ty Δ₁ K)
-    {p : KP ∈ Δ₁}
-    {ϕ ψ : Δ₁ →ₛ Δ₂}
-  → usageVariance T p ≡ unused
-  → SubstIgnores ϕ p ψ
-  → (T ⋯ ϕ) Types.≡c (T ⋯ ψ)
 subst-preserves-≡c-unused (Types.T-Var x) {p = p} uv rel =
   var-subst-ignores-unused x p uv rel
 subst-preserves-≡c-unused T-Base uv rel = Types.≡c-refl
@@ -1699,11 +1754,6 @@ covers-refl {v = ⊕} = tt
 covers-refl {v = ⊝} = tt
 covers-refl {v = ⊘} = tt
 
-covers-trans :
-  ∀ {v₁ v₂ v₃}
-  → VarianceCovers v₁ v₂
-  → VarianceCovers v₂ v₃
-  → VarianceCovers v₁ v₃
 covers-trans {v₁ = ⊕} {v₂ = ⊕} {v₃ = ⊕} _ _ = tt
 covers-trans {v₁ = ⊝} {v₂ = ⊝} {v₃ = ⊝} _ _ = tt
 covers-trans {v₁ = ⊘} _ _ = tt
@@ -1722,9 +1772,16 @@ materialize-head-used :
 materialize-head-used T {u = u} {v = v} {P₁} {P₂} uv pu cov =
   complete-<<:ₚ
     (suc (sizeₚ N₁ ⊔ sizeₚ N₂))
+    {⊙ = ⊝}
+    {T₁ = instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟}
+    {T₂ = instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟}
     rawMinus
+    {f₁ = Duality.d?⊥}
+    {f₂ = Duality.d?⊥}
     {N₁ = N₁}
     {N₂ = N₂}
+    eqN₁
+    eqN₂
     (n≤1+n _)
   where
   N₁ : NfTy [] KP
@@ -1732,6 +1789,22 @@ materialize-head-used T {u = u} {v = v} {P₁} {P₂} uv pu cov =
 
   N₂ : NfTy [] KP
   N₂ = normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+
+  eqN₁ :
+    nfProtoTy N₁
+      ≡
+    Types.nf Duality.⊕ Duality.d?⊥ (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+  eqN₁ =
+    nfProtoTy-fromNormalProto
+      (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟))
+
+  eqN₂ :
+    nfProtoTy N₂
+      ≡
+    Types.nf Duality.⊕ Duality.d?⊥ (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+  eqN₂ =
+    nfProtoTy-fromNormalProto
+      (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟))
 
   rawPlus :
     instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟

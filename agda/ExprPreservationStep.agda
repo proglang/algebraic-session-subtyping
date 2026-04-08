@@ -16,7 +16,7 @@ import ExprSemantics as ES
 open import Types using (Ty; nf-⊕-ignores; nf-complete-; nf-sound+)
 open import NormalTypes using (nfTyTy-fromNormalTy; N-Var; NV-Var)
 open import NormalTypesSubstitution using (wkNFKind-sound; substNFTy)
-open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-arrow)
+open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans; <:ₜ-arrow)
   renaming (<:ₜ-sub to ST-sub; <:ₜ-msg to ST-msg; <:ₜ-pair to ST-pair; <:ₚ′-up to SP-up)
 open import ExprSyntax using (Expr; Value; E-App; E-Pair; E-TApp; E-Val; C-Close; C-Fork; C-New; C-Receive; C-Send; C-Unit; V-Const; V-Var; V-Pair; V-Abs; V-Rec; V-TAbs; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Send₃)
 open import ExprSemantics using (Label; L-Fork; L-New; L-RecvVal; L-SendVal; L-Close; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send₃; Act-Send; Act-Close; Act-AppL; _—[_]→_)

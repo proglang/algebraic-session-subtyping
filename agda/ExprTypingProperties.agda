@@ -7,7 +7,7 @@ open import Data.Product using (Σ; _×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 import Relation.Binary.PropositionalEquality as Eq
 
-open import AlgorithmicSubtyping using (_<:ₜ_)
+open import AlgorithmicNFSubtyping using (_<:ₜ_)
 open import Kinds using (Kind; KV; SLin; TLin)
 open import ExprSyntax using (Expr; Value; E-Match)
 open import ExprNormalTyping

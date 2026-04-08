@@ -10,7 +10,7 @@ open import Kinds
 open import Kits
 open import Variance using (Variance)
 open import Types using (Ty; Ty-Syntax; Ty-Traversal; fusion)
-open import AlgorithmicSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans)
+open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-refl; <:ₜ-trans)
 open import ExprSyntax using
   ( Expr
   ; E-TApp

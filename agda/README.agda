@@ -43,25 +43,25 @@ import ExprSyntax
 import ExprSubstitution
 
 -- Algorithmic subtyping on normal forms.
-import AlgorithmicSubtyping
+import AlgorithmicNFSubtyping
 
 -- Soundness of the algorithmic subtyping judgments.
-import AlgorithmicSound
+import AlgorithmicNFSound
 
 -- Decidable joins and meets for algorithmic subtyping.
-import AlgorithmicMerge
+import AlgorithmicNFMerge
 
 -- Least upper bounds and greatest lower bounds derived from joins and meets.
-import AlgorithmicLubGlb
+import AlgorithmicNFLubGlb
 
 -- Decision procedures for algorithmic subtyping judgments.
-import AlgorithmicInference
+import AlgorithmicNFInference
 
 -- Completeness of the algorithmic system with respect to declarative subtyping.
-import AlgorithmicComplete
+import AlgorithmicNFComplete
 
 -- Preservation of algorithmic subtyping under type substitution.
-import AlgorithmicSubstitution
+import AlgorithmicNFSubstitution
 
 -- Algorithmic expression typing with normalized environments and result types.
 import ExprNormalTyping
