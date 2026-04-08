@@ -56,6 +56,8 @@ open import AlgorithmicNFSubtyping using
   ; <<:ₚ-refl
   ; <:ₜ-refl
   ; <:ₜ-trans
+  ; <:ₜ-pair
+  ; <:ₜ-poly
   ; <:ₜ-sub
   ; <:ₜ-msg
   ; <:ₚ′-proto
@@ -99,7 +101,7 @@ open import TypesProtocolConstructors using
   ; joinUsage
   ; composeUsage
   )
-open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Send₃; V-Select₁; V-Select₂; C-New; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
+open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-LetPair; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Send₃; V-Select₁; V-Select₂; C-New; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
 open import ExprSemantics using (Label; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send₃; Act-Send; Act-Sel; Act-Select₁; Act-Select₂; Act-Close; Act-AppL; Act-AppR; Act-TAppE; Act-PairL; Act-PairR; Act-MatchE; Act-LetPairE; Act-LetUnitE; _—[_]→_)
 import ExprSemantics as ES
 open import ExprNormalTyping
@@ -119,6 +121,7 @@ open import NormalTypesSubstitution using
   )
 open import AlgorithmicNFSubstitution using
   ( msgNF-preserves-<:
+  ; subst-preserves-<:ₜ
   )
 open import AlgorithmicNFComplete using
   ( complete-<<:ₚ
@@ -2807,6 +2810,15 @@ select₂-pres
   rewrite select₂-body {v = v} {i = i} {P = P} {S = S} =
   TV-Select₂
 
+poly-subtype-inversion :
+  ∀ {K m}
+    {U : NfTy [] (KV KT m)}
+    {T : NfTy (K ∷ []) (KV KT m)}
+  → normalTyOf U <:ₜ normalTyOf (polyNf T)
+  → Σ (NfTy (K ∷ []) (KV KT m)) λ T′ →
+      (U ≡ polyNf T′) × (normalTyOf T′ <:ₜ normalTyOf T)
+poly-subtype-inversion (<:ₜ-poly sub) = _ , refl , sub
+
 mutual
 
   recv-live-synth-removed :
@@ -3161,6 +3173,61 @@ mutual
     with select-live-check-removed r d step ex
   ... | K , U , x∈ = recv-input-disjoint-core r rin take au x∈
 
+  pairR-extract-disjoint-recv :
+    ∀ {n}
+      {Γ₀ Γ₂ Γ₃ Γin : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {pk mult}
+      {A : NfTy [] (KV pk mult)}
+      {G : Ctx [] n}
+    → RemoveCtx Γ₀ G Γ₂
+    → Γ₂ ⊢ e₁ ⇒ A ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
+    → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
+    → LinearDisjoint G Γin
+  pairR-extract-disjoint-recv r d step ex
+    with recv-live-synth-removed r d step ex
+  ... | K , U , x∈ = recv-extract-disjoint r ex x∈
+
+  pairR-extract-disjoint-send :
+    ∀ {n}
+      {Γ₀ Γ₂ Γ₃ Γin Γv : Ctx [] n}
+      {x : Fin n} {w : Value [] n}
+      {e₁ e₂ : Expr [] n}
+      {pk mult}
+      {A : NfTy [] (KV pk mult)}
+      {G : Ctx [] n}
+    → RemoveCtx Γ₀ G Γ₂
+    → LinearDisjoint Γ₀ Γv
+    → Γ₂ ⊢ e₁ ⇒ A ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-SendVal x w ]→ e₂
+    → ExprSemantics.L-SendVal x w ⦂ Γin ⇒ Γv
+    → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
+    → LinearDisjoint G Γin
+  pairR-extract-disjoint-send r disj d step lbl ex
+    with send-live-synth-removed r d step ex
+  ... | K , U , x∈ = send-extract-disjoint r disj lbl ex x∈
+
+  pairR-extract-disjoint-sendlab :
+    ∀ {n k}
+      {Γ₀ Γ₂ Γ₃ Γin Γin′ : Ctx [] n}
+      {x : Fin n} {i : Fin k}
+      {e₁ e₂ : Expr [] n}
+      {pk mult}
+      {A : NfTy [] (KV pk mult)}
+      {G : Ctx [] n}
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+    → RemoveCtx Γ₀ G Γ₂
+    → Γ₂ ⊢ e₁ ⇒ A ⊣ Γ₃
+    → e₁ —[ ExprSemantics.L-SendLab {k = k} x i ]→ e₂
+    → ExprSemantics.L-SendLab {k = k} x i ⦂ Γin ⇒ Γin′
+    → Extract Γ₀ (ExprSemantics.L-SendLab {k = k} x i) Γin
+    → LinearDisjoint G Γin
+  pairR-extract-disjoint-sendlab r d step (Label-SendLab {v = v} {P = P} {S = S} take au) ex@(Ex-SendLab rin _)
+    with select-live-synth-removed r d step ex
+  ... | K , U , x∈ = recv-input-disjoint-core r rin take au x∈
+
 receive-live-synth :
   ∀ {n pk mult}
     {Γ₀ Γ₂ Γin : Ctx [] n}
@@ -3496,6 +3563,90 @@ mutual
             (allUsed-extendUsed k au))
           (PresCheck.check pc)
     ; subtype = <:ₜ-refl (normalTyOf V)
+    }
+
+  preserve⇒-pairR-core :
+    ∀ {n k}
+      {Γ₀ Γ₂ Γ₃ : Ctx [] n}
+      {Γin Γv G G′ : Ctx [] n}
+      {v : Value [] n}
+      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
+      {pk₁ pk₂ m}
+      {T : NfTy [] (KV pk₁ m)}
+      {U : NfTy [] (KV pk₂ m)}
+      {ℓ : Label n k}
+    → (r : RemoveCtx Γ₀ G Γ₂)
+    → G ⊢ᵥ v ⇒ T ⊣ G′
+    → AllUsed G′
+    → Γ₂ ⊢ e₁ ⇒ U ⊣ Γ₃
+    → e₁ —[ ℓ ]→ e₂
+    → (lbl : ℓ ⦂ Γin ⇒ Γv)
+    → (ex : Extract Γ₀ ℓ Γin)
+    → LinearDisjoint Γ₀ Γv
+    → LinearDisjoint G Γin
+    → PresSynth Γin Γv lbl Γ₀ Γ₃ (E-Pair (E-Val (ES.weakenValueBy k v)) e₂) (pairNf T U)
+  preserve⇒-pairR-core {k = k} {Γ₀ = Γ₀} {Γ₂ = Γ₂} {Γ₃ = Γ₃}
+    {Γin = Γin} {Γv = Γv} {G = G} {v = v} {e₂ = e₂} {T = T} {U = U}
+    r dv′ au darg step lbl ex disj ldex
+    with preserve⇒ darg step lbl
+         (remove-extract r ldex ex)
+         (remove-disjoint r disj)
+  ... | ps
+    with ctx-step-preserves-disjoint
+           (PresSynth.ctx-step ps)
+           lbl
+           (PresSynth.compat ps)
+           (remove-preserves-disjoint
+             (PresSynth.src-remove ps)
+             (sym-disjoint (remove-linear r)))
+           (sym-disjoint (remove-removed-disjoint r disj))
+  ... | ldstep
+    with restore-disjoint
+           (PresSynth.dst-remove ps)
+           (subst
+             (λ X → LinearDisjoint (PresSynth.Γ₁′ ps) X)
+             (extendUsedCR-eq k G)
+             ldstep)
+           (extendUsed-disjoint k
+             (remove-removed-disjoint
+               (PresSynth.src-remove ps)
+               (sym-disjoint (remove-linear r))))
+  ... | ldtarget
+    with mergeRemoveContext r (PresSynth.src-remove ps)
+  ... | Gf , msrc , rsrc
+    with mergeDisjointContext ldtarget
+  ... | Γ₁ , mleft
+    with frame-remove
+           (merge-frame ldtarget mleft)
+  ... | dstr
+    with mergeRemoveContext dstr (PresSynth.dst-remove ps)
+  ... | Gfdst , mdst , rdst
+    with merge-result-unique mdst (merge-extendUsed k msrc)
+  ... | eqG = record
+    { Gf = Gf
+    ; Γ₀′ = PresSynth.Γ₀′ ps
+    ; Γ₁ = Γ₁
+    ; Γ₁′ = PresSynth.Γ₁′ ps
+    ; U = pairNf T (PresSynth.U ps)
+    ; src-remove = rsrc
+    ; dst-remove =
+        subst
+          (λ X → RemoveCtx Γ₁ X (PresSynth.Γ₁′ ps))
+          eqG
+          rdst
+    ; ctx-step = PresSynth.ctx-step ps
+    ; compat = PresSynth.compat ps
+    ; synth =
+        T-Pair
+          (replay-synth-allUsed
+            (weaken-val-synth {k = k} dv′)
+            (remove-frame dstr)
+            (allUsed-extendUsed k au))
+          (PresSynth.synth ps)
+    ; subtype =
+        <:ₜ-pair
+          (<:ₜ-refl (normalTyOf T))
+          (PresSynth.subtype ps)
     }
 
   preserve⇒ :
@@ -3928,6 +4079,38 @@ mutual
     preserve⇒-close vr take sub lbl ex
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-TApp e₁ Uty}
+    {ℓ = ℓ}
+    (T-TApp {Γ₁ = Γ₂} {Γ₂ = Γ₃} {K = K} {m = m} {T = Tₚ} {U = Uty} d₁)
+    (Act-TAppE {k = k} {K = K} {e₁ = e₁} {e₂ = e₂} {T = Uty} step)
+    lbl ex disj
+    with preserve⇒ d₁ step lbl ex disj
+  ... | ps
+    with poly-subtype-inversion {K = K} {T = Tₚ} (PresSynth.subtype ps)
+  ... | Tₚ′ , eqPoly , Tₚ′<:Tₚ =
+    record
+      { Gf = PresSynth.Gf ps
+      ; Γ₀′ = PresSynth.Γ₀′ ps
+      ; Γ₁ = PresSynth.Γ₁ ps
+      ; Γ₁′ = PresSynth.Γ₁′ ps
+      ; U = substNFTy Tₚ′ (normalizeTy Uty)
+      ; src-remove = PresSynth.src-remove ps
+      ; dst-remove = PresSynth.dst-remove ps
+      ; ctx-step = PresSynth.ctx-step ps
+      ; compat = PresSynth.compat ps
+      ; synth =
+          T-TApp {T = Tₚ′} {U = Uty}
+            (subst
+              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed k Γ₃)
+              eqPoly
+              (PresSynth.synth ps))
+      ; subtype =
+          subst-preserves-<:ₜ
+            {U = normalizeTy Uty}
+            Tₚ′<:Tₚ
+      }
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-App e₁ e₃}
     {T = V} {ℓ = ℓ}
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V} d₁ (T-Check pArg subArg))
@@ -3968,6 +4151,270 @@ mutual
               (<:ₜ-trans subArg A<:A′))
       ; subtype = V′<:V
       }
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair e₁ e₃}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ} d₁ d₂)
+    (Act-PairL {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    lbl ex disj
+    with preserve⇒ d₁ step lbl ex disj
+  ... | ps =
+    let
+      d₂′ : extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ Uₚ ⊣ extendUsed k Γ₃
+      d₂′ =
+        subst
+          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃)
+          (extendUsed-eq k Γ₂)
+          (subst
+            (λ G₃′ → extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
+            (extendUsed-eq k Γ₃)
+            (weaken-synth {k = k} d₂))
+    in
+    record
+      { Gf = PresSynth.Gf ps
+      ; Γ₀′ = PresSynth.Γ₀′ ps
+      ; Γ₁ = PresSynth.Γ₁ ps
+      ; Γ₁′ = PresSynth.Γ₁′ ps
+      ; U = pairNf (PresSynth.U ps) Uₚ
+      ; src-remove = PresSynth.src-remove ps
+      ; dst-remove = PresSynth.dst-remove ps
+      ; ctx-step = PresSynth.ctx-step ps
+      ; compat = PresSynth.compat ps
+      ; synth = T-Pair (PresSynth.synth ps) d₂′
+      ; subtype =
+          <:ₜ-pair
+            (PresSynth.subtype ps)
+            (<:ₜ-refl (normalTyOf Uₚ))
+      }
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-LetPair e₁ e₃}
+    {T = T} {ℓ = ℓ}
+    d@(T-LetPair {Γ₂ = Γ₂} {Γ₃ = Γ₃} d₁ d₂)
+    (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    lbl ex disj =
+    preserve⇒-hard d (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step) lbl ex disj
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-LetUnit e₁ e₃}
+    {T = T} {ℓ = ℓ}
+    (T-LetUnit {Γ₂ = Γ₂} {Γ₃ = Γ₃} d₁ d₂)
+    (Act-LetUnitE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    lbl ex disj
+    with preserve⇐ {T = unitConstNf} d₁ step lbl ex disj
+  ... | pc =
+    let
+      d₂′ : extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ T ⊣ extendUsed k Γ₃
+      d₂′ =
+        subst
+          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃)
+          (extendUsed-eq k Γ₂)
+          (subst
+            (λ G₃′ → extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
+            (extendUsed-eq k Γ₃)
+            (weaken-synth {k = k} d₂))
+    in
+    record
+      { Gf = PresCheck.Gf pc
+      ; Γ₀′ = PresCheck.Γ₀′ pc
+      ; Γ₁ = PresCheck.Γ₁ pc
+      ; Γ₁′ = PresCheck.Γ₁′ pc
+      ; U = T
+      ; src-remove = PresCheck.src-remove pc
+      ; dst-remove = PresCheck.dst-remove pc
+      ; ctx-step = PresCheck.ctx-step pc
+      ; compat = PresCheck.compat pc
+      ; synth = T-LetUnit (PresCheck.check pc) d₂′
+      ; subtype = <:ₜ-refl (normalTyOf T)
+      }
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@(Ex-RecvVal {x = x} {v = vᵣ} _ _ _) disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (pairR-extract-disjoint-recv
+          r
+          d₂
+          step
+          ex)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-β disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-Fork disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-New disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-RecvLab disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@(Ex-SendVal _ _ _ _) disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (pairR-extract-disjoint-send
+          r
+          disj
+          d₂
+          step
+          lbl
+          ex)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl@(Label-SendLab {v = vₗ} {P = Pₗ} {S = Sₗ} _ _)
+    ex@(Ex-SendLab {i = i} _ _) disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (pairR-extract-disjoint-sendlab
+          {v = vₗ}
+          {P = Pₗ}
+          {S = Sₗ}
+          r
+          d₂
+          step
+          lbl
+          ex)
+  preserve⇒
+    {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    {e₁ = E-Pair (E-Val v) e₁}
+    {ℓ = ℓ}
+    (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
+      (T-Val dv)
+      d₂)
+    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    lbl ex@Ex-Close disj
+    with strip-value dv
+  ... | G , G′ , r , dv′ , au
+    = preserve⇒-pairR-core
+        r
+        dv′
+        au
+        d₂
+        step
+        lbl
+        ex
+        disj
+        (remove-allused-disjoint r)
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-App (E-Val v) e₁}

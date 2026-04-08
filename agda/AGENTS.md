@@ -10,6 +10,7 @@ These instructions apply to the Agda project rooted in this directory.
 
 When updating `README.agda`:
 - Include every project module under this directory that belongs in the maintained index.
+- Ignore the contents of directory `Obsolete`.
 - For each imported module, place a two-line prose description immediately before the import.
 - Keep the existing module order unless the user explicitly asks to reorder it.
 - Preserve existing descriptions unless they are missing or no longer accurate.
@@ -17,8 +18,6 @@ When updating `README.agda`:
 
 ## Verification
 
-After changing `README.agda`, run the project verification command from this directory.
-
-Replace the placeholder below with the exact command for this project and keep it up to date:
+After changing `README.agda`, run the following project verification command from this directory.
 
 `agda -i . README.agda`
