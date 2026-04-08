@@ -19,12 +19,27 @@ Run the project verification command from the Agda project root:
 
 ## TODO list
 
+- [ ] refactoring:
+      Refactor ExprPreservationStep2.
+
+      Specifically:
+      - identify groups of lemmas with a common theme, like dealing with context predicates like RemoveCtx, dealing with substitutions, or auxiliary results about typing derivations.
+      - for each group create a new module with a fresh name derived from the group's theme.
+      - move all definitions in the group to their thematic module and add the respective imports to ExprPreservationStep2.
+
 - [ ] unused-postulates:
       Remove unused postulates from the codebase.
 
       More specifically:
       - scan all modules for postulates
       - if a postulate is neither used locally nor exported, then delete it
+
+- [ ] unused-imports:
+      Remove unused imports from the codebase.
+
+      Specifically:
+      - scan all modules for unused imports
+      - remove unused imports from the import list
 
 - [ ] kind-cleanup:
       Remove `Kinds.KM` from the codebase.
