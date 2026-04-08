@@ -19,6 +19,13 @@ Run the project verification command from the Agda project root:
 
 ## TODO list
 
+- [ ] unused-postulates:
+      Remove unused postulates from the codebase.
+
+      More specifically:
+      - scan all modules for postulates
+      - if a postulate is neither used locally nor exported, then delete it
+
 - [ ] kind-cleanup:
       Remove `Kinds.KM` from the codebase.
 

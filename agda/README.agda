@@ -81,9 +81,6 @@ import ExprSubstitutionTyping
 -- Existence of removed subcontexts corresponding to leftover typing contexts.
 import ExprTypingLeftover
 
--- Alternative preservation setup using full context-reduction steps.
-import ExprPreservationStep
-
 -- Revised preservation setup using removable frames around the active context.
 import ExprPreservationStep2
 
