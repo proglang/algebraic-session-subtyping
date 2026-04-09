@@ -19,7 +19,7 @@ Run the project verification command from the Agda project root:
 
 ## TODO list
 
-- [ ] refactoring:
+- [x] refactoring:
       Refactor ExprPreservationStep2.
 
       Specifically:
