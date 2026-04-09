@@ -22,6 +22,7 @@ open import Kits
 import Types
 open import NormalTypes using
   ( N-Normal
+  ; N-Up
   ; N-Var
   ; NV-Var
   ; N-Sub
@@ -117,6 +118,7 @@ open import NormalTypesSubstitution using
   ; substNFTyWith
   ; substNFProto-sound
   ; substNFTy-sound
+  ; msgNF
   ; msgNF-sound
   )
 open import AlgorithmicNFSubstitution using
@@ -126,7 +128,7 @@ open import AlgorithmicNFSubstitution using
 open import AlgorithmicNFComplete using
   ( complete-<<:ₚ
   )
-open import ExprSubstitution using (substTyValue)
+open import ExprSubstitution using (substTyValue; renameExpr; renameValue; extRen; extRen2)
 open import ExprSubstitutionTyping using
   ( rec-unfold-preserves-value
   ; subst-check-preserves-synth
@@ -166,12 +168,12 @@ open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
 open CTraversal record { fusion = Types.fusion }
 
-extendUsed : ∀ (k : ℕ) {n} → Ctx [] n → Ctx [] (k + n)
+extendUsed : ∀ (k : ℕ) {Δ n} → Ctx Δ n → Ctx Δ (k + n)
 extendUsed zero Γ = Γ
 extendUsed (suc k) Γ = B-Used ▻ extendUsed k Γ
 
 extendUsed-eq :
-  ∀ (k : ℕ) {n} (Γ : Ctx [] n) → extendUsed k Γ ≡ extendUsed k Γ
+  ∀ (k : ℕ) {Δ n} (Γ : Ctx Δ n) → extendUsed k Γ ≡ extendUsed k Γ
 extendUsed-eq zero Γ = refl
 extendUsed-eq (suc k) Γ = cong (B-Used ▻_) (extendUsed-eq k Γ)
 
@@ -180,11 +182,188 @@ extendUsedCR-eq :
 extendUsedCR-eq zero Γ = refl
 extendUsedCR-eq (suc k) Γ = cong (B-Used ▻_) (extendUsedCR-eq k Γ)
 
-postulate
-  closeTy-shape :
-    normalizeTy {Δ = []} CloseTy
-      ≡ linArrNf (normalizeTy {Δ = []} EndLin) (normalizeTy {Δ = []} Types.T-Base)
+renamingVar : (p k : ℕ) {n : ℕ} → Fin (p + n) → Fin (p + (k + n))
+renamingVar zero k = ES.shiftRen k
+renamingVar (suc p) k = extRen (renamingVar p k)
 
+renamingCtx : ∀ {Δ} (p k : ℕ) {n : ℕ} → Ctx Δ (p + n) → Ctx Δ (p + (k + n))
+renamingCtx zero k Γ = extendUsed k Γ
+renamingCtx (suc p) k (b ▻ Γ) = b ▻ renamingCtx p k Γ
+
+extendUsed-wkCtx :
+  ∀ {Δ K n} (k : ℕ) (Γ : Ctx Δ n)
+  → extendUsed k (wkCtx {K = K} Γ) ≡ wkCtx (extendUsed k Γ)
+extendUsed-wkCtx zero Γ = refl
+extendUsed-wkCtx (suc k) Γ = cong (B-Used ▻_) (extendUsed-wkCtx {K = _} k Γ)
+
+renamingCtx-wkCtx :
+  ∀ {Δ K n} (p k : ℕ) (Γ : Ctx Δ (p + n))
+  → renamingCtx p k (wkCtx {K = K} Γ) ≡ wkCtx (renamingCtx p k Γ)
+renamingCtx-wkCtx {K = K} zero k Γ = extendUsed-wkCtx {K = K} k Γ
+renamingCtx-wkCtx {K = K} (suc p) k (b ▻ Γ)
+  rewrite renamingCtx-wkCtx {K = K} p k Γ = refl
+
+renaming-preserves-un-extend :
+  ∀ (k : ℕ) {Δ n K}
+    {Γ : Ctx Δ n}
+    {x : Fin n} {T : NfTy Δ K}
+  → Γ ∋ᵘ x ∶ T
+  → extendUsed k Γ ∋ᵘ ES.shiftRen k x ∶ T
+renaming-preserves-un-extend zero x∈ = x∈
+renaming-preserves-un-extend (suc k) x∈ =
+  thereᵘ✖ (renaming-preserves-un-extend k x∈)
+
+renaming-preserves-take-extend :
+  ∀ (k : ℕ) {Δ n K}
+    {Γ Γ′ : Ctx Δ n}
+    {x : Fin n} {T : NfTy Δ K}
+  → Γ ⊢ˡ x ∶ T ⊣ Γ′
+  → extendUsed k Γ ⊢ˡ ES.shiftRen k x ∶ T ⊣ extendUsed k Γ′
+renaming-preserves-take-extend zero take = take
+renaming-preserves-take-extend (suc k) take =
+  take-there✖ (renaming-preserves-take-extend k take)
+
+renaming-preserves-un :
+  ∀ (p k : ℕ) {Δ n K}
+    {Γ : Ctx Δ (p + n)}
+    {x : Fin (p + n)} {T : NfTy Δ K}
+  → Γ ∋ᵘ x ∶ T
+  → renamingCtx p k Γ ∋ᵘ renamingVar p k x ∶ T
+renaming-preserves-un zero k x∈ = renaming-preserves-un-extend k x∈
+renaming-preserves-un (suc p) k hereᵘ = hereᵘ
+renaming-preserves-un (suc p) k (thereᵘˡ x∈) =
+  thereᵘˡ (renaming-preserves-un p k x∈)
+renaming-preserves-un (suc p) k (thereᵘᵘ x∈) =
+  thereᵘᵘ (renaming-preserves-un p k x∈)
+renaming-preserves-un (suc p) k (thereᵘ✖ x∈) =
+  thereᵘ✖ (renaming-preserves-un p k x∈)
+
+renaming-preserves-take :
+  ∀ (p k : ℕ) {Δ n K}
+    {Γ Γ′ : Ctx Δ (p + n)}
+    {x : Fin (p + n)} {T : NfTy Δ K}
+  → Γ ⊢ˡ x ∶ T ⊣ Γ′
+  → renamingCtx p k Γ ⊢ˡ renamingVar p k x ∶ T ⊣ renamingCtx p k Γ′
+renaming-preserves-take zero k take = renaming-preserves-take-extend k take
+renaming-preserves-take (suc p) k take-here = take-here
+renaming-preserves-take (suc p) k (take-thereˡ take) =
+  take-thereˡ (renaming-preserves-take p k take)
+renaming-preserves-take (suc p) k (take-thereᵘ take) =
+  take-thereᵘ (renaming-preserves-take p k take)
+renaming-preserves-take (suc p) k (take-there✖ take) =
+  take-there✖ (renaming-preserves-take p k take)
+
+mutual
+
+  renaming-preserves-value :
+    ∀ (p k : ℕ) {Δ n K}
+      {Γ₁ Γ₂ : Ctx Δ (p + n)}
+      {v : Value Δ (p + n)} {T : NfTy Δ K}
+    → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
+    → renamingCtx p k Γ₁ ⊢ᵥ renameValue (renamingVar p k) v ⇒ T ⊣ renamingCtx p k Γ₂
+
+  renaming-preserves-value p k (TV-Const ct) =
+    TV-Const ct
+  renaming-preserves-value p k (TV-Var-Lin take) =
+    TV-Var-Lin (renaming-preserves-take p k take)
+  renaming-preserves-value p k (TV-Var-Un x∈) =
+    TV-Var-Un (renaming-preserves-un p k x∈)
+  renaming-preserves-value p k (TV-Abs d) =
+    TV-Abs (renaming-preserves-synth (suc p) k d)
+  renaming-preserves-value p k (TV-Rec d) =
+    TV-Rec (renaming-preserves-check (suc p) k d)
+  renaming-preserves-value p k {Δ = Δ} {Γ₁ = Γ₁} {Γ₂ = Γ₂}
+    (TV-TAbs {K = K′} d)
+    with renaming-preserves-value p k d
+  ... | d′
+    rewrite renamingCtx-wkCtx {Δ = Δ} {K = K′} p k Γ₁
+          | renamingCtx-wkCtx {Δ = Δ} {K = K′} p k Γ₂ =
+    TV-TAbs d′
+  renaming-preserves-value p k (TV-Pair d₁ d₂) =
+    TV-Pair
+      (renaming-preserves-value p k d₁)
+      (renaming-preserves-value p k d₂)
+  renaming-preserves-value p k TV-Receive₁ = TV-Receive₁
+  renaming-preserves-value p k TV-Receive₂ = TV-Receive₂
+  renaming-preserves-value p k TV-Send₁ = TV-Send₁
+  renaming-preserves-value p k TV-Send₂ = TV-Send₂
+  renaming-preserves-value p k (TV-Send₃ dv) =
+    TV-Send₃ (renaming-preserves-check p k dv)
+  renaming-preserves-value p k TV-Select₁ = TV-Select₁
+  renaming-preserves-value p k TV-Select₂ = TV-Select₂
+
+  renaming-preserves-synth :
+    ∀ (p k : ℕ) {Δ n K}
+      {Γ₁ Γ₂ : Ctx Δ (p + n)}
+      {e : Expr Δ (p + n)} {T : NfTy Δ K}
+    → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
+    → renamingCtx p k Γ₁ ⊢ renameExpr (renamingVar p k) e ⇒ T ⊣ renamingCtx p k Γ₂
+
+  renaming-preserves-synth p k (T-Val dv) =
+    T-Val (renaming-preserves-value p k dv)
+  renaming-preserves-synth p k (T-Pair d₁ d₂) =
+    T-Pair
+      (renaming-preserves-synth p k d₁)
+      (renaming-preserves-synth p k d₂)
+  renaming-preserves-synth p k (T-App d₁ d₂) =
+    T-App
+      (renaming-preserves-synth p k d₁)
+      (renaming-preserves-check p k d₂)
+  renaming-preserves-synth p k (T-LetUnit d₁ d₂) =
+    T-LetUnit
+      (renaming-preserves-check p k d₁)
+      (renaming-preserves-synth p k d₂)
+  renaming-preserves-synth p k (T-LetPair d₁ d₂) =
+    T-LetPair
+      (renaming-preserves-synth p k d₁)
+      (renaming-preserves-synth (suc (suc p)) k d₂)
+  renaming-preserves-synth p k (T-Match d mb bs bj) =
+    T-Match
+      (renaming-preserves-synth p k d)
+      mb
+      (λ i → renaming-preserves-synth (suc p) k (bs i))
+      bj
+  renaming-preserves-synth p k (T-TApp d) =
+    T-TApp (renaming-preserves-synth p k d)
+
+  renaming-preserves-check :
+    ∀ (p k : ℕ) {Δ n pk m}
+      {Γ₁ Γ₂ : Ctx Δ (p + n)}
+      {e : Expr Δ (p + n)} {T : NfTy Δ (KV pk m)}
+    → Γ₁ ⊢ e ⇐ T ⊣ Γ₂
+    → renamingCtx p k Γ₁ ⊢ renameExpr (renamingVar p k) e ⇐ T ⊣ renamingCtx p k Γ₂
+
+  renaming-preserves-check p k (T-Check d sub) =
+    T-Check (renaming-preserves-synth p k d) sub
+
+renaming-preserves-typing :
+  ∀ (p k : ℕ) {Δ n K}
+    {Γ₁ Γ₂ : Ctx Δ (p + n)}
+    {e : Expr Δ (p + n)} {T : NfTy Δ K}
+  → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
+  → renamingCtx p k Γ₁ ⊢ renameExpr (renamingVar p k) e ⇒ T ⊣ renamingCtx p k Γ₂
+renaming-preserves-typing = renaming-preserves-synth
+
+weaken-synth :
+  ∀ {n k K}
+    {Γ₁ Γ₂ : Ctx [] n}
+    {e : Expr [] n} {T : NfTy [] K}
+  → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
+  → extendUsed k Γ₁ ⊢ ES.weakenExprBy k e ⇒ T ⊣ extendUsed k Γ₂
+weaken-synth {k = k} d = renaming-preserves-synth zero k d
+
+weaken-synth2 :
+  ∀ {n k K pk₁ pk₂}
+    {Γ₁ Γ₂ : Ctx [] n}
+    {e : Expr [] (suc (suc n))}
+    {T : NfTy [] K}
+    {A : NfTy [] (KV pk₁ Lin)}
+    {B : NfTy [] (KV pk₂ Lin)}
+  → (A ∷ˡ (B ∷ˡ Γ₁)) ⊢ e ⇒ T ⊣ used∷ (used∷ Γ₂)
+  → (A ∷ˡ (B ∷ˡ (extendUsed k Γ₁))) ⊢ ES.weakenExprBy2 k e ⇒ T ⊣ used∷ (used∷ (extendUsed k Γ₂))
+weaken-synth2 {k = k} d = renaming-preserves-synth (suc (suc zero)) k d
+
+postulate
   close-inversion :
     ∀ {n}
       {Γ₁ Γ₂ : Ctx [] n}
@@ -209,21 +388,6 @@ postulate
     → (Γ₁ ≡ Γ₂)
       × (T ≡ normalizeTy (Ty.T-Pair (SessLin (Ty.T-Var (here refl)))
                                  (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))))
-
-  newInst-shape :
-    ∀ {S : Ty [] SLin}
-    → normalizeTy (Ty.T-Pair (SessLin S) (SessLin (Types.T-Dual Duality.D-S S)))
-      ≡ pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
-
-  sess-normalizeTy :
-    ∀ {S : Ty [] SLin}
-    → normalizeTy (SessLin S) ≡ sessNf (normalizeTy S)
-
-  sendTy-shape :
-    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
-    → normalizeTy (LinArr (SessLin (Types.T-Msg Duality.⊕ (Types.T-Up T) S)) (SessLin S))
-      ≡ linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
-          (sessNf (normalizeTy S))
 
   receive₂-shape :
     ∀ {n}
@@ -265,14 +429,6 @@ postulate
     → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
     → T ≡ normalizeTy (SendTy U S)
 
-  send₁-shapeNF :
-    ∀ {T : Ty [] TLin}
-    → send1Nf (normalizeTy T) ≡ normalizeTy (SendTy1 T)
-
-  send₂-shapeNF :
-    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
-    → sendNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (SendTy T S)
-
   send₂-shape :
     ∀ {n}
       {Γ₁ Γ₂ : Ctx [] n}
@@ -304,14 +460,6 @@ postulate
     → Γ ⊢ E-TApp (E-Val (V-Receive₁ U)) S ⇒ T ⊣ Γ′
     → T ≡ normalizeTy (ReceiveTy U S)
 
-  receive₁-shapeNF :
-    ∀ {T : Ty [] TLin}
-    → receive1Nf (normalizeTy T) ≡ normalizeTy (ReceiveTy1 T)
-
-  receive₂-shapeNF :
-    ∀ {T : Ty [] TLin} {S : Ty [] SLin}
-    → receiveNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (ReceiveTy T S)
-
   recv-app-inversion :
     ∀ {n}
       {Γ₀ Γ₂ : Ctx [] n}
@@ -325,13 +473,6 @@ postulate
       × ((normalTyOf T <:ₜ normalTyOf (normalizeTy Tᵣ))
       × ((normalTyOf S <:ₜ normalTyOf (normalizeTy Sᵣ))
       × (normalTyOf (pairNf T (sessNf S)) <:ₜ normalTyOf R)))
-
-  check-output-unique :
-    ∀ {Δ n pk m pk′ m′} {Γ : Ctx Δ n} {e : Expr Δ n}
-      {T : NfTy Δ (KV pk m)} {U : NfTy Δ (KV pk′ m′)} {Γ₁ Γ₂ : Ctx Δ n}
-    → Γ ⊢ e ⇐ T ⊣ Γ₁
-    → Γ ⊢ e ⇐ U ⊣ Γ₂
-    → Γ₁ ≡ Γ₂
 
   merge-value :
     ∀ {n K}
@@ -390,12 +531,17 @@ postulate
     → normalTyOf S₁ <:ₜ normalTyOf S₂
     → normalTyOf (sessNf S₁) <:ₜ normalTyOf (sessNf S₂)
 
-  weaken-synth :
-    ∀ {n k K}
+  narrow2-synth :
+    ∀ {n K pk₁ pk₂}
       {Γ₁ Γ₂ : Ctx [] n}
-      {e : Expr [] n} {T : NfTy [] K}
-    → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
-    → extendUsed k Γ₁ ⊢ ES.weakenExprBy k e ⇒ T ⊣ extendUsed k Γ₂
+      {e : Expr [] (suc (suc n))}
+      {T : NfTy [] K}
+      {A A′ : NfTy [] (KV pk₁ Lin)}
+      {B B′ : NfTy [] (KV pk₂ Lin)}
+    → normalTyOf A′ <:ₜ normalTyOf A
+    → normalTyOf B′ <:ₜ normalTyOf B
+    → (A ∷ˡ (B ∷ˡ Γ₁)) ⊢ e ⇒ T ⊣ used∷ (used∷ Γ₂)
+    → (A′ ∷ˡ (B′ ∷ˡ Γ₁)) ⊢ e ⇒ T ⊣ used∷ (used∷ Γ₂)
 
   arrow-subtype-inversion :
     ∀ {A V U}
@@ -422,9 +568,222 @@ postulate
     → MergeCtx Γx Γv Γ₁
     → FrameCtx Γx Γv Γ₁
 
+normalizeTy-complete :
+  ∀ {Δ pk m} {T U : Ty Δ (KV pk m)}
+  → T Types.≡c U
+  → normalizeTy T ≡ normalizeTy U
+normalizeTy-complete {T = T} {U = U} eq =
+  nfTyEq
+    (trans
+      (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ T))
+      (trans
+        (Types.nf-complete Duality.d?⊥ Duality.d?⊥ eq)
+        (sym (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ U)))))
+
+normalizeTy-sound-≡c :
+  ∀ {Δ pk m} (T : Ty Δ (KV pk m))
+  → T Types.≡c ⌞ normalizeTy T ⌟
+normalizeTy-sound-≡c T =
+  Types.≡c-trns
+    (Types.≡c-symm (Types.nf-sound+ T))
+    (Types.≡c-refl-eq
+      (sym (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ T))))
+
+dualSess-normalize :
+  ∀ {S : Ty [] SLin}
+  → normalizeTy (SessLin (Types.T-Dual Duality.D-S S))
+    ≡ dualSessNf (normalizeTy S)
+dualSess-normalize {S = S} =
+  normalizeTy-complete
+    (Types.≡c-sub
+      (≤k-step (≤p-step <p-st) ≤m-refl)
+      (Types.≡c-trns
+        (Types.dual-tinv S)
+        (Types.≡c-trns
+          (EST.t-dual-preserves-≡c (normalizeTy-sound-≡c S))
+          (Types.≡c-symm (Types.dual-tinv ⌞ normalizeTy S ⌟)))))
+
+newInst-shape :
+  ∀ {S : Ty [] SLin}
+  → normalizeTy (Ty.T-Pair (SessLin S) (SessLin (Types.T-Dual Duality.D-S S)))
+    ≡ pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
+newInst-shape {S = S}
+  rewrite dualSess-normalize {S = S} = refl
+
+sess-normalizeTy :
+  ∀ {S : Ty [] SLin}
+  → normalizeTy (SessLin S) ≡ sessNf (normalizeTy S)
+sess-normalizeTy {S = S} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-sub
+        (≤k-step (≤p-step <p-st) ≤m-refl)
+        (normalizeTy-sound-≡c S)))
+    (normalizeTy-id (sessNf (normalizeTy S)))
+
+sessTy-normalizeTy :
+  ∀ {Δ} {S : Ty Δ SLin}
+  → normalizeTy (SessLin S) ≡ sessTyNf (normalizeTy S)
+sessTy-normalizeTy {S = S} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-sub
+        (≤k-step (≤p-step <p-st) ≤m-refl)
+        (normalizeTy-sound-≡c S)))
+    (normalizeTy-id (sessTyNf (normalizeTy S)))
+
+wk-normalizeTy :
+  ∀ {Δ pk m K′} {T : Ty Δ (KV pk m)}
+  → normalizeTy (wkTy {K′ = K′} T) ≡ wkNfTy {K′ = K′} (normalizeTy T)
+wk-normalizeTy {K′ = K′} {T = T} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-trns
+        (subst-preserves-≡c (normalizeTy-sound-≡c T) (weakenᵣ K′))
+        (Types.≡c-refl-eq (sym (wkNFKind-sound {K′ = K′} (normalizeTy T))))))
+    (normalizeTy-id (wkNfTy {K′ = K′} (normalizeTy T)))
+
+sess-msg-normalize-gen :
+  ∀ {Δ p} {T : Ty Δ TLin} {S : Ty Δ SLin}
+  → normalizeTy (SessLin (Types.T-Msg p (Types.T-Up T) S))
+    ≡ sessTyNf (msgNF p (N-Normal (N-Up (normalizeTy T))) (normalizeTy S))
+sess-msg-normalize-gen {p = p} {T = T} {S = S} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-trns
+        (Types.≡c-sub
+          (≤k-step (≤p-step <p-st) ≤m-refl)
+          (Types.≡c-msg
+            (Types.≡c-up (normalizeTy-sound-≡c T))
+            (normalizeTy-sound-≡c S)))
+        (Types.≡c-refl-eq refl)))
+    (normalizeTy-id
+      (sessTyNf
+        (msgNF p (N-Normal (N-Up (normalizeTy T))) (normalizeTy S))))
+
+sendChan-normalize :
+  ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+  → normalizeTy (SessLin (Types.T-Msg Duality.⊕ (Types.T-Up T) S))
+    ≡ sendChanNf (normalizeTy T) (normalizeTy S)
+sendChan-normalize {T = T} {S = S} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-trns
+        (Types.≡c-sub
+          (≤k-step (≤p-step <p-st) ≤m-refl)
+          (Types.≡c-msg
+            (Types.≡c-up (normalizeTy-sound-≡c T))
+            (normalizeTy-sound-≡c S)))
+        (Types.≡c-refl-eq refl)))
+    (normalizeTy-id (sendChanNf (normalizeTy T) (normalizeTy S)))
+
+recvChan-normalize :
+  ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+  → normalizeTy (SessLin (Types.T-Msg Duality.⊝ (Types.T-Up T) S))
+    ≡ recvChanNf (normalizeTy T) (normalizeTy S)
+recvChan-normalize {T = T} {S = S} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-trns
+        (Types.≡c-sub
+          (≤k-step (≤p-step <p-st) ≤m-refl)
+          (Types.≡c-msg
+            (Types.≡c-up (normalizeTy-sound-≡c T))
+            (normalizeTy-sound-≡c S)))
+        (Types.≡c-refl-eq refl)))
+    (normalizeTy-id (recvChanNf (normalizeTy T) (normalizeTy S)))
+
+send₂-shapeNF-gen :
+  ∀ {Δ} {T : Ty Δ TLin} {S : Ty Δ SLin}
+  → sendNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (SendTy T S)
+send₂-shapeNF-gen {T = T} {S = S}
+  rewrite sess-msg-normalize-gen {p = Duality.⊕} {T = T} {S = S}
+        | sessTy-normalizeTy {S = S}
+  = refl
+
+receive₂-shapeNF-gen :
+  ∀ {Δ} {T : Ty Δ TLin} {S : Ty Δ SLin}
+  → receiveNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (ReceiveTy T S)
+receive₂-shapeNF-gen {T = T} {S = S}
+  rewrite sess-msg-normalize-gen {p = Duality.⊝} {T = T} {S = S}
+        | sessTy-normalizeTy {S = S}
+  = refl
+
+sendTy-shape :
+  ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+  → normalizeTy (LinArr (SessLin (Types.T-Msg Duality.⊕ (Types.T-Up T) S)) (SessLin S))
+    ≡ linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
+        (sessNf (normalizeTy S))
+sendTy-shape {T = T} {S = S} =
+  trans
+    (normalizeTy-complete
+      (Types.≡c-fun
+        (Types.≡c-trns
+          (Types.≡c-sub
+            (≤k-step (≤p-step <p-st) ≤m-refl)
+            (Types.≡c-msg
+              (Types.≡c-up (normalizeTy-sound-≡c T))
+              (normalizeTy-sound-≡c S)))
+          (Types.≡c-refl-eq refl))
+        (Types.≡c-trns
+          (Types.≡c-sub
+            (≤k-step (≤p-step <p-st) ≤m-refl)
+            (normalizeTy-sound-≡c S))
+          (Types.≡c-refl-eq refl))))
+    (normalizeTy-id
+      (linArrNf
+        (sendChanNf (normalizeTy T) (normalizeTy S))
+        (sessNf (normalizeTy S))))
+
+send₂-shapeNF :
+  ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+  → sendNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (SendTy T S)
+send₂-shapeNF {T = T} {S = S}
+  rewrite sendChan-normalize {T = T} {S = S}
+        | sess-normalizeTy {S = S}
+  = refl
+
+receive₂-shapeNF :
+  ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+  → receiveNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (ReceiveTy T S)
+receive₂-shapeNF {T = T} {S = S}
+  rewrite recvChan-normalize {T = T} {S = S}
+        | sess-normalizeTy {S = S}
+  = refl
+
+var0SessNf : NfTy (SLin ∷ []) SLin
+var0SessNf = N-Var (NV-Var (here refl))
+
+send₁-shapeNF :
+  ∀ {T : Ty [] TLin}
+  → send1Nf (normalizeTy T) ≡ normalizeTy (SendTy1 T)
+send₁-shapeNF {T = T}
+  rewrite sym (wk-normalizeTy {K′ = SLin} {T = T})
+        | sym (normalizeTy-id var0SessNf)
+  = cong (polyNf {K = SLin})
+      (send₂-shapeNF-gen {T = wkTy {K′ = SLin} T} {S = Ty.T-Var (here refl)})
+
+receive₁-shapeNF :
+  ∀ {T : Ty [] TLin}
+  → receive1Nf (normalizeTy T) ≡ normalizeTy (ReceiveTy1 T)
+receive₁-shapeNF {T = T}
+  rewrite sym (wk-normalizeTy {K′ = SLin} {T = T})
+        | sym (normalizeTy-id var0SessNf)
+  = cong (polyNf {K = SLin})
+      (receive₂-shapeNF-gen {T = wkTy {K′ = SLin} T} {S = Ty.T-Var (here refl)})
+
 usedCtx : ∀ {n} → Ctx [] n → Ctx [] n
 usedCtx ∅ = ∅
 usedCtx (_ ▻ Γ) = B-Used ▻ usedCtx Γ
+
+newPairTy : Ty (SLin ∷ []) TLin
+newPairTy =
+  Ty.T-Pair
+    (SessLin (Ty.T-Var (here refl)))
+    (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))
+
+newPairNf : NfTy (SLin ∷ []) TLin
+newPairNf = normalizeTy newPairTy
 
 remove-usedCtx : ∀ {n} (Γ : Ctx [] n) → RemoveCtx Γ (allUsedCtx Γ) Γ
 remove-usedCtx ∅ = RM-∅
@@ -585,6 +944,144 @@ lin-un-disjoint hereˡ ()
 lin-un-disjoint (thereˡˡ x∈) (thereᵘˡ x∈′) = lin-un-disjoint x∈ x∈′
 lin-un-disjoint (thereˡᵘ x∈) (thereᵘᵘ x∈′) = lin-un-disjoint x∈ x∈′
 lin-un-disjoint (thereˡ✖ x∈) (thereᵘ✖ x∈′) = lin-un-disjoint x∈ x∈′
+
+used∷-injective :
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
+  → used∷ Γ₁ ≡ used∷ Γ₂
+  → Γ₁ ≡ Γ₂
+used∷-injective refl = refl
+
+take-unique-gen :
+  ∀ {Δ n K K′}
+    {Γ : Ctx Δ n}
+    {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+    {Γ₁ Γ₂ : Ctx Δ n}
+  → Γ ⊢ˡ x ∶ T ⊣ Γ₁
+  → Γ ⊢ˡ x ∶ U ⊣ Γ₂
+  → Γ₁ ≡ Γ₂
+take-unique-gen take-here take-here = refl
+take-unique-gen (take-thereˡ t₁) (take-thereˡ t₂)
+  rewrite take-unique-gen t₁ t₂ = refl
+take-unique-gen (take-thereᵘ t₁) (take-thereᵘ t₂)
+  rewrite take-unique-gen t₁ t₂ = refl
+take-unique-gen (take-there✖ t₁) (take-there✖ t₂)
+  rewrite take-unique-gen t₁ t₂ = refl
+
+lin-un-disjoint-gen :
+  ∀ {Δ n K K′}
+    {Γ : Ctx Δ n}
+    {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  → Γ ∋ˡ x ∶ T
+  → Γ ∋ᵘ x ∶ U
+  → ⊥
+lin-un-disjoint-gen hereˡ ()
+lin-un-disjoint-gen (thereˡˡ x∈) (thereᵘˡ x∈′) = lin-un-disjoint-gen x∈ x∈′
+lin-un-disjoint-gen (thereˡᵘ x∈) (thereᵘᵘ x∈′) = lin-un-disjoint-gen x∈ x∈′
+lin-un-disjoint-gen (thereˡ✖ x∈) (thereᵘ✖ x∈′) = lin-un-disjoint-gen x∈ x∈′
+
+postulate
+  synth-output-unique-letPair :
+    ∀ {Δ n}
+      {Γ : Ctx Δ n}
+      {e₁ : Expr Δ n} {e₂ : Expr Δ (suc (suc n))}
+      {pk₁ pk₂ pk₁′ pk₂′}
+      {T : NfTy Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ Lin)}
+      {T′ : NfTy Δ (KV pk₁′ Lin)} {U′ : NfTy Δ (KV pk₂′ Lin)}
+      {V V′ : NfTy Δ TLin}
+      {Γ₂ Γ₂′ Γ₃ Γ₃′ : Ctx Δ n}
+    → Γ ⊢ e₁ ⇒ pairNf T U ⊣ Γ₂
+    → Γ ⊢ e₁ ⇒ pairNf T′ U′ ⊣ Γ₂′
+    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e₂ ⇒ V ⊣ used∷ (used∷ Γ₃)
+    → (T′ ∷ˡ (U′ ∷ˡ Γ₂′)) ⊢ e₂ ⇒ V′ ⊣ used∷ (used∷ Γ₃′)
+    → Γ₃ ≡ Γ₃′
+
+  synth-output-unique-match :
+    ∀ {Δ n k}
+      {Γ : Ctx Δ n}
+      {e : Expr Δ n}
+      {branches : Fin (suc k) → Expr Δ (suc n)}
+      {T T′ : NfTy Δ SLin} {U U′ : NfTy Δ TLin}
+      {B B′ : Fin (suc k) → NfTy Δ SLin}
+      {V V′ : Fin (suc k) → NfTy Δ TLin}
+      {Γ₂ Γ₂′ Γ₃ Γ₃′ : Ctx Δ n}
+    → Γ ⊢ e ⇒ T ⊣ Γ₂
+    → Γ ⊢ e ⇒ T′ ⊣ Γ₂′
+    → MatchBranches T B
+    → MatchBranches T′ B′
+    → ((i : Fin (suc k)) → (B i ∷ˡ Γ₂) ⊢ branches i ⇒ V i ⊣ used∷ Γ₃)
+    → ((i : Fin (suc k)) → (B′ i ∷ˡ Γ₂′) ⊢ branches i ⇒ V′ i ⊣ used∷ Γ₃′)
+    → BranchJoin V U
+    → BranchJoin V′ U′
+    → Γ₃ ≡ Γ₃′
+
+mutual
+  value-output-unique :
+    ∀ {Δ n K K′} {Γ : Ctx Δ n} {v : Value Δ n}
+      {T : NfTy Δ K} {U : NfTy Δ K′} {Γ₁ Γ₂ : Ctx Δ n}
+    → Γ ⊢ᵥ v ⇒ T ⊣ Γ₁
+    → Γ ⊢ᵥ v ⇒ U ⊣ Γ₂
+    → Γ₁ ≡ Γ₂
+  value-output-unique (TV-Const _) (TV-Const _) = refl
+  value-output-unique (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
+    take-unique-gen take₁ take₂
+  value-output-unique (TV-Var-Lin take) (TV-Var-Un x∈ᵘ) =
+    ⊥-elim (lin-un-disjoint-gen (take-implies-membership take) x∈ᵘ)
+  value-output-unique (TV-Var-Un x∈ᵘ) (TV-Var-Lin take) =
+    ⊥-elim (lin-un-disjoint-gen (take-implies-membership take) x∈ᵘ)
+  value-output-unique (TV-Var-Un _) (TV-Var-Un _) = refl
+  value-output-unique (TV-Abs d₁) (TV-Abs d₂) =
+    used∷-injective (synth-output-unique d₁ d₂)
+  value-output-unique (TV-Rec _) (TV-Rec _) = refl
+  value-output-unique (TV-TAbs d₁) (TV-TAbs d₂) =
+    wkCtx-injective (value-output-unique d₁ d₂)
+  value-output-unique (TV-Pair d₁ d₂) (TV-Pair d₁′ d₂′)
+    with value-output-unique d₁ d₁′
+  ... | eqΓ₂
+    rewrite eqΓ₂ = value-output-unique d₂ d₂′
+  value-output-unique TV-Receive₁ TV-Receive₁ = refl
+  value-output-unique TV-Receive₂ TV-Receive₂ = refl
+  value-output-unique TV-Send₁ TV-Send₁ = refl
+  value-output-unique TV-Send₂ TV-Send₂ = refl
+  value-output-unique (TV-Send₃ d₁) (TV-Send₃ d₂) =
+    check-output-unique d₁ d₂
+  value-output-unique TV-Select₁ TV-Select₁ = refl
+  value-output-unique TV-Select₂ TV-Select₂ = refl
+
+  synth-output-unique :
+    ∀ {Δ n K K′} {Γ : Ctx Δ n} {e : Expr Δ n}
+      {T : NfTy Δ K} {U : NfTy Δ K′} {Γ₁ Γ₂ : Ctx Δ n}
+    → Γ ⊢ e ⇒ T ⊣ Γ₁
+    → Γ ⊢ e ⇒ U ⊣ Γ₂
+    → Γ₁ ≡ Γ₂
+  synth-output-unique (T-Val d₁) (T-Val d₂) =
+    value-output-unique d₁ d₂
+  synth-output-unique (T-Pair d₁ d₂) (T-Pair d₁′ d₂′)
+    with synth-output-unique d₁ d₁′
+  ... | eqΓ₂
+    rewrite eqΓ₂ = synth-output-unique d₂ d₂′
+  synth-output-unique (T-App d₁ d₂) (T-App d₁′ d₂′)
+    with synth-output-unique d₁ d₁′
+  ... | eqΓ₂
+    rewrite eqΓ₂ = check-output-unique d₂ d₂′
+  synth-output-unique (T-LetUnit d₁ d₂) (T-LetUnit d₁′ d₂′)
+    with check-output-unique d₁ d₁′
+  ... | eqΓ₂
+    rewrite eqΓ₂ = synth-output-unique d₂ d₂′
+  synth-output-unique (T-LetPair d₁ d₂) (T-LetPair d₁′ d₂′) =
+    synth-output-unique-letPair d₁ d₁′ d₂ d₂′
+  synth-output-unique (T-Match d m bs j) (T-Match d′ m′ bs′ j′) =
+    synth-output-unique-match d d′ m m′ bs bs′ j j′
+  synth-output-unique (T-TApp d₁) (T-TApp d₂) =
+    synth-output-unique d₁ d₂
+
+  check-output-unique :
+    ∀ {Δ n pk m pk′ m′} {Γ : Ctx Δ n} {e : Expr Δ n}
+      {T : NfTy Δ (KV pk m)} {U : NfTy Δ (KV pk′ m′)} {Γ₁ Γ₂ : Ctx Δ n}
+    → Γ ⊢ e ⇐ T ⊣ Γ₁
+    → Γ ⊢ e ⇐ U ⊣ Γ₂
+    → Γ₁ ≡ Γ₂
+  check-output-unique (T-Check d₁ _) (T-Check d₂ _) =
+    synth-output-unique d₁ d₂
 
 extract-membership :
   ∀ {n K}
@@ -3361,14 +3858,10 @@ preserve⇒-close :
   → Extract Γ₀ (ExprSemantics.L-Close x) Γin
   → PresSynth Γin Γv lbl Γ₀ Γ₂ (E-Val (V-Const C-Unit)) R
 preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R}
-  vr take sub lbl@(Label-Close _ _) ex
-  with close-inversion vr
-... | refl , eqClose
-  with linArrNf-injective (trans eqClose closeTy-shape)
-... | eqA , eqR =
+  (TV-Const CT-Close) take sub lbl@(Label-Close _ _) ex =
   let
     eqU : U ≡ normalizeTy EndLin
-    eqU = end-subtype-invert (subst (λ X → normalTyOf U <:ₜ normalTyOf X) eqA sub)
+    eqU = end-subtype-invert sub
 
     take′ : Γ₀ ⊢ˡ x ∶ normalizeTy EndLin ⊣ Γ₂
     take′ = subst (λ X → Γ₀ ⊢ˡ x ∶ X ⊣ Γ₂) eqU take
@@ -3399,10 +3892,7 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
         ; compat = close-compatible ex
         ; synth = T-Val (TV-Const CT-Unit)
         ; subtype =
-            subst
-              (λ X → normalTyOf (normalizeTy T-Base) <:ₜ normalTyOf X)
-              (sym eqR)
-              (<:ₜ-refl (normalTyOf (normalizeTy T-Base)))
+            <:ₜ-refl (normalTyOf (normalizeTy T-Base))
         })
 
 preserve⇒-send :
@@ -3731,14 +4221,12 @@ mutual
     {Γv = Γv}
     {e₁ = E-App (E-Val (V-Const C-Fork)) (E-Val v)}
     {e₂ = E-Val (V-Const C-Unit)}
-    (T-App {T = A} {U = R} (T-Val vr) (T-Check (T-Val vv) sub))
+    (T-App {T = A} {U = R} (T-Val (TV-Const CT-Fork)) (T-Check (T-Val vv) sub))
     Act-Fork
     lbl@(Label-Fork _ auLbl) ex _
-    with fork-shape vr
-  ... | refl , (eqA , eqR)
     with strip-value vv
   ... | G , G′ , r , dv′ , au
-    rewrite eqA = record
+    = record
       { Gf = allUsedCtx Γ₀
       ; Γ₀′ = Γ₀
       ; Γ₁ = Γ₂
@@ -3754,51 +4242,40 @@ mutual
       ; compat = fork-compatible ex
       ; synth = T-Val (TV-Const CT-Unit)
       ; subtype =
-          subst
-            (λ X → normalTyOf (normalizeTy T-Base) <:ₜ normalTyOf X)
-            (sym eqR)
-            (<:ₜ-refl (normalTyOf (normalizeTy T-Base)))
+          <:ₜ-refl (normalTyOf (normalizeTy T-Base))
       }
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {T = R}
-    (T-TApp {T = T′} (T-Val vr))
+    (T-TApp {T = newPairNf} (T-Val (TV-Const CT-New)))
     (Act-New {S = S})
-    lbl ex _
-    with new-shape vr
-  ... | refl , eqT
-    rewrite eqT =
-      record
-        { Gf = allUsedCtx Γ₀
-        ; Γ₀′ = Γ₀
-        ; Γ₁ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
-        ; Γ₁′ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
-        ; U = pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
-        ; src-remove = remove-usedCtx Γ₀
-        ; dst-remove = remove-usedCtx (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
-        ; ctx-step = Ctx-New
-        ; compat = new-compatible ex
-        ; synth =
-            T-Val
-              (TV-Pair
-                (TV-Var-Lin take-here)
-                (TV-Var-Lin (take-there✖ take-here)))
-        ; subtype =
-            let
-              pairTy = Ty.T-Pair
-                (SessLin (Ty.T-Var (here refl)))
-                (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))
-            in
-            subst
-              (λ X → normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))) <:ₜ normalTyOf X)
+    lbl ex _ =
+    record
+      { Gf = allUsedCtx Γ₀
+      ; Γ₀′ = Γ₀
+      ; Γ₁ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
+      ; Γ₁′ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
+      ; U = pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
+      ; src-remove = remove-usedCtx Γ₀
+      ; dst-remove = remove-usedCtx (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
+      ; ctx-step = Ctx-New
+      ; compat = new-compatible ex
+      ; synth =
+          T-Val
+            (TV-Pair
+              (TV-Var-Lin take-here)
+              (TV-Var-Lin (take-there✖ take-here)))
+      ; subtype =
+          subst
+            (λ X → normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))) <:ₜ normalTyOf X)
+            (trans
               (trans
-                (trans
-                  (sym (newInst-shape {S = S}))
-                  (sym (EST.substTy-normalizeTy pairTy S)))
-                (sym (EST.substTyNF-bridge (normalizeTy pairTy) S)))
-              (<:ₜ-refl (normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S)))))
-        }
+                (sym (newInst-shape {S = S}))
+                (sym (EST.substTy-normalizeTy newPairTy S)))
+              (sym (EST.substTyNF-bridge newPairNf S)))
+            (<:ₜ-refl (normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S)))))
+      }
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
@@ -4191,10 +4668,33 @@ mutual
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-LetPair e₁ e₃}
     {T = T} {ℓ = ℓ}
-    d@(T-LetPair {Γ₂ = Γ₂} {Γ₃ = Γ₃} d₁ d₂)
+    (T-LetPair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ} d₁ d₂)
     (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
-    lbl ex disj =
-    preserve⇒-hard d (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step) lbl ex disj
+    lbl ex disj
+    with preserve⇒ d₁ step lbl ex disj
+  ... | ps
+    with PresSynth.subtype ps
+  ... | <:ₜ-pair {M₁ = Tₚ′} {M₂ = .Tₚ} {N₁ = Uₚ′} {N₂ = .Uₚ} Tₚ′<:Tₚ Uₚ′<:Uₚ =
+    let
+      d₂n : Tₚ′ ∷ˡ (Uₚ′ ∷ˡ Γ₂) ⊢ e₃ ⇒ T ⊣ used∷ (used∷ Γ₃)
+      d₂n = narrow2-synth Tₚ′<:Tₚ Uₚ′<:Uₚ d₂
+
+      d₂′ : Tₚ′ ∷ˡ (Uₚ′ ∷ˡ (extendUsed k Γ₂)) ⊢ ES.weakenExprBy2 k e₃ ⇒ T ⊣ used∷ (used∷ (extendUsed k Γ₃))
+      d₂′ = weaken-synth2 {k = k} d₂n
+    in
+    record
+      { Gf = PresSynth.Gf ps
+      ; Γ₀′ = PresSynth.Γ₀′ ps
+      ; Γ₁ = PresSynth.Γ₁ ps
+      ; Γ₁′ = PresSynth.Γ₁′ ps
+      ; U = T
+      ; src-remove = PresSynth.src-remove ps
+      ; dst-remove = PresSynth.dst-remove ps
+      ; ctx-step = PresSynth.ctx-step ps
+      ; compat = PresSynth.compat ps
+      ; synth = T-LetPair (PresSynth.synth ps) d₂′
+      ; subtype = <:ₜ-refl (normalTyOf T)
+      }
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-LetUnit e₁ e₃}
