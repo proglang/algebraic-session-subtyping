@@ -3,6 +3,7 @@ module ExprPreservationStep2 where
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 import Data.Fin.Subset as Subset
 open import Data.List using (List; []; _∷_)
+open import Data.Maybe using (just)
 open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Relation.Unary.Any using (here; there)
 import Data.List.Relation.Unary.All as All
@@ -484,6 +485,18 @@ postulate
     → Extract Γ₀ ℓ Γin
     → LinearDisjoint Γ₀ Γv
     → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
+
+match-branch-subtype :
+  ∀ {k}
+    {ss : Subset.Subset k}
+    {V : (i : Fin k) → i Subset.∈ ss → NfTy [] TLin}
+    {U : NfTy [] TLin}
+    {sub : (i : Fin k) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+    (i : Fin k)
+    (i∈ : i Subset.∈ ss)
+  → BranchJoin⁺ ss V ≡ just (U , sub)
+  → normalTyOf (V i i∈) <:ₜ normalTyOf U
+match-branch-subtype {sub = sub} i i∈ bj = sub i i∈
 
 
 select₂-inversion :
@@ -2529,6 +2542,56 @@ mutual
             (λ X → normalTyOf (normalizeTy T-Base) <:ₜ normalTyOf X)
             (sym eqR)
             (<:ₜ-refl (normalTyOf (normalizeTy T-Base)))
+      }
+  preserve⇒
+    {pk = KT} {mult = Lin}
+    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
+    {T = U}
+    d@(T-Match (T-Val vv) bs bj)
+    (ES.Act-Match {ss = ss} {ne = ne} {x = x} {branches = branches} {i = i} i∈)
+    lbl@(ECR.Label-RecvLab _ _)
+    Ex-RecvLab
+    disj
+    with vv
+  ... | TV-Var-Un _ =
+    preserve⇒-hard
+      d
+      (ES.Act-Match {ss = ss} {ne = ne} {x = x} {branches = branches} {i = i} i∈)
+      lbl
+      Ex-RecvLab
+      disj
+  ... | TV-Var-Lin take
+    with take-replace-lin take
+  ... | Γ₁ , rep =
+    let
+      eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
+      eqAll =
+        allUsedCtx-replace-lin
+          (take-implies-membership take)
+          rep
+    in
+    record
+      { Gf = allUsedCtx Γ₀
+      ; Γ₀′ = Γ₀
+      ; Γ₁ = Γ₁
+      ; Γ₁′ = Γ₁
+      ; U = _
+      ; src-remove = remove-usedCtx Γ₀
+      ; dst-remove =
+          subst
+            (λ X → RemoveCtx Γ₁ X Γ₁)
+            (sym eqAll)
+            (remove-usedCtx Γ₁)
+      ; ctx-step =
+          ECR.Ctx-Match i∈
+            (take-implies-membership take)
+            rep
+      ; compat = ECR.Compat-Match refl
+      ; synth =
+          EST.subst-var-preserves-synth
+            (replace-take take rep)
+            (bs i i∈)
+      ; subtype = match-branch-subtype i i∈ bj
       }
   preserve⇒
     {pk = KT} {mult = Lin}

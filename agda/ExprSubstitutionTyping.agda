@@ -3,6 +3,8 @@ module ExprSubstitutionTyping where
 open import Data.Fin using (Fin)
 import Data.Fin.Subset as Subset
 open import Data.List using (List; _∷_)
+open import Data.Maybe using (just)
+open import Data.Product using (_,_)
 open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Relation.Unary.Any using (here; there)
 open import Data.Nat using (suc)
@@ -79,11 +81,16 @@ substTy-preserves-⊢ˡ (take-there✖ p) = take-there✖ (substTy-preserves-⊢
 
 postulate
   BranchJoin-subst :
-    ∀ {Δ K k} {ss : Subset.Subset k} {ne : Subset.Nonempty ss}
+    ∀ {Δ K k} {ss : Subset.Subset k}
       {V : (i : Fin k) → i Subset.∈ ss → NfTy (K ∷ Δ) TLin}
-      {U : NfTy (K ∷ Δ) TLin} {W : Ty Δ K}
-    → BranchJoin {ss = ss} {ne = ne} V U
-    → BranchJoin {ss = ss} {ne = ne} (λ i i∈ → substTyNf (V i i∈) W) (substTyNf U W)
+      {U : NfTy (K ∷ Δ) TLin}
+      {sub : ∀ i → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+      {W : Ty Δ K}
+      {sub′ : ∀ i → (i∈ : i Subset.∈ ss) → substTyNf (V i i∈) W <:ₜ substTyNf U W}
+    → BranchJoin⁺ ss V ≡ just (U , sub)
+    → BranchJoin⁺ ss (λ i i∈ → substTyNf (V i i∈) W)
+        ≡
+      just (substTyNf U W , sub′)
 
   substTyWith-preserves-value :
     ∀ {Δ Δ′ n K} {Γ₁ Γ₂ : Ctx Δ n}

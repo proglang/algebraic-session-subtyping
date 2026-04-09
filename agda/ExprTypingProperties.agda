@@ -3,6 +3,7 @@ module ExprTypingProperties where
 open import Data.Fin using (Fin; zero) renaming (suc to fsuc)
 import Data.Fin.Subset as Subset
 open import Data.List using (List; []; _∷_)
+open import Data.Maybe using (just)
 open import Data.Nat using (suc)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
@@ -241,14 +242,15 @@ mutual
       {branches : (i : Fin (suc k)) → i Subset.∈ ss → Expr Δ (suc n)}
       {U : NfTy Δ TLin}
       {V : (i : Fin (suc k)) → i Subset.∈ ss → NfTy Δ TLin}
+      {sub : (i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
     → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
     → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
-    → BranchJoin V U
+    → BranchJoin⁺ ss V ≡ just (U , sub)
     → FrameCtx Φ Γ₁ Γ̂₁
     → Σ (Ctx Δ n) λ Γ̂₃ → FrameCtx Φ Γ₃ Γ̂₃ × (Γ̂₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ̂₃)
   frame-synth-match {Δ = Δ} {n = n} {Φ = Φ} {Γ₃ = Γ₃} {k = k} {ss = ss}
                     {ne = ne} {v = v} {P = P} {S = S}
-                    {branches = branches} {U = U} {V = V}
+                    {branches = branches} {U = U} {V = V} {sub = sub}
                     d bs j f
     with frame-synth d f
   ... | Γ̂₂ , f₂ , d′
@@ -257,11 +259,7 @@ mutual
     with invert-frame-used fzero
   ... | Γ̂₃ , refl , f₃ =
     Γ̂₃ , f₃ ,
-      T-Match
-        {k = k}
-        {ss = ss} {ne = ne} {v = v} {P = P} {S = S}
-        {branches = branches} {U = U} {V = V}
-        d′ bs′ j
+      T-Match d′ bs′ j
     where
     branch :
       (i : Fin (suc k)) (i∈ : i Subset.∈ ss)

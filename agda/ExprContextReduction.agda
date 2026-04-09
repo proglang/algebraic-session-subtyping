@@ -397,8 +397,8 @@ data _—ctx[_]→_ : ∀ {n k} → Ctx [] n → Label n k → Ctx [] (k + n) �
   Ctx-Match : ∀ {n k} {ss : Subset.Subset (suc k)} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
     → (i∈ : i Subset.∈ ss)
-    → Γ₀ ∋ˡ x ∶ sessNf (MatchBranchInput ss v P S)
-    → ReplaceAt Γ₀ x (B-Lin (sessNf (MatchBranchOutput ss v P S i i∈))) Γ₁
+    → Γ₀ ∋ˡ x ∶ MatchBranchInput ss v P S
+    → ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ss v P S i i∈)) Γ₁
     → Γ₀ —ctx[ L-RecvLab x i ]→ Γ₁
 
   Ctx-Select : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
@@ -538,8 +538,8 @@ data Compatible :
     ∀ {n k} {ss : Subset.Subset (suc k)} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
       {i∈ : i Subset.∈ ss}
-      {x∈ : Γ₀ ∋ˡ x ∶ sessNf (MatchBranchInput ss v P S)}
-      {rep : ReplaceAt Γ₀ x (B-Lin (sessNf (MatchBranchOutput ss v P S i i∈))) Γ₁}
+      {x∈ : Γ₀ ∋ˡ x ∶ MatchBranchInput ss v P S}
+      {rep : ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ss v P S i i∈)) Γ₁}
       {Γv : Ctx [] n} {auin : AllUsed Γin} {au : AllUsed Γv}
     → allUsedCtx Γ₀ ≡ Γin
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvLab x i}
