@@ -1,6 +1,7 @@
 module ExprSemantics where
 
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
+import Data.Fin.Subset as Subset
 open import Data.List using ([]; _∷_)
 open import Data.Nat using (ℕ; _+_) renaming (zero to zeroℕ; suc to sucℕ)
 open import Data.Product using (_,_)
@@ -121,10 +122,12 @@ data _—[_]→_ : ∀ {n k} → Expr [] n → Label n k → Expr [] (k + n) →
         —[ L-SendVal x v ]→
       E-Val (V-Var x)
 
-  Act-Match : ∀ {n k} {x : Fin n} {branches : Fin k → Expr [] (sucℕ n)} {i : Fin k} →
-      E-Match (E-Val (V-Var x)) branches
+  Act-Match : ∀ {n k} {ss : Subset.Subset k} {ne : Subset.Nonempty ss}
+      {x : Fin n} {branches : (i : Fin k) → i Subset.∈ ss → Expr [] (sucℕ n)} {i : Fin k}
+      (i∈ : i Subset.∈ ss) →
+      E-Match (E-Val (V-Var x)) ne branches
         —[ L-RecvLab x i ]→
-      substExpr (branches i) (V-Var x)
+      substExpr (branches i i∈) (V-Var x)
 
   Act-Sel : ∀ {n k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} {x : Fin n} →
       E-App (E-Val (V-Select₂ v i P S)) (E-Val (V-Var x))
@@ -166,9 +169,11 @@ data _—[_]→_ : ∀ {n k} → Expr [] n → Label n k → Expr [] (k + n) →
       e₁ —[ ℓ ]→ e₂
       → E-Pair (E-Val v) e₁ —[ ℓ ]→ E-Pair (E-Val (weakenValueBy k v)) e₂
 
-  Act-MatchE : ∀ {n j k} {e₁ : Expr [] n} {e₂ : Expr [] (j + n)} {branches : Fin k → Expr [] (sucℕ n)} {ℓ : Label n j} →
+  Act-MatchE : ∀ {n j k} {ss : Subset.Subset k} {ne : Subset.Nonempty ss}
+      {e₁ : Expr [] n} {e₂ : Expr [] (j + n)}
+      {branches : (i : Fin k) → i Subset.∈ ss → Expr [] (sucℕ n)} {ℓ : Label n j} →
       e₁ —[ ℓ ]→ e₂
-      → E-Match e₁ branches —[ ℓ ]→ E-Match e₂ (λ i → weakenExprBy1 j (branches i))
+      → E-Match e₁ ne branches —[ ℓ ]→ E-Match e₂ ne (λ i i∈ → weakenExprBy1 j (branches i i∈))
 
   Act-LetPairE : ∀ {n k} {e₁ : Expr [] n} {e₂ : Expr [] (k + n)} {e₃ : Expr [] (sucℕ (sucℕ n))} {ℓ : Label n k} →
       e₁ —[ ℓ ]→ e₂

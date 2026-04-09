@@ -1,6 +1,7 @@
 module ExprSubstitutionTyping where
 
 open import Data.Fin using (Fin)
+import Data.Fin.Subset as Subset
 open import Data.List using (List; _∷_)
 open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Relation.Unary.Any using (here; there)
@@ -78,9 +79,11 @@ substTy-preserves-⊢ˡ (take-there✖ p) = take-there✖ (substTy-preserves-⊢
 
 postulate
   BranchJoin-subst :
-    ∀ {Δ K k} {V : Fin (suc k) → NfTy (K ∷ Δ) TLin} {U : NfTy (K ∷ Δ) TLin} {W : Ty Δ K}
-    → BranchJoin V U
-    → BranchJoin (λ i → substTyNf (V i) W) (substTyNf U W)
+    ∀ {Δ K k} {ss : Subset.Subset k} {ne : Subset.Nonempty ss}
+      {V : (i : Fin k) → i Subset.∈ ss → NfTy (K ∷ Δ) TLin}
+      {U : NfTy (K ∷ Δ) TLin} {W : Ty Δ K}
+    → BranchJoin {ss = ss} {ne = ne} V U
+    → BranchJoin {ss = ss} {ne = ne} (λ i i∈ → substTyNf (V i i∈) W) (substTyNf U W)
 
   substTyWith-preserves-value :
     ∀ {Δ Δ′ n K} {Γ₁ Γ₂ : Ctx Δ n}
@@ -365,11 +368,6 @@ postulate
     → ConstTy c (substTyNf T U)
 
 postulate
-
-  MatchBranches-subst :
-    ∀ {Δ K k} {T : NfTy (K ∷ Δ) SLin} {B : Fin k → NfTy (K ∷ Δ) SLin} {U : Ty Δ K}
-    → MatchBranches T B
-    → MatchBranches (substTyNf T U) (λ i → substTyNf (B i) U)
 
   subst2-preserves-synth :
     ∀ {Δ n K pk₁ pk₂} {Γ₁ Γ₂ Γ₃ Γ₄ : Ctx Δ n}

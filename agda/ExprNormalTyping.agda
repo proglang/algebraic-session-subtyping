@@ -4,10 +4,15 @@ open import Data.Fin using (Fin; zero; suc)
 import Data.Fin.Subset as Subset
 open import Data.List using (List; []; _∷_)
 open import Data.List.Relation.Unary.Any using (here)
+open import Data.Vec using (Vec; []; _∷_; here; there)
 open import Data.Nat using (ℕ; suc)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong; cong₂; subst)
-open import Relation.Nullary using (yes)
+open import Relation.Nullary using (yes; no; Dec)
+open import Data.Maybe using (Maybe; just; nothing)
+open import Data.List using (List; []; _∷_)
+open import Data.List.NonEmpty using (List⁺; head; tail; _∷_; foldr₁; map)
+
 
 open import Kinds
 open import Kits
@@ -294,27 +299,46 @@ selectConstNf : ∀ {c} → Variance → Fin c → NfTy Δ TLin
 selectConstNf {c} v i =
   polyNf {K = KP} (select1Nf v i (N-Normal (N-Var (here refl))))
 
-postulate
-  MatchBranches : ∀ {Δ k} → NfTy Δ SLin → (Fin k → NfTy Δ SLin) → Set
 
-data BranchJoin {Δ} : ∀ {k} → (Fin (suc k) → NfTy Δ TLin) → NfTy Δ TLin → Set where
-  BJ-one : ∀ {T}
-    → BranchJoin {k = 0} (λ { zero → T }) T
+MatchBranchInput : ∀ {k} → Subset.Subset k → Variance → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
+MatchBranchInput ss v P S = N-Msg ⊝ (N-ProtoP ss v P) S
 
-  BJ-step : ∀ {k} {V : Fin (suc (suc k)) → NfTy Δ TLin} {U W : NfTy Δ TLin}
-      {<:₁ : normalTyOf (V zero) <:ₜ normalTyOf W}
-      {<:₂ : normalTyOf U <:ₜ normalTyOf W}
-    → BranchJoin (λ i → V (suc i)) U
-    → joinₜ (normalTyOf (V zero)) (normalTyOf U) ≡ yes (normalTyOf W , <:₁ , <:₂)
-    → BranchJoin V W
+MatchBranchOutput : ∀ {k} → (ss : Subset.Subset (suc k)) → Variance → NfTy Δ KP → NfTy Δ SLin → ((i : Fin (suc k)) → i Subset.∈ ss → NfTy Δ SLin)
+MatchBranchOutput {k = k} ss v P S i x = materialize-atNf (ProtocolConstructors (suc k) v) i ⊝ P S
 
-branchJoin-subtype :
-  ∀ {Δ k} {V : Fin (suc k) → NfTy Δ TLin} {U : NfTy Δ TLin} (i : Fin (suc k))
-  → BranchJoin V U
-  → normalTyOf (V i) <:ₜ normalTyOf U
-branchJoin-subtype zero (BJ-one {T = T}) = <:ₜ-refl (normalTyOf T)
-branchJoin-subtype zero (BJ-step {<:₁ = <:₁} _ _) = <:₁
-branchJoin-subtype (suc i) (BJ-step {<:₂ = <:₂} bj _) = <:ₜ-trans (branchJoin-subtype i bj) <:₂
+BranchCollect : ∀ {k} {ss : Subset.Subset k}
+    → ((i : Fin k) → i Subset.∈ ss → NfTy Δ TLin)
+    → List (NfTy Δ TLin)
+BranchCollect {Δ} {k} {[]} x = []
+BranchCollect {Δ} {k} {Subset.outside ∷ ss} x = BranchCollect {ss = ss} (λ i i∈ → x (suc i) (there i∈))
+BranchCollect {Δ} {k} {Subset.inside ∷ ss} x = (x zero here) ∷ BranchCollect (λ i i∈ → x (suc i) (there i∈))
+
+BranchCollect⁺ : ∀ {k} {ss : Subset.Subset k}
+    → (ne : Subset.Nonempty ss)
+    → ((i : Fin k) → i Subset.∈ ss → NfTy Δ TLin)
+    → List⁺ (NfTy Δ TLin)
+BranchCollect⁺ {Δ} {k} {Subset.outside ∷ ss} (suc ev , there ev∈) x = BranchCollect⁺ {ss = ss} (ev , ev∈) (λ i i∈ → x (suc i) (there i∈)) 
+BranchCollect⁺ {Δ} {k} {Subset.inside ∷ ss} ne x = (x zero here) ∷ (BranchCollect (λ i i∈ → x (suc i) (there i∈)))
+
+liftedJoin : Maybe (NfTy Δ TLin) → Maybe (NfTy Δ TLin) → Maybe (NfTy Δ TLin)
+liftedJoin (just N₁) (just N₂) with joinₜ N₁ N₂
+... | no ¬a = nothing
+... | yes (N , a) = just N
+liftedJoin (just x) nothing = nothing
+liftedJoin nothing x₁ = nothing
+
+BranchJoin' : ∀ {k} {ss : Subset.Subset k}
+    → (ne : Subset.Nonempty ss)
+    → ((i : Fin k) → i Subset.∈ ss → NfTy Δ TLin)
+    → Maybe (NfTy Δ TLin)
+BranchJoin' {Δ} {k} {ss} ne x = foldr₁ liftedJoin (map just (BranchCollect⁺ ne x))
+
+BranchJoin :
+    ∀ {Δ k} {ss : Subset.Subset k} {ne : Subset.Nonempty ss}
+    → ((i : Fin k) → i Subset.∈ ss → NfTy Δ TLin)
+    → NfTy Δ TLin
+    → Set
+BranchJoin {Δ} {k} {ss} {ne} U V = BranchJoin' ne U ≡ just V
 
 data ConstTy {Δ} : Const → ∀ {K} → NfTy Δ K → Set where
   CT-Unit : ConstTy C-Unit unitConstNf
@@ -459,14 +483,15 @@ mutual
       → Γ₁ ⊢ E-LetPair e₁ e₂ ⇒ V ⊣ Γ₃
 
     T-Match : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {k} {e : Expr Δ n}
-        {branches : Fin (suc k) → Expr Δ (suc n)}
-        {T : NfTy Δ SLin} {U : NfTy Δ TLin}
-        {B : Fin (suc k) → NfTy Δ SLin} {V : Fin (suc k) → NfTy Δ TLin}
-      → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
-      → MatchBranches T B
-      → ((i : Fin (suc k)) → (B i ∷ˡ Γ₂) ⊢ branches i ⇒ V i ⊣ used∷ Γ₃)
-      → BranchJoin V U
-      → Γ₁ ⊢ E-Match e branches ⇒ U ⊣ Γ₃
+        {ss : Subset.Subset (suc k)} {ne : Subset.Nonempty ss} {v : Variance}
+        {P : NfTy Δ KP} {S : NfTy Δ SLin}
+        {branches : (i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → Expr Δ (suc n)}
+        {U : NfTy Δ TLin}
+        {V : (i : Fin (suc k)) →  i Subset.∈ ss → NfTy Δ TLin}
+      → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
+      → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
+      → BranchJoin {ss = ss} {ne = ne} V U
+      → Γ₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ₃
 
     T-TApp : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K m}
         {e : Expr Δ n} {T : NfTy (K ∷ Δ) (KV KT m)} {U : Ty Δ K}

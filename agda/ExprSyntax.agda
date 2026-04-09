@@ -4,6 +4,7 @@ open import Data.Fin using (Fin)
 open import Data.List using (List; []; _∷_)
 open import Data.Nat using (ℕ; suc)
 open import Data.Product using (Σ; _,_)
+import Data.Fin.Subset as Subset
 
 open import Kinds
 open import Types
@@ -51,7 +52,7 @@ mutual
     E-LetUnit : Expr Δ n → Expr Δ n → Expr Δ n
     E-Pair    : Expr Δ n → Expr Δ n → Expr Δ n
     E-LetPair : Expr Δ n → Expr Δ (suc (suc n)) → Expr Δ n
-    E-Match   : ∀ {k} → Expr Δ n → (Fin k → Expr Δ (suc n)) → Expr Δ n
+    E-Match   : ∀ {k} {ss : Subset.Subset k} → Expr Δ n → Subset.Nonempty ss → ((i : Fin k) → i Subset.∈ ss → Expr Δ (suc n)) → Expr Δ n
 
 data Process (Δ : List Kind) (n : ℕ) : Set where
   P-Exp : Expr Δ n → Process Δ n

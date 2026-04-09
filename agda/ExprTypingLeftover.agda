@@ -9,7 +9,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans
 open import Kinds
 open import Duality
 open import Types
-open import ExprSyntax using (Expr; Value; Const; E-Val; V-Pair)
+open import ExprSyntax using (Expr; Value; Const; E-Val; E-Match; V-Pair)
 open import ExprNormalTyping
 open import ExprContextReduction using (RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un; AllUsed; AU-∅; AU-used; AU-un)
 open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; replay-value-allUsed)
@@ -439,9 +439,10 @@ mutual
         G₂′ , r₂′ = strip-lin-used₂ r₂
         G , r = remove-compose r₁ r₂′
     in G , r
-  leftover-synth (T-Match {B = B} d _ bs _) =
+  leftover-synth {e = E-Match _ ne _} (T-Match d bs _) with ne
+  ... | i , i∈ =
     let G₁ , r₁ = leftover-synth d
-        G₂ , r₂ = leftover-synth (bs zero)
+        G₂ , r₂ = leftover-synth (bs i i∈)
         G₂′ , r₂′ = strip-lin-used r₂
         G , r = remove-compose r₁ r₂′
     in G , r

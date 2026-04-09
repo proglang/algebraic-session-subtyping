@@ -54,7 +54,8 @@ mutual
   renameExpr ρ (E-LetUnit e₁ e₂) = E-LetUnit (renameExpr ρ e₁) (renameExpr ρ e₂)
   renameExpr ρ (E-Pair e₁ e₂) = E-Pair (renameExpr ρ e₁) (renameExpr ρ e₂)
   renameExpr ρ (E-LetPair e₁ e₂) = E-LetPair (renameExpr ρ e₁) (renameExpr (extRen2 ρ) e₂)
-  renameExpr ρ (E-Match e branches) = E-Match (renameExpr ρ e) (λ i → renameExpr (extRen ρ) (branches i))
+  renameExpr ρ (E-Match e ne branches) =
+    E-Match (renameExpr ρ e) ne (λ i i∈ → renameExpr (extRen ρ) (branches i i∈))
 
 wkValue : ∀ {Δ n} → Value Δ n → Value Δ (sucℕ n)
 wkValue = renameValue suc
@@ -90,7 +91,8 @@ mutual
   renTyExpr ϕ (E-LetUnit e₁ e₂) = E-LetUnit (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
   renTyExpr ϕ (E-Pair e₁ e₂) = E-Pair (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
   renTyExpr ϕ (E-LetPair e₁ e₂) = E-LetPair (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
-  renTyExpr ϕ (E-Match e branches) = E-Match (renTyExpr ϕ e) (λ i → renTyExpr ϕ (branches i))
+  renTyExpr ϕ (E-Match e ne branches) =
+    E-Match (renTyExpr ϕ e) ne (λ i i∈ → renTyExpr ϕ (branches i i∈))
 
 wkTyValue : ∀ {Δ n K} → Value Δ n → Value (K ∷ Δ) n
 wkTyValue {K = K} = renTyValue (weakenᵣ K)
@@ -141,7 +143,8 @@ mutual
   substExprWith σ (E-LetUnit e₁ e₂) = E-LetUnit (substExprWith σ e₁) (substExprWith σ e₂)
   substExprWith σ (E-Pair e₁ e₂) = E-Pair (substExprWith σ e₁) (substExprWith σ e₂)
   substExprWith σ (E-LetPair e₁ e₂) = E-LetPair (substExprWith σ e₁) (substExprWith (extSub2 σ) e₂)
-  substExprWith σ (E-Match e branches) = E-Match (substExprWith σ e) (λ i → substExprWith (extSub σ) (branches i))
+  substExprWith σ (E-Match e ne branches) =
+    E-Match (substExprWith σ e) ne (λ i i∈ → substExprWith (extSub σ) (branches i i∈))
 
 substValue : ∀ {Δ n} → Value Δ (sucℕ n) → Value Δ n → Value Δ n
 substValue v u = substValueWith (singleSub u) v
@@ -183,7 +186,8 @@ mutual
   substTyExprWith ϕ (E-LetUnit e₁ e₂) = E-LetUnit (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
   substTyExprWith ϕ (E-Pair e₁ e₂) = E-Pair (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
   substTyExprWith ϕ (E-LetPair e₁ e₂) = E-LetPair (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
-  substTyExprWith ϕ (E-Match e branches) = E-Match (substTyExprWith ϕ e) (λ i → substTyExprWith ϕ (branches i))
+  substTyExprWith ϕ (E-Match e ne branches) =
+    E-Match (substTyExprWith ϕ e) ne (λ i i∈ → substTyExprWith ϕ (branches i i∈))
 
 substTyValue : ∀ {Δ n K} → Value (K ∷ Δ) n → Ty Δ K → Value Δ n
 substTyValue v U = substTyValueWith ⦅ U ⦆ₛ v

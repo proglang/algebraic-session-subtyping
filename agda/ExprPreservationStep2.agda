@@ -1658,7 +1658,7 @@ mutual
   ... | K , U , x∈ = K , U , remove-membership rv x∈
 
   recv-live-synth-removed r
-    (T-Match d mb bs bj)
+    (T-Match d bs bj)
     (Act-MatchE step)
     ex =
     recv-live-synth-removed r d step ex
@@ -1759,7 +1759,7 @@ mutual
   ... | K , U , x∈ = K , U , remove-membership rv x∈
 
   send-live-synth-removed r
-    (T-Match d mb bs bj)
+    (T-Match d bs bj)
     (Act-MatchE step)
     ex =
     send-live-synth-removed r d step ex
@@ -1860,7 +1860,7 @@ mutual
   ... | K , U , x∈ = K , U , remove-membership rv x∈
 
   select-live-synth-removed r
-    (T-Match d mb bs bj)
+    (T-Match d bs bj)
     (Act-MatchE step)
     ex =
     select-live-synth-removed r d step ex

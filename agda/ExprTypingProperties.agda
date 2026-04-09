@@ -1,14 +1,16 @@
 module ExprTypingProperties where
 
 open import Data.Fin using (Fin; zero) renaming (suc to fsuc)
+import Data.Fin.Subset as Subset
 open import Data.List using (List; []; _∷_)
 open import Data.Nat using (suc)
-open import Data.Product using (Σ; _×_; _,_)
+open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 import Relation.Binary.PropositionalEquality as Eq
 
 open import AlgorithmicNFSubtyping using (_<:ₜ_)
-open import Kinds using (Kind; KV; SLin; TLin)
+open import Variance using (Variance)
+open import Kinds using (Kind; KV; KP; SLin; TLin)
 open import ExprSyntax using (Expr; Value; E-Match)
 open import ExprNormalTyping
 open import ExprContextReduction using
@@ -232,37 +234,45 @@ mutual
   frame-value TV-Select₂ f = _ , f , TV-Select₂
 
   frame-synth-match :
-    ∀ {Δ n} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k}
+    ∀ {Δ n} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k} {ss : Subset.Subset (suc k)}
       {e : Expr Δ n}
-      {branches : Fin (suc k) → Expr Δ (suc n)}
-      {T : NfTy Δ SLin} {U : NfTy Δ TLin}
-      {B : Fin (suc k) → NfTy Δ SLin} {V : Fin (suc k) → NfTy Δ TLin}
-    → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
-    → MatchBranches T B
-    → ((i : Fin (suc k)) → (B i ∷ˡ Γ₂) ⊢ branches i ⇒ V i ⊣ used∷ Γ₃)
+      {ne : Subset.Nonempty ss} {v : Variance}
+      {P : NfTy Δ KP} {S : NfTy Δ SLin}
+      {branches : (i : Fin (suc k)) → i Subset.∈ ss → Expr Δ (suc n)}
+      {U : NfTy Δ TLin}
+      {V : (i : Fin (suc k)) → i Subset.∈ ss → NfTy Δ TLin}
+    → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
+    → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
     → BranchJoin V U
     → FrameCtx Φ Γ₁ Γ̂₁
-    → Σ (Ctx Δ n) λ Γ̂₃ → FrameCtx Φ Γ₃ Γ̂₃ × (Γ̂₁ ⊢ E-Match e branches ⇒ U ⊣ Γ̂₃)
-  frame-synth-match {Δ = Δ} {n = n} {Φ = Φ} {Γ₃ = Γ₃} {k = k}
-                    {branches = branches} {B = B} {V = V}
-                    d m bs j f
+    → Σ (Ctx Δ n) λ Γ̂₃ → FrameCtx Φ Γ₃ Γ̂₃ × (Γ̂₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ̂₃)
+  frame-synth-match {Δ = Δ} {n = n} {Φ = Φ} {Γ₃ = Γ₃} {k = k} {ss = ss}
+                    {ne = ne} {v = v} {P = P} {S = S}
+                    {branches = branches} {U = U} {V = V}
+                    d bs j f
     with frame-synth d f
   ... | Γ̂₂ , f₂ , d′
-    with frame-synth (bs zero) (frame-cons-lin f₂)
+    with frame-synth (bs (proj₁ ne) (proj₂ ne)) (frame-cons-lin f₂)
   ... | Γ̂zero , fzero , dzero
     with invert-frame-used fzero
-  ... | Γ̂₃ , refl , f₃ = Γ̂₃ , f₃ , T-Match d′ m bs′ j
+  ... | Γ̂₃ , refl , f₃ =
+    Γ̂₃ , f₃ ,
+      T-Match
+        {k = k}
+        {ss = ss} {ne = ne} {v = v} {P = P} {S = S}
+        {branches = branches} {U = U} {V = V}
+        d′ bs′ j
     where
     branch :
-      (i : Fin (suc k))
+      (i : Fin (suc k)) (i∈ : i Subset.∈ ss)
       → Σ (Ctx Δ (suc n)) λ Γ̂i
           → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ₃) Γ̂i
-          × ((B i ∷ˡ Γ̂₂) ⊢ branches i ⇒ V i ⊣ Γ̂i)
-    branch i with frame-synth (bs i) (frame-cons-lin f₂)
+          × ((MatchBranchOutput ss v P S i i∈ ∷ˡ Γ̂₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ Γ̂i)
+    branch i i∈ with frame-synth (bs i i∈) (frame-cons-lin f₂)
     ... | Γ̂i , fi , di = Γ̂i , fi , di
 
-    bs′ : (i : Fin (suc k)) → (B i ∷ˡ Γ̂₂) ⊢ branches i ⇒ V i ⊣ used∷ Γ̂₃
-    bs′ i with branch i
+    bs′ : (i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ̂₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ̂₃
+    bs′ i i∈ with branch i i∈
     ... | Γ̂i , fi , di with invert-frame-used fi
     ... | Γ̂₃′ , refl , f₃′
       rewrite frame-unique f₃ f₃′ = di
@@ -299,7 +309,7 @@ mutual
   ... | Γ̂used₁ , refl , fbody₁
     with invert-frame-used fbody₁
   ... | Γ̂₃ , refl , f₃ = Γ̂₃ , f₃ , T-LetPair d₁′ d₂′
-  frame-synth (T-Match d m bs j) f = frame-synth-match d m bs j f
+  frame-synth (T-Match d bs j) f = frame-synth-match d bs j f
   frame-synth (T-TApp d) f
     with frame-synth d f
   ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , T-TApp d′
