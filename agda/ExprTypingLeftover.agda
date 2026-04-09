@@ -37,7 +37,7 @@ remove-allUsedCtx (B-Un _ ▻ Γ) = RM-un (remove-allUsedCtx Γ)
 remove-allUsedCtx (B-Used ▻ Γ) = RM-allused (remove-allUsedCtx Γ)
 
 allUsedCtx-∋ᵘ :
-  ∀ {Δ n K} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Un)}
   → Γ ∋ᵘ x ∶ T
   → allUsedCtx Γ ∋ᵘ x ∶ T
 allUsedCtx-∋ᵘ hereᵘ = hereᵘ
@@ -225,13 +225,13 @@ postulate
 
   strip-value-rec :
     ∀ {Δ n} {Γ₀ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
-    → (linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
-        ⊢ E-Val v ⇐ linArrNf (normalizeTy T) (normalizeTy U)
-        ⊣ (linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
+    → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
+        ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
+        ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
     → Σ (Ctx Δ n) λ G →
-          RemoveCtx Γ₀ G Γ₀ × ((linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ G)
-            ⊢ E-Val v ⇐ linArrNf (normalizeTy T) (normalizeTy U)
-            ⊣ (linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ G)) × AllUsed G
+          RemoveCtx Γ₀ G Γ₀ × ((unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ G)
+            ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
+            ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ G)) × AllUsed G
 
   strip-value-tabs :
     ∀ {Δ n K m} {Γ₀ Γ₁ : Ctx Δ n} {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV KT m)}
@@ -280,10 +280,10 @@ strip-value-abs-case {T = T} {U = U} {e = e} d
 
 strip-value-rec-case :
   ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
-  → Γ₀ ⊢ᵥ Value.V-Rec T U v ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ₁
+  → Γ₀ ⊢ᵥ Value.V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ₁
   → Σ (Ctx Δ n) λ G →
       Σ (Ctx Δ n) λ G′ →
-        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Rec T U v ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ G′) × AllUsed G′
+        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ G′) × AllUsed G′
 strip-value-rec-case {Γ₀ = Γ₀} {T = T} {U = U} {v = v} d
   with rec-inversion d
 ... | eqΓ , refl , body

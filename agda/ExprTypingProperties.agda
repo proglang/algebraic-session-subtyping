@@ -11,7 +11,7 @@ import Relation.Binary.PropositionalEquality as Eq
 
 open import AlgorithmicNFSubtyping using (_<:ₜ_)
 open import Variance using (Variance)
-open import Kinds using (Kind; KV; KP; SLin; TLin)
+open import Kinds using (Kind; KV; KP; SLin; TLin; Un)
 open import ExprSyntax using (Expr; Value; E-Match)
 open import ExprNormalTyping
 open import ExprContextReduction using
@@ -86,7 +86,7 @@ wkFrameCtx (FC-live f) = FC-live (wkFrameCtx f)
 wkFrameCtx (FC-un f) = FC-un (wkFrameCtx f)
 
 lift-∋ᵘ :
-  ∀ {Δ n K} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K} (b : Binding Δ)
+  ∀ {Δ n pk} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Un)} (b : Binding Δ)
   → Γ ∋ᵘ x ∶ T
   → (b ▻ Γ) ∋ᵘ fsuc x ∶ T
 lift-∋ᵘ (B-Lin _) = thereᵘˡ
@@ -94,7 +94,7 @@ lift-∋ᵘ (B-Un _) = thereᵘᵘ
 lift-∋ᵘ B-Used = thereᵘ✖
 
 frame-∋ᵘ :
-  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Φ Γ Γ̂ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Un)}
   → Γ ∋ᵘ x ∶ T
   → FrameCtx Φ Γ Γ̂
   → Γ̂ ∋ᵘ x ∶ T

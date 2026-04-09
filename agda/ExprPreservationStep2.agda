@@ -25,6 +25,7 @@ open import NormalTypes using
   ( N-Normal
   ; N-Var
   ; NV-Var
+  ; N-Arrow
   ; N-Sub
   ; N-End
   ; toNormalProto
@@ -401,13 +402,38 @@ postulate
     → extendUsed k Γ₁ ⊢ ES.weakenExprBy k e ⇒ T ⊣ extendUsed k Γ₂
 
   arrow-subtype-inversion :
-    ∀ {A V U}
-    → normalTyOf U <:ₜ normalTyOf (linArrNf A V)
+    ∀ {m A V U}
+    → normalTyOf U <:ₜ normalTyOf (N-Arrow {m = m} (≤p-step <p-mt) A V)
     → Σ (NfTy [] TLin) λ A′ →
         Σ (NfTy [] TLin) λ V′ →
-          (U ≡ linArrNf A′ V′)
+          (U ≡ N-Arrow {m = m} (≤p-step <p-mt) A′ V′)
           × (normalTyOf A <:ₜ normalTyOf A′)
           × (normalTyOf V′ <:ₜ normalTyOf V)
+
+  strengthen-letpair-body :
+    ∀ {n pk₁ pk₂}
+      {Γ₂ Γ₃ : Ctx [] n}
+      {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Lin)}
+      {T′ : NfTy [] (KV pk₁ Lin)} {U′ : NfTy [] (KV pk₂ Lin)}
+      {V : NfTy [] TLin}
+      {e : Expr [] (suc (suc n))}
+    → normalTyOf T′ <:ₜ normalTyOf T
+    → normalTyOf U′ <:ₜ normalTyOf U
+    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₃)
+    → Σ (NfTy [] TLin) λ V′ →
+        ((T′ ∷ˡ (U′ ∷ˡ Γ₂))
+          ⊢ e ⇒ V′ ⊣ used∷ (used∷ Γ₃))
+        × (normalTyOf V′ <:ₜ normalTyOf V)
+
+  weaken-synth2 :
+    ∀ {n k pk₁ pk₂}
+      {Γ₂ Γ₃ : Ctx [] n}
+      {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Lin)}
+      {V : NfTy [] TLin}
+      {e : Expr [] (suc (suc n))}
+    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₃)
+    → (T ∷ˡ (U ∷ˡ extendUsed k Γ₂))
+        ⊢ ES.weakenExprBy2 k e ⇒ V ⊣ used∷ (used∷ (extendUsed k Γ₃))
 
   substTy-wkCtx-id :
     ∀ {K n} (Γ : Ctx [] n) (U : Ty [] K) → EST.substTyCtx (wkCtx Γ) U ≡ Γ
@@ -525,6 +551,43 @@ select₂-shape {v = v} {i = i} {P = P} {S = S} vr
 ... | refl , eqSelect
   with linArrNf-injective eqSelect
 ... | eqA , eqR = refl , eqA , eqR
+
+pair-subtype-inversion :
+  ∀ {pk₁ pk₂}
+    {X : NfTy [] TLin}
+    {T : NfTy [] (KV pk₁ Lin)}
+    {U : NfTy [] (KV pk₂ Lin)}
+  → normalTyOf X <:ₜ normalTyOf (pairNf T U)
+  → Σ (NfTy [] (KV pk₁ Lin)) λ T′ →
+      Σ (NfTy [] (KV pk₂ Lin)) λ U′ →
+        (X ≡ pairNf T′ U′)
+        × (normalTyOf T′ <:ₜ normalTyOf T)
+        × (normalTyOf U′ <:ₜ normalTyOf U)
+pair-subtype-inversion (<:ₜ-pair T′<:T U′<:U) =
+  _ , _ , refl , T′<:T , U′<:U
+
+letpair-body-pres :
+  ∀ {n k pk₁ pk₂}
+    {Γ₂ Γ₃ : Ctx [] n}
+    {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Lin)}
+    {T′ : NfTy [] (KV pk₁ Lin)} {U′ : NfTy [] (KV pk₂ Lin)}
+    {V : NfTy [] TLin}
+    {e : Expr [] (suc (suc n))}
+  → normalTyOf T′ <:ₜ normalTyOf T
+  → normalTyOf U′ <:ₜ normalTyOf U
+  → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₃)
+  → Σ (NfTy [] TLin) λ V′ →
+      ((T′ ∷ˡ (U′ ∷ˡ extendUsed k Γ₂))
+        ⊢ ES.weakenExprBy2 k e ⇒ V′ ⊣ used∷ (used∷ (extendUsed k Γ₃)))
+      × (normalTyOf V′ <:ₜ normalTyOf V)
+letpair-body-pres
+  {k = k}
+  {T = T} {U = U}
+  {T′ = T′} {U′ = U′}
+  T′<:T U′<:U d
+  with strengthen-letpair-body {T = T} {U = U} {T′ = T′} {U′ = U′} T′<:T U′<:U d
+... | V′ , d′ , V′<:V =
+  V′ , weaken-synth2 {k = k} d′ , V′<:V
 
 selectIn-subtype :
   ∀ {k}
@@ -1618,7 +1681,12 @@ mutual
     → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
 
   recv-live-synth-removed r
-    (T-App (T-Val vr) (T-Check (T-Val vv) sub))
+    (T-App {m = Un} (T-Val ()) (T-Check (T-Val vv) sub))
+    (Act-Rcv {x = x} {v = v})
+    (Ex-RecvVal rin take au)
+
+  recv-live-synth-removed r
+    (T-App {m = Lin} (T-Val vr) (T-Check (T-Val vv) sub))
     (Act-Rcv {x = x} {v = v})
     (Ex-RecvVal rin take au)
     with receive₂-shape vr
@@ -1628,7 +1696,6 @@ mutual
     with vv
   ... | TV-Var-Lin {K = K} {T = U} take₂ =
       K , U , take-implies-membership take₂
-  ... | TV-Var-Un x∈ᵘ = ⊥-elim (lin-un-disjoint x∈₀ (remove-membership-un r x∈ᵘ))
 
   recv-live-synth-removed r
     (T-App d₁ d₂)
@@ -1726,10 +1793,6 @@ mutual
     with vv
   ... | TV-Var-Lin {K = K} {T = U} take₂ =
       K , U , remove-membership rv (take-implies-membership take₂)
-  ... | TV-Var-Un x∈ᵘ =
-      ⊥-elim
-        (lin-un-disjoint x∈₀
-          (remove-membership-un r (remove-membership-un rv x∈ᵘ)))
 
   send-live-synth-removed r
     (T-App d₁ d₂)
@@ -1827,10 +1890,6 @@ mutual
     with vv
   ... | TV-Var-Lin {K = K} {T = U} take₂ =
       K , U , remove-membership rv (take-implies-membership take₂)
-  ... | TV-Var-Un x∈ᵘ =
-      ⊥-elim
-        (lin-un-disjoint x∈₀
-          (remove-membership-un r (remove-membership-un rv x∈ᵘ)))
 
   select-live-synth-removed r
     (T-App d₁ d₂)
@@ -2219,17 +2278,10 @@ preserve⇒-send
            (remove-frame rm)
            au)
          (proj₁ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr))
-... | eqΓm
-  rewrite eqΓm
-  with vv
-... | TV-Var-Un x∈ᵘ = ⊥-elim (lin-un-disjoint x∈ x∈ᵘ)
-... | TV-Var-Lin take′
-  with take-from-membership x∈
-... | Γx′ , take₀
-  with take-unique take₀ take′
-... | eqChan , eqΓ
-  rewrite eqΓ
-  with sendChan-subtype
+... | eqΓm rewrite eqΓm with vv
+... | TV-Var-Lin take′ with take-from-membership x∈
+... | Γx′ , take₀ with take-unique take₀ take′
+... | eqChan , eqΓ rewrite eqΓ with sendChan-subtype
          {T₁ = T} {T₂ = normalizeTy Tᵣ}
          {S₁ = S} {S₂ = normalizeTy Sᵣ}
          (subst
@@ -2276,10 +2328,11 @@ mutual
       {Γin Γv G G′ : Ctx [] n}
       {v : Value [] n}
       {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
+      {m : Multiplicity}
       {A V : NfTy [] TLin}
       {ℓ : Label n k}
     → (r : RemoveCtx Γ₀ G Γ₂)
-    → G ⊢ᵥ v ⇒ linArrNf A V ⊣ G′
+    → G ⊢ᵥ v ⇒ N-Arrow {m = m} (≤p-step <p-mt) A V ⊣ G′
     → AllUsed G′
     → Γ₂ ⊢ e₁ ⇐ A ⊣ Γ₃
     → e₁ —[ ℓ ]→ e₂
@@ -2447,7 +2500,7 @@ mutual
     → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
-    (T-App {T = A} {U = R} (T-Val vr) pv)
+    (T-App {m = Lin} {T = A} {U = R} (T-Val vr) pv)
     (Act-App {T = Tₐ} {e = e} {v = v})
     lbl@(Label-β _ auv) ex _
     with abs-inversion vr
@@ -2498,12 +2551,12 @@ mutual
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {T = R}
-    (T-App (T-Val vr) pu)
+    (T-App {m = Un} (T-Val vr) pu)
     (Act-Rec {T = T} {U = U} {v = v} {u = u})
     lbl@(Label-β _ auv) ex _
     with rec-inversion vr
   ... | refl , eqRec , _
-    with linArrNf-injective eqRec
+    with unArrNf-injective eqRec
   ... | refl , refl =
     basePres {Γ₀ = Γ₀} {Γ₂ = Γ₂} {U = R} Ctx-β lbl ex (beta-compatible lbl ex)
       (T-App
@@ -2515,7 +2568,7 @@ mutual
     {Γv = Γv}
     {e₁ = E-App (E-Val (V-Const C-Fork)) (E-Val v)}
     {e₂ = E-Val (V-Const C-Unit)}
-    (T-App {T = A} {U = R} (T-Val vr) (T-Check (T-Val vv) sub))
+    (T-App {m = Lin} {T = A} {U = R} (T-Val vr) (T-Check (T-Val vv) sub))
     Act-Fork
     lbl@(Label-Fork _ auLbl) ex _
     with fork-shape vr
@@ -2553,13 +2606,6 @@ mutual
     Ex-RecvLab
     disj
     with vv
-  ... | TV-Var-Un _ =
-    preserve⇒-hard
-      d
-      (ES.Act-Match {ss = ss} {ne = ne} {x = x} {branches = branches} {i = i} i∈)
-      lbl
-      Ex-RecvLab
-      disj
   ... | TV-Var-Lin take
     with take-replace-lin take
   ... | Γ₁ , rep =
@@ -2671,7 +2717,7 @@ mutual
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {T = R}
-    (T-App (T-Val vr) pv)
+    (T-App {m = Lin} (T-Val vr) pv)
     (Act-Send₃ {T = T} {S = S} {v = v})
     lbl@(Label-β _ _) ex _
     with send₂-shape {Tᵣ = T} {Sᵣ = S} vr
@@ -2691,7 +2737,7 @@ mutual
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {T = R}
-    (T-App {Γ₂ = Γ₁} {Γ₃ = Γ₂}
+    (T-App {m = Lin}
       {T = A} {U = R}
       (T-Val vr)
       (T-Check {U = Uarg} (T-Val vv) sub))
@@ -2705,7 +2751,6 @@ mutual
     with extract-membership rin (take-implies-membership take)
   ... | x∈
     with vv
-  ... | TV-Var-Un x∈ᵘ = ⊥-elim (lin-un-disjoint x∈ x∈ᵘ)
   ... | TV-Var-Lin take′
     with take-from-membership x∈
   ... | Γx , take₀
@@ -2893,7 +2938,7 @@ mutual
     {e₁ = E-App (E-Val (V-Send₃ Tᵣ Sᵣ v)) (E-Val (V-Var x))}
     {e₂ = E-Val (V-Var x)}
     {T = R}
-    (T-App {Γ₂ = Γm} {Γ₃ = Γ₂} {T = A} {U = R}
+    (T-App {m = Lin} {T = A} {U = R}
       (T-Val vr)
       (T-Check {U = U} (T-Val vv) sub))
     (Act-Send {T = Tᵣ} {S = Sᵣ} {x = x} {v = v})
@@ -2908,7 +2953,7 @@ mutual
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {e₁ = E-App (E-Val (V-Const C-Close)) (E-Val (V-Var x))}
     {e₂ = E-Val (V-Const C-Unit)}
-    (T-App {T = A} {U = R} (T-Val vr) (T-Check (T-Val {T = U} (TV-Var-Lin take)) sub))
+    (T-App {m = Lin} {T = A} {U = R} (T-Val vr) (T-Check (T-Val {T = U} (TV-Var-Lin take)) sub))
     Act-Close lbl@(Label-Close _ _) ex _ =
     preserve⇒-close vr take sub lbl ex
   preserve⇒
@@ -3024,11 +3069,39 @@ mutual
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-LetPair e₁ e₃}
-    {T = T} {ℓ = ℓ}
-    d@(T-LetPair {Γ₂ = Γ₂} {Γ₃ = Γ₃} d₁ d₂)
+    {T = V} {ℓ = ℓ}
+    (T-LetPair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ} {V = V} d₁ d₂)
     (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
-    lbl ex disj =
-    preserve⇒-hard d (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step) lbl ex disj
+    lbl ex disj
+    with preserve⇒ d₁ step lbl ex disj
+  ... | ps
+    with pair-subtype-inversion {T = Tₚ} {U = Uₚ} (PresSynth.subtype ps)
+  ... | Tₚ′ , Uₚ′ , eqPair , Tₚ′<:Tₚ , Uₚ′<:Uₚ
+    with letpair-body-pres
+           {k = k}
+           {T = Tₚ} {U = Uₚ}
+           {T′ = Tₚ′} {U′ = Uₚ′}
+           Tₚ′<:Tₚ Uₚ′<:Uₚ d₂
+  ... | V′ , d₂′ , V′<:V =
+    record
+      { Gf = PresSynth.Gf ps
+      ; Γ₀′ = PresSynth.Γ₀′ ps
+      ; Γ₁ = PresSynth.Γ₁ ps
+      ; Γ₁′ = PresSynth.Γ₁′ ps
+      ; U = V′
+      ; src-remove = PresSynth.src-remove ps
+      ; dst-remove = PresSynth.dst-remove ps
+      ; ctx-step = PresSynth.ctx-step ps
+      ; compat = PresSynth.compat ps
+      ; synth =
+          T-LetPair
+            (subst
+              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed k Γ₂)
+              eqPair
+              (PresSynth.synth ps))
+            d₂′
+      ; subtype = V′<:V
+      }
   preserve⇒
     {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     {e₁ = E-LetUnit e₁ e₃}

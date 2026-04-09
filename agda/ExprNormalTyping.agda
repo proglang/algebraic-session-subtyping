@@ -164,6 +164,9 @@ LinArr = T-Arrow {pk = KT} {m = Lin} (≤p-step <p-mt)
 linArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ TLin
 linArrNf = N-Arrow (≤p-step <p-mt)
 
+unArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ (KV KT Un)
+unArrNf = N-Arrow (≤p-step <p-mt)
+
 pairNf : ∀ {pk₁ pk₂ m}
   → NfTy Δ (KV pk₁ m)
   → NfTy Δ (KV pk₂ m)
@@ -348,16 +351,16 @@ data _∋ˡ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {K} → NfTy Δ K
     → Γ ∋ˡ x ∶ T
     → used∷ Γ ∋ˡ suc x ∶ T
 
-data _∋ᵘ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {K} → NfTy Δ K → Set where
-  hereᵘ : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+data _∋ᵘ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ (KV pk Un) → Set where
+  hereᵘ : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → (T ∷ᵘ Γ) ∋ᵘ zero ∶ T
-  thereᵘˡ : ∀ {Γ K K′} {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  thereᵘˡ : ∀ {Γ pk K′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ K′}
     → Γ ∋ᵘ x ∶ T
     → (U ∷ˡ Γ) ∋ᵘ suc x ∶ T
-  thereᵘᵘ : ∀ {Γ K K′} {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  thereᵘᵘ : ∀ {Γ pk K′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ K′}
     → Γ ∋ᵘ x ∶ T
     → (U ∷ᵘ Γ) ∋ᵘ suc x ∶ T
-  thereᵘ✖ : ∀ {Γ K} {x : Fin n} {T : NfTy Δ K}
+  thereᵘ✖ : ∀ {Γ pk} {x : Fin n} {T : NfTy Δ (KV pk Un)}
     → Γ ∋ᵘ x ∶ T
     → used∷ Γ ∋ᵘ suc x ∶ T
 
@@ -387,7 +390,7 @@ mutual
       → Γ₁ ⊢ˡ x ∶ T ⊣ Γ₂
       → Γ₁ ⊢ᵥ V-Var x ⇒ T ⊣ Γ₂
 
-    TV-Var-Un : ∀ {n} {Γ₁ : Ctx Δ n} {K} {x : Fin n} {T : NfTy Δ K}
+    TV-Var-Un : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {x : Fin n} {T : NfTy Δ (KV pk Un)}
       → Γ₁ ∋ᵘ x ∶ T
       → Γ₁ ⊢ᵥ V-Var x ⇒ T ⊣ Γ₁
 
@@ -396,10 +399,10 @@ mutual
       → Γ₁ ⊢ᵥ V-Abs T e ⇒ linArrNf (normalizeTy T) U ⊣ Γ₂
 
     TV-Rec : ∀ {n} {Γ₁ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
-      → (linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-          ⊢ E-Val v ⇐ linArrNf (normalizeTy T) (normalizeTy U)
-          ⊣ (linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-      → Γ₁ ⊢ᵥ V-Rec T U v ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ₁
+      → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+          ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
+          ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+      → Γ₁ ⊢ᵥ V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ₁
 
     TV-TAbs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K m}
         {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV KT m)}
@@ -448,8 +451,9 @@ mutual
       → Γ₁ ⊢ E-Pair e₁ e₂ ⇒ pairNf T U ⊣ Γ₃
 
     T-App : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {e₁ e₂ : Expr Δ n}
+        {m : Multiplicity}
         {T U : NfTy Δ TLin}
-      → Γ₁ ⊢ e₁ ⇒ linArrNf T U ⊣ Γ₂
+      → Γ₁ ⊢ e₁ ⇒ N-Arrow {m = m} (≤p-step <p-mt) T U ⊣ Γ₂
       → Γ₂ ⊢ e₂ ⇐ T ⊣ Γ₃
       → Γ₁ ⊢ E-App e₁ e₂ ⇒ U ⊣ Γ₃
 
@@ -626,13 +630,13 @@ pairNf-injective :
 pairNf-injective refl = refl , refl
 
 rec-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)} {W : NfTy Δ TLin}
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)} {W : NfTy Δ (KV KT Un)}
   → Γ₁ ⊢ᵥ V-Rec T U v ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) ×
-    ((W ≡ linArrNf (normalizeTy T) (normalizeTy U)) ×
-     ((linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-       ⊢ E-Val v ⇐ linArrNf (normalizeTy T) (normalizeTy U)
-       ⊣ (linArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)))
+    ((W ≡ unArrNf (normalizeTy T) (normalizeTy U)) ×
+     ((unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+       ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
+       ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)))
 rec-inversion (TV-Rec p) = refl , refl , p
 
 receive₂-inversion :
@@ -646,6 +650,12 @@ linArrNf-injective :
   → linArrNf T₁ U₁ ≡ linArrNf T₂ U₂
   → (T₁ ≡ T₂) × (U₁ ≡ U₂)
 linArrNf-injective refl = refl , refl
+
+unArrNf-injective :
+  ∀ {Δ} {T₁ T₂ U₁ U₂ : NfTy Δ TLin}
+  → unArrNf T₁ U₁ ≡ unArrNf T₂ U₂
+  → (T₁ ≡ T₂) × (U₁ ≡ U₂)
+unArrNf-injective refl = refl , refl
 
 polyNf-injective :
   ∀ {Δ K m} {T₁ T₂ : NfTy (K ∷ Δ) (KV KT m)}

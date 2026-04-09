@@ -214,9 +214,9 @@ remove-membership (RM-un r) (thereˡᵘ x∈) = thereˡᵘ (remove-membership r 
 remove-membership (RM-allused r) (thereˡ✖ x∈) = thereˡ✖ (remove-membership r x∈)
 
 remove-membership-un :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ G Γ₂ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K}
+    {x : Fin n} {T : NfTy [] (KV pk Un)}
   → RemoveCtx Γ₀ G Γ₂
   → Γ₂ ∋ᵘ x ∶ T
   → Γ₀ ∋ᵘ x ∶ T
@@ -227,9 +227,9 @@ remove-membership-un (RM-un r) (thereᵘᵘ x∈) = thereᵘᵘ (remove-membersh
 remove-membership-un (RM-allused r) (thereᵘ✖ x∈) = thereᵘ✖ (remove-membership-un r x∈)
 
 lin-un-disjoint :
-  ∀ {n K K′}
+  ∀ {n K pk}
     {Γ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K} {U : NfTy [] K′}
+    {x : Fin n} {T : NfTy [] K} {U : NfTy [] (KV pk Un)}
   → Γ ∋ˡ x ∶ T
   → Γ ∋ᵘ x ∶ U
   → ⊥

@@ -62,7 +62,7 @@ substTyCtx : ∀ {Δ n K} → Ctx (K ∷ Δ) n → Ty Δ K → Ctx Δ n
 substTyCtx Γ U = substTyCtxWith Γ ⦅ U ⦆ₛ
 
 substTy-preserves-∋ᵘ :
-  ∀ {Δ n K K′} {Γ : Ctx (K ∷ Δ) n} {x : Fin n} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
+  ∀ {Δ n K pk} {Γ : Ctx (K ∷ Δ) n} {x : Fin n} {T : NfTy (K ∷ Δ) (KV pk Un)} {U : Ty Δ K}
   → Γ ∋ᵘ x ∶ T
   → substTyCtx Γ U ∋ᵘ x ∶ substTyNf T U
 substTy-preserves-∋ᵘ hereᵘ = hereᵘ
@@ -413,8 +413,8 @@ postulate
   rec-unfold-preserves-value :
     ∀ {Δ n} {Γ : Ctx Δ n}
       {T U : Ty Δ TLin} {v : Value Δ (Data.Nat.suc n)}
-    → Γ ⊢ᵥ V-Rec T U v ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ
-    → Γ ⊢ᵥ substValue v (V-Rec T U v) ⇒ linArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ
+    → Γ ⊢ᵥ V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ
+    → Γ ⊢ᵥ substValue v (V-Rec T U v) ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ
 
 postulate
   substTy-preserves-value :

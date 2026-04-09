@@ -27,6 +27,23 @@ Run the project verification command from the Agda project root:
       - for each group create a new module with a fresh name derived from the group's theme.
       - move all definitions in the group to their thematic module and add the respective imports to ExprPreservationStep2.
 
+- [ ] cleanup-bindings:
+      Tighten the definitions for bindings in ExprNormalTyping
+
+      Specifically:
+      - The types `Binding` and `BindingView` are isomorphic. 
+      - Remove the definitions of `BindingView` and its conversion function `bindingView`. 
+      - Change all uses of `BindingView` to `Binding`, fix the constructor names, and process the fallout.
+
+- [ ] tighten-bindings:
+      Variables are never bound to types of kind KP, so the definition of `Binding` should be restricted.
+
+      Specifically:
+      - In constructor B-Lin, change kind K to KV pk m.
+      - In constructor B-Un, change kind K to KV pk Un.
+      - Tighten the types of related auxiliary functions like _∷ˡ_ accordingly.
+      - Process the fallout.
+
 - [ ] unused-postulates:
       Remove unused postulates from the codebase.
 
