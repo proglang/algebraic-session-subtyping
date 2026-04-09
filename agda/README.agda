@@ -81,6 +81,14 @@ import ExprSubstitutionTyping
 -- Existence of removed subcontexts corresponding to leftover typing contexts.
 import ExprTypingLeftover
 
+-- Context and extraction lemmas factored out of the preservation proof.
+-- These helpers organize RemoveCtx, ReplaceAt, and all-used context arguments.
+import ExprPreservationStep2.ContextLemmas
+
+-- Substitution and materialization lemmas factored out of the preservation proof.
+-- These helpers package variance-aware substitution relations and normalization bridges.
+import ExprPreservationStep2.SubstitutionLemmas
+
 -- Revised preservation setup using removable frames around the active context.
 import ExprPreservationStep2
 
