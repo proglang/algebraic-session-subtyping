@@ -2600,7 +2600,7 @@ mutual
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {T = U}
-    d@(T-Match (T-Val vv) bs bj)
+    d@(T-Match {ss = ssin} {incl = incl} (T-Val vv) bs bj)
     (ES.Act-Match {ss = ss} {ne = ne} {x = x} {branches = branches} {i = i} i∈)
     lbl@(ECR.Label-RecvLab _ _)
     Ex-RecvLab
@@ -2629,7 +2629,7 @@ mutual
             (sym eqAll)
             (remove-usedCtx Γ₁)
       ; ctx-step =
-          ECR.Ctx-Match i∈
+          ECR.Ctx-Match {ssin = ssin} {ssout = ss} {incl = incl} i∈
             (take-implies-membership take)
             rep
       ; compat = ECR.Compat-Match refl

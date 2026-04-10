@@ -237,19 +237,20 @@ mutual
   frame-synth-match :
     ∀ {Δ n} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k} {ss : Subset.Subset (suc k)}
       {e : Expr Δ n}
-      {ne : Subset.Nonempty ss} {v : Variance}
+      {ssbranches : Subset.Subset (suc k)} {incl : ss Subset.⊆ ssbranches}
+      {ne : Subset.Nonempty ssbranches} {v : Variance}
       {P : NfTy Δ KP} {S : NfTy Δ SLin}
-      {branches : (i : Fin (suc k)) → i Subset.∈ ss → Expr Δ (suc n)}
+      {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
       {U : NfTy Δ TLin}
-      {V : (i : Fin (suc k)) → i Subset.∈ ss → NfTy Δ TLin}
-      {sub : (i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
+      {sub : (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
     → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
-    → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
-    → BranchJoin⁺ ss V ≡ just (U , sub)
+    → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
+    → BranchJoin⁺ ssbranches V ≡ just (U , sub)
     → FrameCtx Φ Γ₁ Γ̂₁
-    → Σ (Ctx Δ n) λ Γ̂₃ → FrameCtx Φ Γ₃ Γ̂₃ × (Γ̂₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ̂₃)
+    → Σ (Ctx Δ n) λ Γ̂₃ → FrameCtx Φ Γ₃ Γ̂₃ × (Γ̂₁ ⊢ E-Match {ss = ssbranches} e ne branches ⇒ U ⊣ Γ̂₃)
   frame-synth-match {Δ = Δ} {n = n} {Φ = Φ} {Γ₃ = Γ₃} {k = k} {ss = ss}
-                    {ne = ne} {v = v} {P = P} {S = S}
+                    {ssbranches = ssbranches} {incl = incl} {ne = ne} {v = v} {P = P} {S = S}
                     {branches = branches} {U = U} {V = V} {sub = sub}
                     d bs j f
     with frame-synth d f
@@ -259,17 +260,17 @@ mutual
     with invert-frame-used fzero
   ... | Γ̂₃ , refl , f₃ =
     Γ̂₃ , f₃ ,
-      T-Match d′ bs′ j
+      T-Match {ss = ss} {ssbranches = ssbranches} {incl = incl} d′ bs′ j
     where
     branch :
-      (i : Fin (suc k)) (i∈ : i Subset.∈ ss)
+      (i : Fin (suc k)) (i∈ : i Subset.∈ ssbranches)
       → Σ (Ctx Δ (suc n)) λ Γ̂i
           → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ₃) Γ̂i
-          × ((MatchBranchOutput ss v P S i i∈ ∷ˡ Γ̂₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ Γ̂i)
+          × ((MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ̂₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ Γ̂i)
     branch i i∈ with frame-synth (bs i i∈) (frame-cons-lin f₂)
     ... | Γ̂i , fi , di = Γ̂i , fi , di
 
-    bs′ : (i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ̂₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ̂₃
+    bs′ : (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ̂₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ̂₃
     bs′ i i∈ with branch i i∈
     ... | Γ̂i , fi , di with invert-frame-used fi
     ... | Γ̂₃′ , refl , f₃′
@@ -307,7 +308,8 @@ mutual
   ... | Γ̂used₁ , refl , fbody₁
     with invert-frame-used fbody₁
   ... | Γ̂₃ , refl , f₃ = Γ̂₃ , f₃ , T-LetPair d₁′ d₂′
-  frame-synth (T-Match d bs j) f = frame-synth-match d bs j f
+  frame-synth (T-Match {ss = ss} {incl = incl} d bs j) f =
+    frame-synth-match {ss = ss} {incl = incl} d bs j f
   frame-synth (T-TApp d) f
     with frame-synth d f
   ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , T-TApp d′

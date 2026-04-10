@@ -394,11 +394,13 @@ data _—ctx[_]→_ : ∀ {n k} → Ctx [] n → Label n k → Ctx [] (k + n) �
     → ReplaceAt Γ₀ x B-Used Γ₁
     → Γ₀ —ctx[ L-Close x ]→ Γ₁
 
-  Ctx-Match : ∀ {n k} {ss : Subset.Subset (suc k)} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
+  Ctx-Match : ∀ {n k}
+      {ssin ssout : Subset.Subset (suc k)} {incl : ssin Subset.⊆ ssout}
+      {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
-    → (i∈ : i Subset.∈ ss)
-    → Γ₀ ∋ˡ x ∶ MatchBranchInput ss v P S
-    → ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ss v P S i i∈)) Γ₁
+    → (i∈ : i Subset.∈ ssout)
+    → Γ₀ ∋ˡ x ∶ MatchBranchInput ssin v P S
+    → ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ssout v P S i i∈)) Γ₁
     → Γ₀ —ctx[ L-RecvLab x i ]→ Γ₁
 
   Ctx-Select : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
@@ -535,15 +537,18 @@ data Compatible :
         (Ctx-Close x∈ rep) (Label-Close auin au)
 
   Compat-Match :
-    ∀ {n k} {ss : Subset.Subset (suc k)} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
+    ∀ {n k}
+      {ssin ssout : Subset.Subset (suc k)} {incl : ssin Subset.⊆ ssout}
+      {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
-      {i∈ : i Subset.∈ ss}
-      {x∈ : Γ₀ ∋ˡ x ∶ MatchBranchInput ss v P S}
-      {rep : ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ss v P S i i∈)) Γ₁}
+      {i∈ : i Subset.∈ ssout}
+      {x∈ : Γ₀ ∋ˡ x ∶ MatchBranchInput ssin v P S}
+      {rep : ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ssout v P S i i∈)) Γ₁}
       {Γv : Ctx [] n} {auin : AllUsed Γin} {au : AllUsed Γv}
     → allUsedCtx Γ₀ ≡ Γin
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvLab x i}
-        (Ctx-Match {v = v} {P = P} {S = S} i∈ x∈ rep) (Label-RecvLab auin au)
+        (Ctx-Match {ssin = ssin} {ssout = ssout} {incl = incl} {v = v} {P = P} {S = S} i∈ x∈ rep)
+        (Label-RecvLab auin au)
 
   Compat-Select :
     ∀ {n k} {Γ₀ Γin Γin′ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}

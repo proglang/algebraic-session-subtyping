@@ -470,14 +470,15 @@ mutual
       → Γ₁ ⊢ E-LetPair e₁ e₂ ⇒ V ⊣ Γ₃
 
     T-Match : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {k} {e : Expr Δ n}
-        {ss : Subset.Subset (suc k)} {ne : Subset.Nonempty ss} {v : Variance}
+        {ss : Subset.Subset (suc k)} {v : Variance}
+        {ssbranches : Subset.Subset (suc k)} {incl : ss Subset.⊆ ssbranches} {ne : Subset.Nonempty ssbranches}
         {P : NfTy Δ KP} {S : NfTy Δ SLin} {U : NfTy Δ TLin}
-        {branches : ∀ i → (i∈ : i Subset.∈ ss) → Expr Δ (suc n)}
-        {V : ∀ i →  i Subset.∈ ss → NfTy Δ TLin}
-        {sub : ∀ i → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+        {branches : ∀ i → (i∈ : i Subset.∈ ssbranches) → Expr Δ (suc n)}
+        {V : ∀ i →  i Subset.∈ ssbranches → NfTy Δ TLin}
+        {sub : ∀ i → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
       → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
-      → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ss) → (MatchBranchOutput ss v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
-      → BranchJoin⁺ ss V ≡ just (U , sub)
+      → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
+      → BranchJoin⁺ ssbranches V ≡ just (U , sub)
       → Γ₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ₃
 
     T-TApp : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K m}
