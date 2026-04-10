@@ -579,39 +579,29 @@ wkNfTy-injective {K = K} {K′ = K′} {T = T} {U = U} eq =
         (sym (wkNFKind-sound {K′ = K′} T))
         (trans (cong ⌞_⌟ eq) (wkNFKind-sound {K′ = K′} U))))
 
-linBinding-injective :
-  ∀ {Δ K K′} {T : NfTy Δ K} {U : NfTy Δ K′}
-  → BV-Lin K T ≡ BV-Lin K′ U
-  → Σ (K ≡ K′) λ where
-      refl → T ≡ U
-linBinding-injective refl = refl , refl
+linBinding-injective : {T₁ : NfTy Δ K₁}{T₂ : NfTy Δ K₂} → Binding.B-Lin T₁ ≡ Binding.B-Lin T₂ → K₁ ≡ K₂
+linBinding-injective refl = refl
 
-unBinding-injective :
-  ∀ {Δ K K′} {T : NfTy Δ K} {U : NfTy Δ K′}
-  → BV-Un K T ≡ BV-Un K′ U
-  → Σ (K ≡ K′) λ where
-      refl → T ≡ U
-unBinding-injective refl = refl , refl
+linBinding-injective₂ : {T₁ : NfTy Δ K}{T₂ : NfTy Δ K} → Binding.B-Lin T₁ ≡ Binding.B-Lin T₂ → T₁ ≡ T₂
+linBinding-injective₂ refl = refl
+
+unBinding-injective : {T₁ : NfTy Δ K₁}{T₂ : NfTy Δ K₂} → Binding.B-Un T₁ ≡ Binding.B-Un T₂ → K₁ ≡ K₂
+unBinding-injective refl = refl
+
+unBinding-injective₂ : {T₁ : NfTy Δ K}{T₂ : NfTy Δ K} → Binding.B-Un T₁ ≡ Binding.B-Un T₂ → T₁ ≡ T₂
+unBinding-injective₂ refl = refl
 
 wkBinding-injective :
   ∀ {Δ L} {b₁ b₂ : Binding Δ}
   → wkBinding {K = L} b₁ ≡ wkBinding {K = L} b₂
   → b₁ ≡ b₂
-wkBinding-injective {L = L} {b₁ = B-Lin {K = K₁} T} {b₂ = B-Lin {K = K₂} U} eq
-  with linBinding-injective (cong bindingView eq)
-... | refl , eq′ =
-  cong B-Lin (wkNfTy-injective {K′ = L} eq′)
-wkBinding-injective {L = L} {b₁ = B-Un {K = K₁} T} {b₂ = B-Un {K = K₂} U} eq
-  with unBinding-injective (cong bindingView eq)
-... | refl , eq′ =
-  cong B-Un (wkNfTy-injective {K′ = L} eq′)
-wkBinding-injective {b₁ = B-Used} {b₂ = B-Used} refl = refl
-wkBinding-injective {b₁ = B-Lin T} {b₂ = B-Un U} ()
-wkBinding-injective {b₁ = B-Lin T} {b₂ = B-Used} ()
-wkBinding-injective {b₁ = B-Un T} {b₂ = B-Lin U} ()
-wkBinding-injective {b₁ = B-Un T} {b₂ = B-Used} ()
-wkBinding-injective {b₁ = B-Used} {b₂ = B-Lin U} ()
-wkBinding-injective {b₁ = B-Used} {b₂ = B-Un U} ()
+wkBinding-injective {Δ} {L} {B-Lin T₁} {B-Lin T₂} eq
+  with linBinding-injective eq
+... | refl = cong B-Lin (wkNfTy-injective (linBinding-injective₂ eq))
+wkBinding-injective {Δ} {L} {B-Un T₁} {B-Un T₂} eq
+  with unBinding-injective eq
+... | refl  = cong B-Un (wkNfTy-injective (unBinding-injective₂ eq))
+wkBinding-injective {Δ} {L} {B-Used} {B-Used} eq = refl
 
 wkCtx-injective :
   ∀ {Δ n K} {Γ₁ Γ₂ : Ctx Δ n}
