@@ -87,7 +87,7 @@ open import NormalTypesSubstitution using
   ; substNFTy
   ; msgNF
   )
-open import ExprSyntax hiding (Binding; Ctx)
+open import ExprSyntax
 open import AlgorithmicNFSubtyping
 open import AlgorithmicNFMerge
 
@@ -518,13 +518,13 @@ pair-inversion :
           (W ≡ pairNf T U) × ((Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃))
 pair-inversion (TV-Pair {pk₁ = pk₁} {pk₂ = pk₂} p q) = pk₁ , pk₂ , _ , _ , _ , refl , (p , q)
 
-postulate
-  pair-inversion′ :
-    ∀ {Δ n pk₁ pk₂ m} {Γ₁ Γ₃ : Ctx Δ n} {u v : Value Δ n}
-      {T : NfTy Δ (KV pk₁ m)} {U : NfTy Δ (KV pk₂ m)}
-    → Γ₁ ⊢ᵥ V-Pair u v ⇒ pairNf T U ⊣ Γ₃
-    → Σ (Ctx Δ n) λ Γ₂ →
-        (Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃)
+pair-inversion′ :
+  ∀ {Δ n pk₁ pk₂ m} {Γ₁ Γ₃ : Ctx Δ n} {u v : Value Δ n}
+    {T : NfTy Δ (KV pk₁ m)} {U : NfTy Δ (KV pk₂ m)}
+  → Γ₁ ⊢ᵥ V-Pair u v ⇒ pairNf T U ⊣ Γ₃
+  → Σ (Ctx Δ n) λ Γ₂ →
+      (Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃)
+pair-inversion′ (TV-Pair p q) = _ , p , q
 
 postulate
   pair-expr-inversion :

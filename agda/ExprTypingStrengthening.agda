@@ -50,7 +50,7 @@ import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; inspect; Reveal_·_is_)
 
 open import ExprNormalTyping
-open import ExprSyntax hiding (Ctx)
+open import ExprSyntax
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
 open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)

@@ -171,10 +171,6 @@ import ExprTypingProperties
 -- including subcontext and merge lemmas.
 import ExprTypingStrengthening
 
--- Original single-module preservation proof for
--- expression reduction steps.
-import ExprPreservationStep
-
 -- Context and extraction lemmas factored out
 -- of the preservation proof.
 -- These helpers organize RemoveCtx, ReplaceAt, and all-used context arguments.
@@ -196,7 +192,3 @@ import ProcTyping
 -- Small example developments exercising
 -- the formalization.
 import Examples
-
--- Experimental scratch developments exploring
--- protocol constructors and subtyping interactions.
-import Experiment

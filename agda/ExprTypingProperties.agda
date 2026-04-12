@@ -161,6 +161,14 @@ invert-frame-un-local :
   → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ B-Un T ▻ Γ̂₀) × FrameCtx Φ Γ Γ̂₀
 invert-frame-un-local (FC-un f) = _ , refl , f
 
+frame-un-head :
+  ∀ {Δ n K₁ K₂} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)}
+    {T : NfTy Δ K₁} {U : NfTy Δ K₂}
+  → FrameCtx (B-Un T ▻ Φ) (B-Un U ▻ Γ) Γ̂
+  → Σ (K₁ ≡ K₂) λ where
+      refl → T ≡ U
+frame-un-head (FC-un _) = refl , refl
+
 frame-remove :
   ∀ {Δ n} {Γ₀ G Γ₁ : Ctx Δ n}
   → FrameCtx Γ₁ G Γ₀
@@ -184,11 +192,41 @@ allUsed-frame (AU-used au) (FC-allused f)
 allUsed-frame (AU-un au) (FC-un f)
   rewrite allUsed-frame au f = refl
 
-postulate
-  wkFrameCtx-invert :
-    ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx (K ∷ Δ) n}
-    → FrameCtx (wkCtx {K = K} Φ) (wkCtx Γ) Γ̂
-    → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ wkCtx {K = K} Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+wkFrameCtx-invert :
+  ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx (K ∷ Δ) n}
+  → FrameCtx (wkCtx {K = K} Φ) (wkCtx Γ) Γ̂
+  → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ wkCtx {K = K} Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+wkFrameCtx-invert {K = K} {Φ = ∅} {Γ = ∅} FC-∅ =
+  ∅ , refl , FC-∅
+wkFrameCtx-invert {K = K} {Φ = B-Lin T ▻ Φ} {Γ = B-Used ▻ Γ} (FC-frame f)
+  with wkFrameCtx-invert {K = K} {Φ = Φ} {Γ = Γ} f
+... | Γ̂₀ , eq , f′ =
+  (B-Lin T ▻ Γ̂₀) ,
+  Eq.cong (λ X → B-Lin (wkNfTy {K′ = K} T) ▻ X) eq ,
+  FC-frame f′
+wkFrameCtx-invert {K = K} {Φ = B-Used ▻ Φ} {Γ = B-Used ▻ Γ} (FC-allused f)
+  with wkFrameCtx-invert {K = K} {Φ = Φ} {Γ = Γ} f
+... | Γ̂₀ , eq , f′ =
+  (B-Used ▻ Γ̂₀) ,
+  Eq.cong (B-Used ▻_) eq ,
+  FC-allused f′
+wkFrameCtx-invert {K = K} {Φ = B-Used ▻ Φ} {Γ = B-Lin T ▻ Γ} (FC-live f)
+  with wkFrameCtx-invert {K = K} {Φ = Φ} {Γ = Γ} f
+... | Γ̂₀ , eq , f′ =
+  (B-Lin T ▻ Γ̂₀) ,
+  Eq.cong (λ X → B-Lin (wkNfTy {K′ = K} T) ▻ X) eq ,
+  FC-live f′
+wkFrameCtx-invert {K = K} {Φ = B-Un T ▻ Φ} {Γ = B-Un U ▻ Γ} fr
+  with frame-un-head {T = wkNfTy {K′ = K} T} {U = wkNfTy {K′ = K} U} fr
+... | refl , eqWk
+  rewrite wkNfTy-injective {K′ = K} {T = T} {U = U} eqWk
+  with fr
+... | FC-un f
+  with wkFrameCtx-invert {K = K} {Φ = Φ} {Γ = Γ} f
+... | Γ̂₀ , eq , f′ =
+  (B-Un U ▻ Γ̂₀) ,
+  Eq.cong (λ X → B-Un (wkNfTy {K′ = K} U) ▻ X) eq ,
+  FC-un f′
 
 mutual
 

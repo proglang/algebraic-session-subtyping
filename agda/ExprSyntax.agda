@@ -12,13 +12,6 @@ open import Types
 TyArg : List Kind → Set
 TyArg Δ = Σ Kind (Ty Δ)
 
-data Binding (Δ : List Kind) : Set where
-  B-Lin : ∀ {K} → Ty Δ K → Binding Δ
-  B-Un  : ∀ {K} → Ty Δ K → Binding Δ
-
-Ctx : List Kind → Set
-Ctx Δ = List (Binding Δ)
-
 data Const : Set where
   C-Unit      : Const
   C-Fork      : Const
