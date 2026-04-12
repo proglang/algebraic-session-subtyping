@@ -115,16 +115,6 @@ data Binding (Δ : List Kind) : Set where
   B-Un   : ∀ {K} → NfTy Δ K → Binding Δ
   B-Used : Binding Δ
 
-data BindingView (Δ : List Kind) : Set where
-  BV-Lin : (K : Kind) → NfTy Δ K → BindingView Δ
-  BV-Un  : (K : Kind) → NfTy Δ K → BindingView Δ
-  BV-Used : BindingView Δ
-
-bindingView : Binding Δ → BindingView Δ
-bindingView (B-Lin {K = K} T) = BV-Lin K T
-bindingView (B-Un {K = K} T) = BV-Un K T
-bindingView B-Used = BV-Used
-
 infixr 5 _▻_
 
 data Ctx (Δ : List Kind) : ℕ → Set where

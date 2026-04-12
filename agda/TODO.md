@@ -27,7 +27,7 @@ Run the project verification command from the Agda project root:
       - for each group create a new module with a fresh name derived from the group's theme.
       - move all definitions in the group to their thematic module and add the respective imports to ExprPreservationStep2.
 
-- [ ] cleanup-bindings:
+- [x] cleanup-bindings:
       Tighten the definitions for bindings in ExprNormalTyping
 
       Specifically:
