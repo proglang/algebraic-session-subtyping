@@ -4,7 +4,7 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Subset as Subset
 open import Data.List using ([])
 open import Data.Product using (Σ; _×_; _,_)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 
 open import Kinds
 open import Duality
@@ -73,13 +73,17 @@ data LinearDisjoint {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Set where
 data MergeCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
   MC-∅ : MergeCtx ∅ ∅ ∅
 
-  MC-used-left : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {b : Binding Δ}
+  MC-used-used : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n}
     → MergeCtx Γx Γv Γ₁
-    → MergeCtx (B-Used ▻ Γx) (b ▻ Γv) (b ▻ Γ₁)
+    → MergeCtx (B-Used ▻ Γx) (B-Used ▻ Γv) (B-Used ▻ Γ₁)
 
-  MC-used-right : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {b : Binding Δ}
+  MC-used-left : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
     → MergeCtx Γx Γv Γ₁
-    → MergeCtx (b ▻ Γx) (B-Used ▻ Γv) (b ▻ Γ₁)
+    → MergeCtx (B-Used ▻ Γx) (B-Lin T ▻ Γv) (B-Lin T ▻ Γ₁)
+
+  MC-used-right : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+    → MergeCtx Γx Γv Γ₁
+    → MergeCtx (B-Lin T ▻ Γx) (B-Used ▻ Γv) (B-Lin T ▻ Γ₁)
 
   MC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
     → MergeCtx Γx Γv Γ₁
@@ -92,7 +96,7 @@ mergeDisjointContext :
 mergeDisjointContext LD-∅ = ∅ , MC-∅
 mergeDisjointContext (LD-used-used ld)
   with mergeDisjointContext ld
-... | Γ , m = (B-Used ▻ Γ) , MC-used-left m
+... | Γ , m = (B-Used ▻ Γ) , MC-used-used m
 mergeDisjointContext (LD-used-live ld)
   with mergeDisjointContext ld
 ... | Γ , m = (_ ▻ Γ) , MC-used-left m
@@ -131,6 +135,70 @@ remove-allUsedCtx (B-Lin _ ▻ Γ) = RM-drop (remove-allUsedCtx Γ)
 remove-allUsedCtx (B-Un _ ▻ Γ) = RM-un (remove-allUsedCtx Γ)
 remove-allUsedCtx (B-Used ▻ Γ) = RM-allused (remove-allUsedCtx Γ)
 
+allUsed-merge :
+  ∀ {Δ n} {Γ₀ Γ₁ Γ₂ : Ctx Δ n}
+  → MergeCtx Γ₀ Γ₁ Γ₂
+  → allUsedCtx Γ₂ ≡ allUsedCtx Γ₀
+allUsed-merge MC-∅ = refl
+allUsed-merge (MC-used-used mc) = cong (B-Used ▻_) (allUsed-merge mc)
+allUsed-merge (MC-used-left mc) = cong (B-Used ▻_) (allUsed-merge mc)
+allUsed-merge (MC-used-right mc) = cong (B-Used ▻_) (allUsed-merge mc)
+allUsed-merge (MC-un mc) = cong (B-Un _ ▻_) (allUsed-merge mc)
+
+rm-allUsed : ∀ {Δ n} (Γ : Ctx Δ n) → RemoveCtx Γ (allUsedCtx Γ) Γ
+rm-allUsed = remove-allUsedCtx
+
+remove-unique : ∀ {Δ}{n} {Γ G₁ G₂ Γ′ : Ctx Δ n} → RemoveCtx Γ G₁ Γ′ → RemoveCtx Γ G₂ Γ′ → G₁ ≡ G₂
+remove-unique RM-∅ RM-∅ = refl
+remove-unique (RM-drop rm₁) (RM-drop rm₂) = cong (B-Used ▻_) (remove-unique rm₁ rm₂)
+remove-unique (RM-allused rm₁) (RM-allused rm₂) = cong (B-Used ▻_) (remove-unique rm₁ rm₂)
+remove-unique (RM-lin rm₁) (RM-lin rm₂) = cong (B-Lin _ ▻_) (remove-unique rm₁ rm₂)
+remove-unique (RM-un rm₁) (RM-un rm₂) = cong (B-Un _ ▻_) (remove-unique rm₁ rm₂)
+
+compose-merge-remove :
+  ∀ {Δ n} {Γrest Γv Γt G′ Γt′ : Ctx Δ n}
+  → (mcs : MergeCtx Γrest Γv Γt)
+  → (rmg : RemoveCtx Γrest G′ Γt′)
+  → Σ (Ctx Δ n) λ G″ → RemoveCtx Γt G″ Γt′
+compose-merge-remove MC-∅ RM-∅ = ∅ , RM-∅
+compose-merge-remove (MC-used-used mcs) (RM-allused rmg)
+  with compose-merge-remove mcs rmg
+... | G″ , rm = B-Used ▻ G″ , RM-allused rm
+compose-merge-remove (MC-used-left mcs) (RM-allused rmg)
+  with compose-merge-remove mcs rmg
+... | G″ , rm = B-Lin _ ▻ G″ , RM-lin rm
+compose-merge-remove (MC-used-right mcs) (RM-drop rmg)
+  with compose-merge-remove mcs rmg
+... | G″ , rm = B-Used ▻ G″ , RM-drop rm
+compose-merge-remove (MC-used-right mcs) (RM-lin rmg)
+  with compose-merge-remove mcs rmg
+... | G″ , rm = B-Lin _ ▻ G″ , RM-lin rm
+compose-merge-remove (MC-un {T = T} mcs) (RM-un rmg)
+  with compose-merge-remove mcs rmg
+... | G″ , rm = B-Un T ▻ G″ , RM-un rm
+
+compose-merge-remove2 :
+  ∀ {Δ n} {Γrest Γv Γt G′ Γt′ : Ctx Δ n}
+  → (mcs : MergeCtx Γrest Γv Γt)
+  → (rmg : RemoveCtx Γrest G′ Γt′)
+  → Σ (Ctx Δ n) λ Γt″ → MergeCtx Γt′ Γv Γt″ × RemoveCtx Γt G′ Γt″
+compose-merge-remove2 MC-∅ RM-∅ = ∅ , MC-∅ , RM-∅
+compose-merge-remove2 (MC-used-left mcs) (RM-allused rmg)
+  with compose-merge-remove2 mcs rmg
+... | Γt″ , mc , rm = B-Lin _ ▻ Γt″ , MC-used-left mc , RM-drop rm
+compose-merge-remove2 (MC-used-right mcs) (RM-drop rmg)
+  with compose-merge-remove2 mcs rmg
+... | Γt″ , mc , rm = B-Lin _ ▻ Γt″ , MC-used-right mc , RM-drop rm
+compose-merge-remove2 (MC-used-right mcs) (RM-lin rmg)
+  with compose-merge-remove2 mcs rmg
+... | Γt″ , mc , rm = B-Used ▻ Γt″ , MC-used-used mc , RM-lin rm
+compose-merge-remove2 (MC-used-used mcs) (RM-allused rmg)
+  with compose-merge-remove2 mcs rmg
+... | Γt″ , mc , rm = B-Used ▻ Γt″ , MC-used-used mc , RM-allused rm
+compose-merge-remove2 (MC-un mcs) (RM-un rmg)
+  with compose-merge-remove2 mcs rmg
+... | Γt″ , mc , rm = B-Un _ ▻ Γt″ , MC-un mc , RM-un rm
+
 mergeRemoveContext :
   ∀ {Δ n} {Γ₀ Γ₁ Γ₂ G₁ G₂ : Ctx Δ n}
   → RemoveCtx Γ₀ G₁ Γ₁
@@ -140,13 +208,13 @@ mergeRemoveContext :
 mergeRemoveContext RM-∅ RM-∅ = ∅ , MC-∅ , RM-∅
 mergeRemoveContext (RM-drop r₁) (RM-drop r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = (B-Used ▻ Γ) , MC-used-left m , RM-drop r
+... | Γ , m , r = (B-Used ▻ Γ) , MC-used-used m , RM-drop r
 mergeRemoveContext (RM-drop r₁) (RM-lin r₂)
   with mergeRemoveContext r₁ r₂
 ... | Γ , m , r = (B-Lin _ ▻ Γ) , MC-used-left m , RM-lin r
 mergeRemoveContext (RM-allused r₁) (RM-allused r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = (B-Used ▻ Γ) , MC-used-left m , RM-allused r
+... | Γ , m , r = (B-Used ▻ Γ) , MC-used-used m , RM-allused r
 mergeRemoveContext (RM-lin r₁) (RM-allused r₂)
   with mergeRemoveContext r₁ r₂
 ... | Γ , m , r = (B-Lin _ ▻ Γ) , MC-used-right m , RM-lin r
@@ -263,6 +331,17 @@ restore-disjoint (RM-lin r) (LD-used-used d₁) (LD-live-used d₂) =
 restore-disjoint (RM-un r) (LD-un-un d₁) (LD-un-un d₂) =
   LD-un-un (restore-disjoint r d₁ d₂)
 
+merge-disjoint :
+  ∀ {Δ n}
+    {Γx Γv Γ : Ctx Δ n}
+  → MergeCtx Γx Γv Γ
+  → LinearDisjoint Γx Γv
+merge-disjoint MC-∅ = LD-∅
+merge-disjoint (MC-used-used m) = LD-used-used (merge-disjoint m)
+merge-disjoint (MC-used-left m) = LD-used-live (merge-disjoint m)
+merge-disjoint (MC-used-right m) = LD-live-used (merge-disjoint m)
+merge-disjoint (MC-un m) = LD-un-un (merge-disjoint m)
+
 merge-preserves-disjoint :
   ∀ {Δ n}
     {Γx Γv Γ₁ Γf : Ctx Δ n}
@@ -271,16 +350,12 @@ merge-preserves-disjoint :
   → LinearDisjoint Γv Γf
   → LinearDisjoint Γ₁ Γf
 merge-preserves-disjoint MC-∅ LD-∅ LD-∅ = LD-∅
-merge-preserves-disjoint (MC-used-left m) (LD-used-used dx) (LD-used-used dv) =
+merge-preserves-disjoint (MC-used-used m) (LD-used-used dx) (LD-used-used dv) =
   LD-used-used (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-used-left m) (LD-used-live dx) (LD-used-live dv) =
+merge-preserves-disjoint (MC-used-used m) (LD-used-live dx) (LD-used-live dv) =
   LD-used-live (merge-preserves-disjoint m dx dv)
 merge-preserves-disjoint (MC-used-left m) (LD-used-used dx) (LD-live-used dv) =
   LD-live-used (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-used-right m) (LD-used-used dx) (LD-used-used dv) =
-  LD-used-used (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-used-right m) (LD-used-live dx) (LD-used-live dv) =
-  LD-used-live (merge-preserves-disjoint m dx dv)
 merge-preserves-disjoint (MC-used-right m) (LD-live-used dx) (LD-used-used dv) =
   LD-live-used (merge-preserves-disjoint m dx dv)
 merge-preserves-disjoint (MC-un m) (LD-un-un dx) (LD-un-un dv) =
