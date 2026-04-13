@@ -147,7 +147,7 @@ open import ExprContextReduction using
   ; Ctx-β; Ctx-New; Ctx-Fork; Ctx-Rcv; Ctx-Send; Ctx-Select; Ctx-Close
   ; ReplaceAt; replace-preserves-disjoint
   ; RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
-  ; MergeCtx; MC-∅; MC-used-left; MC-used-right; MC-un
+  ; MergeCtx; MC-∅; MC-used-used; MC-used-left; MC-used-right; MC-un
   ; mergeDisjointContext; mergeRemoveContext
   ; remove-linear; remove-allused-disjoint; remove-preserves-remove
   ; remove-preserves-disjoint; remove-removed-disjoint; restore-disjoint
@@ -748,20 +748,6 @@ record PresCheck
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
     check : Γ₁ ⊢ e₂ ⇐ T ⊣ extendUsed k Γ₂
-
-postulate
-  preserve⇒-hard :
-    ∀ {n k pk mult}
-      {Γ₀ : Ctx [] n} {Γ₂ : Ctx [] n}
-      {Γin Γv : Ctx [] n}
-      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
-      {T : NfTy [] (KV pk mult)} {ℓ : Label n k}
-    → Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂
-    → e₁ —[ ℓ ]→ e₂
-    → (lbl : ℓ ⦂ Γin ⇒ Γv)
-    → Extract Γ₀ ℓ Γin
-    → LinearDisjoint Γ₀ Γv
-    → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
 
 match-branch-subtype :
   ∀ {k}
@@ -2442,11 +2428,9 @@ merge-result-unique :
   → MergeCtx Γ₁ Γ₂ Γ′
   → Γ ≡ Γ′
 merge-result-unique MC-∅ MC-∅ = refl
+merge-result-unique (MC-used-used m₁) (MC-used-used m₂)
+  rewrite merge-result-unique m₁ m₂ = refl
 merge-result-unique (MC-used-left m₁) (MC-used-left m₂)
-  rewrite merge-result-unique m₁ m₂ = refl
-merge-result-unique (MC-used-left m₁) (MC-used-right m₂)
-  rewrite merge-result-unique m₁ m₂ = refl
-merge-result-unique (MC-used-right m₁) (MC-used-left m₂)
   rewrite merge-result-unique m₁ m₂ = refl
 merge-result-unique (MC-used-right m₁) (MC-used-right m₂)
   rewrite merge-result-unique m₁ m₂ = refl
@@ -2460,7 +2444,7 @@ merge-extendUsed :
   → MergeCtx Γ₁ Γ₂ Γ
   → MergeCtx (extendUsed k Γ₁) (extendUsed k Γ₂) (extendUsed k Γ)
 merge-extendUsed zero m = m
-merge-extendUsed (suc k) m = MC-used-left (merge-extendUsed k m)
+merge-extendUsed (suc k) m = MC-used-used (merge-extendUsed k m)
 
 sym-disjoint :
   ∀ {n} {Γ₁ Γ₂ : Ctx [] n}
@@ -3823,8 +3807,6 @@ mutual
         ex
         disj
         (remove-allused-disjoint r)
-  preserve⇒ d step lbl ex disj = preserve⇒-hard d step lbl ex disj
-
   preserve⇐ :
     ∀ {n k pk mult}
       {Γ₀ : Ctx [] n} {Γ₂ : Ctx [] n}

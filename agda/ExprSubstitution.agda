@@ -20,8 +20,8 @@ variable
 Ren : ∀ {tn tm} → Set
 Ren {tn} {tm} = Fin tn → Fin tm
 
-Sub : List Kind → ∀ {tn tm} → Set
-Sub Δ {tn} {tm} = Fin tn → Value Δ tm
+Sub : List Kind → ℕ → ℕ → Set
+Sub Δ tn tm = Fin tn → Value Δ tm
 
 extRen : ∀ {tn tm} → Ren {tn} {tm} → Ren {sucℕ tn} {sucℕ tm}
 extRen ρ zero = zero
@@ -100,28 +100,28 @@ wkTyValue {K = K} = renTyValue (weakenᵣ K)
 wkTyExpr : ∀ {Δ n K} → Expr Δ n → Expr (K ∷ Δ) n
 wkTyExpr {K = K} = renTyExpr (weakenᵣ K)
 
-extSub : ∀ {Δ n m} → Sub Δ {n} {m} → Sub Δ {sucℕ n} {sucℕ m}
+extSub : ∀ {Δ n m} → Sub Δ n m → Sub Δ (sucℕ n) (sucℕ m)
 extSub σ zero = V-Var zero
 extSub σ (suc x) = wkValue (σ x)
 
-extSub2 : ∀ {Δ n m} → Sub Δ {n} {m} → Sub Δ {sucℕ (sucℕ n)} {sucℕ (sucℕ m)}
+extSub2 : ∀ {Δ n m} → Sub Δ n m → Sub Δ (sucℕ (sucℕ n)) (sucℕ (sucℕ m))
 extSub2 σ = extSub (extSub σ)
 
-doubleSub : ∀ {Δ n} → Value Δ n → Value Δ n → Sub Δ {sucℕ (sucℕ n)} {n}
+doubleSub : ∀ {Δ n} → Value Δ n → Value Δ n → Sub Δ (sucℕ (sucℕ n)) n
 doubleSub u v zero = u
 doubleSub u v (suc zero) = v
 doubleSub u v (suc (suc x)) = V-Var x
 
-singleSub : ∀ {Δ n} → Value Δ n → Sub Δ {sucℕ n} {n}
+singleSub : ∀ {Δ n} → Value Δ n → Sub Δ (sucℕ n) n
 singleSub v zero = v
 singleSub v (suc x) = V-Var x
 
-liftTySub : ∀ {Δ n m K} → Sub Δ {n} {m} → Sub (K ∷ Δ) {n} {m}
+liftTySub : ∀ {Δ n m K} → Sub Δ n m → Sub (K ∷ Δ) n m
 liftTySub σ x = wkTyValue (σ x)
 
 mutual
 
-  substValueWith : ∀ {Δ n m} → Sub Δ {n} {m} → Value Δ n → Value Δ m
+  substValueWith : ∀ {Δ n m} → Sub Δ n m → Value Δ n → Value Δ m
   substValueWith σ (V-Const c) = V-Const c
   substValueWith σ (V-Var x) = σ x
   substValueWith σ (V-Abs T e) = V-Abs T (substExprWith (extSub σ) e)
@@ -136,7 +136,7 @@ mutual
   substValueWith σ (V-Select₁ v i P) = V-Select₁ v i P
   substValueWith σ (V-Select₂ v i P S) = V-Select₂ v i P S
 
-  substExprWith : ∀ {Δ n m} → Sub Δ {n} {m} → Expr Δ n → Expr Δ m
+  substExprWith : ∀ {Δ n m} → Sub Δ n m → Expr Δ n → Expr Δ m
   substExprWith σ (E-Val v) = E-Val (substValueWith σ v)
   substExprWith σ (E-App e₁ e₂) = E-App (substExprWith σ e₁) (substExprWith σ e₂)
   substExprWith σ (E-TApp e T) = E-TApp (substExprWith σ e) T

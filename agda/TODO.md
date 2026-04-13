@@ -42,6 +42,7 @@ Run the project verification command from the Agda project root:
       - In constructor B-Lin, change kind K to KV pk m.
       - In constructor B-Un, change kind K to KV pk Un.
       - Tighten the types of related auxiliary functions like _∷ˡ_ accordingly.
+      - Adjust the kinds of types in other definitions that range over bindings accordingly. Examples are the various context predicates in module `ExprContextReduction`.
       - Process the fallout.
 
 - [ ] unused-postulates:

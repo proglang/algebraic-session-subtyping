@@ -57,6 +57,7 @@ open import ExprContextReduction using
   ; AU-used
   ; MergeCtx
   ; MC-∅
+  ; MC-used-used
   ; MC-used-left
   ; MC-used-right
   ; MC-un
@@ -170,11 +171,9 @@ allUsedCtx-merge :
   → MergeCtx Γx Γv Γ₁
   → allUsedCtx Γx ≡ allUsedCtx Γ₁
 allUsedCtx-merge LD-∅ MC-∅ = refl
-allUsedCtx-merge (LD-used-used ld) (MC-used-left merge)
+allUsedCtx-merge (LD-used-used ld) (MC-used-used merge)
   rewrite allUsedCtx-merge ld merge = refl
-allUsedCtx-merge (LD-used-used ld) (MC-used-right merge)
-  rewrite allUsedCtx-merge ld merge = refl
-allUsedCtx-merge (LD-used-live ld) (MC-used-left {b = B-Lin _} merge)
+allUsedCtx-merge (LD-used-live ld) (MC-used-left merge)
   rewrite allUsedCtx-merge ld merge = refl
 allUsedCtx-merge (LD-live-used ld) (MC-used-right merge)
   rewrite allUsedCtx-merge ld merge = refl
