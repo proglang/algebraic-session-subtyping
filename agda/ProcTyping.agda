@@ -15,9 +15,9 @@ open import ExprNormalTyping
 
 data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
   AU-∅ : AllUsed ∅
-  AU-used : ∀ {n} {Γ : Ctx Δ n}
+  AU-used : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → AllUsed Γ
-    → AllUsed (B-Used ▻ Γ)
+    → AllUsed (B-Used T ▻ Γ)
   AU-un : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → AllUsed Γ
     → AllUsed (B-Un T ▻ Γ)
@@ -32,19 +32,19 @@ data Split {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
 
   S-Linˡ : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → Split Γ Γ₁ Γ₂
-    → Split (B-Lin T ▻ Γ) (B-Lin T ▻ Γ₁) (B-Used ▻ Γ₂)
+    → Split (B-Lin T ▻ Γ) (B-Lin T ▻ Γ₁) (B-Used T ▻ Γ₂)
 
   S-Linʳ : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → Split Γ Γ₁ Γ₂
-    → Split (B-Lin T ▻ Γ) (B-Used ▻ Γ₁) (B-Lin T ▻ Γ₂)
+    → Split (B-Lin T ▻ Γ) (B-Used T ▻ Γ₁) (B-Lin T ▻ Γ₂)
 
   S-Un : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → Split Γ Γ₁ Γ₂
     → Split (B-Un T ▻ Γ) (B-Un T ▻ Γ₁) (B-Un T ▻ Γ₂)
 
-  S-Used : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n}
+  S-Used : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → Split Γ Γ₁ Γ₂
-    → Split (B-Used ▻ Γ) (B-Used ▻ Γ₁) (B-Used ▻ Γ₂)
+    → Split (B-Used T ▻ Γ) (B-Used T ▻ Γ₁) (B-Used T ▻ Γ₂)
 
 -- Suggested process typing judgment.
 -- It is intentionally declarative/non-algorithmic at the process level:

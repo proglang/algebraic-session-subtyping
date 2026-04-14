@@ -16,25 +16,27 @@ open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; 
 
 usedCtx : ∀ {Δ n} → Ctx Δ n → Ctx Δ n
 usedCtx ∅ = ∅
-usedCtx (_ ▻ Γ) = B-Used ▻ usedCtx Γ
+usedCtx (B-Lin T ▻ Γ) = B-Used T ▻ usedCtx Γ
+usedCtx (B-Un _ ▻ Γ) = B-Used unitConstNf ▻ usedCtx Γ
+usedCtx (B-Used T ▻ Γ) = B-Used T ▻ usedCtx Γ
 
 allUsedCtx : ∀ {Δ n} → Ctx Δ n → Ctx Δ n
 allUsedCtx ∅ = ∅
-allUsedCtx (B-Lin _ ▻ Γ) = B-Used ▻ allUsedCtx Γ
+allUsedCtx (B-Lin T ▻ Γ) = B-Used T ▻ allUsedCtx Γ
 allUsedCtx (B-Un T ▻ Γ) = B-Un T ▻ allUsedCtx Γ
-allUsedCtx (B-Used ▻ Γ) = B-Used ▻ allUsedCtx Γ
+allUsedCtx (B-Used T ▻ Γ) = B-Used T ▻ allUsedCtx Γ
 
 allUsedCtx-AllUsed : ∀ {Δ n} (Γ : Ctx Δ n) → AllUsed (allUsedCtx Γ)
 allUsedCtx-AllUsed ∅ = AU-∅
-allUsedCtx-AllUsed (B-Lin _ ▻ Γ) = AU-used (allUsedCtx-AllUsed Γ)
+allUsedCtx-AllUsed (B-Lin T ▻ Γ) = AU-used {T = T} (allUsedCtx-AllUsed Γ)
 allUsedCtx-AllUsed (B-Un _ ▻ Γ) = AU-un (allUsedCtx-AllUsed Γ)
-allUsedCtx-AllUsed (B-Used ▻ Γ) = AU-used (allUsedCtx-AllUsed Γ)
+allUsedCtx-AllUsed (B-Used T ▻ Γ) = AU-used {T = T} (allUsedCtx-AllUsed Γ)
 
 remove-allUsedCtx : ∀ {Δ n} (Γ : Ctx Δ n) → RemoveCtx Γ (allUsedCtx Γ) Γ
 remove-allUsedCtx ∅ = RM-∅
-remove-allUsedCtx (B-Lin _ ▻ Γ) = RM-drop (remove-allUsedCtx Γ)
+remove-allUsedCtx (B-Lin T ▻ Γ) = RM-drop {T = T} (remove-allUsedCtx Γ)
 remove-allUsedCtx (B-Un _ ▻ Γ) = RM-un (remove-allUsedCtx Γ)
-remove-allUsedCtx (B-Used ▻ Γ) = RM-allused (remove-allUsedCtx Γ)
+remove-allUsedCtx (B-Used T ▻ Γ) = RM-allused {T = T} (remove-allUsedCtx Γ)
 
 allUsedCtx-∋ᵘ :
   ∀ {Δ n pk} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Un)}
@@ -56,13 +58,13 @@ remove-compose :
 remove-compose RM-∅ RM-∅ = ∅ , RM-∅
 remove-compose (RM-drop r₁) (RM-drop r₂)
   with remove-compose r₁ r₂
-... | G , r = (B-Used ▻ G) , RM-drop r
+... | G , r = _ , RM-drop r
 remove-compose (RM-drop r₁) (RM-lin r₂)
   with remove-compose r₁ r₂
 ... | G , r = (B-Lin _ ▻ G) , RM-lin r
 remove-compose (RM-allused r₁) (RM-allused r₂)
   with remove-compose r₁ r₂
-... | G , r = (B-Used ▻ G) , RM-allused r
+... | G , r = _ , RM-allused r
 remove-compose (RM-lin r₁) (RM-allused r₂)
   with remove-compose r₁ r₂
 ... | G , r = (B-Lin _ ▻ G) , RM-lin r
@@ -79,13 +81,13 @@ remove-compose-frame :
 remove-compose-frame RM-∅ RM-∅ = ∅ , RM-∅ , FC-∅
 remove-compose-frame (RM-drop r₁) (RM-drop r₂)
   with remove-compose-frame r₁ r₂
-... | G , r , f = (B-Used ▻ G) , RM-drop r , FC-allused f
+... | G , r , f = _ , RM-drop r , FC-allused f
 remove-compose-frame (RM-drop r₁) (RM-lin r₂)
   with remove-compose-frame r₁ r₂
 ... | G , r , f = (B-Lin _ ▻ G) , RM-lin r , FC-frame f
 remove-compose-frame (RM-allused r₁) (RM-allused r₂)
   with remove-compose-frame r₁ r₂
-... | G , r , f = (B-Used ▻ G) , RM-allused r , FC-allused f
+... | G , r , f = _ , RM-allused r , FC-allused f
 remove-compose-frame (RM-lin r₁) (RM-allused r₂)
   with remove-compose-frame r₁ r₂
 ... | G , r , f = (B-Lin _ ▻ G) , RM-lin r , FC-live f
@@ -95,7 +97,7 @@ remove-compose-frame (RM-un r₁) (RM-un r₂)
 
 strip-lin-used :
   ∀ {Δ n pk} {T : NfTy Δ (KV pk Lin)} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc n)}
-  → RemoveCtx (B-Lin T ▻ Γ₀) G (B-Used ▻ Γ₁)
+  → RemoveCtx (B-Lin T ▻ Γ₀) G (B-Used T ▻ Γ₁)
   → Σ (Ctx Δ n) λ G′ → RemoveCtx Γ₀ G′ Γ₁
 strip-lin-used (RM-lin r) = _ , r
 
@@ -103,7 +105,7 @@ strip-lin-used₂ :
   ∀ {Δ n pk pk′}
     {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
     {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc (suc n))}
-  → RemoveCtx (B-Lin T ▻ (B-Lin U ▻ Γ₀)) G (B-Used ▻ (B-Used ▻ Γ₁))
+  → RemoveCtx (B-Lin T ▻ (B-Lin U ▻ Γ₀)) G (B-Used T ▻ (B-Used U ▻ Γ₁))
   → Σ (Ctx Δ n) λ G′ → RemoveCtx Γ₀ G′ Γ₁
 strip-lin-used₂ r with strip-lin-used r
 ... | G′ , r′ with strip-lin-used r′
@@ -116,15 +118,15 @@ strip-un-same :
 strip-un-same (RM-un r) = _ , r
 
 used-head :
-  ∀ {Δ n} {Γ₀ Γv Γx : Ctx Δ n} {b₀ b₁ : Binding Δ}
-  → RemoveCtx (b₀ ▻ Γ₀) (B-Used ▻ Γv) (b₁ ▻ Γx)
+  ∀ {Δ n pk} {Γ₀ Γv Γx : Ctx Δ n} {b₀ b₁ : Binding Δ} {T : NfTy Δ (KV pk Lin)}
+  → RemoveCtx (b₀ ▻ Γ₀) (B-Used T ▻ Γv) (b₁ ▻ Γx)
   → b₀ ≡ b₁
 used-head (RM-drop _) = refl
 used-head (RM-allused _) = refl
 
 used-tail :
-  ∀ {Δ n} {Γ₀ Γv Γx : Ctx Δ n} {b₀ b₁ : Binding Δ}
-  → (r : RemoveCtx (b₀ ▻ Γ₀) (B-Used ▻ Γv) (b₁ ▻ Γx))
+  ∀ {Δ n pk} {Γ₀ Γv Γx : Ctx Δ n} {b₀ b₁ : Binding Δ} {T : NfTy Δ (KV pk Lin)}
+  → (r : RemoveCtx (b₀ ▻ Γ₀) (B-Used T ▻ Γv) (b₁ ▻ Γx))
   → RemoveCtx Γ₀ Γv Γx
 used-tail (RM-drop r) = r
 used-tail (RM-allused r) = r
@@ -133,10 +135,20 @@ lin-tail :
   ∀ {Δ n pk pk′}
     {Γ₀ Γv Γx : Ctx Δ n}
     {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
-  → RemoveCtx (B-Lin T ▻ Γ₀) (B-Lin U ▻ Γv) (B-Used ▻ Γx)
+  → RemoveCtx (B-Lin T ▻ Γ₀) (B-Lin U ▻ Γv) (B-Used T ▻ Γx)
   → Σ (pk ≡ pk′) λ where
       refl → (T ≡ U) × RemoveCtx Γ₀ Γv Γx
 lin-tail (RM-lin r) = refl , refl , r
+
+lin-tail′ :
+  ∀ {Δ n pk pk′ pk″}
+    {Γ₀ Γv Γx : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)} {V : NfTy Δ (KV pk″ Lin)}
+  → RemoveCtx (B-Lin T ▻ Γ₀) (B-Lin U ▻ Γv) (B-Used V ▻ Γx)
+  → Σ (pk ≡ pk′) λ where
+      refl → Σ (pk ≡ pk″) λ where
+        refl → (T ≡ U) × (T ≡ V) × RemoveCtx Γ₀ Γv Γx
+lin-tail′ (RM-lin r) = refl , refl , refl , refl , r
 
 un-tail :
   ∀ {Δ n pk₁ pk₂ pk₃} {Γ₀ Γv Γx : Ctx Δ n}
@@ -159,18 +171,21 @@ strip-wk :
   → RemoveCtx (wkCtx {K = K} Γ₀) G (wkCtx Γ₁)
   → Σ (Ctx Δ n) λ G′ → RemoveCtx Γ₀ G′ Γ₁
 strip-wk {Γ₀ = ∅} {Γ₁ = ∅} RM-∅ = ∅ , RM-∅
-strip-wk {K = K} {Γ₀ = B-Used ▻ Γ₀} {Γ₁ = B-Used ▻ Γ₁} {G = B-Used ▻ G} (RM-allused r)
-  with strip-wk {K = K} r
-... | G′ , r′ = B-Used ▻ G′ , RM-allused r′
-strip-wk {K = K} {Γ₀ = B-Lin T ▻ Γ₀} {Γ₁ = B-Used ▻ Γ₁} {G = B-Lin U ▻ G} r
-  with lin-tail r
-... | refl , refl , r₀
+strip-wk {K = K} {Γ₀ = B-Used T ▻ Γ₀} {Γ₁ = B-Used U ▻ Γ₁} {G = B-Used V ▻ G} r
+  rewrite wkBinding-injective {L = K} {b₁ = B-Used T} {b₂ = B-Used U} (used-head r)
+  with strip-wk {K = K} (used-tail r)
+... | G′ , r′ = B-Used U ▻ G′ , RM-allused r′
+strip-wk {K = K} {Γ₀ = B-Lin T ▻ Γ₀} {Γ₁ = B-Used U ▻ Γ₁} {G = B-Lin V ▻ G} r
+  with lin-tail′ r
+... | refl , refl , eqTV , eqTU , r₀
   with strip-wk {K = K} r₀
-... | G′ , r′ = B-Lin T ▻ G′ , RM-lin r′
-strip-wk {K = K} {Γ₀ = B-Lin T ▻ Γ₀} {Γ₁ = B-Lin U ▻ Γ₁} {G = B-Used ▻ G} r
+... | G′ , r′
+  rewrite wkNfTy-injective {K′ = K} eqTU
+  = B-Lin U ▻ G′ , RM-lin r′
+strip-wk {K = K} {Γ₀ = B-Lin T ▻ Γ₀} {Γ₁ = B-Lin U ▻ Γ₁} {G = B-Used V ▻ G} r
   rewrite wkBinding-injective {L = K} {b₁ = B-Lin T} {b₂ = B-Lin U} (used-head r)
   with strip-wk {K = K} (used-tail r)
-... | G′ , r′ = B-Used ▻ G′ , RM-drop r′
+... | G′ , r′ = B-Used U ▻ G′ , RM-drop r′
 strip-wk {K = K} {Γ₀ = B-Un T ▻ Γ₀} {Γ₁ = B-Un U ▻ Γ₁} {G = B-Un V ▻ G} r
   with un-tail r
 ... | refl , refl , eq₁ , eq₂ , r₀
@@ -201,12 +216,12 @@ strip-take :
       Σ (Ctx Δ n) λ G′ →
         RemoveCtx Γ₀ G Γ₁ × (G ⊢ˡ x ∶ T ⊣ G′) × AllUsed G′
 strip-take {Γ₀ = _ ▻ Γ} (take-here {T = T}) =
-  (T ∷ˡ (allUsedCtx Γ)) , (used∷ (allUsedCtx Γ)) ,
+  (T ∷ˡ (allUsedCtx Γ)) , (B-Used T ▻ (allUsedCtx Γ)) ,
   (RM-lin (remove-allUsedCtx Γ)) , take-here , AU-used (allUsedCtx-AllUsed Γ)
 strip-take (take-thereˡ {U = U} p)
   with strip-take p
 ... | G , G′ , r , p′ , au =
-  (B-Used ▻ G) , (B-Used ▻ G′) ,
+  (B-Used U ▻ G) , (B-Used U ▻ G′) ,
   RM-drop r , take-there✖ p′ , AU-used au
 strip-take (take-thereᵘ {U = U} p)
   with strip-take p
@@ -216,16 +231,16 @@ strip-take (take-thereᵘ {U = U} p)
 strip-take (take-there✖ p)
   with strip-take p
 ... | G , G′ , r , p′ , au =
-  (B-Used ▻ G) , (B-Used ▻ G′) ,
+  (B-Used _ ▻ G) , (B-Used _ ▻ G′) ,
   RM-allused r , take-there✖ p′ , AU-used au
 
 postulate
   strip-value-abs :
     ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {U : NfTy Δ TLin} {e : Expr Δ (suc n)}
-    → (T ∷ⁿˡ Γ₀) ⊢ e ⇒ U ⊣ used∷ Γ₁
+    → (T ∷ⁿˡ Γ₀) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₁)
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
-          RemoveCtx Γ₀ G Γ₁ × ((T ∷ⁿˡ G) ⊢ e ⇒ U ⊣ used∷ G′) × AllUsed G′
+          RemoveCtx Γ₀ G Γ₁ × ((T ∷ⁿˡ G) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ G′)) × AllUsed G′
 
   strip-value-rec :
     ∀ {Δ n} {Γ₀ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}

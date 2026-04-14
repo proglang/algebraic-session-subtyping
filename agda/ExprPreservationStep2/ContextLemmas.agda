@@ -55,6 +55,7 @@ open import ExprContextReduction using
   ; AllUsed
   ; AU-∅
   ; AU-used
+  ; AU-un
   ; MergeCtx
   ; MC-∅
   ; MC-used-used
@@ -68,6 +69,7 @@ open import ExprContextReduction using
   ; LD-live-used
   ; LD-un-un
   ; allUsedCtx
+  ; used-head-eq
   ; Ex-β
   ; Ex-Fork
   ; Ex-New
@@ -77,25 +79,29 @@ import ExprContextReduction
 
 usedCtx : ∀ {n} → Ctx [] n → Ctx [] n
 usedCtx ∅ = ∅
-usedCtx (_ ▻ Γ) = B-Used ▻ usedCtx Γ
+usedCtx (B-Lin T ▻ Γ) = B-Used T ▻ usedCtx Γ
+usedCtx (B-Un T ▻ Γ) = B-Un T ▻ usedCtx Γ
+usedCtx (B-Used T ▻ Γ) = B-Used T ▻ usedCtx Γ
 
 remove-usedCtx : ∀ {n} (Γ : Ctx [] n) → RemoveCtx Γ (allUsedCtx Γ) Γ
 remove-usedCtx ∅ = RM-∅
 remove-usedCtx (B-Lin _ ▻ Γ) = RM-drop (remove-usedCtx Γ)
 remove-usedCtx (B-Un _ ▻ Γ) = RM-un (remove-usedCtx Γ)
-remove-usedCtx (B-Used ▻ Γ) = RM-allused (remove-usedCtx Γ)
+remove-usedCtx (B-Used _ ▻ Γ) = RM-allused (remove-usedCtx Γ)
 
 usedCtx-allUsed :
   ∀ {n} (Γ : Ctx [] n) → AllUsed (usedCtx Γ)
 usedCtx-allUsed ∅ = AU-∅
-usedCtx-allUsed (_ ▻ Γ) = AU-used (usedCtx-allUsed Γ)
+usedCtx-allUsed (B-Lin _ ▻ Γ) = AU-used (usedCtx-allUsed Γ)
+usedCtx-allUsed (B-Un _ ▻ Γ) = AU-un (usedCtx-allUsed Γ)
+usedCtx-allUsed (B-Used _ ▻ Γ) = AU-used (usedCtx-allUsed Γ)
 
 take-replace :
   ∀ {n pk}
     {Γ₀ Γ₁ : Ctx [] n}
     {x : Fin n} {T : NfTy [] (KV pk Lin)}
   → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₁
-  → ReplaceAt Γ₀ x B-Used Γ₁
+  → ReplaceAt Γ₀ x (B-Used T) Γ₁
 take-replace take-here = ExprContextReduction.R-here
 take-replace (take-thereˡ take) = ExprContextReduction.R-there (take-replace take)
 take-replace (take-thereᵘ take) = ExprContextReduction.R-there (take-replace take)
@@ -156,7 +162,7 @@ allUsedCtx-replace-lin :
   → Γ₀ ∋ˡ x ∶ T
   → ReplaceAt Γ₀ x (B-Lin U) Γ₁
   → allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
-allUsedCtx-replace-lin hereˡ ExprContextReduction.R-here = refl
+allUsedCtx-replace-lin hereˡ ExprContextReduction.R-here = used-head-eq
 allUsedCtx-replace-lin (thereˡˡ x∈) (ExprContextReduction.R-there rep)
   rewrite allUsedCtx-replace-lin x∈ rep = refl
 allUsedCtx-replace-lin (thereˡᵘ x∈) (ExprContextReduction.R-there rep)

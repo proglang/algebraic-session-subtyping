@@ -51,6 +51,7 @@ open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; i
 
 open import ExprNormalTyping
 open import ExprSyntax
+open import ExprContextReduction using (used-head-eq)
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
 open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)
@@ -61,9 +62,19 @@ data _<:Γ_ : ∀ {Δ n} (Γ₁ : Ctx Δ n) (Γ₂ : Ctx Δ n) → Set where
   <:-[] : ∀ {Δ} → ∅ {Δ} <:Γ ∅
 
   <:-used :
-      ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
+      ∀ {Δ n pk}
+      {T : NfTy Δ (KV pk Lin)}
+      {Γ₁ Γ₂ : Ctx Δ n}
     → Γ₁ <:Γ Γ₂
-    → (B-Used ▻ Γ₁) <:Γ (B-Used ▻ Γ₂)
+    → (B-Used T ▻ Γ₁) <:Γ (B-Used T ▻ Γ₂)
+
+  <:-sub-used :
+      ∀ {Δ n pk}
+      {T₁ T₂ : NfTy Δ (KV pk Lin)}
+      {Γ₁ Γ₂ : Ctx Δ n}
+    → T₁ <:ₜ T₂
+    → Γ₁ <:Γ Γ₂
+    → (B-Used T₁ ▻ Γ₁) <:Γ (B-Used T₂ ▻ Γ₂)
 
   <:-lin :
       ∀ {Δ n pk}
@@ -98,7 +109,7 @@ data _<:Γ_ : ∀ {Δ n} (Γ₁ : Ctx Δ n) (Γ₂ : Ctx Δ n) → Set where
 
 <:Γ-refl : ∀ {Δ n} {Γ : Ctx Δ n} → Γ <:Γ Γ
 <:Γ-refl {Γ = ∅} = <:-[]
-<:Γ-refl {Γ = B-Used ▻ Γ} = <:-used <:Γ-refl
+<:Γ-refl {Γ = B-Used T ▻ Γ} = <:-used <:Γ-refl
 <:Γ-refl {Γ = B-Lin T ▻ Γ} = <:-lin <:Γ-refl
 <:Γ-refl {Γ = B-Un T ▻ Γ} = <:-un <:Γ-refl
 
@@ -184,22 +195,27 @@ mutual
   → wkNfTy {K′ = K} T₁ <:ₜ wkNfTy T₂
 <:ₜ-wk {K = K} sub = ren-preserves-<:ₜ (weakenᵣ K) sub
 
-<:Γ-wk :
+<:Γ-wk : 
   ∀ {Δ n K} {Γ₁ Γ₂ : Ctx Δ n}
   → Γ₁ <:Γ Γ₂
   → wkCtx {K = K} Γ₁ <:Γ wkCtx Γ₂
 <:Γ-wk <:-[] = <:-[]
 <:Γ-wk (<:-used rel) = <:-used (<:Γ-wk rel)
+<:Γ-wk (<:-sub-used sub rel) = <:-sub-used (<:ₜ-wk sub) (<:Γ-wk rel)
 <:Γ-wk (<:-lin rel) = <:-lin (<:Γ-wk rel)
 <:Γ-wk (<:-sub-lin sub rel) = <:-sub-lin (<:ₜ-wk sub) (<:Γ-wk rel)
 <:Γ-wk (<:-sub-unr sub rel) = <:-sub-unr (<:ₜ-wk sub) (<:Γ-wk rel)
 <:Γ-wk (<:-un rel) = <:-un (<:Γ-wk rel)
 
 used-tail-<:Γ :
-  ∀ {Δ n} {Γ₁ : Ctx Δ (suc n)} {Γ₂ : Ctx Δ n}
-  → Γ₁ <:Γ (used∷ Γ₂)
-  → Σ (Ctx Δ n) λ Γ₁′ → Γ₁ ≡ used∷ Γ₁′ × Γ₁′ <:Γ Γ₂
-used-tail-<:Γ (<:-used rel) = _ , refl , rel
+  ∀ {Δ n pk} {Γ₁ : Ctx Δ (suc n)} {Γ₂ : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)}
+  → Γ₁ <:Γ (used∷ {T = T} Γ₂)
+  → Σ (NfTy Δ (KV pk Lin)) λ T₁ →
+      Σ (Ctx Δ n) λ Γ₁′ →
+        Γ₁ ≡ used∷ {T = T₁} Γ₁′ × Γ₁′ <:Γ Γ₂
+used-tail-<:Γ {Γ₁ = B-Used T ▻ Γ₁} (<:-used rel) = T , Γ₁ , refl , rel
+used-tail-<:Γ {Γ₁ = B-Used T₁ ▻ Γ₁} (<:-sub-used _ rel) = T₁ , Γ₁ , refl , rel
 
 check-subsumption :
   ∀ {Δ n pk m}
@@ -270,6 +286,9 @@ strengthen-∋ᵘ (<:-sub-unr _ rel) (thereᵘᵘ x∈)
 strengthen-∋ᵘ (<:-used rel) (thereᵘ✖ x∈)
   with strengthen-∋ᵘ rel x∈
 ... | T′ , x∈′ , sub = T′ , thereᵘ✖ x∈′ , sub
+strengthen-∋ᵘ (<:-sub-used _ rel) (thereᵘ✖ x∈)
+  with strengthen-∋ᵘ rel x∈
+... | T′ , x∈′ , sub = T′ , thereᵘ✖ x∈′ , sub
 
 strengthen-take :
   ∀ {Δ n pk}
@@ -283,7 +302,7 @@ strengthen-take :
         × (normalTyOf T′ <:ₜ normalTyOf T
         × Γ₃′ <:Γ Γ₃)
 strengthen-take (<:-sub-lin sub rel) take-here =
-  _ , _ , take-here , sub , <:-used rel
+  _ , _ , take-here , sub , <:-sub-used sub rel
 strengthen-take (<:-lin rel) take-here =
   _ , _ , take-here , <:ₜ-refl _ , <:-used rel
 strengthen-take (<:-lin rel) (take-thereˡ take)
@@ -306,6 +325,10 @@ strengthen-take (<:-used rel) (take-there✖ take)
   with strengthen-take rel take
 ... | T′ , Γ₃′ , take′ , sub , rel′ =
   T′ , _ , take-there✖ take′ , sub , <:-used rel′
+strengthen-take (<:-sub-used subh rel) (take-there✖ take)
+  with strengthen-take rel take
+... | T′ , Γ₃′ , take′ , sub , rel′ =
+  T′ , _ , take-there✖ take′ , sub , <:-sub-used subh rel′
 
 strengthen-var-lin :
   ∀ {Δ n pk}
@@ -641,10 +664,21 @@ split-wkCtx-from-rel :
   → Σ (Ctx Δ n) λ Γ′ → (Γw ≡ wkCtx {K = K} Γ′) × (Γ′ <:Γ Γ)
 split-wkCtx-from-rel {Γ = ∅} <:-[] =
   ∅ , refl , <:-[]
-split-wkCtx-from-rel {K = K} {Γ = B-Used ▻ Γ} (<:-used rel)
+split-wkCtx-from-rel {K = K} {Γ = B-Used T ▻ Γ} (<:-used rel)
   with split-wkCtx-from-rel {K = K} {Γ = Γ} rel
 ... | Γ′ , eq , rel′ =
-  (B-Used ▻ Γ′) , cong (λ X → B-Used ▻ X) eq , <:-used rel′
+  (B-Used T ▻ Γ′) ,
+  cong (λ X → B-Used (wkNfTy {K′ = K} T) ▻ X) eq ,
+  <:-used rel′
+split-wkCtx-from-rel
+    {K = K}
+    {Γ = B-Used {pk = pk} T ▻ Γ}
+    (<:-sub-used sub rel)
+  with split-wkTy-from-sub {K = K} sub
+     | split-wkCtx-from-rel {K = K} {Γ = Γ} rel
+... | T′ , eqT , sub′ | Γ′ , eqΓ , rel′
+  rewrite eqT | eqΓ =
+    (B-Used T′ ▻ Γ′) , refl , <:-sub-used sub′ rel′
 split-wkCtx-from-rel {K = K} {Γ = B-Lin T ▻ Γ} (<:-lin rel)
   with split-wkCtx-from-rel {K = K} {Γ = Γ} rel
 ... | Γ′ , eq , rel′ =
@@ -715,12 +749,15 @@ postulate
     → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
          Σ (NfTy Δ TLin) λ V′i →
            Σ (Ctx Δ n) λ Γ₃i →
-             ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′i ⊣ used∷ Γ₃i)
+             ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
+                ⊢ branches i i∈ ⇒ V′i ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃i)
              × (V′i <:ₜ V i i∈)
              × (Γ₃i <:Γ Γ₃))
     → Σ (Ctx Δ n) λ Γ₃′ →
         Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin) λ V′ →
-          (((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′ i i∈ ⊣ used∷ Γ₃′))
+          (((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+              (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
+                ⊢ branches i i∈ ⇒ V′ i i∈ ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′))
           × ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V′ i i∈ <:ₜ V i i∈)
           × (Γ₃′ <:Γ Γ₃)
 
@@ -755,9 +792,15 @@ mutual
   strengthen-value-abs {Γ₁ = Γ₁} rel (TV-Abs {T = T} {U = U} {e = e} d) =
     let U′ , Γbody′ , d′ , U′<:U , relBody =
           strengthen-synth (<:-sub-lin (<:ₜ-refl (normalizeTy T)) rel) d in
-    let Γ₂′ , eqBody , rel₂ = used-tail-<:Γ relBody in
+    let Tused , Γ₂′ , eqBody , rel₂ = used-tail-<:Γ relBody in
+    let eqBody′ :
+          Γbody′ ≡ used∷ {T = normalizeTy T} Γ₂′
+        eqBody′ =
+          trans
+            eqBody
+            (used-head-eq {T₁ = Tused} {T₂ = normalizeTy T} {Γ = Γ₂′}) in
     linArrNf (normalizeTy T) U′ , Γ₂′ ,
-    TV-Abs (subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody d′) ,
+    TV-Abs (subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′) ,
     <:ₜ-arrow (<:ₜ-refl (normalizeTy T)) U′<:U ,
     rel₂
 
@@ -877,12 +920,22 @@ mutual
                      (<:-sub-lin (match-output-subtype i i∈ P′<:P S′<:S) relmid)
                      (bs i i∈)
              in
-             let Γ₃′ , eqUsed , rel₃ = used-tail-<:Γ relout
+             let Tout , Γ₃′ , eqUsed , rel₃ = used-tail-<:Γ relout
+             in
+             let eqUsed′ :
+                   Γout′ ≡ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′
+                 eqUsed′ =
+                   trans
+                     eqUsed
+                     (used-head-eq
+                       {T₁ = Tout}
+                       {T₂ = MatchBranchOutput ssbranches v P′ S′ i i∈}
+                       {Γ = Γ₃′})
              in
              V′i , Γ₃′ ,
              subst
                (λ Γ → (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′i ⊣ Γ)
-               eqUsed
+               eqUsed′
                d′ ,
              V′i<:V ,
              rel₃)
@@ -936,10 +989,18 @@ mutual
     let X′ , Γ₂′ , d₁′ , subPair , rel₂ = strengthen-synth rel d₁ in
     let T′ , U′ , eqPair , T′<:T , U′<:U = pair-subtype-inversion {T = T} {U = U} {X = X′} subPair in
     let V′ , Γbody′ , d₂′ , subV , relBody = strengthen-synth (<:-sub-lin T′<:T (<:-sub-lin U′<:U rel₂)) d₂ in
-    let Γused₁ , eqUsed₁ , relUsed₁ = used-tail-<:Γ relBody in
-    let Γ₃′ , eqUsed₂ , rel₃ = used-tail-<:Γ relUsed₁ in
-    let eqBody : Γbody′ ≡ used∷ (used∷ Γ₃′)
-        eqBody = trans eqUsed₁ (cong used∷ eqUsed₂) in
+    let Tused₁ , Γused₁ , eqUsed₁ , relUsed₁ = used-tail-<:Γ relBody in
+    let Tused₂ , Γ₃′ , eqUsed₂ , rel₃ = used-tail-<:Γ relUsed₁ in
+    let eqBodyRaw : Γbody′ ≡ used∷ {T = Tused₁} (used∷ {T = Tused₂} Γ₃′)
+        eqBodyRaw = trans eqUsed₁ (cong (used∷ {T = Tused₁}) eqUsed₂) in
+    let eqBody : Γbody′ ≡ used∷ {T = T′} (used∷ {T = U′} Γ₃′)
+        eqBody =
+          trans
+            eqBodyRaw
+            (trans
+              (cong (used∷ {T = Tused₁})
+                (used-head-eq {T₁ = Tused₂} {T₂ = U′} {Γ = Γ₃′}))
+              (used-head-eq {T₁ = Tused₁} {T₂ = T′} {Γ = used∷ {T = U′} Γ₃′})) in
     V′ , Γ₃′ ,
     T-LetPair
       (subst (λ X → Γ₁ ⊢ e₁ ⇒ X ⊣ Γ₂′) eqPair d₁′)
@@ -982,10 +1043,13 @@ strengthen-match-branch :
   → P′ <<:ₚ[ v ] P
   → S′ <:ₜ S
   → Γmid′ <:Γ Γmid
-  → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃
+  → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid)
+      ⊢ branches i i∈ ⇒ V i i∈
+      ⊣ used∷ {T = MatchBranchOutput ssbranches v P S i i∈} Γ₃
   → Σ (NfTy Δ TLin) λ V′i →
       Σ (Ctx Δ n) λ Γ₃′ →
-        ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′i ⊣ used∷ Γ₃′)
+        ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
+          ⊢ branches i i∈ ⇒ V′i ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′)
         × (V′i <:ₜ V i i∈)
         × (Γ₃′ <:Γ Γ₃)
 strengthen-match-branch
@@ -1000,12 +1064,22 @@ strengthen-match-branch
           (<:-sub-lin (match-output-subtype i i∈ P′<:P S′<:S) relmid)
           d
   in
-  let Γ₃′ , eqUsed , rel₃ = used-tail-<:Γ relout
+  let Tout , Γ₃′ , eqUsed , rel₃ = used-tail-<:Γ relout
+  in
+  let eqUsed′ :
+        Γout′ ≡ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′
+      eqUsed′ =
+        trans
+          eqUsed
+          (used-head-eq
+            {T₁ = Tout}
+            {T₂ = MatchBranchOutput ssbranches v P′ S′ i i∈}
+            {Γ = Γ₃′})
   in
   V′i , Γ₃′ ,
   subst
     (λ Γ → (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′i ⊣ Γ)
-    eqUsed
+    eqUsed′
     d′ ,
   V′i<:V ,
   rel₃

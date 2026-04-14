@@ -158,6 +158,7 @@ open import ExprContextReduction using
   ; Label-β; Label-Fork; Label-RecvVal; Label-SendVal; Label-SendLab; Label-Close
   ; recvChanNf; sendChanNf; selectInNf; selectOutNf; sessNf
   ; allUsedCtx
+  ; used-head-eq
   ; Ex-β; Ex-Fork; Ex-New; Ex-RecvVal; Ex-RecvLab; Ex-SendVal; Ex-SendLab; Ex-Close
   ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-SendVal; Compat-Select; Compat-Close
   )
@@ -172,17 +173,17 @@ open CTraversal record { fusion = Types.fusion }
 
 extendUsed : ∀ (k : ℕ) {n} → Ctx [] n → Ctx [] (k + n)
 extendUsed zero Γ = Γ
-extendUsed (suc k) Γ = B-Used ▻ extendUsed k Γ
+extendUsed (suc k) Γ = B-Used unitLinNf ▻ extendUsed k Γ
 
 extendUsed-eq :
   ∀ (k : ℕ) {n} (Γ : Ctx [] n) → extendUsed k Γ ≡ extendUsed k Γ
 extendUsed-eq zero Γ = refl
-extendUsed-eq (suc k) Γ = cong (B-Used ▻_) (extendUsed-eq k Γ)
+extendUsed-eq (suc k) Γ = cong (B-Used unitLinNf ▻_) (extendUsed-eq k Γ)
 
 extendUsedCR-eq :
   ∀ (k : ℕ) {n} (Γ : Ctx [] n) → ECR.extendUsed k Γ ≡ extendUsed k Γ
 extendUsedCR-eq zero Γ = refl
-extendUsedCR-eq (suc k) Γ = cong (B-Used ▻_) (extendUsedCR-eq k Γ)
+extendUsedCR-eq (suc k) Γ = cong (B-Used unitLinNf ▻_) (extendUsedCR-eq k Γ)
 
 closeTy-shape :
   normalizeTy {Δ = []} CloseTy
@@ -599,7 +600,7 @@ postulate
       {Γ₀ Γ₁ Γ₂ : Ctx [] n}
       {x : Fin n} {T : NfTy [] (KV pk Lin)}
     → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
-    → ReplaceAt Γ₀ x B-Used Γ₁
+    → ReplaceAt Γ₀ x (B-Used T) Γ₁
     → Γ₁ ≡ Γ₂
 
   take-from-membership :
@@ -658,10 +659,10 @@ postulate
       {e : Expr [] (suc (suc n))}
     → normalTyOf T′ <:ₜ normalTyOf T
     → normalTyOf U′ <:ₜ normalTyOf U
-    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₃)
+    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} Γ₃)
     → Σ (NfTy [] TLin) λ V′ →
         ((T′ ∷ˡ (U′ ∷ˡ Γ₂))
-          ⊢ e ⇒ V′ ⊣ used∷ (used∷ Γ₃))
+          ⊢ e ⇒ V′ ⊣ used∷ {T = T′} (used∷ {T = U′} Γ₃))
         × (normalTyOf V′ <:ₜ normalTyOf V)
 
   weaken-synth2 :
@@ -670,9 +671,9 @@ postulate
       {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Lin)}
       {V : NfTy [] TLin}
       {e : Expr [] (suc (suc n))}
-    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₃)
+    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} Γ₃)
     → (T ∷ˡ (U ∷ˡ extendUsed k Γ₂))
-        ⊢ ES.weakenExprBy2 k e ⇒ V ⊣ used∷ (used∷ (extendUsed k Γ₃))
+        ⊢ ES.weakenExprBy2 k e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} (extendUsed k Γ₃))
 
   substTy-wkCtx-id :
     ∀ {K n} (Γ : Ctx [] n) (U : Ty [] K) → EST.substTyCtx (wkCtx Γ) U ≡ Γ
@@ -800,10 +801,10 @@ letpair-body-pres :
     {e : Expr [] (suc (suc n))}
   → normalTyOf T′ <:ₜ normalTyOf T
   → normalTyOf U′ <:ₜ normalTyOf U
-  → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₃)
+  → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} Γ₃)
   → Σ (NfTy [] TLin) λ V′ →
       ((T′ ∷ˡ (U′ ∷ˡ extendUsed k Γ₂))
-        ⊢ ES.weakenExprBy2 k e ⇒ V′ ⊣ used∷ (used∷ (extendUsed k Γ₃)))
+        ⊢ ES.weakenExprBy2 k e ⇒ V′ ⊣ used∷ {T = T′} (used∷ {T = U′} (extendUsed k Γ₃)))
       × (normalTyOf V′ <:ₜ normalTyOf V)
 letpair-body-pres
   {k = k}
@@ -1101,7 +1102,7 @@ close-compatible :
     {Γ₀ Γ₂ Γin Γv : Ctx [] n}
     {x : Fin n}
     {x∈ : Γ₀ ∋ˡ x ∶ normalizeTy EndLin}
-    {rep : ReplaceAt Γ₀ x B-Used Γ₂}
+    {rep : ReplaceAt Γ₀ x (B-Used (normalizeTy EndLin)) Γ₂}
     {lbl : ExprSemantics.L-Close x ⦂ Γin ⇒ Γv}
   → Extract Γ₀ (ExprSemantics.L-Close x) Γin
   → Compatible (Ctx-Close x∈ rep) lbl
@@ -2470,7 +2471,7 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
     take′ : Γ₀ ⊢ˡ x ∶ normalizeTy EndLin ⊣ Γ₂
     take′ = subst (λ X → Γ₀ ⊢ˡ x ∶ X ⊣ Γ₂) eqU take
 
-    rep : ReplaceAt Γ₀ x B-Used Γ₂
+    rep : ReplaceAt Γ₀ x (B-Used (normalizeTy EndLin)) Γ₂
     rep = take-replace take′
 
     step : Γ₀ —ctx[ ExprSemantics.L-Close x ]→ Γ₂
@@ -2912,6 +2913,41 @@ mutual
     with new-shape vr
   ... | refl , eqT
     rewrite eqT =
+      let
+        sessT = normalizeTy (SessLin S)
+        dualT = dualSessNf (normalizeTy S)
+
+        allUsed-new-eq :
+          allUsedCtx (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
+            ≡
+          extendUsed 2 (allUsedCtx Γ₀)
+        allUsed-new-eq =
+          trans
+            (cong (B-Used sessT ▻_)
+              (used-head-eq {T₁ = dualT} {T₂ = unitLinNf} {Γ = allUsedCtx Γ₀}))
+            (used-head-eq {T₁ = sessT} {T₂ = unitLinNf} {Γ = B-Used unitLinNf ▻ allUsedCtx Γ₀})
+
+        synth-new-eq :
+          (B-Used sessT ▻ (B-Used dualT ▻ Γ₀))
+            ≡
+          extendUsed 2 Γ₀
+        synth-new-eq =
+          trans
+            (cong (B-Used sessT ▻_)
+              (used-head-eq {T₁ = dualT} {T₂ = unitLinNf} {Γ = Γ₀}))
+            (used-head-eq {T₁ = sessT} {T₂ = unitLinNf} {Γ = B-Used unitLinNf ▻ Γ₀})
+
+        synth-new :
+          (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
+            ⊢ E-Val (V-Pair (V-Var fzero) (V-Var (fsuc fzero)))
+            ⇒ pairNf sessT dualT
+            ⊣ (B-Used sessT ▻ (B-Used dualT ▻ Γ₀))
+        synth-new =
+          T-Val
+            (TV-Pair
+              (TV-Var-Lin take-here)
+              (TV-Var-Lin (take-there✖ take-here)))
+      in
       record
         { Gf = allUsedCtx Γ₀
         ; Γ₀′ = Γ₀
@@ -2919,14 +2955,26 @@ mutual
         ; Γ₁′ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
         ; U = pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
         ; src-remove = remove-usedCtx Γ₀
-        ; dst-remove = remove-usedCtx (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
+        ; dst-remove =
+            subst
+              (λ X →
+                RemoveCtx
+                  (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
+                  X
+                  (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
+              allUsed-new-eq
+              (remove-usedCtx (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
         ; ctx-step = Ctx-New
         ; compat = new-compatible ex
         ; synth =
-            T-Val
-              (TV-Pair
-                (TV-Var-Lin take-here)
-                (TV-Var-Lin (take-there✖ take-here)))
+            subst
+              (λ X →
+                (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
+                  ⊢ E-Val (V-Pair (V-Var fzero) (V-Var (fsuc fzero)))
+                  ⇒ pairNf sessT dualT
+                  ⊣ X)
+              synth-new-eq
+              synth-new
         ; subtype =
             let
               pairTy = Ty.T-Pair

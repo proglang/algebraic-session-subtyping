@@ -3,9 +3,11 @@ module ExprSubstitutionPreservation where
 open import Data.Fin using (Fin; zero; suc)
 import Data.Fin.Subset as Subset
 open import Data.List using (_∷_)
-open import Data.Maybe using (just)
+open import Data.Vec using (here; there) renaming ([] to []ᵥ; _∷_ to _∷ᵥ_)
+open import Data.Maybe using (just; nothing)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Data.Nat using (suc)
+open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong; subst)
 
 open import Kinds
@@ -70,6 +72,7 @@ open import ExprContextReduction
     ; compose-merge-remove
     ; compose-merge-remove2
     ; merge-disjoint
+    ; used-head-eq
     )
 open import ExprTypingProperties
   using
@@ -96,9 +99,10 @@ tailSub : ∀ {Δ n m} → Sub Δ (suc n) m → Sub Δ n m
 tailSub σ x = σ (suc x)
 
 used∷-injective :
-  ∀ {Δ n}
+  ∀ {Δ n pk}
+    {T : NfTy Δ (KV pk Lin)}
     {Γ₁ Γ₂ : Ctx Δ n}
-  → used∷ Γ₁ ≡ used∷ Γ₂
+  → used∷ {T = T} Γ₁ ≡ used∷ {T = T} Γ₂
   → Γ₁ ≡ Γ₂
 used∷-injective refl = refl
 
@@ -118,6 +122,23 @@ used∷-injective refl = refl
   → Γ₁ ≡ Γ₂
 ∷ˡ-injective refl = refl
 
+take-input-unique′ :
+  ∀ {Δ n pk₁ pk₂}
+    {Γ₁ Γ₂ Γo : Ctx Δ n}
+    {x : Fin n}
+    {T₁ : NfTy Δ (KV pk₁ Lin)}
+    {T₂ : NfTy Δ (KV pk₂ Lin)}
+  → Γ₁ ⊢ˡ x ∶ T₁ ⊣ Γo
+  → Γ₂ ⊢ˡ x ∶ T₂ ⊣ Γo
+  → Γ₁ ≡ Γ₂
+take-input-unique′ take-here take-here = refl
+take-input-unique′ (take-thereˡ d₁) (take-thereˡ d₂) =
+  cong (B-Lin _ ▻_) (take-input-unique′ d₁ d₂)
+take-input-unique′ (take-thereᵘ d₁) (take-thereᵘ d₂) =
+  cong (B-Un _ ▻_) (take-input-unique′ d₁ d₂)
+take-input-unique′ (take-there✖ d₁) (take-there✖ d₂) =
+  cong (B-Used _ ▻_) (take-input-unique′ d₁ d₂)
+
 take-input-unique :
   ∀ {Δ n pk}
     {Γ₁ Γ₂ Γo : Ctx Δ n}
@@ -126,32 +147,193 @@ take-input-unique :
   → Γ₁ ⊢ˡ x ∶ T ⊣ Γo
   → Γ₂ ⊢ˡ x ∶ T ⊣ Γo
   → Γ₁ ≡ Γ₂
-take-input-unique take-here take-here = refl
-take-input-unique (take-thereˡ d₁) (take-thereˡ d₂) =
-  cong (B-Lin _ ▻_) (take-input-unique d₁ d₂)
-take-input-unique (take-thereᵘ d₁) (take-thereᵘ d₂) =
-  cong (B-Un _ ▻_) (take-input-unique d₁ d₂)
-take-input-unique (take-there✖ d₁) (take-there✖ d₂) =
-  cong (B-Used ▻_) (take-input-unique d₁ d₂)
+take-input-unique = take-input-unique′
 
-postulate
-  synth-input-unique :
-    ∀ {Δ n K}
+take-no-un :
+  ∀ {Δ n pk pk′}
+    {Γ Γ′ : Ctx Δ n}
+    {x : Fin n}
+    {T : NfTy Δ (KV pk Lin)}
+    {U : NfTy Δ (KV pk′ Un)}
+  → Γ ⊢ˡ x ∶ T ⊣ Γ′
+  → Γ′ ∋ᵘ x ∶ U
+  → ⊥
+take-no-un take-here ()
+take-no-un (take-thereˡ take) (thereᵘˡ x∈) = take-no-un take x∈
+take-no-un (take-thereᵘ take) (thereᵘᵘ x∈) = take-no-un take x∈
+take-no-un (take-there✖ take) (thereᵘ✖ x∈) = take-no-un take x∈
+
+nothing≢just :
+  ∀ {a} {A : Set a} {x : A}
+  → nothing ≡ just x
+  → ⊥
+nothing≢just ()
+
+cast-synth-out :
+  ∀ {Δ n K}
+    {Γin Γo₁ Γo₂ : Ctx Δ n}
+    {e : Expr Δ n}
+    {T : NfTy Δ K}
+  → Γin ⊢ e ⇒ T ⊣ Γo₁
+  → Γo₁ ≡ Γo₂
+  → Γin ⊢ e ⇒ T ⊣ Γo₂
+cast-synth-out d eq = subst (λ X → _ ⊢ _ ⇒ _ ⊣ X) eq d
+
+branchjoin⁺-nonempty :
+  ∀ {Δ k}
+    {ss : Subset.Subset k}
+    {V : (i : Fin k) → i Subset.∈ ss → NfTy Δ TLin}
+    {U : NfTy Δ TLin}
+    {sub : (i : Fin k) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+  → BranchJoin⁺ ss V ≡ just (U , sub)
+  → Subset.Nonempty ss
+branchjoin⁺-nonempty {ss = []ᵥ} ()
+branchjoin⁺-nonempty {ss = Subset.inside ∷ᵥ _} _ = zero , here
+branchjoin⁺-nonempty {ss = Subset.outside ∷ᵥ ss} {V = V} eq
+  with BranchJoin⁺ ss (λ i i∈ → V (suc i) (there i∈)) in bj
+... | nothing = ⊥-elim (nothing≢just eq)
+... | just (N , sub′) =
+  let i , i∈ =
+        branchjoin⁺-nonempty
+          {ss = ss}
+          {V = λ i i∈ → V (suc i) (there i∈)}
+          {U = N}
+          {sub = sub′}
+          bj
+  in suc i , there i∈
+
+mutual
+
+  synth-input-unique′ :
+    ∀ {Δ n K₁ K₂}
       {Γ₁ Γ₂ Γo : Ctx Δ n}
       {e : Expr Δ n}
-      {T : NfTy Δ K}
-    → Γ₁ ⊢ e ⇒ T ⊣ Γo
-    → Γ₂ ⊢ e ⇒ T ⊣ Γo
+      {T₁ : NfTy Δ K₁}
+      {T₂ : NfTy Δ K₂}
+    → Γ₁ ⊢ e ⇒ T₁ ⊣ Γo
+    → Γ₂ ⊢ e ⇒ T₂ ⊣ Γo
     → Γ₁ ≡ Γ₂
+  synth-input-unique′ (T-Val d₁) (T-Val d₂) =
+    value-input-unique′ d₁ d₂
+  synth-input-unique′ (T-Pair d₁₁ d₁₂) (T-Pair d₂₁ d₂₂)
+    with synth-input-unique′ d₁₂ d₂₂
+  ... | eqmid rewrite eqmid =
+    synth-input-unique′ d₁₁ d₂₁
+  synth-input-unique′ (T-App d₁₁ d₁₂) (T-App d₂₁ d₂₂)
+    with check-input-unique′ d₁₂ d₂₂
+  ... | eqmid rewrite eqmid =
+    synth-input-unique′ d₁₁ d₂₁
+  synth-input-unique′ (T-LetUnit d₁₁ d₁₂) (T-LetUnit d₂₁ d₂₂)
+    with synth-input-unique′ d₁₂ d₂₂
+  ... | eqmid rewrite eqmid =
+    check-input-unique′ d₁₁ d₂₁
+  synth-input-unique′
+    {Γo = Γo}
+    (T-LetPair {Γ₂ = Γm₁} {T = A₁} {U = B₁} {e₂ = e₂} d₁₁ d₁₂)
+    (T-LetPair {Γ₂ = Γm₂} {T = A₂} {U = B₂} d₂₁ d₂₂)
+    with synth-input-unique′ d₁₂ d₂₂′
+    where
+    eqo :
+      used∷ {T = A₂} (used∷ {T = B₂} Γo)
+        ≡
+      used∷ {T = A₁} (used∷ {T = B₁} Γo)
+    eqo =
+      trans
+        (cong (B-Used A₂ ▻_)
+          (used-head-eq {T₁ = B₂} {T₂ = B₁} {Γ = Γo}))
+        (used-head-eq {T₁ = A₂} {T₂ = A₁} {Γ = B-Used B₁ ▻ Γo})
 
-  check-input-unique :
+    d₂₂′ = cast-synth-out d₂₂ eqo
+  ... | eqbody
+    with cong (λ where (_ ▻ Γ) → Γ) (cong (λ where (_ ▻ Γ) → Γ) eqbody)
+  ... | eqmid rewrite eqmid =
+    synth-input-unique′ d₁₁ d₂₁
+  synth-input-unique′
+    {Γo = Γo}
+    (T-Match {Γ₂ = Γm₁} d₁ bs₁ j₁)
+    (T-Match {Γ₂ = Γm₂} d₂ bs₂ _)
+    with synth-input-unique′ b₁ b₂′
+    where
+    i = proj₁ (branchjoin⁺-nonempty j₁)
+
+    i∈ = proj₂ (branchjoin⁺-nonempty j₁)
+
+    b₁ = bs₁ i i∈
+
+    b₂′ = cast-synth-out (bs₂ i i∈) (used-head-eq {Γ = Γo})
+  ... | eqbranch
+    with cong (λ where (_ ▻ Γ) → Γ) eqbranch
+  ... | eqmid rewrite eqmid =
+    synth-input-unique′ d₁ d₂
+  synth-input-unique′ (T-TApp d₁) (T-TApp d₂) =
+    synth-input-unique′ d₁ d₂
+
+  check-input-unique′ :
     ∀ {Δ n pk m}
       {Γ₁ Γ₂ Γo : Ctx Δ n}
       {e : Expr Δ n}
-      {T : NfTy Δ (KV pk m)}
-    → Γ₁ ⊢ e ⇐ T ⊣ Γo
-    → Γ₂ ⊢ e ⇐ T ⊣ Γo
+      {T₁ T₂ : NfTy Δ (KV pk m)}
+    → Γ₁ ⊢ e ⇐ T₁ ⊣ Γo
+    → Γ₂ ⊢ e ⇐ T₂ ⊣ Γo
     → Γ₁ ≡ Γ₂
+  check-input-unique′ (T-Check d₁ _) (T-Check d₂ _) =
+    synth-input-unique′ d₁ d₂
+
+  value-input-unique′ :
+    ∀ {Δ n K₁ K₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {v : Value Δ n}
+      {T₁ : NfTy Δ K₁}
+      {T₂ : NfTy Δ K₂}
+    → Γ₁ ⊢ᵥ v ⇒ T₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ v ⇒ T₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+  value-input-unique′ (TV-Const _) (TV-Const _) = refl
+  value-input-unique′ (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
+    take-input-unique′ take₁ take₂
+  value-input-unique′ (TV-Var-Lin take) (TV-Var-Un x∈) =
+    ⊥-elim (take-no-un take x∈)
+  value-input-unique′ (TV-Var-Un x∈) (TV-Var-Lin take) =
+    ⊥-elim (take-no-un take x∈)
+  value-input-unique′ (TV-Var-Un _) (TV-Var-Un _) = refl
+  value-input-unique′ (TV-Abs d₁) (TV-Abs d₂)
+    with synth-input-unique′ d₁ d₂
+  ... | eq = ∷ˡ-injective eq
+  value-input-unique′ (TV-Rec d₁) (TV-Rec d₂)
+    with check-input-unique′ d₁ d₂
+  ... | eq = ∷ᵘ-injective eq
+  value-input-unique′ (TV-TAbs d₁) (TV-TAbs d₂) =
+    wkCtx-injective (value-input-unique′ d₁ d₂)
+  value-input-unique′ (TV-Pair d₁₁ d₁₂) (TV-Pair d₂₁ d₂₂)
+    with value-input-unique′ d₁₂ d₂₂
+  ... | eqmid rewrite eqmid =
+    value-input-unique′ d₁₁ d₂₁
+  value-input-unique′ TV-Receive₁ TV-Receive₁ = refl
+  value-input-unique′ TV-Receive₂ TV-Receive₂ = refl
+  value-input-unique′ TV-Send₁ TV-Send₁ = refl
+  value-input-unique′ TV-Send₂ TV-Send₂ = refl
+  value-input-unique′ TV-Select₁ TV-Select₁ = refl
+  value-input-unique′ TV-Select₂ TV-Select₂ = refl
+
+synth-input-unique :
+  ∀ {Δ n K}
+    {Γ₁ Γ₂ Γo : Ctx Δ n}
+    {e : Expr Δ n}
+    {T : NfTy Δ K}
+  → Γ₁ ⊢ e ⇒ T ⊣ Γo
+  → Γ₂ ⊢ e ⇒ T ⊣ Γo
+  → Γ₁ ≡ Γ₂
+synth-input-unique = synth-input-unique′
+
+check-input-unique :
+  ∀ {Δ n pk m}
+    {Γ₁ Γ₂ Γo : Ctx Δ n}
+    {e : Expr Δ n}
+    {T : NfTy Δ (KV pk m)}
+  → Γ₁ ⊢ e ⇐ T ⊣ Γo
+  → Γ₂ ⊢ e ⇐ T ⊣ Γo
+  → Γ₁ ≡ Γ₂
+check-input-unique = check-input-unique′
 
 value-input-unique :
   ∀ {Δ n K}
@@ -161,28 +343,7 @@ value-input-unique :
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γo
   → Γ₂ ⊢ᵥ v ⇒ T ⊣ Γo
   → Γ₁ ≡ Γ₂
-value-input-unique (TV-Const cT₁) (TV-Const cT₂) = refl
-value-input-unique (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
-  take-input-unique take₁ take₂
-value-input-unique (TV-Var-Un x∈₁) (TV-Var-Un x∈₂) = refl
-value-input-unique (TV-Abs d₁) (TV-Abs d₂)
-  with synth-input-unique d₁ d₂
-... | eq = ∷ˡ-injective eq
-value-input-unique (TV-Rec d₁) (TV-Rec d₂)
-  with check-input-unique d₁ d₂
-... | eq = ∷ᵘ-injective eq
-value-input-unique (TV-TAbs d₁) (TV-TAbs d₂) =
-  wkCtx-injective (value-input-unique d₁ d₂)
-value-input-unique (TV-Pair d₁₁ d₁₂) (TV-Pair d₂₁ d₂₂)
-  with value-input-unique d₁₂ d₂₂
-... | eqmid rewrite eqmid =
-  value-input-unique d₁₁ d₂₁
-value-input-unique TV-Receive₁ TV-Receive₁ = refl
-value-input-unique TV-Receive₂ TV-Receive₂ = refl
-value-input-unique TV-Send₁ TV-Send₁ = refl
-value-input-unique TV-Send₂ TV-Send₂ = refl
-value-input-unique TV-Select₁ TV-Select₁ = refl
-value-input-unique TV-Select₂ TV-Select₂ = refl
+value-input-unique = value-input-unique′
 
 infix 4 _⊢σ_∶_⊣_
 
@@ -216,12 +377,13 @@ data _⊢σ_∶_⊣_ {Δ m} (Γt : Ctx Δ m) : ∀ {n} → Sub Δ n m → Ctx Δ
     → Γt ⊢σ σ ∶ (T ∷ᵘ Γ) ⊣ Γo
 
   S-Used :
-    ∀ {n}
+    ∀ {n pk}
       {σ : Sub Δ (suc n) m}
       {Γ : Ctx Δ n}
+      {T : NfTy Δ (KV pk Lin)}
       {Γo : Ctx Δ m}
     → Γt ⊢σ tailSub σ ∶ Γ ⊣ Γo
-    → Γt ⊢σ σ ∶ used∷ Γ ⊣ Γo
+    → Γt ⊢σ σ ∶ used∷ {T = T} Γ ⊣ Γo
 
 
 frame-allUsedCtx :
@@ -229,7 +391,7 @@ frame-allUsedCtx :
 frame-allUsedCtx ∅ = FC-∅
 frame-allUsedCtx (B-Lin T ▻ Γ) = FC-frame (frame-allUsedCtx Γ)
 frame-allUsedCtx (B-Un T ▻ Γ) = FC-un (frame-allUsedCtx Γ)
-frame-allUsedCtx (B-Used ▻ Γ) = FC-allused (frame-allUsedCtx Γ)
+frame-allUsedCtx (B-Used T ▻ Γ) = FC-allused (frame-allUsedCtx Γ)
 
 replay-allUsed-value :
   ∀ {Δ n K}
@@ -353,9 +515,9 @@ wkCtx-allUsedCtx :
     {K : Kind}
   → wkCtx {K = K} (allUsedCtx Γ) ≡ allUsedCtx (wkCtx Γ)
 wkCtx-allUsedCtx {Γ = ∅} = refl
-wkCtx-allUsedCtx {Γ = B-Lin T ▻ Γ} = cong (B-Used ▻_) wkCtx-allUsedCtx
+wkCtx-allUsedCtx {Γ = B-Lin T ▻ Γ} = cong (B-Used (wkNfTy T) ▻_) wkCtx-allUsedCtx
 wkCtx-allUsedCtx {Γ = B-Un T ▻ Γ} = cong (B-Un (wkNfTy T) ▻_) wkCtx-allUsedCtx
-wkCtx-allUsedCtx {Γ = B-Used ▻ Γ} = cong (B-Used ▻_) wkCtx-allUsedCtx
+wkCtx-allUsedCtx {Γ = B-Used T ▻ Γ} = cong (B-Used (wkNfTy T) ▻_) wkCtx-allUsedCtx
 
 wkLinearDisjoint :
   ∀ {Δ n K}
@@ -479,7 +641,7 @@ postulate
       {σ : Sub Δ n m}
       {T : NfTy Δ (KV pk Lin)}
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
-    → (T ∷ˡ Γt) ⊢σ extSub σ ∶ (T ∷ˡ Γs) ⊣ used∷ Γo
+    → (T ∷ˡ Γt) ⊢σ extSub σ ∶ (T ∷ˡ Γs) ⊣ used∷ {T = T} Γo
 
   extSub-preserves-σ-un :
     ∀ {Δ n m pk}
@@ -491,15 +653,16 @@ postulate
     → (T ∷ᵘ Γt) ⊢σ extSub σ ∶ (T ∷ᵘ Γs) ⊣ (T ∷ᵘ Γo)
 
   unextSub-used :
-    ∀ {Δ n m}
+    ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
       {Γtwk Γowk : Ctx Δ (suc m)}
       {σ : Sub Δ n m}
-    → Γtwk ⊢σ extSub σ ∶ used∷ Γs ⊣ Γowk
+      {T : NfTy Δ (KV pk Lin)}
+    → Γtwk ⊢σ extSub σ ∶ used∷ {T = T} Γs ⊣ Γowk
     → Σ (Ctx Δ m) λ Γt →
       Σ (Ctx Δ m) λ Γo →
-        (Γtwk ≡ used∷ Γt)
-        × (Γowk ≡ used∷ Γo)
+        (Γtwk ≡ used∷ {T = T} Γt)
+        × (Γowk ≡ used∷ {T = T} Γo)
         × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
 
   unextSub-un-fixed :
@@ -523,29 +686,31 @@ extSub2-preserves-σ-lin2 :
     {T : NfTy Δ (KV pk Lin)}
     {U : NfTy Δ (KV pk′ Lin)}
   → Γt ⊢σ σ ∶ Γs ⊣ Γo
-  → (T ∷ˡ (U ∷ˡ Γt)) ⊢σ extSub2 σ ∶ (T ∷ˡ (U ∷ˡ Γs)) ⊣ used∷ (used∷ Γo)
+  → (T ∷ˡ (U ∷ˡ Γt)) ⊢σ extSub2 σ ∶ (T ∷ˡ (U ∷ˡ Γs)) ⊣ used∷ {T = T} (used∷ {T = U} Γo)
 extSub2-preserves-σ-lin2 σok =
   extSub-preserves-σ-lin (extSub-preserves-σ-lin σok)
 
 unextSub2-used2 :
-  ∀ {Δ n m}
+  ∀ {Δ n m pk pk′}
     {Γs : Ctx Δ n}
     {Γtwk Γowk : Ctx Δ (suc (suc m))}
     {σ : Sub Δ n m}
-  → Γtwk ⊢σ extSub2 σ ∶ used∷ (used∷ Γs) ⊣ Γowk
+    {T : NfTy Δ (KV pk Lin)}
+    {U : NfTy Δ (KV pk′ Lin)}
+  → Γtwk ⊢σ extSub2 σ ∶ used∷ {T = T} (used∷ {T = U} Γs) ⊣ Γowk
   → Σ (Ctx Δ m) λ Γt →
     Σ (Ctx Δ m) λ Γo →
-      (Γtwk ≡ used∷ (used∷ Γt))
-      × (Γowk ≡ used∷ (used∷ Γo))
+      (Γtwk ≡ used∷ {T = T} (used∷ {T = U} Γt))
+      × (Γowk ≡ used∷ {T = T} (used∷ {T = U} Γo))
       × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
-unextSub2-used2 {Γs = Γs} {Γtwk = Γtwk} {σ = σ} σok
-  with unextSub-used {Γtwk = Γtwk} {σ = extSub σ} σok
+unextSub2-used2 {Γs = Γs} {Γtwk = Γtwk} {σ = σ} {T = T} {U = U} σok
+  with unextSub-used {Γtwk = Γtwk} {σ = extSub σ} {T = T} σok
 ... | Γu , Γou , eq₁ , eqo₁ , σu
-  with unextSub-used {Γtwk = Γu} {σ = σ} σu
+  with unextSub-used {Γtwk = Γu} {σ = σ} {T = U} σu
 ... | Γt , Γo , eq₂ , eqo₂ , σt =
   Γt , Γo ,
-  trans eq₁ (cong used∷ eq₂) ,
-  trans eqo₁ (cong used∷ eqo₂) ,
+  trans eq₁ (cong (used∷ {T = T}) eq₂) ,
+  trans eqo₁ (cong (used∷ {T = T}) eqo₂) ,
   σt
 
 
@@ -614,12 +779,12 @@ subst-next-ctx :
       × allUsedCtx Γt ≡ allUsedCtx Γt′
       × RemoveCtx Γt G′ Γt′
 subst-next-ctx ∅ ∅ ∅ Γt Γo RM-∅ σ (S-∅ x) = Γt , allUsedCtx Γt , (S-∅ x) , refl , rm-allUsed Γt
-subst-next-ctx (B-Lin _ ▻ Γs) (B-Used ▻ G) (B-Lin _ ▻ Γs′) Γt Γo (RM-drop rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs lds dσ₀ auv ⊢σ)
+subst-next-ctx (B-Lin T ▻ Γs) (B-Used T ▻ G) (B-Lin T ▻ Γs′) Γt Γo (RM-drop rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs lds dσ₀ auv ⊢σ)
   with subst-next-ctx Γs G Γs′ Γrest Γo rm (tailSub σ) ⊢σ
 ... | Γt′ , G′ , ⊢σ′ , au-transport , rmg
   with compose-merge-remove2 mcs rmg
 ... | Γt″ , mc , rm  = Γt″ , G′ , S-Lin mc (merge-disjoint mc) dσ₀ auv ⊢σ′ , trans (allUsed-merge mcs) (trans au-transport (sym (allUsed-merge mc))) , rm
-subst-next-ctx (B-Lin _ ▻ Γs) (B-Lin _ ▻ G) (B-Used ▻ Γs′) Γt Γo (RM-lin rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs lds dσ₀ auv ⊢σ)
+subst-next-ctx (B-Lin T ▻ Γs) (B-Lin T ▻ G) (B-Used T ▻ Γs′) Γt Γo (RM-lin rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs lds dσ₀ auv ⊢σ)
   with subst-next-ctx Γs G Γs′ Γrest Γo rm (tailSub σ) ⊢σ
 ... | Γt′ , G′ , ⊢σ′ , au-transport , rmg
   with compose-merge-remove mcs rmg
@@ -627,7 +792,7 @@ subst-next-ctx (B-Lin _ ▻ Γs) (B-Lin _ ▻ G) (B-Used ▻ Γs′) Γt Γo (RM
 subst-next-ctx (B-Un _ ▻ Γs) (B-Un _ ▻ G) (B-Un _ ▻ Γs′) Γt Γo (RM-un rm) σ (S-Un aux ⊢σ)
   with subst-next-ctx Γs G Γs′ Γt Γo rm (tailSub σ) ⊢σ
 ... | Γt′ , G′ , ⊢σ′ , au-transport , rmg rewrite au-transport = Γt′ , G′ , (S-Un aux ⊢σ′) , refl , rmg
-subst-next-ctx (B-Used ▻ Γs) (B-Used ▻ G) (B-Used ▻ Γs′) Γt Γo (RM-allused rm) σ (S-Used ⊢σ)
+subst-next-ctx (B-Used T ▻ Γs) (B-Used T ▻ G) (B-Used T ▻ Γs′) Γt Γo (RM-allused rm) σ (S-Used ⊢σ)
   with subst-next-ctx Γs G Γs′ Γt Γo rm (tailSub σ) ⊢σ
 ... | Γt′ , G′ , ⊢σ′ , au-transport , rmg = Γt′ , G′ , (S-Used ⊢σ′) , au-transport , rmg
 
@@ -760,12 +925,12 @@ mutual
       {T : Ty Δ TLin}
       {e : Expr Δ (suc n)}
       {U : NfTy Δ TLin}
-    → (normalizeTy T ∷ˡ Γs) ⊢ e ⇒ U ⊣ used∷ Γs′
+    → (normalizeTy T ∷ˡ Γs) ⊢ e ⇒ U ⊣ used∷ {T = normalizeTy T} Γs′
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → Σ (Ctx Δ n) λ G →
         RemoveCtx Γs G Γs′ ×
         Σ (Ctx Δ m) λ Γt′ →
-          ((normalizeTy T ∷ˡ Γt) ⊢ substExprWith (extSub σ) e ⇒ U ⊣ used∷ Γt′)
+          ((normalizeTy T ∷ˡ Γt) ⊢ substExprWith (extSub σ) e ⇒ U ⊣ used∷ {T = normalizeTy T} Γt′)
           × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
 
   substσ-preserves-value-abs-body d σok
@@ -815,7 +980,7 @@ mutual
       {e₁ : Expr Δ n}
       {e₂ : Expr Δ (suc (suc n))}
     → Γs ⊢ e₁ ⇒ pairNf T U ⊣ Γmid
-    → (T ∷ˡ (U ∷ˡ Γmid)) ⊢ e₂ ⇒ V ⊣ used∷ (used∷ Γs′)
+    → (T ∷ˡ (U ∷ˡ Γmid)) ⊢ e₂ ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} Γs′)
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → Σ (Ctx Δ n) λ G →
         RemoveCtx Γs G Γs′ ×
@@ -962,7 +1127,9 @@ mutual
       {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
       {sub : (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
     → Γs ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γmid
-    → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γs′)
+    → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+        (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid)
+          ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ {T = MatchBranchOutput ssbranches v P S i i∈} Γs′)
     → BranchJoin⁺ ssbranches V ≡ just (U , sub)
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → Σ (Ctx Δ m) λ Γt′ →
@@ -990,7 +1157,8 @@ mutual
       → (i∈ : i Subset.∈ ssbranches)
       → Σ (Ctx _ _) λ Γti →
           ((MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γt₂)
-            ⊢ substExprWith (extSub σ) (branches i i∈) ⇒ V i i∈ ⊣ used∷ Γti)
+            ⊢ substExprWith (extSub σ) (branches i i∈) ⇒ V i i∈
+            ⊣ used∷ {T = MatchBranchOutput ssbranches v P S i i∈} Γti)
           × (Γti ⊢σ σ ∶ _ ⊣ _)
     branch i i∈
       with substσ-preserves-synth (bs i i∈) (extSub-preserves-σ-lin σmid)
@@ -1003,7 +1171,8 @@ mutual
       (i : Fin _)
       → (i∈ : i Subset.∈ ssbranches)
       → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γt₂)
-          ⊢ substExprWith (extSub σ) (branches i i∈) ⇒ V i i∈ ⊣ used∷ Γt′
+          ⊢ substExprWith (extSub σ) (branches i i∈) ⇒ V i i∈
+          ⊣ used∷ {T = MatchBranchOutput ssbranches v P S i i∈} Γt′
     bs′ i i∈ with branch i i∈
     ... | Γti , di , σoki
       rewrite subst-next-ctx-connect rm₀′ σmid σok′ σoki = di

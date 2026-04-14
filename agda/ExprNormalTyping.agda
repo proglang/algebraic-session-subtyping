@@ -113,7 +113,7 @@ normalizeTy {K = KP} T = nf-normal-proto T
 data Binding (Δ : List Kind) : Set where
   B-Lin  : ∀ {pk} → NfTy Δ (KV pk Lin) → Binding Δ
   B-Un   : ∀ {pk} → NfTy Δ (KV pk Un) → Binding Δ
-  B-Used : Binding Δ
+  B-Used : ∀ {pk} → NfTy Δ (KV pk Lin) → Binding Δ
 
 infixr 5 _▻_
 
@@ -133,8 +133,7 @@ T ∷ⁿˡ Γ = normalizeTy T ∷ˡ Γ
 _∷ⁿᵘ_ : ∀ {n pk} → Ty Δ (KV pk Un) → Ctx Δ n → Ctx Δ (suc n)
 T ∷ⁿᵘ Γ = normalizeTy T ∷ᵘ Γ
 
--- used∷ : ∀ {n} → Ctx Δ n → Ctx Δ (suc n)
-pattern used∷ Γ = B-Used ▻ Γ
+pattern used∷ {T = T} Γ = B-Used T ▻ Γ
 
 wkNfTy : ∀ {K K′} → NfTy Δ K → NfTy (K′ ∷ Δ) K
 wkNfTy = wkNFKind
@@ -142,7 +141,7 @@ wkNfTy = wkNFKind
 wkBinding : ∀ {K} → Binding Δ → Binding (K ∷ Δ)
 wkBinding {K = K} (B-Lin T) = B-Lin (wkNfTy {K′ = K} T)
 wkBinding {K = K} (B-Un T) = B-Un (wkNfTy {K′ = K} T)
-wkBinding B-Used = B-Used
+wkBinding {K = K} (B-Used T) = B-Used (wkNfTy {K′ = K} T)
 
 wkCtx : ∀ {n K} → Ctx Δ n → Ctx (K ∷ Δ) n
 wkCtx ∅ = ∅
@@ -338,9 +337,10 @@ data _∋ˡ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ 
   thereˡᵘ : ∀ {Γ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Un)}
     → Γ ∋ˡ x ∶ T
     → (U ∷ᵘ Γ) ∋ˡ suc x ∶ T
-  thereˡ✖ : ∀ {Γ pk} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
+  thereˡ✖ : ∀ {Γ pk pk′} {x : Fin n}
+      {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
     → Γ ∋ˡ x ∶ T
-    → used∷ Γ ∋ˡ suc x ∶ T
+    → (B-Used U ▻ Γ) ∋ˡ suc x ∶ T
 
 data _∋ᵘ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ (KV pk Un) → Set where
   hereᵘ : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
@@ -351,14 +351,15 @@ data _∋ᵘ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ
   thereᵘᵘ : ∀ {Γ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ (KV pk′ Un)}
     → Γ ∋ᵘ x ∶ T
     → (U ∷ᵘ Γ) ∋ᵘ suc x ∶ T
-  thereᵘ✖ : ∀ {Γ pk} {x : Fin n} {T : NfTy Δ (KV pk Un)}
+  thereᵘ✖ : ∀ {Γ pk pk′} {x : Fin n}
+      {T : NfTy Δ (KV pk Un)} {U : NfTy Δ (KV pk′ Lin)}
     → Γ ∋ᵘ x ∶ T
-    → used∷ Γ ∋ᵘ suc x ∶ T
+    → (B-Used U ▻ Γ) ∋ᵘ suc x ∶ T
 
 mutual
   data _⊢ˡ_∶_⊣_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ (KV pk Lin) → Ctx Δ n → Set where
     take-here : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
-      → (T ∷ˡ Γ) ⊢ˡ zero ∶ T ⊣ used∷ Γ
+      → (T ∷ˡ Γ) ⊢ˡ zero ∶ T ⊣ (B-Used T ▻ Γ)
 
     take-thereˡ : ∀ {Γ Γ′ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
@@ -368,9 +369,10 @@ mutual
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
       → (U ∷ᵘ Γ) ⊢ˡ suc x ∶ T ⊣ (U ∷ᵘ Γ′)
 
-    take-there✖ : ∀ {Γ Γ′ pk} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
+    take-there✖ : ∀ {Γ Γ′ pk pk′} {x : Fin n}
+        {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
-      → used∷ Γ ⊢ˡ suc x ∶ T ⊣ used∷ Γ′
+      → (B-Used U ▻ Γ) ⊢ˡ suc x ∶ T ⊣ (B-Used U ▻ Γ′)
 
   data _⊢ᵥ_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Value Δ n → ∀ {K} → NfTy Δ K → Ctx Δ n → Set where
     TV-Const : ∀ {n} {Γ₁ : Ctx Δ n} {c K} {T : NfTy Δ K}
@@ -386,7 +388,7 @@ mutual
       → Γ₁ ⊢ᵥ V-Var x ⇒ T ⊣ Γ₁
 
     TV-Abs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {U : NfTy Δ TLin} {e : Expr Δ (suc n)}
-      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ U ⊣ used∷ Γ₂
+      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
       → Γ₁ ⊢ᵥ V-Abs T e ⇒ linArrNf (normalizeTy T) U ⊣ Γ₂
 
     TV-Rec : ∀ {n} {Γ₁ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
@@ -453,7 +455,7 @@ mutual
         {T : NfTy Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ Lin)} {V : NfTy Δ TLin}
         {e₁ : Expr Δ n} {e₂ : Expr Δ (suc (suc n))}
       → Γ₁ ⊢ e₁ ⇒ pairNf T U ⊣ Γ₂
-      → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e₂ ⇒ V ⊣ used∷ (used∷ Γ₃)
+      → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e₂ ⇒ V ⊣ (B-Used T ▻ (B-Used U ▻ Γ₃))
       → Γ₁ ⊢ E-LetPair e₁ e₂ ⇒ V ⊣ Γ₃
 
     T-Match : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {k} {e : Expr Δ n}
@@ -464,7 +466,9 @@ mutual
         {V : ∀ i →  i Subset.∈ ssbranches → NfTy Δ TLin}
         {sub : ∀ i → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
       → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
-      → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
+      → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+          (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ₂)
+            ⊢ branches i i∈ ⇒ V i i∈ ⊣ (B-Used (MatchBranchOutput ssbranches v P S i i∈) ▻ Γ₃))
       → BranchJoin⁺ ssbranches V ≡ just (U , sub)
       → Γ₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ₃
 
@@ -491,7 +495,7 @@ abs-inversion :
   ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {e : Expr Δ (suc n)} {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ V-Abs T e ⇒ W ⊣ Γ₂
   → Σ (NfTy Δ TLin) λ U →
-      (W ≡ linArrNf (normalizeTy T) U) × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ used∷ Γ₂)
+      (W ≡ linArrNf (normalizeTy T) U) × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂))
 abs-inversion (TV-Abs {U = U} p) = U , refl , p
 
 pair-inversion :
@@ -583,6 +587,18 @@ unBinding-injective₂ :
   → T₁ ≡ T₂
 unBinding-injective₂ refl = refl
 
+usedBinding-injective :
+  {T₁ : NfTy Δ (KV pk₁ Lin)} {T₂ : NfTy Δ (KV pk₂ Lin)}
+  → Binding.B-Used T₁ ≡ Binding.B-Used T₂
+  → pk₁ ≡ pk₂
+usedBinding-injective refl = refl
+
+usedBinding-injective₂ :
+  {T₁ : NfTy Δ (KV pk Lin)} {T₂ : NfTy Δ (KV pk Lin)}
+  → Binding.B-Used T₁ ≡ Binding.B-Used T₂
+  → T₁ ≡ T₂
+usedBinding-injective₂ refl = refl
+
 wkBinding-injective :
   ∀ {Δ L} {b₁ b₂ : Binding Δ}
   → wkBinding {K = L} b₁ ≡ wkBinding {K = L} b₂
@@ -593,7 +609,9 @@ wkBinding-injective {Δ} {L} {B-Lin T₁} {B-Lin T₂} eq
 wkBinding-injective {Δ} {L} {B-Un T₁} {B-Un T₂} eq
   with unBinding-injective eq
 ... | refl  = cong B-Un (wkNfTy-injective (unBinding-injective₂ eq))
-wkBinding-injective {Δ} {L} {B-Used} {B-Used} eq = refl
+wkBinding-injective {Δ} {L} {B-Used T₁} {B-Used T₂} eq
+  with usedBinding-injective eq
+... | refl = cong B-Used (wkNfTy-injective (usedBinding-injective₂ eq))
 
 wkCtx-injective :
   ∀ {Δ n K} {Γ₁ Γ₂ : Ctx Δ n}

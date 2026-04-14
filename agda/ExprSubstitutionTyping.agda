@@ -46,7 +46,7 @@ substTyNfWith T ϕ = normalizeTy (⌞ T ⌟ ⋯ ϕ)
 substTyBindingWith : ∀ {Δ Δ′} → Binding Δ → Δ →ₛ Δ′ → Binding Δ′
 substTyBindingWith (B-Lin T) ϕ = B-Lin (substTyNfWith T ϕ)
 substTyBindingWith (B-Un T) ϕ = B-Un (substTyNfWith T ϕ)
-substTyBindingWith B-Used ϕ = B-Used
+substTyBindingWith (B-Used T) ϕ = B-Used (substTyNfWith T ϕ)
 
 substTyCtxWith : ∀ {Δ Δ′ n} → Ctx Δ n → Δ →ₛ Δ′ → Ctx Δ′ n
 substTyCtxWith ∅ ϕ = ∅
@@ -112,7 +112,7 @@ postulate
       {V : NfTy (K ∷ Δ) TLin} {e₁ : Expr (K ∷ Δ) n} {e₂ : Expr (K ∷ Δ) (suc (suc n))}
       {W : Ty Δ K}
     → Γ₁ ⊢ e₁ ⇒ pairNf T U ⊣ Γ₂
-    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e₂ ⇒ V ⊣ used∷ (used∷ Γ₃)
+    → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e₂ ⇒ V ⊣ (B-Used T ▻ (B-Used U ▻ Γ₃))
     → substTyCtx Γ₁ W ⊢ E-LetPair (substTyExpr e₁ W) (substTyExpr e₂ W)
          ⇒ substTyNf V W ⊣ substTyCtx Γ₃ W
 
@@ -383,14 +383,14 @@ postulate
       {V : NfTy Δ K}
     → Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂
     → Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃
-    → (T ∷ˡ (U ∷ˡ Γ₃)) ⊢ e ⇒ V ⊣ used∷ (used∷ Γ₄)
+    → (T ∷ˡ (U ∷ˡ Γ₃)) ⊢ e ⇒ V ⊣ (B-Used T ▻ (B-Used U ▻ Γ₄))
     → Γ₁ ⊢ substExpr₂ e u v ⇒ V ⊣ Γ₄
 
   subst-var-preserves-synth :
     ∀ {Δ n K pk} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
       {x : Fin n} {T : NfTy Δ (KV pk Lin)} {e : Expr Δ (Data.Nat.suc n)} {U : NfTy Δ K}
     → Γ₁ ⊢ˡ x ∶ T ⊣ Γ₂
-    → (T ∷ˡ Γ₂) ⊢ e ⇒ U ⊣ used∷ Γ₃
+    → (T ∷ˡ Γ₂) ⊢ e ⇒ U ⊣ (B-Used T ▻ Γ₃)
     → Γ₁ ⊢ substExpr e (V-Var x) ⇒ U ⊣ Γ₃
 
   subst-preserves-check :
@@ -398,7 +398,7 @@ postulate
       {T : Ty Δ TLin} {v : Value Δ n} {e : Expr Δ (Data.Nat.suc n)}
       {U V : NfTy Δ (KV pk m)}
     → Γ₁ ⊢ᵥ v ⇒ normalizeTy T ⊣ Γ₂
-    → (normalizeTy T ∷ˡ Γ₂) ⊢ e ⇐ U ⊣ used∷ Γ₃
+    → (normalizeTy T ∷ˡ Γ₂) ⊢ e ⇐ U ⊣ (B-Used (normalizeTy T) ▻ Γ₃)
     → normalTyOf U <:ₜ normalTyOf V
     → Γ₁ ⊢ substExpr e v ⇐ V ⊣ Γ₃
 
@@ -407,7 +407,7 @@ postulate
       {T : Ty Δ TLin} {v : Value Δ n} {e : Expr Δ (Data.Nat.suc n)}
       {U : NfTy Δ K}
     → Γ₂ ⊢ E-Val v ⇐ normalizeTy T ⊣ Γ₃
-    → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ used∷ Γ₂
+    → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
     → Γ₁ ⊢ substExpr e v ⇒ U ⊣ Γ₃
 
   rec-unfold-preserves-value :
