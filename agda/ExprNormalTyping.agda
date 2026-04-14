@@ -516,14 +516,6 @@ pair-inversion′ :
       (Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃)
 pair-inversion′ (TV-Pair p q) = _ , p , q
 
-postulate
-  pair-expr-inversion :
-    ∀ {Δ n pk₁ pk₂ m} {Γ₁ Γ₃ : Ctx Δ n} {e₁ e₂ : Expr Δ n}
-      {T : NfTy Δ (KV pk₁ m)} {U : NfTy Δ (KV pk₂ m)}
-    → Γ₁ ⊢ E-Pair e₁ e₂ ⇒ pairNf T U ⊣ Γ₃
-    → Σ (Ctx Δ n) λ Γ₂ →
-        (Γ₁ ⊢ e₁ ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ e₂ ⇒ U ⊣ Γ₃)
-
 pair-injective :
   ∀ {Δ pk₁ pk₂ m} {T₁ T₂ : Ty Δ (KV pk₁ m)} {U₁ U₂ : Ty Δ (KV pk₂ m)}
   → T-Pair T₁ U₁ ≡ T-Pair T₂ U₂
