@@ -18,7 +18,7 @@ data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
   AU-used : ∀ {n} {Γ : Ctx Δ n}
     → AllUsed Γ
     → AllUsed (B-Used ▻ Γ)
-  AU-un : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+  AU-un : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → AllUsed Γ
     → AllUsed (B-Un T ▻ Γ)
 
@@ -30,15 +30,15 @@ data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
 data Split {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
   S-∅ : Split ∅ ∅ ∅
 
-  S-Linˡ : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {T : NfTy Δ K}
+  S-Linˡ : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → Split Γ Γ₁ Γ₂
     → Split (B-Lin T ▻ Γ) (B-Lin T ▻ Γ₁) (B-Used ▻ Γ₂)
 
-  S-Linʳ : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {T : NfTy Δ K}
+  S-Linʳ : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → Split Γ Γ₁ Γ₂
     → Split (B-Lin T ▻ Γ) (B-Used ▻ Γ₁) (B-Lin T ▻ Γ₂)
 
-  S-Un : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {T : NfTy Δ K}
+  S-Un : ∀ {n} {Γ Γ₁ Γ₂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → Split Γ Γ₁ Γ₂
     → Split (B-Un T ▻ Γ) (B-Un T ▻ Γ₁) (B-Un T ▻ Γ₂)
 

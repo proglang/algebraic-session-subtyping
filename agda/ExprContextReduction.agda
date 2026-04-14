@@ -30,7 +30,7 @@ data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
   AU-used : ∀ {n} {Γ : Ctx Δ n}
     → AllUsed Γ
     → AllUsed (B-Used ▻ Γ)
-  AU-un : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+  AU-un : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → AllUsed Γ
     → AllUsed (B-Un T ▻ Γ)
 
@@ -55,15 +55,15 @@ data LinearDisjoint {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Set where
     → LinearDisjoint Γ₀ Γ
     → LinearDisjoint (B-Used ▻ Γ₀) (B-Used ▻ Γ)
 
-  LD-used-live : ∀ {n K} {Γ₀ Γ : Ctx Δ n} {T : NfTy Δ K}
+  LD-used-live : ∀ {n pk} {Γ₀ Γ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
     → LinearDisjoint Γ₀ Γ
     → LinearDisjoint (B-Used ▻ Γ₀) (B-Lin T ▻ Γ)
 
-  LD-live-used : ∀ {n K} {Γ₀ Γ : Ctx Δ n} {T : NfTy Δ K}
+  LD-live-used : ∀ {n pk} {Γ₀ Γ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
     → LinearDisjoint Γ₀ Γ
     → LinearDisjoint (B-Lin T ▻ Γ₀) (B-Used ▻ Γ)
 
-  LD-un-un : ∀ {n} {Γ₀ Γ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  LD-un-un : ∀ {n} {Γ₀ Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → LinearDisjoint Γ₀ Γ
     → LinearDisjoint (B-Un T ▻ Γ₀) (B-Un T ▻ Γ)
 
@@ -77,15 +77,15 @@ data MergeCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set wher
     → MergeCtx Γx Γv Γ₁
     → MergeCtx (B-Used ▻ Γx) (B-Used ▻ Γv) (B-Used ▻ Γ₁)
 
-  MC-used-left : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  MC-used-left : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
     → MergeCtx Γx Γv Γ₁
     → MergeCtx (B-Used ▻ Γx) (B-Lin T ▻ Γv) (B-Lin T ▻ Γ₁)
 
-  MC-used-right : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  MC-used-right : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
     → MergeCtx Γx Γv Γ₁
     → MergeCtx (B-Lin T ▻ Γx) (B-Used ▻ Γv) (B-Lin T ▻ Γ₁)
 
-  MC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  MC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Un)}
     → MergeCtx Γx Γv Γ₁
     → MergeCtx (B-Un T ▻ Γx) (B-Un T ▻ Γv) (B-Un T ▻ Γ₁)
 
@@ -113,7 +113,7 @@ mergeDisjointContext {Γ₁ = B-Un T ▻ Γ₁} {Γ₂ = B-Un .T ▻ Γ₂} (LD-
 data RemoveCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
   RM-∅ : RemoveCtx ∅ ∅ ∅
 
-  RM-drop : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  RM-drop : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
     → RemoveCtx Γ₀ Γv Γx
     → RemoveCtx (B-Lin T ▻ Γ₀) (B-Used ▻ Γv) (B-Lin T ▻ Γx)
 
@@ -121,11 +121,11 @@ data RemoveCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set whe
     → RemoveCtx Γ₀ Γv Γx
     → RemoveCtx (B-Used ▻ Γ₀) (B-Used ▻ Γv) (B-Used ▻ Γx)
 
-  RM-lin : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  RM-lin : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
     → RemoveCtx Γ₀ Γv Γx
     → RemoveCtx (B-Lin T ▻ Γ₀) (B-Lin T ▻ Γv) (B-Used ▻ Γx)
 
-  RM-un : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {K : Kind} {T : NfTy Δ K}
+  RM-un : ∀ {n} {Γ₀ Γv Γx : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Un)}
     → RemoveCtx Γ₀ Γv Γx
     → RemoveCtx (B-Un T ▻ Γ₀) (B-Un T ▻ Γv) (B-Un T ▻ Γx)
 
@@ -371,9 +371,9 @@ data ReplaceAt {Δ} : ∀ {n} → Ctx Δ n → Fin n → Binding Δ → Ctx Δ n
     → ReplaceAt (b ▻ Γ) (suc x) b′ (b ▻ Γ′)
 
 replace-preserves-disjoint :
-  ∀ {Δ n K K′}
+  ∀ {Δ n pk pk′}
     {Γ₀ Γ₁ Γf : Ctx Δ n}
-    {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+    {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
   → Γ₀ ∋ˡ x ∶ T
   → LinearDisjoint Γ₀ Γf
   → ReplaceAt Γ₀ x (B-Lin U) Γ₁
@@ -389,9 +389,9 @@ replace-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep) =
   LD-used-live (replace-preserves-disjoint x∈ d rep)
 
 replace-used-preserves-disjoint :
-  ∀ {Δ n K}
+  ∀ {Δ n pk}
     {Γ₀ Γ₁ Γf : Ctx Δ n}
-    {x : Fin n} {T : NfTy Δ K}
+    {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ₀ ∋ˡ x ∶ T
   → LinearDisjoint Γ₀ Γf
   → ReplaceAt Γ₀ x B-Used Γ₁

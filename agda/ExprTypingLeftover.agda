@@ -94,13 +94,15 @@ remove-compose-frame (RM-un r₁) (RM-un r₂)
 ... | G , r , f = (B-Un _ ▻ G) , RM-un r , FC-un f
 
 strip-lin-used :
-  ∀ {Δ n K} {T : NfTy Δ K} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc n)}
+  ∀ {Δ n pk} {T : NfTy Δ (KV pk Lin)} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc n)}
   → RemoveCtx (B-Lin T ▻ Γ₀) G (B-Used ▻ Γ₁)
   → Σ (Ctx Δ n) λ G′ → RemoveCtx Γ₀ G′ Γ₁
 strip-lin-used (RM-lin r) = _ , r
 
 strip-lin-used₂ :
-  ∀ {Δ n K K′} {T : NfTy Δ K} {U : NfTy Δ K′} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc (suc n))}
+  ∀ {Δ n pk pk′}
+    {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
+    {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc (suc n))}
   → RemoveCtx (B-Lin T ▻ (B-Lin U ▻ Γ₀)) G (B-Used ▻ (B-Used ▻ Γ₁))
   → Σ (Ctx Δ n) λ G′ → RemoveCtx Γ₀ G′ Γ₁
 strip-lin-used₂ r with strip-lin-used r
@@ -108,7 +110,7 @@ strip-lin-used₂ r with strip-lin-used r
 ... | G″ , r″ = G″ , r″
 
 strip-un-same :
-  ∀ {Δ n K} {T : NfTy Δ K} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc n)}
+  ∀ {Δ n pk} {T : NfTy Δ (KV pk Un)} {Γ₀ Γ₁ : Ctx Δ n} {G : Ctx Δ (suc n)}
   → RemoveCtx (B-Un T ▻ Γ₀) G (B-Un T ▻ Γ₁)
   → Σ (Ctx Δ n) λ G′ → RemoveCtx Γ₀ G′ Γ₁
 strip-un-same (RM-un r) = _ , r
@@ -128,23 +130,25 @@ used-tail (RM-drop r) = r
 used-tail (RM-allused r) = r
 
 lin-tail :
-  ∀ {Δ n K K′} {Γ₀ Γv Γx : Ctx Δ n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  ∀ {Δ n pk pk′}
+    {Γ₀ Γv Γx : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
   → RemoveCtx (B-Lin T ▻ Γ₀) (B-Lin U ▻ Γv) (B-Used ▻ Γx)
-  → Σ (K ≡ K′) λ where
+  → Σ (pk ≡ pk′) λ where
       refl → (T ≡ U) × RemoveCtx Γ₀ Γv Γx
 lin-tail (RM-lin r) = refl , refl , r
 
 un-tail :
-  ∀ {Δ n K K′ K″} {Γ₀ Γv Γx : Ctx Δ n}
-    {T : NfTy Δ K} {U : NfTy Δ K′} {V : NfTy Δ K″}
+  ∀ {Δ n pk₁ pk₂ pk₃} {Γ₀ Γv Γx : Ctx Δ n}
+    {T : NfTy Δ (KV pk₁ Un)} {U : NfTy Δ (KV pk₂ Un)} {V : NfTy Δ (KV pk₃ Un)}
   → RemoveCtx (B-Un T ▻ Γ₀) (B-Un U ▻ Γv) (B-Un V ▻ Γx)
-  → Σ (K ≡ K′) λ where
-      refl → Σ (K′ ≡ K″) λ where
+  → Σ (pk₁ ≡ pk₂) λ where
+      refl → Σ (pk₂ ≡ pk₃) λ where
         refl → (T ≡ U) × (U ≡ V) × RemoveCtx Γ₀ Γv Γx
 un-tail (RM-un r) = refl , refl , refl , refl , r
 
 un-result :
-  ∀ {Δ n K} {Γ₀ Γ₁ G : Ctx Δ n} {T U : NfTy Δ K}
+  ∀ {Δ n pk} {Γ₀ Γ₁ G : Ctx Δ n} {T U : NfTy Δ (KV pk Un)}
   → T ≡ U
   → RemoveCtx Γ₀ G Γ₁
   → RemoveCtx (B-Un T ▻ Γ₀) (B-Un T ▻ G) (B-Un U ▻ Γ₁)
@@ -176,7 +180,7 @@ strip-wk {K = K} {Γ₀ = B-Un T ▻ Γ₀} {Γ₁ = B-Un U ▻ Γ₁} {G = B-Un
   un-result (wkNfTy-injective {K′ = K} (trans eq₁ eq₂)) r′
 
 leftover-take :
-  ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Γ₀ Γ₁ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₁
   → Σ (Ctx Δ n) λ G → RemoveCtx Γ₀ G Γ₁
 leftover-take take-here = _ , RM-lin (remove-refl _)
@@ -191,7 +195,7 @@ leftover-take (take-there✖ p)
 ... | G , r = _ , RM-allused r
 
 strip-take :
-  ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Γ₀ Γ₁ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₁
   → Σ (Ctx Δ n) λ G →
       Σ (Ctx Δ n) λ G′ →
@@ -239,17 +243,6 @@ postulate
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
           RemoveCtx Γ₀ G Γ₁ × (wkCtx {K = K} G ⊢ᵥ v ⇒ T ⊣ wkCtx G′) × AllUsed G′
-
-  strip-value-send₃-case :
-    ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin} {v : Value Δ n}
-    → Γ₀ ⊢ᵥ Value.V-Send₃ T S v
-        ⇒ sendResultNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
-    → Σ (Ctx Δ n) λ G →
-        Σ (Ctx Δ n) λ G′ →
-          RemoveCtx Γ₀ G Γ₁ ×
-          (G ⊢ᵥ Value.V-Send₃ T S v
-            ⇒ sendResultNf (normalizeTy T) (normalizeTy S) ⊣ G′) ×
-          AllUsed G′
 
   strip-synth :
     ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
@@ -370,9 +363,6 @@ mutual
   strip-value {Γ₀ = Γ₀} TV-Send₂ =
     allUsedCtx Γ₀ , allUsedCtx Γ₀ ,
     remove-allUsedCtx Γ₀ , TV-Send₂ , allUsedCtx-AllUsed Γ₀
-  strip-value d@(TV-Send₃ _)
-    with strip-value-send₃-case d
-  ... | G , G′ , r , d′ , au = G , G′ , r , d′ , au
   strip-value {Γ₀ = Γ₀} TV-Select₁ =
     allUsedCtx Γ₀ , allUsedCtx Γ₀ ,
     remove-allUsedCtx Γ₀ , TV-Select₁ , allUsedCtx-AllUsed Γ₀
@@ -409,7 +399,6 @@ mutual
   leftover-value TV-Receive₂ = _ , remove-refl _
   leftover-value TV-Send₁ = _ , remove-refl _
   leftover-value TV-Send₂ = _ , remove-refl _
-  leftover-value (TV-Send₃ d) = leftover-check d
   leftover-value TV-Select₁ = _ , remove-refl _
   leftover-value TV-Select₂ = _ , remove-refl _
 

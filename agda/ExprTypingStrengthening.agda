@@ -66,15 +66,15 @@ data _<:Γ_ : ∀ {Δ n} (Γ₁ : Ctx Δ n) (Γ₂ : Ctx Δ n) → Set where
     → (B-Used ▻ Γ₁) <:Γ (B-Used ▻ Γ₂)
 
   <:-lin :
-      ∀ {Δ n K}
-      {T : NfTy Δ K}
+      ∀ {Δ n pk}
+      {T : NfTy Δ (KV pk Lin)}
       {Γ₁ Γ₂ : Ctx Δ n}
     → Γ₁ <:Γ Γ₂
     → (B-Lin T ▻ Γ₁) <:Γ (B-Lin T ▻ Γ₂)
 
   <:-sub-lin :
-      ∀ {Δ n pk m}
-      {T₁ T₂ : NfTy Δ (KV pk m)}
+      ∀ {Δ n pk}
+      {T₁ T₂ : NfTy Δ (KV pk Lin)}
       {Γ₁ Γ₂ : Ctx Δ n}
     → T₁ <:ₜ T₂
     → Γ₁ <:Γ Γ₂
@@ -89,8 +89,8 @@ data _<:Γ_ : ∀ {Δ n} (Γ₁ : Ctx Δ n) (Γ₂ : Ctx Δ n) → Set where
     → (B-Un T₁ ▻ Γ₁) <:Γ (B-Un T₂ ▻ Γ₂)
 
   <:-un :
-      ∀ {Δ n K}
-      {T : NfTy Δ K}
+      ∀ {Δ n pk}
+      {T : NfTy Δ (KV pk Un)}
       {Γ₁ Γ₂ : Ctx Δ n}
     → Γ₁ <:Γ Γ₂
     → (B-Un T ▻ Γ₁) <:Γ (B-Un T ▻ Γ₂)
@@ -272,12 +272,12 @@ strengthen-∋ᵘ (<:-used rel) (thereᵘ✖ x∈)
 ... | T′ , x∈′ , sub = T′ , thereᵘ✖ x∈′ , sub
 
 strengthen-take :
-  ∀ {Δ n pk m}
+  ∀ {Δ n pk}
     {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
-    {x : Fin n} {T : NfTy Δ (KV pk m)}
+    {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ₁ <:Γ Γ₂
   → Γ₂ ⊢ˡ x ∶ T ⊣ Γ₃
-  → Σ (NfTy Δ (KV pk m)) λ T′ →
+  → Σ (NfTy Δ (KV pk Lin)) λ T′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ˡ x ∶ T′ ⊣ Γ₃′)
         × (normalTyOf T′ <:ₜ normalTyOf T
@@ -308,12 +308,12 @@ strengthen-take (<:-used rel) (take-there✖ take)
   T′ , _ , take-there✖ take′ , sub , <:-used rel′
 
 strengthen-var-lin :
-  ∀ {Δ n pk m}
+  ∀ {Δ n pk}
     {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
-    {x : Fin n} {T : NfTy Δ (KV pk m)}
+    {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ₁ <:Γ Γ₂
   → Γ₂ ⊢ˡ x ∶ T ⊣ Γ₃
-  → Σ (NfTy Δ (KV pk m)) λ T′ →
+  → Σ (NfTy Δ (KV pk Lin)) λ T′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ᵥ V-Var x ⇒ T′ ⊣ Γ₃′)
         × (normalTyOf T′ <:ₜ normalTyOf T
@@ -340,7 +340,7 @@ strengthen-var-un {Γ₁ = Γ₁} rel x∈
   T′ , Γ₁ , TV-Var-Un x∈′ , sub , rel
 
 take-not-refl :
-  ∀ {Δ n K} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ ⊢ˡ x ∶ T ⊣ Γ′
   → Γ ≡ Γ′
   → ⊥
@@ -353,7 +353,7 @@ take-not-refl (take-there✖ take) eq =
   take-not-refl take (cong (λ where (_ ▻ Γ) → Γ) eq)
 
 take-no-id :
-  ∀ {Δ n K} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Γ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ ⊢ˡ x ∶ T ⊣ Γ
   → ⊥
 take-no-id take = take-not-refl take refl
@@ -371,8 +371,6 @@ strengthen-value-rec :
        ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
        ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
 strengthen-value-rec rel (T-Check (T-Val (TV-Const ())) sub)
-strengthen-value-rec rel (T-Check (T-Val (TV-Var-Lin take)) sub) =
-  ⊥-elim (take-no-id take)
 strengthen-value-rec rel (T-Check (T-Val (TV-Var-Un x∈)) sub)
   with strengthen-∋ᵘ (<:-un rel) x∈
 ... | T′ , x∈′ , sub′ =
@@ -655,7 +653,7 @@ split-wkCtx-from-rel {K = K} {Γ = B-Lin T ▻ Γ} (<:-lin rel)
   <:-lin rel′
 split-wkCtx-from-rel
     {K = K}
-    {Γ = B-Lin {K = KV pk m} T ▻ Γ}
+    {Γ = B-Lin {pk = pk} T ▻ Γ}
     (<:-sub-lin sub rel)
   with split-wkTy-from-sub {K = K} sub
      | split-wkCtx-from-rel {K = K} {Γ = Γ} rel
@@ -664,7 +662,7 @@ split-wkCtx-from-rel
     (B-Lin T′ ▻ Γ′) , refl , <:-sub-lin sub′ rel′
 split-wkCtx-from-rel
     {K = K}
-    {Γ = B-Un {K = KV pk Un} T ▻ Γ}
+    {Γ = B-Un {pk = pk} T ▻ Γ}
     (<:-sub-unr sub rel)
   with split-wkTy-from-sub {K = K} sub
      | split-wkCtx-from-rel {K = K} {Γ = Γ} rel
@@ -821,12 +819,6 @@ mutual
   strengthen-value {Γ₁ = Γ₁} rel TV-Receive₂ = _ , Γ₁ , TV-Receive₂ , <:ₜ-refl _ , rel
   strengthen-value {Γ₁ = Γ₁} rel TV-Send₁ = _ , Γ₁ , TV-Send₁ , <:ₜ-refl _ , rel
   strengthen-value {Γ₁ = Γ₁} rel TV-Send₂ = _ , Γ₁ , TV-Send₂ , <:ₜ-refl _ , rel
-  strengthen-value rel (TV-Send₃ {T = T} {S = S} d) =
-    let Γ₂′ , d′ , rel′ = strengthen-check rel d in
-    sendResultNf (normalizeTy T) (normalizeTy S) , Γ₂′ ,
-    TV-Send₃ d′ ,
-    <:ₜ-refl _ ,
-    rel′
   strengthen-value {Γ₁ = Γ₁} rel TV-Select₁ = _ , Γ₁ , TV-Select₁ , <:ₜ-refl _ , rel
   strengthen-value {Γ₁ = Γ₁} rel TV-Select₂ = _ , Γ₁ , TV-Select₂ , <:ₜ-refl _ , rel
 

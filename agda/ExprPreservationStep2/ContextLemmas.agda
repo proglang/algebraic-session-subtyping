@@ -91,9 +91,9 @@ usedCtx-allUsed ∅ = AU-∅
 usedCtx-allUsed (_ ▻ Γ) = AU-used (usedCtx-allUsed Γ)
 
 take-replace :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ Γ₁ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K}
+    {x : Fin n} {T : NfTy [] (KV pk Lin)}
   → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₁
   → ReplaceAt Γ₀ x B-Used Γ₁
 take-replace take-here = ExprContextReduction.R-here
@@ -102,9 +102,9 @@ take-replace (take-thereᵘ take) = ExprContextReduction.R-there (take-replace t
 take-replace (take-there✖ take) = ExprContextReduction.R-there (take-replace take)
 
 take-replace-lin :
-  ∀ {n K K′}
+  ∀ {n pk pk′}
     {Γ₀ Γ₂ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K} {U : NfTy [] K′}
+    {x : Fin n} {T : NfTy [] (KV pk Lin)} {U : NfTy [] (KV pk′ Lin)}
   → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
   → Σ (Ctx [] n) λ Γ₁ → ReplaceAt Γ₀ x (B-Lin U) Γ₁
 take-replace-lin {U = U} (take-here {Γ = Γ}) =
@@ -120,10 +120,10 @@ take-replace-lin {U = U} (take-there✖ take)
 ... | Γ₁ , rep = used∷ Γ₁ , ExprContextReduction.R-there rep
 
 allUsedCtx-take :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ Γ₁ : Ctx [] n}
     {x : Fin n}
-    {T : NfTy [] K}
+    {T : NfTy [] (KV pk Lin)}
   → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₁
   → allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
 allUsedCtx-take take-here = refl
@@ -150,9 +150,9 @@ allUsedCtx-remove (RM-un r)
   rewrite allUsedCtx-remove r = refl
 
 allUsedCtx-replace-lin :
-  ∀ {n K K′}
+  ∀ {n pk pk′}
     {Γ₀ Γ₁ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K} {U : NfTy [] K′}
+    {x : Fin n} {T : NfTy [] (KV pk Lin)} {U : NfTy [] (KV pk′ Lin)}
   → Γ₀ ∋ˡ x ∶ T
   → ReplaceAt Γ₀ x (B-Lin U) Γ₁
   → allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
@@ -200,9 +200,9 @@ remove-disjoint (RM-lin r) (LD-live-used ld) = LD-used-used (remove-disjoint r l
 remove-disjoint (RM-un r) (LD-un-un ld) = LD-un-un (remove-disjoint r ld)
 
 remove-membership :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ G Γ₂ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K}
+    {x : Fin n} {T : NfTy [] (KV pk Lin)}
   → RemoveCtx Γ₀ G Γ₂
   → Γ₂ ∋ˡ x ∶ T
   → Γ₀ ∋ˡ x ∶ T
@@ -226,9 +226,9 @@ remove-membership-un (RM-un r) (thereᵘᵘ x∈) = thereᵘᵘ (remove-membersh
 remove-membership-un (RM-allused r) (thereᵘ✖ x∈) = thereᵘ✖ (remove-membership-un r x∈)
 
 lin-un-disjoint :
-  ∀ {n K pk}
+  ∀ {n pk₁ pk₂}
     {Γ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K} {U : NfTy [] (KV pk Un)}
+    {x : Fin n} {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Un)}
   → Γ ∋ˡ x ∶ T
   → Γ ∋ᵘ x ∶ U
   → ⊥
@@ -238,9 +238,9 @@ lin-un-disjoint (thereˡᵘ x∈) (thereᵘᵘ x∈′) = lin-un-disjoint x∈ x
 lin-un-disjoint (thereˡ✖ x∈) (thereᵘ✖ x∈′) = lin-un-disjoint x∈ x∈′
 
 extract-membership :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ G Γr : Ctx [] n}
-    {x : Fin n} {T : NfTy [] K}
+    {x : Fin n} {T : NfTy [] (KV pk Lin)}
   → RemoveCtx Γ₀ G Γr
   → G ∋ˡ x ∶ T
   → Γ₀ ∋ˡ x ∶ T

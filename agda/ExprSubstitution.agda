@@ -43,7 +43,6 @@ mutual
   renameValue ρ (V-Receive₂ T S) = V-Receive₂ T S
   renameValue ρ (V-Send₁ T) = V-Send₁ T
   renameValue ρ (V-Send₂ T S) = V-Send₂ T S
-  renameValue ρ (V-Send₃ T S v) = V-Send₃ T S (renameValue ρ v)
   renameValue ρ (V-Select₁ v i P) = V-Select₁ v i P
   renameValue ρ (V-Select₂ v i P S) = V-Select₂ v i P S
 
@@ -80,7 +79,6 @@ mutual
   renTyValue ϕ (V-Receive₂ T S) = V-Receive₂ (T ⋯ ϕ) (S ⋯ ϕ)
   renTyValue ϕ (V-Send₁ T) = V-Send₁ (T ⋯ ϕ)
   renTyValue ϕ (V-Send₂ T S) = V-Send₂ (T ⋯ ϕ) (S ⋯ ϕ)
-  renTyValue ϕ (V-Send₃ T S v) = V-Send₃ (T ⋯ ϕ) (S ⋯ ϕ) (renTyValue ϕ v)
   renTyValue ϕ (V-Select₁ v i P) = V-Select₁ v i (P ⋯ ϕ)
   renTyValue ϕ (V-Select₂ v i P S) = V-Select₂ v i (P ⋯ ϕ) (S ⋯ ϕ)
 
@@ -132,7 +130,6 @@ mutual
   substValueWith σ (V-Receive₂ T S) = V-Receive₂ T S
   substValueWith σ (V-Send₁ T) = V-Send₁ T
   substValueWith σ (V-Send₂ T S) = V-Send₂ T S
-  substValueWith σ (V-Send₃ T S v) = V-Send₃ T S (substValueWith σ v)
   substValueWith σ (V-Select₁ v i P) = V-Select₁ v i P
   substValueWith σ (V-Select₂ v i P S) = V-Select₂ v i P S
 
@@ -175,7 +172,6 @@ mutual
   substTyValueWith ϕ (V-Receive₂ T S) = V-Receive₂ (T ⋯ ϕ) (S ⋯ ϕ)
   substTyValueWith ϕ (V-Send₁ T) = V-Send₁ (T ⋯ ϕ)
   substTyValueWith ϕ (V-Send₂ T S) = V-Send₂ (T ⋯ ϕ) (S ⋯ ϕ)
-  substTyValueWith ϕ (V-Send₃ T S v) = V-Send₃ (T ⋯ ϕ) (S ⋯ ϕ) (substTyValueWith ϕ v)
   substTyValueWith ϕ (V-Select₁ v i P) = V-Select₁ v i (P ⋯ ϕ)
   substTyValueWith ϕ (V-Select₂ v i P S) = V-Select₂ v i (P ⋯ ϕ) (S ⋯ ϕ)
 

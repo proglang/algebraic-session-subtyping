@@ -111,8 +111,8 @@ normalizeTy {K = KV pk m} T = nf-normal-type ⊕ d?⊥ T
 normalizeTy {K = KP} T = nf-normal-proto T
 
 data Binding (Δ : List Kind) : Set where
-  B-Lin  : ∀ {K} → NfTy Δ K → Binding Δ
-  B-Un   : ∀ {K} → NfTy Δ K → Binding Δ
+  B-Lin  : ∀ {pk} → NfTy Δ (KV pk Lin) → Binding Δ
+  B-Un   : ∀ {pk} → NfTy Δ (KV pk Un) → Binding Δ
   B-Used : Binding Δ
 
 infixr 5 _▻_
@@ -121,20 +121,20 @@ data Ctx (Δ : List Kind) : ℕ → Set where
   ∅   : Ctx Δ 0
   _▻_ : ∀ {n} → Binding Δ → Ctx Δ n → Ctx Δ (suc n)
 
-_∷ˡ_ : ∀ {n K} → NfTy Δ K → Ctx Δ n → Ctx Δ (suc n)
+_∷ˡ_ : ∀ {n pk} → NfTy Δ (KV pk Lin) → Ctx Δ n → Ctx Δ (suc n)
 T ∷ˡ Γ = B-Lin T ▻ Γ
 
-_∷ᵘ_ : ∀ {n K} → NfTy Δ K → Ctx Δ n → Ctx Δ (suc n)
+_∷ᵘ_ : ∀ {n pk} → NfTy Δ (KV pk Un) → Ctx Δ n → Ctx Δ (suc n)
 T ∷ᵘ Γ = B-Un T ▻ Γ
 
-_∷ⁿˡ_ : ∀ {n K} → Ty Δ K → Ctx Δ n → Ctx Δ (suc n)
+_∷ⁿˡ_ : ∀ {n pk} → Ty Δ (KV pk Lin) → Ctx Δ n → Ctx Δ (suc n)
 T ∷ⁿˡ Γ = normalizeTy T ∷ˡ Γ
 
-_∷ⁿᵘ_ : ∀ {n K} → Ty Δ K → Ctx Δ n → Ctx Δ (suc n)
+_∷ⁿᵘ_ : ∀ {n pk} → Ty Δ (KV pk Un) → Ctx Δ n → Ctx Δ (suc n)
 T ∷ⁿᵘ Γ = normalizeTy T ∷ᵘ Γ
 
-used∷ : ∀ {n} → Ctx Δ n → Ctx Δ (suc n)
-used∷ Γ = B-Used ▻ Γ
+-- used∷ : ∀ {n} → Ctx Δ n → Ctx Δ (suc n)
+pattern used∷ Γ = B-Used ▻ Γ
 
 wkNfTy : ∀ {K K′} → NfTy Δ K → NfTy (K′ ∷ Δ) K
 wkNfTy = wkNFKind
@@ -199,8 +199,9 @@ ReceiveTy1 T = T-Poly SLin
   (ReceiveTy (wkTy {K′ = SLin} T) (T-Var (here refl)))
 
 SendTy : Ty Δ TLin → Ty Δ SLin → Ty Δ TLin
-SendTy T S = LinArr T
-  (LinArr (SessLin (T-Msg ⊕ (T-Up T) S)) (SessLin S))
+SendTy T S = LinArr
+  (T-Pair T (SessLin (T-Msg ⊕ (T-Up T) S)))
+  (SessLin S)
 
 SendTy1 : Ty Δ TLin → Ty Δ TLin
 SendTy1 T = T-Poly SLin
@@ -244,13 +245,13 @@ receiveConstNf =
   polyNf {K = TLin} (receive1Nf (N-Var (NV-Var (here refl))))
 
 sendResultNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
-sendResultNf T S =
-  linArrNf
-    (sessTyNf (msgNF ⊕ (N-Normal (N-Up T)) S))
-    (sessTyNf S)
+sendResultNf T S = sessTyNf S
 
 sendNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
-sendNf T S = linArrNf T (sendResultNf T S)
+sendNf T S =
+  linArrNf
+    (pairNf T (sessTyNf (msgNF ⊕ (N-Normal (N-Up T)) S)))
+    (sessTyNf S)
 
 send1Nf : NfTy Δ TLin → NfTy Δ TLin
 send1Nf {Δ = Δ} T =
@@ -328,26 +329,26 @@ data ConstTy {Δ} : Const → ∀ {K} → NfTy Δ K → Set where
 
 infix 4 _∋ˡ_∶_ _∋ᵘ_∶_ _⊢ˡ_∶_⊣_ _⊢ᵥ_⇒_⊣_ _⊢_⇒_⊣_ _⊢_⇐_⊣_
 
-data _∋ˡ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {K} → NfTy Δ K → Set where
-  hereˡ : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+data _∋ˡ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ (KV pk Lin) → Set where
+  hereˡ : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
     → (T ∷ˡ Γ) ∋ˡ zero ∶ T
-  thereˡˡ : ∀ {Γ K K′} {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  thereˡˡ : ∀ {Γ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
     → Γ ∋ˡ x ∶ T
     → (U ∷ˡ Γ) ∋ˡ suc x ∶ T
-  thereˡᵘ : ∀ {Γ K K′} {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+  thereˡᵘ : ∀ {Γ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Un)}
     → Γ ∋ˡ x ∶ T
     → (U ∷ᵘ Γ) ∋ˡ suc x ∶ T
-  thereˡ✖ : ∀ {Γ K} {x : Fin n} {T : NfTy Δ K}
+  thereˡ✖ : ∀ {Γ pk} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
     → Γ ∋ˡ x ∶ T
     → used∷ Γ ∋ˡ suc x ∶ T
 
 data _∋ᵘ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ (KV pk Un) → Set where
   hereᵘ : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → (T ∷ᵘ Γ) ∋ᵘ zero ∶ T
-  thereᵘˡ : ∀ {Γ pk K′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ K′}
+  thereᵘˡ : ∀ {Γ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ (KV pk′ Lin)}
     → Γ ∋ᵘ x ∶ T
     → (U ∷ˡ Γ) ∋ᵘ suc x ∶ T
-  thereᵘᵘ : ∀ {Γ pk K′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ K′}
+  thereᵘᵘ : ∀ {Γ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Un)} {U : NfTy Δ (KV pk′ Un)}
     → Γ ∋ᵘ x ∶ T
     → (U ∷ᵘ Γ) ∋ᵘ suc x ∶ T
   thereᵘ✖ : ∀ {Γ pk} {x : Fin n} {T : NfTy Δ (KV pk Un)}
@@ -355,19 +356,19 @@ data _∋ᵘ_∶_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ
     → used∷ Γ ∋ᵘ suc x ∶ T
 
 mutual
-  data _⊢ˡ_∶_⊣_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {K} → NfTy Δ K → Ctx Δ n → Set where
-    take-here : ∀ {n} {Γ : Ctx Δ n} {K} {T : NfTy Δ K}
+  data _⊢ˡ_∶_⊣_ {Δ} : ∀ {n} → Ctx Δ n → Fin n → ∀ {pk} → NfTy Δ (KV pk Lin) → Ctx Δ n → Set where
+    take-here : ∀ {n} {Γ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
       → (T ∷ˡ Γ) ⊢ˡ zero ∶ T ⊣ used∷ Γ
 
-    take-thereˡ : ∀ {Γ Γ′ K K′} {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+    take-thereˡ : ∀ {Γ Γ′ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Lin)}
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
       → (U ∷ˡ Γ) ⊢ˡ suc x ∶ T ⊣ (U ∷ˡ Γ′)
 
-    take-thereᵘ : ∀ {Γ Γ′ K K′} {x : Fin n} {T : NfTy Δ K} {U : NfTy Δ K′}
+    take-thereᵘ : ∀ {Γ Γ′ pk pk′} {x : Fin n} {T : NfTy Δ (KV pk Lin)} {U : NfTy Δ (KV pk′ Un)}
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
       → (U ∷ᵘ Γ) ⊢ˡ suc x ∶ T ⊣ (U ∷ᵘ Γ′)
 
-    take-there✖ : ∀ {Γ Γ′ K} {x : Fin n} {T : NfTy Δ K}
+    take-there✖ : ∀ {Γ Γ′ pk} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
       → used∷ Γ ⊢ˡ suc x ∶ T ⊣ used∷ Γ′
 
@@ -376,7 +377,7 @@ mutual
       → ConstTy c T
       → Γ₁ ⊢ᵥ V-Const c ⇒ T ⊣ Γ₁
 
-    TV-Var-Lin : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K} {x : Fin n} {T : NfTy Δ K}
+    TV-Var-Lin : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {pk} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
       → Γ₁ ⊢ˡ x ∶ T ⊣ Γ₂
       → Γ₁ ⊢ᵥ V-Var x ⇒ T ⊣ Γ₂
 
@@ -417,10 +418,6 @@ mutual
 
     TV-Send₂ : ∀ {n} {Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin}
       → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ sendNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
-
-    TV-Send₃ : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin} {v : Value Δ n}
-      → Γ₁ ⊢ E-Val v ⇐ normalizeTy T ⊣ Γ₂
-      → Γ₁ ⊢ᵥ V-Send₃ T S v ⇒ sendResultNf (normalizeTy T) (normalizeTy S) ⊣ Γ₂
 
     TV-Select₁ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP}
       → Γ₁ ⊢ᵥ V-Select₁ v i P ⇒ select1Nf v i (normalizeTy P) ⊣ Γ₁
@@ -562,16 +559,28 @@ wkNfTy-injective {K = K} {K′ = K′} {T = T} {U = U} eq =
         (sym (wkNFKind-sound {K′ = K′} T))
         (trans (cong ⌞_⌟ eq) (wkNFKind-sound {K′ = K′} U))))
 
-linBinding-injective : {T₁ : NfTy Δ K₁}{T₂ : NfTy Δ K₂} → Binding.B-Lin T₁ ≡ Binding.B-Lin T₂ → K₁ ≡ K₂
+linBinding-injective :
+  {T₁ : NfTy Δ (KV pk₁ Lin)} {T₂ : NfTy Δ (KV pk₂ Lin)}
+  → Binding.B-Lin T₁ ≡ Binding.B-Lin T₂
+  → pk₁ ≡ pk₂
 linBinding-injective refl = refl
 
-linBinding-injective₂ : {T₁ : NfTy Δ K}{T₂ : NfTy Δ K} → Binding.B-Lin T₁ ≡ Binding.B-Lin T₂ → T₁ ≡ T₂
+linBinding-injective₂ :
+  {T₁ : NfTy Δ (KV pk Lin)} {T₂ : NfTy Δ (KV pk Lin)}
+  → Binding.B-Lin T₁ ≡ Binding.B-Lin T₂
+  → T₁ ≡ T₂
 linBinding-injective₂ refl = refl
 
-unBinding-injective : {T₁ : NfTy Δ K₁}{T₂ : NfTy Δ K₂} → Binding.B-Un T₁ ≡ Binding.B-Un T₂ → K₁ ≡ K₂
+unBinding-injective :
+  {T₁ : NfTy Δ (KV pk₁ Un)} {T₂ : NfTy Δ (KV pk₂ Un)}
+  → Binding.B-Un T₁ ≡ Binding.B-Un T₂
+  → pk₁ ≡ pk₂
 unBinding-injective refl = refl
 
-unBinding-injective₂ : {T₁ : NfTy Δ K}{T₂ : NfTy Δ K} → Binding.B-Un T₁ ≡ Binding.B-Un T₂ → T₁ ≡ T₂
+unBinding-injective₂ :
+  {T₁ : NfTy Δ (KV pk Un)} {T₂ : NfTy Δ (KV pk Un)}
+  → Binding.B-Un T₁ ≡ Binding.B-Un T₂
+  → T₁ ≡ T₂
 unBinding-injective₂ refl = refl
 
 wkBinding-injective :

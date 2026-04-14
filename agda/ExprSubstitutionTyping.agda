@@ -29,7 +29,7 @@ open import ExprSyntax using
   ( Expr; Value; E-App; E-LetPair; E-TApp; E-Val
   ; V-Abs; V-Rec; V-TAbs; V-Var
   ; V-Receive₁; V-Receive₂
-  ; V-Send₁; V-Send₂; V-Send₃
+  ; V-Send₁; V-Send₂
   ; V-Select₁; V-Select₂
   ; C-Select
   )
@@ -71,7 +71,7 @@ substTy-preserves-∋ᵘ (thereᵘᵘ p) = thereᵘᵘ (substTy-preserves-∋ᵘ
 substTy-preserves-∋ᵘ (thereᵘ✖ p) = thereᵘ✖ (substTy-preserves-∋ᵘ p)
 
 substTy-preserves-⊢ˡ :
-  ∀ {Δ n K K′} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n} {x : Fin n} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
+  ∀ {Δ n K pk} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n} {x : Fin n} {T : NfTy (K ∷ Δ) (KV pk Lin)} {U : Ty Δ K}
   → Γ₁ ⊢ˡ x ∶ T ⊣ Γ₂
   → substTyCtx Γ₁ U ⊢ˡ x ∶ substTyNf T U ⊣ substTyCtx Γ₂ U
 substTy-preserves-⊢ˡ take-here = take-here
@@ -387,8 +387,8 @@ postulate
     → Γ₁ ⊢ substExpr₂ e u v ⇒ V ⊣ Γ₄
 
   subst-var-preserves-synth :
-    ∀ {Δ n K L} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
-      {x : Fin n} {T : NfTy Δ L} {e : Expr Δ (Data.Nat.suc n)} {U : NfTy Δ K}
+    ∀ {Δ n K pk} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
+      {x : Fin n} {T : NfTy Δ (KV pk Lin)} {e : Expr Δ (Data.Nat.suc n)} {U : NfTy Δ K}
     → Γ₁ ⊢ˡ x ∶ T ⊣ Γ₂
     → (T ∷ˡ Γ₂) ⊢ e ⇒ U ⊣ used∷ Γ₃
     → Γ₁ ⊢ substExpr e (V-Var x) ⇒ U ⊣ Γ₃

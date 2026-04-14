@@ -103,8 +103,8 @@ open import TypesProtocolConstructors using
   ; joinUsage
   ; composeUsage
   )
-open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-LetPair; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Send₃; V-Select₁; V-Select₂; C-New; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
-open import ExprSemantics using (Label; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send₃; Act-Send; Act-Sel; Act-Select₁; Act-Select₂; Act-Close; Act-AppL; Act-AppR; Act-TAppE; Act-PairL; Act-PairR; Act-MatchE; Act-LetPairE; Act-LetUnitE; _—[_]→_)
+open import ExprSyntax using (Expr; Value; Const; E-Val; E-LetUnit; E-LetPair; E-Pair; E-App; E-TApp; V-Const; V-Var; V-Pair; V-Receive₁; V-Receive₂; V-Send₁; V-Send₂; V-Select₁; V-Select₂; C-New; C-Receive; C-Send; C-Select; C-Close; C-Fork; C-Unit)
+open import ExprSemantics using (Label; Act-App; Act-TApp; Act-LetPair; Act-LetUnit; Act-PairV; Act-Rec; Act-Fork; Act-New; Act-Receive₁; Act-Receive₂; Act-Rcv; Act-Send₁; Act-Send₂; Act-Send; Act-Sel; Act-Select₁; Act-Select₂; Act-Close; Act-AppL; Act-AppR; Act-TAppE; Act-PairL; Act-PairR; Act-MatchE; Act-LetPairE; Act-LetUnitE; _—[_]→_)
 import ExprSemantics as ES
 open import ExprNormalTyping
 open import NormalTypesSubstitution using
@@ -298,17 +298,6 @@ receive₂-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr
   with linArrNf-injective eqRecv
 ... | eqA , eqR = refl , (eqA , eqR)
 
-send₃-shape :
-  ∀ {n}
-    {Γ₁ Γ₂ : Ctx [] n}
-    {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
-    {v : Value [] n} {A R : NfTy [] TLin}
-  → Γ₁ ⊢ᵥ V-Send₃ Tᵣ Sᵣ v ⇒ linArrNf A R ⊣ Γ₂
-  → (Γ₁ ⊢ E-Val v ⇐ normalizeTy Tᵣ ⊣ Γ₂)
-    × ((A ≡ sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ))
-    × (R ≡ sessNf (normalizeTy Sᵣ)))
-send₃-shape (TV-Send₃ dv) = dv , refl , refl
-
 wkNfTy-normalizeTy-subst-raw-local :
   ∀ {K Kₚ} {P : Ty [] Kₚ} {U : Ty [] K}
   → ⌞ wkNfTy {K′ = K} (normalizeTy P) ⌟ ⋯ ⦅ ⌞ normalizeTy U ⌟ ⦆ₛ
@@ -443,8 +432,8 @@ sendTy2-shape-local :
 sendTy2-shape-local {T} {S} =
   nfTyEq
     (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
-      refl
-      (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
+      (cong₂ Ty.T-Pair
+        refl
         (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
           (cong₂ (Ty.T-Msg Duality.⊕)
             refl
@@ -454,15 +443,15 @@ sendTy2-shape-local {T} {S} =
                   Duality.⊕
                   (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
                   S))
-              (sessionNfEq-local {S = S}))))
-        (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-          (trans
-            (nfTyTy-fromNormalTy
-              (Types.nf-normal-type
-                Duality.⊕
-                (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-                S))
-            (sessionNfEq-local {S = S})))))
+              (sessionNfEq-local {S = S})))))
+      (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
+        (trans
+          (nfTyTy-fromNormalTy
+            (Types.nf-normal-type
+              Duality.⊕
+              (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+              S))
+          (sessionNfEq-local {S = S}))))
 
 send₁-shapeNF-local :
   ∀ {T : Ty [] TLin}
@@ -522,9 +511,8 @@ send₂-shape :
     {A R : NfTy [] TLin}
   → Γ₁ ⊢ᵥ V-Send₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γ₂
   → (Γ₁ ≡ Γ₂)
-    × ((A ≡ normalizeTy Tᵣ)
-    × (R ≡ linArrNf (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ))
-             (sessNf (normalizeTy Sᵣ))))
+    × ((A ≡ pairNf (normalizeTy Tᵣ) (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
+    × (R ≡ sessNf (normalizeTy Sᵣ)))
 send₂-shape TV-Send₂ = refl , (refl , refl)
 
 postulate
@@ -599,39 +587,39 @@ postulate
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γx
 
   replace-take :
-    ∀ {n K}
+    ∀ {n pk pk′}
       {Γ₀ Γx Γ₂ : Ctx [] n}
-      {x : Fin n} {T U : NfTy [] K}
+      {x : Fin n} {T : NfTy [] (KV pk Lin)} {U : NfTy [] (KV pk′ Lin)}
     → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
     → ReplaceAt Γ₀ x (B-Lin U) Γx
     → Γx ⊢ˡ x ∶ U ⊣ Γ₂
 
   replace-used-output :
-    ∀ {n K}
+    ∀ {n pk}
       {Γ₀ Γ₁ Γ₂ : Ctx [] n}
-      {x : Fin n} {T : NfTy [] K}
+      {x : Fin n} {T : NfTy [] (KV pk Lin)}
     → Γ₀ ⊢ˡ x ∶ T ⊣ Γ₂
     → ReplaceAt Γ₀ x B-Used Γ₁
     → Γ₁ ≡ Γ₂
 
   take-from-membership :
-    ∀ {n K}
+    ∀ {n pk}
       {Γ : Ctx [] n}
-      {x : Fin n} {T : NfTy [] K}
+      {x : Fin n} {T : NfTy [] (KV pk Lin)}
     → Γ ∋ˡ x ∶ T
     → Σ (Ctx [] n) λ Γ′ → Γ ⊢ˡ x ∶ T ⊣ Γ′
 
   take-unique :
-    ∀ {n K}
+    ∀ {n pk}
       {Γ : Ctx [] n}
-      {x : Fin n} {T U : NfTy [] K}
+      {x : Fin n} {T U : NfTy [] (KV pk Lin)}
       {Γ₁ Γ₂ : Ctx [] n}
     → Γ ⊢ˡ x ∶ T ⊣ Γ₁
     → Γ ⊢ˡ x ∶ U ⊣ Γ₂
     → (T ≡ U) × (Γ₁ ≡ Γ₂)
 
   take-implies-membership :
-    ∀ {Δ n K} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+    ∀ {Δ n pk} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
     → Γ ⊢ˡ x ∶ T ⊣ Γ′
     → Γ ∋ˡ x ∶ T
 
@@ -1241,11 +1229,11 @@ remove-allused-disjoint2 (RM-un r₁) (RM-un r₂) (AU-un au) =
   LD-un-un (remove-allused-disjoint2 r₁ r₂ au)
 
 recv-input-disjoint-core :
-  ∀ {n K K′}
+  ∀ {n pk pk′}
     {Γ₀ Γ₂ Γin Γr Γin′ G : Ctx [] n}
     {x : Fin n}
-    {T : NfTy [] K}
-    {U : NfTy [] K′}
+    {T : NfTy [] (KV pk Lin)}
+    {U : NfTy [] (KV pk′ Lin)}
   → RemoveCtx Γ₀ G Γ₂
   → RemoveCtx Γ₀ Γin Γr
   → Γin ⊢ˡ x ∶ T ⊣ Γin′
@@ -1289,10 +1277,10 @@ recv-input-disjoint-core {x = fsuc x}
   LD-used-used (recv-input-disjoint-core {x = x} r rin take au x∈)
 
 recv-extract-disjoint :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ Γ₂ Γin G : Ctx [] n}
     {x : Fin n} {v : Value [] n}
-    {U : NfTy [] K}
+    {U : NfTy [] (KV pk Lin)}
   → RemoveCtx Γ₀ G Γ₂
   → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
   → Γ₂ ∋ˡ x ∶ U
@@ -1301,11 +1289,11 @@ recv-extract-disjoint r (Ex-RecvVal rin take au) x∈ =
   recv-input-disjoint-core r rin take au x∈
 
 send-input-disjoint-core :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ Γ₂ Γin Γr Γv G : Ctx [] n}
     {x : Fin n}
     {T : NfTy [] TLin} {S : NfTy [] SLin}
-    {U : NfTy [] K}
+    {U : NfTy [] (KV pk Lin)}
   → RemoveCtx Γ₀ G Γ₂
   → RemoveCtx Γ₀ Γin Γr
   → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
@@ -1356,10 +1344,10 @@ send-input-disjoint-core {x = fsuc x}
   LD-used-used (send-input-disjoint-core {x = x} r rin take x∈ ldv)
 
 send-extract-disjoint :
-  ∀ {n K}
+  ∀ {n pk}
     {Γ₀ Γ₂ Γin Γv G : Ctx [] n}
     {x : Fin n} {w : Value [] n}
-    {U : NfTy [] K}
+    {U : NfTy [] (KV pk Lin)}
   → RemoveCtx Γ₀ G Γ₂
   → LinearDisjoint Γ₀ Γv
   → ExprSemantics.L-SendVal x w ⦂ Γin ⇒ Γv
@@ -1944,7 +1932,7 @@ mutual
     → Γ₂ ⊢ e₁ ⇒ T ⊣ Γ₃
     → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
-    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+    → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   recv-live-synth-removed r
     (T-App {m = Un} (T-Val ()) (T-Check (T-Val vv) sub))
@@ -1960,8 +1948,8 @@ mutual
     with extract-membership rin (take-implies-membership take)
   ... | x∈₀
     with vv
-  ... | TV-Var-Lin {K = K} {T = U} take₂ =
-      K , U , take-implies-membership take₂
+  ... | TV-Var-Lin {pk = pk′} {T = U} take₂ =
+      pk′ , U , take-implies-membership take₂
 
   recv-live-synth-removed r
     (T-App d₁ d₂)
@@ -2031,7 +2019,7 @@ mutual
     → Γ₂ ⊢ e₁ ⇐ T ⊣ Γ₃
     → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
-    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+    → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   recv-live-check-removed r (T-Check d sub) step ex =
     recv-live-synth-removed r d step ex
@@ -2046,7 +2034,7 @@ mutual
     → Γ₂ ⊢ e₁ ⇒ T ⊣ Γ₃
     → e₁ —[ ExprSemantics.L-SendVal x w ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
-    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+    → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   send-live-synth-removed r
     (T-App (T-Val vr) (T-Check (T-Val vv) sub))
@@ -2057,8 +2045,10 @@ mutual
     with strip-value vr
   ... | Gv , Gv′ , rv , vr′ , auv
     with vv
-  ... | TV-Var-Lin {K = K} {T = U} take₂ =
-      K , U , remove-membership rv (take-implies-membership take₂)
+  ... | TV-Pair dvw (TV-Var-Lin {pk = pk′} {T = U} take₂)
+    with strip-value dvw
+  ... | Gw , Gw′ , rw , dw′ , auw =
+      pk′ , U , remove-membership rv (remove-membership rw (take-implies-membership take₂))
 
   send-live-synth-removed r
     (T-App d₁ d₂)
@@ -2128,7 +2118,7 @@ mutual
     → Γ₂ ⊢ e₁ ⇐ T ⊣ Γ₃
     → e₁ —[ ExprSemantics.L-SendVal x w ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-SendVal x w) Γin
-    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+    → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   send-live-check-removed r (T-Check d sub) step ex =
     send-live-synth-removed r d step ex
@@ -2143,7 +2133,7 @@ mutual
     → Γ₂ ⊢ e₁ ⇒ T ⊣ Γ₃
     → e₁ —[ ExprSemantics.L-SendLab {k = k} x i ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-SendLab {k = k} x i) Γin
-    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+    → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   select-live-synth-removed r
     (T-App (T-Val vr) (T-Check (T-Val vv) sub))
@@ -2154,8 +2144,8 @@ mutual
     with strip-value vr
   ... | Gv , Gv′ , rv , vr′ , auv
     with vv
-  ... | TV-Var-Lin {K = K} {T = U} take₂ =
-      K , U , remove-membership rv (take-implies-membership take₂)
+  ... | TV-Var-Lin {pk = pk′} {T = U} take₂ =
+      pk′ , U , remove-membership rv (take-implies-membership take₂)
 
   select-live-synth-removed r
     (T-App d₁ d₂)
@@ -2225,7 +2215,7 @@ mutual
     → Γ₂ ⊢ e₁ ⇐ T ⊣ Γ₃
     → e₁ —[ ExprSemantics.L-SendLab {k = k} x i ]→ e₂
     → Extract Γ₀ (ExprSemantics.L-SendLab {k = k} x i) Γin
-    → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₂ ∋ˡ x ∶ U
+    → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   select-live-check-removed r (T-Check d sub) step ex =
     select-live-synth-removed r d step ex
@@ -2346,7 +2336,7 @@ receive-live-synth :
   → Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂
   → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
   → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
-  → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₀ ∋ˡ x ∶ U
+  → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₀ ∋ˡ x ∶ U
 receive-live-synth _ _ (Ex-RecvVal rin take _) =
   _ , _ , extract-membership rin (take-implies-membership take)
 
@@ -2359,7 +2349,7 @@ receive-live-check :
   → Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂
   → e₁ —[ ExprSemantics.L-RecvVal x v ]→ e₂
   → Extract Γ₀ (ExprSemantics.L-RecvVal x v) Γin
-  → Σ Kind λ K → Σ (NfTy [] K) λ U → Γ₀ ∋ˡ x ∶ U
+  → Σ PreKind λ pk′ → Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₀ ∋ˡ x ∶ U
 receive-live-check (T-Check d _) step ex =
   receive-live-synth d step ex
 
@@ -2518,8 +2508,8 @@ preserve⇒-send :
     {x : Fin n} {v : Value [] n}
     {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
     {A Uarg R : NfTy [] TLin}
-  → Γ₀ ⊢ᵥ V-Send₃ Tᵣ Sᵣ v ⇒ linArrNf A R ⊣ Γm
-  → Γm ⊢ᵥ V-Var x ⇒ Uarg ⊣ Γ₂
+  → Γ₀ ⊢ᵥ V-Send₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γm
+  → Γm ⊢ᵥ V-Pair v (V-Var x) ⇒ Uarg ⊣ Γ₂
   → normalTyOf Uarg <:ₜ normalTyOf A
   → (lbl : ExprSemantics.L-SendVal x v ⦂ Γin ⇒ Γv)
   → Extract Γ₀ (ExprSemantics.L-SendVal x v) Γin
@@ -2530,7 +2520,11 @@ preserve⇒-send
   {x = x} {v = v}
   {Tᵣ = Tᵣ} {Sᵣ = Sᵣ}
   {A = A} {Uarg = Uarg} {R = R}
-  vr vv sub lbl@(Label-SendVal {T = T} {S = S} take dv au) ex disj
+  vr (TV-Pair {T = Tv} {U = Uv} dvv (TV-Var-Lin take′)) sub
+  lbl@(Label-SendVal {T = T} {S = S} take dv au) ex disj
+  with send₂-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr
+... | eqΓm , eqA , eqR
+  rewrite sym eqΓm | eqA | eqR
   with send-remove-membership (proj₂ (extract-remove ex)) take
 ... | Γx , rm , x∈
   with check-output-unique
@@ -2541,20 +2535,23 @@ preserve⇒-send
              (<:ₜ-refl (normalTyOf T)))
            (remove-frame rm)
            au)
-         (proj₁ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr))
-... | eqΓm rewrite eqΓm with vv
-... | TV-Var-Lin take′ with take-from-membership x∈
-... | Γx′ , take₀ with take-unique take₀ take′
-... | eqChan , eqΓ rewrite eqΓ with sendChan-subtype
+         (T-Check (T-Val dvv) (<:ₜ-refl (normalTyOf Tv)))
+... | eqΓmid
+  rewrite eqΓmid
+  with sub
+... | <:ₜ-pair Tv<:Tᵣ Uv<:Chan
+  with take-from-membership x∈
+... | Γx′ , take₀
+  with take-unique take₀ take′
+... | eqChan , eqΓ
+  rewrite eqΓ
+  with sendChan-subtype
          {T₁ = T} {T₂ = normalizeTy Tᵣ}
          {S₁ = S} {S₂ = normalizeTy Sᵣ}
          (subst
            (λ X → normalTyOf X <:ₜ normalTyOf (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
            (sym eqChan)
-           (subst
-             (λ X → normalTyOf Uarg <:ₜ normalTyOf X)
-             (proj₁ (proj₂ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr)))
-             sub))
+           Uv<:Chan)
 ... | _ , S<:Sᵣ
   with take-replace-lin {U = sessNf S} take₀
 ... | Γ₁ , rep =
@@ -2577,11 +2574,7 @@ preserve⇒-send
     ; ctx-step = Ctx-Send rm dv au x∈ rep
     ; compat = send-compatible ex
     ; synth = T-Val (TV-Var-Lin (replace-take take₀ rep))
-    ; subtype =
-        subst
-          (λ X → normalTyOf (sessNf S) <:ₜ normalTyOf X)
-          (sym (proj₂ (proj₂ (send₃-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr))))
-          (sess-subtype {S₁ = S} {S₂ = normalizeTy Sᵣ} S<:Sᵣ)
+    ; subtype = sess-subtype {S₁ = S} {S₂ = normalizeTy Sᵣ} S<:Sᵣ
     }
 
 mutual
@@ -2995,26 +2988,6 @@ mutual
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
     {T = R}
-    (T-App {m = Lin} (T-Val vr) pv)
-    (Act-Send₃ {T = T} {S = S} {v = v})
-    lbl@(Label-β _ _) ex _
-    with send₂-shape {Tᵣ = T} {Sᵣ = S} vr
-  ... | refl , (eqA , eqR)
-    rewrite eqA | eqR =
-      basePres
-        {Γ₀ = Γ₀} {Γ₂ = Γ₂}
-        {U = linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
-             (sessNf (normalizeTy S))}
-        Ctx-β lbl ex (beta-compatible lbl ex)
-        (T-Val (TV-Send₃ pv))
-        (<:ₜ-refl
-          (normalTyOf
-            (linArrNf (sendChanNf (normalizeTy T) (normalizeTy S))
-              (sessNf (normalizeTy S)))))
-  preserve⇒
-    {pk = KT} {mult = Lin}
-    {Γ₀ = Γ₀} {Γ₂ = Γ₂}
-    {T = R}
     (T-App {m = Lin}
       {T = A} {U = R}
       (T-Val vr)
@@ -3231,7 +3204,7 @@ mutual
   preserve⇒
     {pk = KT} {mult = Lin}
     {Γ₀ = Γ₀} {Γ₂ = Γ₂}
-    {e₁ = E-App (E-Val (V-Send₃ Tᵣ Sᵣ v)) (E-Val (V-Var x))}
+    {e₁ = E-App (E-Val (V-Send₂ Tᵣ Sᵣ)) (E-Val (V-Pair v (V-Var x)))}
     {e₂ = E-Val (V-Var x)}
     {T = R}
     (T-App {m = Lin} {T = A} {U = R}
@@ -3241,7 +3214,7 @@ mutual
     lbl ex disj =
     preserve⇒-send vr vv sub lbl ex disj
   preserve⇒
-    {e₁ = E-App (E-Val (V-Send₃ Tᵣ Sᵣ v)) (E-Val (V-Var x))}
+    {e₁ = E-App (E-Val (V-Send₂ Tᵣ Sᵣ)) (E-Val (V-Pair v (V-Var x)))}
     {e₂ = E-Val (V-Var x)}
     (T-App {m = Un} (T-Val ()) _)
     (Act-Send {T = Tᵣ} {S = Sᵣ} {x = x} {v = v})

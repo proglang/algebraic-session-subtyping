@@ -103,12 +103,86 @@ used∷-injective :
 used∷-injective refl = refl
 
 ∷ᵘ-injective :
-  ∀ {Δ n K}
-    {T : NfTy Δ K}
+  ∀ {Δ n pk}
+    {T : NfTy Δ (KV pk Un)}
     {Γ₁ Γ₂ : Ctx Δ n}
   → (T ∷ᵘ Γ₁) ≡ (T ∷ᵘ Γ₂)
   → Γ₁ ≡ Γ₂
 ∷ᵘ-injective refl = refl
+
+∷ˡ-injective :
+  ∀ {Δ n pk}
+    {T : NfTy Δ (KV pk Lin)}
+    {Γ₁ Γ₂ : Ctx Δ n}
+  → (T ∷ˡ Γ₁) ≡ (T ∷ˡ Γ₂)
+  → Γ₁ ≡ Γ₂
+∷ˡ-injective refl = refl
+
+take-input-unique :
+  ∀ {Δ n pk}
+    {Γ₁ Γ₂ Γo : Ctx Δ n}
+    {x : Fin n}
+    {T : NfTy Δ (KV pk Lin)}
+  → Γ₁ ⊢ˡ x ∶ T ⊣ Γo
+  → Γ₂ ⊢ˡ x ∶ T ⊣ Γo
+  → Γ₁ ≡ Γ₂
+take-input-unique take-here take-here = refl
+take-input-unique (take-thereˡ d₁) (take-thereˡ d₂) =
+  cong (B-Lin _ ▻_) (take-input-unique d₁ d₂)
+take-input-unique (take-thereᵘ d₁) (take-thereᵘ d₂) =
+  cong (B-Un _ ▻_) (take-input-unique d₁ d₂)
+take-input-unique (take-there✖ d₁) (take-there✖ d₂) =
+  cong (B-Used ▻_) (take-input-unique d₁ d₂)
+
+postulate
+  synth-input-unique :
+    ∀ {Δ n K}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {e : Expr Δ n}
+      {T : NfTy Δ K}
+    → Γ₁ ⊢ e ⇒ T ⊣ Γo
+    → Γ₂ ⊢ e ⇒ T ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+  check-input-unique :
+    ∀ {Δ n pk m}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {e : Expr Δ n}
+      {T : NfTy Δ (KV pk m)}
+    → Γ₁ ⊢ e ⇐ T ⊣ Γo
+    → Γ₂ ⊢ e ⇐ T ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+value-input-unique :
+  ∀ {Δ n K}
+    {Γ₁ Γ₂ Γo : Ctx Δ n}
+    {v : Value Δ n}
+    {T : NfTy Δ K}
+  → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γo
+  → Γ₂ ⊢ᵥ v ⇒ T ⊣ Γo
+  → Γ₁ ≡ Γ₂
+value-input-unique (TV-Const cT₁) (TV-Const cT₂) = refl
+value-input-unique (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
+  take-input-unique take₁ take₂
+value-input-unique (TV-Var-Un x∈₁) (TV-Var-Un x∈₂) = refl
+value-input-unique (TV-Abs d₁) (TV-Abs d₂)
+  with synth-input-unique d₁ d₂
+... | eq = ∷ˡ-injective eq
+value-input-unique (TV-Rec d₁) (TV-Rec d₂)
+  with check-input-unique d₁ d₂
+... | eq = ∷ᵘ-injective eq
+value-input-unique (TV-TAbs d₁) (TV-TAbs d₂) =
+  wkCtx-injective (value-input-unique d₁ d₂)
+value-input-unique (TV-Pair d₁₁ d₁₂) (TV-Pair d₂₁ d₂₂)
+  with value-input-unique d₁₂ d₂₂
+... | eqmid rewrite eqmid =
+  value-input-unique d₁₁ d₂₁
+value-input-unique TV-Receive₁ TV-Receive₁ = refl
+value-input-unique TV-Receive₂ TV-Receive₂ = refl
+value-input-unique TV-Send₁ TV-Send₁ = refl
+value-input-unique TV-Send₂ TV-Send₂ = refl
+value-input-unique TV-Select₁ TV-Select₁ = refl
+value-input-unique TV-Select₂ TV-Select₂ = refl
 
 infix 4 _⊢σ_∶_⊣_
 
@@ -119,10 +193,10 @@ data _⊢σ_∶_⊣_ {Δ m} (Γt : Ctx Δ m) : ∀ {n} → Sub Δ n m → Ctx Δ
     Γt ⊢σ (λ ()) ∶ ∅ ⊣ Γt
 
   S-Lin :
-    ∀ {n K}
+    ∀ {n pk}
       {σ : Sub Δ (suc n) m}
       {Γ : Ctx Δ n}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk Lin)}
       {Γrest Γv Γv′ Γo : Ctx Δ m}
     → MergeCtx Γrest Γv Γt
     → LinearDisjoint Γrest Γv
@@ -373,28 +447,19 @@ postulate
     → Γt ⊢ᵥ v ⇒ T ⊣ Γt
 
   lift-un-head-through-lookup :
-    ∀ {Δ n m pk K}
+    ∀ {Δ n m pk pk′}
       {Γ Γ′ : Ctx Δ n}
       {Γt Γt′ : Ctx Δ m}
       {σ : Sub Δ (suc n) m}
       {Γo : Ctx Δ m}
       {x : Fin n}
       {T : NfTy Δ (KV pk Un)}
-      {U : NfTy Δ K}
+      {U : NfTy Δ (KV pk′ Lin)}
     → Γ ⊢ˡ x ∶ U ⊣ Γ′
     → Γt ⊢σ tailSub σ ∶ Γ ⊣ Γo
     → Γt′ ⊢σ tailSub σ ∶ Γ′ ⊣ Γo
     → allUsedCtx Γt ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt
     → allUsedCtx Γt′ ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt′
-
-  value-input-unique :
-    ∀ {Δ n K}
-      {Γ₁ Γ₂ Γo : Ctx Δ n}
-      {v : Value Δ n}
-      {T : NfTy Δ K}
-    → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γo
-    → Γ₂ ⊢ᵥ v ⇒ T ⊣ Γo
-    → Γ₁ ≡ Γ₂
 
   unliftTySub-preserves-σ :
     ∀ {Δ n m K}
@@ -408,20 +473,20 @@ postulate
         × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
 
   extSub-preserves-σ-lin :
-    ∀ {Δ n m K}
+    ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk Lin)}
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → (T ∷ˡ Γt) ⊢σ extSub σ ∶ (T ∷ˡ Γs) ⊣ used∷ Γo
 
   extSub-preserves-σ-un :
-    ∀ {Δ n m K}
+    ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk Un)}
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → (T ∷ᵘ Γt) ⊢σ extSub σ ∶ (T ∷ᵘ Γs) ⊣ (T ∷ᵘ Γo)
 
@@ -438,12 +503,12 @@ postulate
         × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
 
   unextSub-un-fixed :
-    ∀ {Δ n m K}
+    ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {Γtwk Γowk : Ctx Δ (suc m)}
       {σ : Sub Δ n m}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk Un)}
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → Γtwk ⊢σ extSub σ ∶ (T ∷ᵘ Γs) ⊣ Γowk
     → Γtwk ≡ (T ∷ᵘ Γt)
@@ -451,12 +516,12 @@ postulate
 
 
 extSub2-preserves-σ-lin2 :
-  ∀ {Δ n m K K′}
+  ∀ {Δ n m pk pk′}
     {Γs : Ctx Δ n}
     {Γt Γo : Ctx Δ m}
     {σ : Sub Δ n m}
-    {T : NfTy Δ K}
-    {U : NfTy Δ K′}
+    {T : NfTy Δ (KV pk Lin)}
+    {U : NfTy Δ (KV pk′ Lin)}
   → Γt ⊢σ σ ∶ Γs ⊣ Γo
   → (T ∷ˡ (U ∷ˡ Γt)) ⊢σ extSub2 σ ∶ (T ∷ˡ (U ∷ˡ Γs)) ⊣ used∷ (used∷ Γo)
 extSub2-preserves-σ-lin2 σok =
@@ -487,12 +552,12 @@ unextSub2-used2 {Γs = Γs} {Γtwk = Γtwk} {σ = σ} σok
 mutual
 
   substσ-lookup-lin :
-    ∀ {Δ n m K}
+    ∀ {Δ n m pk}
       {Γs Γs′ : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
       {x : Fin n}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk Lin)}
     → Γs ⊢ˡ x ∶ T ⊣ Γs′
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → Σ (Ctx Δ m) λ Γt′ →
@@ -878,10 +943,6 @@ mutual
     pack-value-result TV-Send₁ (_ , TV-Send₁ , σok)
   substσ-preserves-value TV-Send₂ σok =
     pack-value-result TV-Send₂ (_ , TV-Send₂ , σok)
-  substσ-preserves-value (TV-Send₃ d) σok
-    with substσ-preserves-check d σok
-  ... | Γt′ , d′ , σok′ =
-    pack-value-result (TV-Send₃ d) (Γt′ , TV-Send₃ d′ , σok′)
   substσ-preserves-value TV-Select₁ σok =
     pack-value-result TV-Select₁ (_ , TV-Select₁ , σok)
   substσ-preserves-value TV-Select₂ σok =

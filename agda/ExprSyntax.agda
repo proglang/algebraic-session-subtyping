@@ -34,7 +34,6 @@ mutual
     V-Receive₂ : Ty Δ TLin → Ty Δ SLin → Value Δ n
     V-Send₁    : Ty Δ TLin → Value Δ n
     V-Send₂    : Ty Δ TLin → Ty Δ SLin → Value Δ n
-    V-Send₃    : Ty Δ TLin → Ty Δ SLin → Value Δ n → Value Δ n
     V-Select₁  : ∀ {k} → Variance → Fin k → Ty Δ KP → Value Δ n
     V-Select₂  : ∀ {k} → Variance → Fin k → Ty Δ KP → Ty Δ SLin → Value Δ n
 

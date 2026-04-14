@@ -11,7 +11,7 @@ import Relation.Binary.PropositionalEquality as Eq
 
 open import AlgorithmicNFSubtyping using (_<:ₜ_)
 open import Variance using (Variance)
-open import Kinds using (Kind; KV; KP; SLin; TLin; Un)
+open import Kinds using (Kind; KV; KP; SLin; TLin; Lin; Un)
 open import ExprSyntax using (Expr; Value; E-Match)
 open import ExprNormalTyping
 open import ExprContextReduction using
@@ -23,7 +23,7 @@ data FrameCtx {Δ : List Kind} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n 
     FrameCtx ∅ ∅ ∅
 
   FC-frame :
-    ∀ {n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+    ∀ {n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
     → FrameCtx Φ Γ Γ̂
     → FrameCtx (B-Lin T ▻ Φ) (B-Used ▻ Γ) (B-Lin T ▻ Γ̂)
 
@@ -33,12 +33,12 @@ data FrameCtx {Δ : List Kind} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n 
     → FrameCtx (B-Used ▻ Φ) (B-Used ▻ Γ) (B-Used ▻ Γ̂)
 
   FC-live :
-    ∀ {n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+    ∀ {n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
     → FrameCtx Φ Γ Γ̂
     → FrameCtx (B-Used ▻ Φ) (B-Lin T ▻ Γ) (B-Lin T ▻ Γ̂)
 
   FC-un :
-    ∀ {n} {Φ Γ Γ̂ : Ctx Δ n} {K} {T : NfTy Δ K}
+    ∀ {n} {Φ Γ Γ̂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
     → FrameCtx Φ Γ Γ̂
     → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) (B-Un T ▻ Γ̂)
 
@@ -64,13 +64,13 @@ frame-cons-used :
 frame-cons-used = FC-allused
 
 frame-cons-lin :
-  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
   → FrameCtx Φ Γ Γ̂
   → FrameCtx (B-Used ▻ Φ) (B-Lin T ▻ Γ) (B-Lin T ▻ Γ̂)
 frame-cons-lin = FC-live
 
 frame-cons-un-local :
-  ∀ {Δ n K} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Un)}
   → FrameCtx Φ Γ Γ̂
   → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) (B-Un T ▻ Γ̂)
 frame-cons-un-local = FC-un
@@ -105,7 +105,7 @@ frame-∋ᵘ (thereᵘ✖ x∈) (FC-frame f) = thereᵘˡ (frame-∋ᵘ x∈ f)
 frame-∋ᵘ (thereᵘ✖ x∈) (FC-allused f) = thereᵘ✖ (frame-∋ᵘ x∈ f)
 
 lift-take :
-  ∀ {Δ n K} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K} (b : Binding Δ)
+  ∀ {Δ n pk} {Γ Γ′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)} (b : Binding Δ)
   → Γ ⊢ˡ x ∶ T ⊣ Γ′
   → (b ▻ Γ) ⊢ˡ fsuc x ∶ T ⊣ (b ▻ Γ′)
 lift-take (B-Lin _) = take-thereˡ
@@ -113,7 +113,7 @@ lift-take (B-Un _) = take-thereᵘ
 lift-take B-Used = take-there✖
 
 frame-take :
-  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ ⊢ˡ x ∶ T ⊣ Γ′
   → FrameCtx Φ Γ Γ̂
   → FrameCtx Φ Γ′ Γ̂′
@@ -130,7 +130,7 @@ frame-take (take-there✖ t) (FC-allused f) (FC-allused f′) =
   take-there✖ (frame-take t f f′)
 
 frame-take-exists :
-  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {x : Fin n} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {x : Fin n} {T : NfTy Δ (KV pk Lin)}
   → Γ ⊢ˡ x ∶ T ⊣ Γ′
   → FrameCtx Φ Γ Γ̂
   → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ˡ x ∶ T ⊣ Γ̂′)
@@ -156,16 +156,16 @@ invert-frame-used :
 invert-frame-used (FC-allused f) = _ , refl , f
 
 invert-frame-un-local :
-  ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)} {T : NfTy Δ K}
+  ∀ {Δ n pk} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)} {T : NfTy Δ (KV pk Un)}
   → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) Γ̂
   → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ B-Un T ▻ Γ̂₀) × FrameCtx Φ Γ Γ̂₀
 invert-frame-un-local (FC-un f) = _ , refl , f
 
 frame-un-head :
-  ∀ {Δ n K₁ K₂} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)}
-    {T : NfTy Δ K₁} {U : NfTy Δ K₂}
+  ∀ {Δ n pk₁ pk₂} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx Δ (suc n)}
+    {T : NfTy Δ (KV pk₁ Un)} {U : NfTy Δ (KV pk₂ Un)}
   → FrameCtx (B-Un T ▻ Φ) (B-Un U ▻ Γ) Γ̂
-  → Σ (K₁ ≡ K₂) λ where
+  → Σ (pk₁ ≡ pk₂) λ where
       refl → T ≡ U
 frame-un-head (FC-un _) = refl , refl
 
@@ -266,9 +266,6 @@ mutual
   frame-value TV-Receive₂ f = _ , f , TV-Receive₂
   frame-value TV-Send₁ f = _ , f , TV-Send₁
   frame-value TV-Send₂ f = _ , f , TV-Send₂
-  frame-value (TV-Send₃ d) f
-    with frame-check d f
-  ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , TV-Send₃ d′
   frame-value TV-Select₁ f = _ , f , TV-Select₁
   frame-value TV-Select₂ f = _ , f , TV-Select₂
 

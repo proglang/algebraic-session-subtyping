@@ -1,7 +1,7 @@
 ## wish list
 
-* uncurry the type of send: this eliminates the partial application of send to its payload 
-* change synthesis in the elimination position in T-Match to checking? it would remove the need for ss and incl!
+* can we remove  i Subset.∈ ss in the type of MatchBranchOutput?
+* can we change synthesis in the elimination position in T-Match to checking? it would remove the need for ss and incl!
 * bounded quantification?
 * quantification over boolean variables?
 * computing normal form could elide trivial T-Sub and compress multiple T-Sub into one

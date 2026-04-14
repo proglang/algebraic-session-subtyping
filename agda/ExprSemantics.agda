@@ -112,13 +112,8 @@ data _—[_]→_ : ∀ {n k} → Expr [] n → Label n k → Expr [] (k + n) →
         —[ L-β ]→
       E-Val (V-Send₂ {n = n} T S)
 
-  Act-Send₃ : ∀ {n} {T : Ty [] TLin} {S : Ty [] SLin} {v : Value [] n} →
-      E-App (E-Val (V-Send₂ T S)) (E-Val v)
-        —[ L-β ]→
-      E-Val (V-Send₃ T S v)
-
   Act-Send : ∀ {n} {T : Ty [] TLin} {S : Ty [] SLin} {x : Fin n} {v : Value [] n} →
-      E-App (E-Val (V-Send₃ T S v)) (E-Val (V-Var x))
+      E-App (E-Val (V-Send₂ T S)) (E-Val (V-Pair v (V-Var x)))
         —[ L-SendVal x v ]→
       E-Val (V-Var x)
 
