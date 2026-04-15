@@ -3,45 +3,71 @@ module ExprSubstitutionPreservation where
 open import Data.Fin using (Fin; zero; suc)
 import Data.Fin.Subset as Subset
 open import Data.List using (_∷_)
+open import Data.List.Relation.Unary.Any using () renaming (here to hereₗ; there to thereₗ)
 open import Data.Vec using (here; there) renaming ([] to []ᵥ; _∷_ to _∷ᵥ_)
 open import Data.Maybe using (just; nothing)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Data.Nat using (suc)
 open import Data.Empty using (⊥; ⊥-elim)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong; subst)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong; cong₂; subst)
 
 open import Kinds
 open import Kits
 open import Ext using (ext)
-open import Types using (Ty; Ty-Syntax; Ty-Traversal)
+open import Types using (Ty; Ty-Syntax; Ty-Traversal; T-Base; T-Arrow; T-Sub; T-End; T-Up) renaming (fusion to tyFusion)
 open import Variance using (Variance)
 open import AlgorithmicNFSubtyping using (_<:ₜ_)
 open import ExprSyntax using
   ( Expr
   ; Value
   ; E-Val
+  ; E-App
+  ; E-TApp
+  ; E-LetUnit
+  ; E-Pair
   ; E-LetPair
   ; E-Match
+  ; V-Const
+  ; V-Var
   ; V-Abs
   ; V-Rec
   ; V-TAbs
+  ; V-Pair
+  ; V-Receive₁
+  ; V-Receive₂
+  ; V-Send₁
+  ; V-Send₂
+  ; V-Select₁
+  ; V-Select₂
   )
 open import ExprSubstitution using
   ( Sub
   ; extSub
   ; extSub2
   ; liftTySub
+  ; wkValue
   ; wkTyValue
+  ; renTyValue
+  ; renTyExpr
   ; substTyValueWith
+  ; substTyExprWith
+  ; substTyValue
+  ; substTyExpr
   ; substValueWith
   ; substExprWith
   )
 open import ExprNormalTyping
+open import NormalTypesSubstitution using (wkNFKind-sound)
 open import ExprSubstitutionTyping using
   ( substTyNfWith
   ; substTyCtxWith
+  ; substTyNf
+  ; substTyBinding
+  ; substTyCtx
   ; substTyWith-preserves-value
+  ; substTy-preserves-value
   )
+open import ExprRenamingPreservation as Ren using (wk-preserves-value; unwk-preserves-value)
 open import ExprContextReduction
   using
     ( AllUsed
@@ -55,6 +81,7 @@ open import ExprContextReduction
     ; LD-live-used
     ; LD-un-un
     ; allUsedCtx
+    ; allUsedCtx-AllUsed
     ; MergeCtx
     ; MC-∅
     ; MC-used-used
@@ -80,8 +107,11 @@ open import ExprTypingProperties
     ; FC-∅
     ; FC-frame
     ; FC-allused
+    ; FC-live
     ; FC-un
+    ; frame-value
     ; replay-value
+    ; replay-value-allUsed
     )
 open import ExprTypingLeftover
   using
@@ -92,7 +122,8 @@ open import ExprTypingLeftover
     )
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
-open Traversal Ty-Traversal hiding (⋯-id)
+open Traversal Ty-Traversal
+open CTraversal record { fusion = tyFusion }
 
 
 tailSub : ∀ {Δ n m} → Sub Δ (suc n) m → Sub Δ n m
@@ -403,21 +434,267 @@ replay-allUsed-value :
 replay-allUsed-value {Γ = Γ} d =
   replay-value d (frame-allUsedCtx Γ) (frame-allUsedCtx Γ)
 
-postulate
-  substTyNfWith-weaken :
-    ∀ {Δ K K′}
-      (T : NfTy Δ K)
-    → substTyNfWith T (weakenₛ K′) ≡ wkNfTy {K′ = K′} T
+unwk-used-head-value :
+  ∀ {Δ n K pk}
+    {Γ₁ Γ₂ : Ctx Δ n}
+    {v : Value Δ n}
+    {T : NfTy Δ K}
+    {U : NfTy Δ (KV pk Lin)}
+  → (B-Used U ▻ Γ₁) ⊢ᵥ wkValue v ⇒ T ⊣ (B-Used U ▻ Γ₂)
+  → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
+unwk-used-head-value {U = U} d =
+  Ren.unwk-preserves-value (B-Used U) d
 
-  substTyCtxWith-weaken :
-    ∀ {Δ n K}
-      (Γ : Ctx Δ n)
-    → substTyCtxWith Γ (weakenₛ K) ≡ wkCtx {K = K} Γ
+renToSub : ∀ {Δ Δ′} → (Δ →ᵣ Δ′) → (Δ →ₛ Δ′)
+renToSub ρ = ρ ·ₖ idₛ
 
-  substTyValueWith-weaken :
-    ∀ {Δ n K}
-      (v : Value Δ n)
-    → substTyValueWith (weakenₛ K) v ≡ wkTyValue {K = K} v
+renTy-as-subst :
+  ∀ {Δ Δ′ K} (ρ : Δ →ᵣ Δ′) (T : Ty Δ K)
+  → T ⋯ ρ ≡ T ⋯ renToSub ρ
+renTy-as-subst ρ T =
+  trans
+    (sym (⋯-id (T ⋯ ρ)))
+    (fusion T ρ idₛ)
+
+liftSub~ :
+  ∀ {Δ Δ′ K} {ϕ ψ : Δ →ₛ Δ′}
+  → ϕ ~ ψ
+  → (ϕ ↑ₛ K) ~ (ψ ↑ₛ K)
+liftSub~ {K = K} rel .K (hereₗ refl) = refl
+liftSub~ {K = K} rel K′ (thereₗ x) =
+  cong (λ t → t ⋯ weakenᵣ K) (rel K′ x)
+
+renToSub-↑~ :
+  ∀ {Δ Δ′ K} (ρ : Δ →ᵣ Δ′)
+  → renToSub (ρ ↑ᵣ K) ~ (renToSub ρ ↑ₛ K)
+renToSub-↑~ {K = K} ρ .K (hereₗ refl) = refl
+renToSub-↑~ {K = K} ρ K′ (thereₗ x) =
+  sym (⋯-var (ρ K′ x) (weakenᵣ K))
+
+renToSub-weaken~ :
+  ∀ {Δ K}
+  → renToSub (weakenᵣ {S = Δ} K) ~ weakenₛ K
+renToSub-weaken~ {K = K} K′ x =
+  sym (⋯-var x (weakenᵣ K))
+
+branch-ext :
+  ∀ {Δ n k} {ss : Subset.Subset k}
+    {f g : (i : Fin k) → i Subset.∈ ss → Expr Δ n}
+  → (∀ i i∈ → f i i∈ ≡ g i i∈)
+  → f ≡ g
+branch-ext {Δ = Δ} {n = n} {k = k} {ss = ss} {f = f} {g = g} eq =
+  cong curry
+    (ext uncurry-f uncurry-g (λ where (i , i∈) → eq i i∈))
+  where
+  uncurry-f : Σ (Fin k) (λ i → i Subset.∈ ss) → Expr Δ n
+  uncurry-f (i , i∈) = f i i∈
+
+  uncurry-g : Σ (Fin k) (λ i → i Subset.∈ ss) → Expr Δ n
+  uncurry-g (i , i∈) = g i i∈
+
+  curry :
+    (Σ (Fin k) (λ i → i Subset.∈ ss) → Expr Δ n)
+    → (i : Fin k) → i Subset.∈ ss → Expr Δ n
+  curry h i i∈ = h (i , i∈)
+
+mutual
+
+  substTyValueWith-cong :
+    ∀ {Δ Δ′ n} {ϕ ψ : Δ →ₛ Δ′}
+    → ϕ ~ ψ
+    → (v : Value Δ n)
+    → substTyValueWith ϕ v ≡ substTyValueWith ψ v
+  substTyValueWith-cong rel (V-Const c) = refl
+  substTyValueWith-cong rel (V-Var x) = refl
+  substTyValueWith-cong rel (V-Abs T e)
+    rewrite ⋯-cong T rel
+          | substTyExprWith-cong rel e
+    = refl
+  substTyValueWith-cong rel (V-Rec T U v)
+    rewrite ⋯-cong T rel
+          | ⋯-cong U rel
+          | substTyValueWith-cong rel v
+    = refl
+  substTyValueWith-cong rel (V-TAbs K v)
+    rewrite substTyValueWith-cong (liftSub~ {K = K} rel) v
+    = refl
+  substTyValueWith-cong rel (V-Pair v₁ v₂)
+    rewrite substTyValueWith-cong rel v₁
+          | substTyValueWith-cong rel v₂
+    = refl
+  substTyValueWith-cong rel (V-Receive₁ T)
+    rewrite ⋯-cong T rel
+    = refl
+  substTyValueWith-cong rel (V-Receive₂ T S)
+    rewrite ⋯-cong T rel
+          | ⋯-cong S rel
+    = refl
+  substTyValueWith-cong rel (V-Send₁ T)
+    rewrite ⋯-cong T rel
+    = refl
+  substTyValueWith-cong rel (V-Send₂ T S)
+    rewrite ⋯-cong T rel
+          | ⋯-cong S rel
+    = refl
+  substTyValueWith-cong rel (V-Select₁ v i P)
+    rewrite ⋯-cong P rel
+    = refl
+  substTyValueWith-cong rel (V-Select₂ v i P S)
+    rewrite ⋯-cong P rel
+          | ⋯-cong S rel
+    = refl
+
+  substTyExprWith-cong :
+    ∀ {Δ Δ′ n} {ϕ ψ : Δ →ₛ Δ′}
+    → ϕ ~ ψ
+    → (e : Expr Δ n)
+    → substTyExprWith ϕ e ≡ substTyExprWith ψ e
+  substTyExprWith-cong rel (E-Val v)
+    rewrite substTyValueWith-cong rel v
+    = refl
+  substTyExprWith-cong rel (E-App e₁ e₂)
+    rewrite substTyExprWith-cong rel e₁
+          | substTyExprWith-cong rel e₂
+    = refl
+  substTyExprWith-cong rel (E-TApp e T)
+    rewrite substTyExprWith-cong rel e
+          | ⋯-cong T rel
+    = refl
+  substTyExprWith-cong rel (E-LetUnit e₁ e₂)
+    rewrite substTyExprWith-cong rel e₁
+          | substTyExprWith-cong rel e₂
+    = refl
+  substTyExprWith-cong rel (E-Pair e₁ e₂)
+    rewrite substTyExprWith-cong rel e₁
+          | substTyExprWith-cong rel e₂
+    = refl
+  substTyExprWith-cong rel (E-LetPair e₁ e₂)
+    rewrite substTyExprWith-cong rel e₁
+          | substTyExprWith-cong rel e₂
+    = refl
+  substTyExprWith-cong rel (E-Match {ss = ss} e ne branches)
+    rewrite substTyExprWith-cong rel e
+          | branch-ext {ss = ss} (λ i i∈ → substTyExprWith-cong rel (branches i i∈))
+    = refl
+
+mutual
+
+  renTyValue-as-subst :
+    ∀ {Δ Δ′ n} (ρ : Δ →ᵣ Δ′) (v : Value Δ n)
+    → renTyValue ρ v ≡ substTyValueWith (renToSub ρ) v
+  renTyValue-as-subst ρ (V-Const c) = refl
+  renTyValue-as-subst ρ (V-Var x) = refl
+  renTyValue-as-subst ρ (V-Abs T e)
+    rewrite renTy-as-subst ρ T
+          | renTyExpr-as-subst ρ e
+    = refl
+  renTyValue-as-subst ρ (V-Rec T U v)
+    rewrite renTy-as-subst ρ T
+          | renTy-as-subst ρ U
+          | renTyValue-as-subst ρ v
+    = refl
+  renTyValue-as-subst ρ (V-TAbs K v)
+    rewrite renTyValue-as-subst (ρ ↑ᵣ K) v
+          | substTyValueWith-cong (renToSub-↑~ ρ) v
+    = refl
+  renTyValue-as-subst ρ (V-Pair v₁ v₂)
+    rewrite renTyValue-as-subst ρ v₁
+          | renTyValue-as-subst ρ v₂
+    = refl
+  renTyValue-as-subst ρ (V-Receive₁ T)
+    rewrite renTy-as-subst ρ T
+    = refl
+  renTyValue-as-subst ρ (V-Receive₂ T S)
+    rewrite renTy-as-subst ρ T
+          | renTy-as-subst ρ S
+    = refl
+  renTyValue-as-subst ρ (V-Send₁ T)
+    rewrite renTy-as-subst ρ T
+    = refl
+  renTyValue-as-subst ρ (V-Send₂ T S)
+    rewrite renTy-as-subst ρ T
+          | renTy-as-subst ρ S
+    = refl
+  renTyValue-as-subst ρ (V-Select₁ v i P)
+    rewrite renTy-as-subst ρ P
+    = refl
+  renTyValue-as-subst ρ (V-Select₂ v i P S)
+    rewrite renTy-as-subst ρ P
+          | renTy-as-subst ρ S
+    = refl
+
+  renTyExpr-as-subst :
+    ∀ {Δ Δ′ n} (ρ : Δ →ᵣ Δ′) (e : Expr Δ n)
+    → renTyExpr ρ e ≡ substTyExprWith (renToSub ρ) e
+  renTyExpr-as-subst ρ (E-Val v)
+    rewrite renTyValue-as-subst ρ v
+    = refl
+  renTyExpr-as-subst ρ (E-App e₁ e₂)
+    rewrite renTyExpr-as-subst ρ e₁
+          | renTyExpr-as-subst ρ e₂
+    = refl
+  renTyExpr-as-subst ρ (E-TApp e T)
+    rewrite renTyExpr-as-subst ρ e
+          | renTy-as-subst ρ T
+    = refl
+  renTyExpr-as-subst ρ (E-LetUnit e₁ e₂)
+    rewrite renTyExpr-as-subst ρ e₁
+          | renTyExpr-as-subst ρ e₂
+    = refl
+  renTyExpr-as-subst ρ (E-Pair e₁ e₂)
+    rewrite renTyExpr-as-subst ρ e₁
+          | renTyExpr-as-subst ρ e₂
+    = refl
+  renTyExpr-as-subst ρ (E-LetPair e₁ e₂)
+    rewrite renTyExpr-as-subst ρ e₁
+          | renTyExpr-as-subst ρ e₂
+    = refl
+  renTyExpr-as-subst ρ (E-Match {ss = ss} e ne branches)
+    rewrite renTyExpr-as-subst ρ e
+          | branch-ext {ss = ss} (λ i i∈ → renTyExpr-as-subst ρ (branches i i∈))
+    = refl
+
+substTyNfWith-weaken :
+  ∀ {Δ K K′}
+    (T : NfTy Δ K)
+  → substTyNfWith T (weakenₛ K′) ≡ wkNfTy {K′ = K′} T
+substTyNfWith-weaken {K′ = K′} T =
+  trans
+    (cong normalizeTy
+      (sym (⋯-cong ⌞ T ⌟ (renToSub-weaken~ {K = K′}))))
+    (trans
+      (cong normalizeTy
+        (trans
+          (sym (renTy-as-subst (weakenᵣ K′) ⌞ T ⌟))
+          (sym (wkNFKind-sound {K′ = K′} T))))
+      (normalizeTy-id (wkNfTy {K′ = K′} T)))
+
+substTyCtxWith-weaken :
+  ∀ {Δ n K}
+    (Γ : Ctx Δ n)
+  → substTyCtxWith Γ (weakenₛ K) ≡ wkCtx {K = K} Γ
+substTyCtxWith-weaken ∅ = refl
+substTyCtxWith-weaken {K = K} (B-Lin T ▻ Γ)
+  rewrite substTyNfWith-weaken {K′ = K} T
+        | substTyCtxWith-weaken {K = K} Γ
+  = refl
+substTyCtxWith-weaken {K = K} (B-Un T ▻ Γ)
+  rewrite substTyNfWith-weaken {K′ = K} T
+        | substTyCtxWith-weaken {K = K} Γ
+  = refl
+substTyCtxWith-weaken {K = K} (B-Used T ▻ Γ)
+  rewrite substTyNfWith-weaken {K′ = K} T
+        | substTyCtxWith-weaken {K = K} Γ
+  = refl
+
+substTyValueWith-weaken :
+  ∀ {Δ n K}
+    (v : Value Δ n)
+  → substTyValueWith (weakenₛ K) v ≡ wkTyValue {K = K} v
+substTyValueWith-weaken {K = K} v =
+  trans
+    (sym (substTyValueWith-cong (renToSub-weaken~ {K = K}) v))
+    (sym (renTyValue-as-subst (weakenᵣ K) v))
 
 wkTy-preserves-value :
   ∀ {Δ n K K′}
@@ -539,11 +816,284 @@ liftTySub-empty :
   → liftTySub {Δ = Δ} {n = 0} {m = m} {K = K} (λ ()) ≡ (λ ())
 liftTySub-empty = ext _ _ λ ()
 
+liftTySub-empty-general :
+  ∀ {Δ m K}
+    (σ : Sub Δ 0 m)
+  → liftTySub {Δ = Δ} {n = 0} {m = m} {K = K} σ ≡ (λ ())
+liftTySub-empty-general σ = ext _ _ λ ()
+
 emptySub-η :
   ∀ {Δ m}
   → (σ : Sub Δ 0 m)
   → σ ≡ (λ ())
 emptySub-η σ = ext σ (λ ()) λ ()
+
+sym~ :
+  ∀ {Δ₁ Δ₂}
+    {ϕ ψ : Δ₁ →ₛ Δ₂}
+  → ϕ ~ ψ
+  → ψ ~ ϕ
+sym~ rel K x = sym (rel K x)
+
+trans~ :
+  ∀ {Δ₁ Δ₂}
+    {ϕ ψ χ : Δ₁ →ₛ Δ₂}
+  → ϕ ~ ψ
+  → ψ ~ χ
+  → ϕ ~ χ
+trans~ rel₁ rel₂ K x = trans (rel₁ K x) (rel₂ K x)
+
+liftCancel~ :
+  ∀ {Δ₁ Δ₂ K}
+    {ρ : Δ₁ →ᵣ Δ₂}
+    {ϕ : Δ₂ →ₛ Δ₁}
+  → (ρ ·ₖ ϕ) ~ idₛ
+  → ((ρ ↑ᵣ K) ·ₖ (ϕ ↑ₛ K)) ~ idₛ
+liftCancel~ {K = K} {ρ = ρ} {ϕ = ϕ} rel =
+  trans~
+    (sym~ (dist-↑-· K ρ ϕ))
+    (trans~ (liftSub~ {K = K} rel) id↑~id)
+
+cancelTy :
+  ∀ {Δ₁ Δ₂ K}
+    (ρ : Δ₁ →ᵣ Δ₂)
+    (ϕ : Δ₂ →ₛ Δ₁)
+  → (ρ ·ₖ ϕ) ~ idₛ
+  → (T : Ty Δ₁ K)
+  → (T ⋯ ρ) ⋯ ϕ ≡ T
+cancelTy ρ ϕ rel T =
+  trans
+    (fusion T ρ ϕ)
+    (⋯-id~ T rel)
+
+mutual
+
+  cancel-ren-sub-value :
+    ∀ {Δ₁ Δ₂ n}
+      (ρ : Δ₁ →ᵣ Δ₂)
+      (ϕ : Δ₂ →ₛ Δ₁)
+    → (ρ ·ₖ ϕ) ~ idₛ
+    → (v : Value Δ₁ n)
+    → substTyValueWith ϕ (renTyValue ρ v) ≡ v
+
+  cancel-ren-sub-expr :
+    ∀ {Δ₁ Δ₂ n}
+      (ρ : Δ₁ →ᵣ Δ₂)
+      (ϕ : Δ₂ →ₛ Δ₁)
+    → (ρ ·ₖ ϕ) ~ idₛ
+    → (e : Expr Δ₁ n)
+    → substTyExprWith ϕ (renTyExpr ρ e) ≡ e
+
+  cancel-ren-sub-value ρ ϕ rel (V-Const c) = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Var x) = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Abs T e)
+    rewrite cancelTy ρ ϕ rel T
+          | cancel-ren-sub-expr ρ ϕ rel e
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Rec T U v)
+    rewrite cancelTy ρ ϕ rel T
+          | cancelTy ρ ϕ rel U
+          | cancel-ren-sub-value ρ ϕ rel v
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-TAbs K v)
+    rewrite cancel-ren-sub-value (ρ ↑ᵣ K) (ϕ ↑ₛ K) (liftCancel~ {K = K} {ρ = ρ} {ϕ = ϕ} rel) v
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Pair v₁ v₂)
+    rewrite cancel-ren-sub-value ρ ϕ rel v₁
+          | cancel-ren-sub-value ρ ϕ rel v₂
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Receive₁ T)
+    rewrite cancelTy ρ ϕ rel T
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Receive₂ T S)
+    rewrite cancelTy ρ ϕ rel T
+          | cancelTy ρ ϕ rel S
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Send₁ T)
+    rewrite cancelTy ρ ϕ rel T
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Send₂ T S)
+    rewrite cancelTy ρ ϕ rel T
+          | cancelTy ρ ϕ rel S
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Select₁ vv i P)
+    rewrite cancelTy ρ ϕ rel P
+    = refl
+  cancel-ren-sub-value ρ ϕ rel (V-Select₂ vv i P S)
+    rewrite cancelTy ρ ϕ rel P
+          | cancelTy ρ ϕ rel S
+    = refl
+
+  cancel-ren-sub-expr ρ ϕ rel (E-Val v)
+    rewrite cancel-ren-sub-value ρ ϕ rel v
+    = refl
+  cancel-ren-sub-expr ρ ϕ rel (E-App e₁ e₂)
+    rewrite cancel-ren-sub-expr ρ ϕ rel e₁
+          | cancel-ren-sub-expr ρ ϕ rel e₂
+    = refl
+  cancel-ren-sub-expr ρ ϕ rel (E-TApp e T)
+    rewrite cancel-ren-sub-expr ρ ϕ rel e
+          | cancelTy ρ ϕ rel T
+    = refl
+  cancel-ren-sub-expr ρ ϕ rel (E-LetUnit e₁ e₂)
+    rewrite cancel-ren-sub-expr ρ ϕ rel e₁
+          | cancel-ren-sub-expr ρ ϕ rel e₂
+    = refl
+  cancel-ren-sub-expr ρ ϕ rel (E-Pair e₁ e₂)
+    rewrite cancel-ren-sub-expr ρ ϕ rel e₁
+          | cancel-ren-sub-expr ρ ϕ rel e₂
+    = refl
+  cancel-ren-sub-expr ρ ϕ rel (E-LetPair e₁ e₂)
+    rewrite cancel-ren-sub-expr ρ ϕ rel e₁
+          | cancel-ren-sub-expr ρ ϕ rel e₂
+    = refl
+  cancel-ren-sub-expr ρ ϕ rel (E-Match {ss = ss} e ne branches)
+    rewrite cancel-ren-sub-expr ρ ϕ rel e
+          | branch-ext {ss = ss} (λ i i∈ → cancel-ren-sub-expr ρ ϕ rel (branches i i∈))
+    = refl
+
+inhabitTy : ∀ {Δ K} → Ty Δ K
+inhabitTy {K = KP} = T-Up T-End
+inhabitTy {K = KV KS Un} = T-End
+inhabitTy {K = KV KS Lin} = T-Sub (≤k-step ≤p-refl ≤m-unl) T-End
+inhabitTy {K = KV KM Un} = T-Arrow ≤p-refl T-Base T-Base
+inhabitTy {K = KV KM Lin} = T-Arrow ≤p-refl T-Base T-Base
+inhabitTy {K = KV KT Un} = T-Arrow (≤p-step <p-mt) T-Base T-Base
+inhabitTy {K = KV KT Lin} = T-Base
+
+substTy-wkNfTy-id :
+  ∀ {Δ K K′}
+    (T : NfTy Δ K)
+    (U : Ty Δ K′)
+  → substTyNf (wkNfTy {K′ = K′} T) U ≡ T
+substTy-wkNfTy-id {K′ = K′} T U =
+  trans
+    (cong (λ X → normalizeTy (X ⋯ ⦅ U ⦆ₛ)) (wkNFKind-sound {K′ = K′} T))
+    (trans
+      (cong normalizeTy (wk-cancels-⦅⦆-⋯ (⌞ T ⌟) U))
+      (normalizeTy-id T))
+
+substTy-wkBinding-id :
+  ∀ {Δ K}
+    (b : Binding Δ)
+    (U : Ty Δ K)
+  → substTyBinding (wkBinding {K = K} b) U ≡ b
+substTy-wkBinding-id (B-Lin T) U = cong B-Lin (substTy-wkNfTy-id T U)
+substTy-wkBinding-id (B-Un T) U = cong B-Un (substTy-wkNfTy-id T U)
+substTy-wkBinding-id (B-Used T) U = cong B-Used (substTy-wkNfTy-id T U)
+
+substTy-wkCtx-id :
+  ∀ {Δ K n}
+    (Γ : Ctx Δ n)
+    (U : Ty Δ K)
+  → substTyCtx (wkCtx {K = K} Γ) U ≡ Γ
+substTy-wkCtx-id ∅ U = refl
+substTy-wkCtx-id (b ▻ Γ) U =
+  cong₂ (λ b′ Γ′ → b′ ▻ Γ′)
+    (substTy-wkBinding-id b U)
+    (substTy-wkCtx-id Γ U)
+
+substTyCtx-allUsedCtx :
+  ∀ {Δ n K}
+    (Γ : Ctx (K ∷ Δ) n)
+    (U : Ty Δ K)
+  → substTyCtx (allUsedCtx Γ) U ≡ allUsedCtx (substTyCtx Γ U)
+substTyCtx-allUsedCtx ∅ U = refl
+substTyCtx-allUsedCtx (B-Lin T ▻ Γ) U =
+  cong (B-Used _ ▻_) (substTyCtx-allUsedCtx Γ U)
+substTyCtx-allUsedCtx (B-Un T ▻ Γ) U =
+  cong (B-Un _ ▻_) (substTyCtx-allUsedCtx Γ U)
+substTyCtx-allUsedCtx (B-Used T ▻ Γ) U =
+  cong (B-Used _ ▻_) (substTyCtx-allUsedCtx Γ U)
+
+substTy-wkAllUsedCtx-id :
+  ∀ {Δ n K}
+    (Γ : Ctx Δ n)
+    (U : Ty Δ K)
+  → substTyCtx (allUsedCtx (wkCtx {K = K} Γ)) U ≡ allUsedCtx Γ
+substTy-wkAllUsedCtx-id {K = K} Γ U =
+  trans
+    (substTyCtx-allUsedCtx (wkCtx {K = K} Γ) U)
+    (cong allUsedCtx (substTy-wkCtx-id Γ U))
+
+substTy-wkTyValue-id :
+  ∀ {Δ n K}
+    (v : Value Δ n)
+    (U : Ty Δ K)
+  → substTyValue (wkTyValue {K = K} v) U ≡ v
+substTy-wkTyValue-id {K = K} v U =
+  cancel-ren-sub-value
+    (weakenᵣ K)
+    (⦅ U ⦆ₛ)
+    (wk-cancels-⦅⦆ U)
+    v
+
+substTy-allUsed :
+  ∀ {Δ n K}
+    {Γ : Ctx (K ∷ Δ) n}
+    (U : Ty Δ K)
+  → AllUsed Γ
+  → AllUsed (substTyCtx Γ U)
+substTy-allUsed U AU-∅ = AU-∅
+substTy-allUsed U (AU-used au) = AU-used (substTy-allUsed U au)
+substTy-allUsed U (AU-un au) = AU-un (substTy-allUsed U au)
+
+unwkAllUsed :
+  ∀ {Δ n K}
+    {Γ : Ctx Δ n}
+  → AllUsed (wkCtx {K = K} Γ)
+  → AllUsed Γ
+unwkAllUsed {Γ = ∅} AU-∅ = AU-∅
+unwkAllUsed {Γ = B-Lin _ ▻ _} ()
+unwkAllUsed {Γ = B-Un _ ▻ _} (AU-un au) = AU-un (unwkAllUsed au)
+unwkAllUsed {Γ = B-Used _ ▻ _} (AU-used au) = AU-used (unwkAllUsed au)
+
+tailSub-liftTySub :
+  ∀ {Δ n m K}
+    (σ : Sub Δ (suc n) m)
+  → tailSub (liftTySub {K = K} σ) ≡ liftTySub (tailSub σ)
+tailSub-liftTySub σ = ext _ _ λ _ → refl
+
+unwkMergeLeft :
+  ∀ {Δ n K}
+    {Γrest Γv Γt : Ctx (K ∷ Δ) n}
+    {Γrest₀ : Ctx Δ n}
+  → MergeCtx Γrest Γv Γt
+  → Γrest ≡ wkCtx {K = K} Γrest₀
+  → Σ (Ctx Δ n) λ Γv₀ →
+      Σ (Ctx Δ n) λ Γt₀ →
+        (Γv ≡ wkCtx Γv₀)
+        × (Γt ≡ wkCtx Γt₀)
+        × MergeCtx Γrest₀ Γv₀ Γt₀
+unwkMergeLeft {Γrest₀ = ∅} MC-∅ refl = ∅ , ∅ , refl , refl , MC-∅
+unwkMergeLeft {Γrest₀ = B-Used T₀ ▻ Γrest₀} (MC-used-used m) refl
+  with unwkMergeLeft {Γrest₀ = Γrest₀} m refl
+... | Γv₀ , Γt₀ , eqv , eqt , m₀ =
+  (B-Used _ ▻ Γv₀) , (B-Used _ ▻ Γt₀) ,
+  cong (B-Used _ ▻_) eqv ,
+  cong (B-Used _ ▻_) eqt ,
+  MC-used-used m₀
+unwkMergeLeft {Γrest₀ = B-Used T₀ ▻ Γrest₀} (MC-used-left m) refl
+  with unwkMergeLeft {Γrest₀ = Γrest₀} m refl
+... | Γv₀ , Γt₀ , eqv , eqt , m₀ =
+  (B-Lin _ ▻ Γv₀) , (B-Lin _ ▻ Γt₀) ,
+  cong (B-Lin _ ▻_) eqv ,
+  cong (B-Lin _ ▻_) eqt ,
+  MC-used-left m₀
+unwkMergeLeft {Γrest₀ = B-Lin T₀ ▻ Γrest₀} (MC-used-right m) refl
+  with unwkMergeLeft {Γrest₀ = Γrest₀} m refl
+... | Γv₀ , Γt₀ , eqv , eqt , m₀ =
+  (B-Used _ ▻ Γv₀) , (B-Lin _ ▻ Γt₀) ,
+  cong (B-Used _ ▻_) eqv ,
+  cong (B-Lin _ ▻_) eqt ,
+  MC-used-right m₀
+unwkMergeLeft {Γrest₀ = B-Un T₀ ▻ Γrest₀} (MC-un m) refl
+  with unwkMergeLeft {Γrest₀ = Γrest₀} m refl
+... | Γv₀ , Γt₀ , eqv , eqt , m₀ =
+  (B-Un _ ▻ Γv₀) , (B-Un _ ▻ Γt₀) ,
+  cong (B-Un _ ▻_) eqv ,
+  cong (B-Un _ ▻_) eqt ,
+  MC-un m₀
 
 liftTySub-preserves-σ :
   ∀ {Δ n m K}
@@ -576,93 +1126,364 @@ liftTySub-preserves-σ {K = K} {σ = σ} (S-Un {T = T} d0 σtail) =
 liftTySub-preserves-σ {K = K} (S-Used σtail) =
   S-Used (liftTySub-preserves-σ {K = K} σtail)
 
-postulate
-  consume-lin-head-merge :
-    ∀ {Δ n K}
-      {Γrest Γv Γt Γv′ : Ctx Δ n}
-      {v : Value Δ n}
-      {T : NfTy Δ K}
-    → MergeCtx Γrest Γv Γt
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
-    → AllUsed Γv′
-    → Γt ⊢ᵥ v ⇒ T ⊣ Γrest
+mergeCtx-frame :
+  ∀ {Δ n}
+    {Γrest Γv Γt : Ctx Δ n}
+  → MergeCtx Γrest Γv Γt
+  → FrameCtx Γrest Γv Γt
+mergeCtx-frame MC-∅ = FC-∅
+mergeCtx-frame (MC-used-used m) = FC-allused (mergeCtx-frame m)
+mergeCtx-frame (MC-used-left m) = FC-live (mergeCtx-frame m)
+mergeCtx-frame (MC-used-right m) = FC-frame (mergeCtx-frame m)
+mergeCtx-frame (MC-un m) = FC-un (mergeCtx-frame m)
 
-  lift-lin-through-merge :
-    ∀ {Δ n K}
-      {Γrest Γmid Γv Γt : Ctx Δ n}
-      {v : Value Δ n}
-      {T : NfTy Δ K}
-    → MergeCtx Γrest Γv Γt
-    → Γrest ⊢ᵥ v ⇒ T ⊣ Γmid
-    → Σ (Ctx Δ n) λ Γtout →
-        Σ (LinearDisjoint Γmid Γv) λ ld →
-          MergeCtx Γmid Γv Γtout
-          × (Γt ⊢ᵥ v ⇒ T ⊣ Γtout)
+mergeCtx-frame′ :
+  ∀ {Δ n}
+    {Γrest Γv Γt : Ctx Δ n}
+  → MergeCtx Γrest Γv Γt
+  → FrameCtx Γv Γrest Γt
+mergeCtx-frame′ MC-∅ = FC-∅
+mergeCtx-frame′ (MC-used-used m) = FC-allused (mergeCtx-frame′ m)
+mergeCtx-frame′ (MC-used-left m) = FC-frame (mergeCtx-frame′ m)
+mergeCtx-frame′ (MC-used-right m) = FC-live (mergeCtx-frame′ m)
+mergeCtx-frame′ (MC-un m) = FC-un (mergeCtx-frame′ m)
 
-  lift-un-through-merge :
-    ∀ {Δ n pk}
-      {Γrest Γv Γt : Ctx Δ n}
-      {v : Value Δ n}
-      {T : NfTy Δ (KV pk Un)}
-    → MergeCtx Γrest Γv Γt
-    → Γrest ⊢ᵥ v ⇒ T ⊣ Γrest
-    → Γt ⊢ᵥ v ⇒ T ⊣ Γt
+frameCtx-merge :
+  ∀ {Δ n}
+    {Φ Γ Γ̂ : Ctx Δ n}
+  → FrameCtx Φ Γ Γ̂
+  → MergeCtx Γ Φ Γ̂
+frameCtx-merge FC-∅ = MC-∅
+frameCtx-merge (FC-frame f) = MC-used-left (frameCtx-merge f)
+frameCtx-merge (FC-allused f) = MC-used-used (frameCtx-merge f)
+frameCtx-merge (FC-live f) = MC-used-right (frameCtx-merge f)
+frameCtx-merge (FC-un f) = MC-un (frameCtx-merge f)
 
-  lift-un-head-through-lookup :
-    ∀ {Δ n m pk pk′}
-      {Γ Γ′ : Ctx Δ n}
-      {Γt Γt′ : Ctx Δ m}
-      {σ : Sub Δ (suc n) m}
-      {Γo : Ctx Δ m}
-      {x : Fin n}
-      {T : NfTy Δ (KV pk Un)}
-      {U : NfTy Δ (KV pk′ Lin)}
-    → Γ ⊢ˡ x ∶ U ⊣ Γ′
-    → Γt ⊢σ tailSub σ ∶ Γ ⊣ Γo
-    → Γt′ ⊢σ tailSub σ ∶ Γ′ ⊣ Γo
-    → allUsedCtx Γt ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt
-    → allUsedCtx Γt′ ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt′
+consume-lin-head-merge :
+  ∀ {Δ n K}
+    {Γrest Γv Γt Γv′ : Ctx Δ n}
+    {v : Value Δ n}
+    {T : NfTy Δ K}
+  → MergeCtx Γrest Γv Γt
+  → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+  → AllUsed Γv′
+  → Γt ⊢ᵥ v ⇒ T ⊣ Γrest
+consume-lin-head-merge m dv au =
+  replay-value-allUsed dv (mergeCtx-frame m) au
 
-  unliftTySub-preserves-σ :
-    ∀ {Δ n m K}
-      {Γs : Ctx Δ n}
-      {Γtwk : Ctx (K ∷ Δ) m}
-      {Γo : Ctx Δ m}
-      {σ : Sub Δ n m}
-    → Γtwk ⊢σ liftTySub σ ∶ wkCtx {K = K} Γs ⊣ wkCtx {K = K} Γo
-    → Σ (Ctx Δ m) λ Γt →
-        (Γtwk ≡ wkCtx {K = K} Γt)
-        × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
+lift-lin-through-merge :
+  ∀ {Δ n K}
+    {Γrest Γmid Γv Γt : Ctx Δ n}
+    {v : Value Δ n}
+    {T : NfTy Δ K}
+  → MergeCtx Γrest Γv Γt
+  → Γrest ⊢ᵥ v ⇒ T ⊣ Γmid
+  → Σ (Ctx Δ n) λ Γtout →
+      Σ (LinearDisjoint Γmid Γv) λ ld →
+        MergeCtx Γmid Γv Γtout
+        × (Γt ⊢ᵥ v ⇒ T ⊣ Γtout)
+lift-lin-through-merge m d
+  with frame-value d (mergeCtx-frame′ m)
+... | Γtout , f′ , d′ =
+  Γtout , merge-disjoint mrg , mrg , d′
+  where
+  mrg : MergeCtx _ _ _
+  mrg = frameCtx-merge f′
 
-  extSub-preserves-σ-lin :
+lift-un-through-merge :
+  ∀ {Δ n pk}
+    {Γrest Γv Γt : Ctx Δ n}
+    {v : Value Δ n}
+    {T : NfTy Δ (KV pk Un)}
+  → MergeCtx Γrest Γv Γt
+  → Γrest ⊢ᵥ v ⇒ T ⊣ Γrest
+  → Γt ⊢ᵥ v ⇒ T ⊣ Γt
+lift-un-through-merge m d =
+  replay-value d (mergeCtx-frame′ m) (mergeCtx-frame′ m)
+
+σ-target-unique :
+  ∀ {Δ n m}
+    {Γs : Ctx Δ n}
+    {Γt₁ Γt₂ Γo : Ctx Δ m}
+    {σ : Sub Δ n m}
+  → Γt₁ ⊢σ σ ∶ Γs ⊣ Γo
+  → Γt₂ ⊢σ σ ∶ Γs ⊣ Γo
+  → Γt₁ ≡ Γt₂
+σ-target-unique (S-∅ _) (S-∅ _) = refl
+σ-target-unique
+  (S-Lin {Γrest = Γrest₁} m₁ _ dv₁ au₁ σtail₁)
+  (S-Lin {Γrest = Γrest₂} m₂ _ dv₂ au₂ σtail₂)
+  with σ-target-unique σtail₁ σtail₂
+... | eqrest rewrite eqrest =
+  value-input-unique
+    (consume-lin-head-merge m₁ dv₁ au₁)
+    (consume-lin-head-merge m₂ dv₂ au₂)
+σ-target-unique (S-Un _ σtail₁) (S-Un _ σtail₂) =
+  σ-target-unique σtail₁ σtail₂
+σ-target-unique (S-Used σtail₁) (S-Used σtail₂) =
+  σ-target-unique σtail₁ σtail₂
+
+lift-un-head-through-lookup′ :
+  ∀ {Δ n m K pk′}
+    {Γ Γ′ : Ctx Δ n}
+    {Γt Γt′ : Ctx Δ m}
+    {τ : Sub Δ n m}
+    {Γo : Ctx Δ m}
+    {x : Fin n}
+    {w : Value Δ m}
+    {T : NfTy Δ K}
+    {U : NfTy Δ (KV pk′ Lin)}
+  → Γ ⊢ˡ x ∶ U ⊣ Γ′
+  → Γt ⊢σ τ ∶ Γ ⊣ Γo
+  → Γt′ ⊢σ τ ∶ Γ′ ⊣ Γo
+  → allUsedCtx Γt ⊢ᵥ w ⇒ T ⊣ allUsedCtx Γt
+  → allUsedCtx Γt′ ⊢ᵥ w ⇒ T ⊣ allUsedCtx Γt′
+lift-un-head-through-lookup′ {w = w} take-here (S-Lin {Γrest = Γrest} m ld dv au σtail) (S-Used σtail′) d0 =
+  subst
+    (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
+    (cong allUsedCtx (sym (σ-target-unique σtail′ σtail)))
+    (subst
+      (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
+      (allUsed-merge m)
+      d0)
+lift-un-head-through-lookup′ {τ = τ} {w = w}
+  (take-thereˡ take)
+  (S-Lin {Γrest = Γrest} m ld dv au σtail)
+  (S-Lin {Γrest = Γrest′} m′ ld′ dv′ au′ σtail′)
+  d0 =
+  subst
+    (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
+    (sym (allUsed-merge m′))
+    (lift-un-head-through-lookup′
+      {τ = tailSub τ}
+      {w = w}
+      take
+      σtail
+      σtail′
+      (subst
+        (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
+        (allUsed-merge m)
+        d0))
+lift-un-head-through-lookup′ {τ = τ} {w = w}
+  (take-thereᵘ take)
+  (S-Un dhead σtail)
+  (S-Un dhead′ σtail′)
+  d0 =
+  lift-un-head-through-lookup′
+    {τ = tailSub τ}
+    {w = w}
+    take
+    σtail
+    σtail′
+    d0
+lift-un-head-through-lookup′ {τ = τ} {w = w}
+  (take-there✖ take)
+  (S-Used σtail)
+  (S-Used σtail′)
+  d0 =
+  lift-un-head-through-lookup′
+    {τ = tailSub τ}
+    {w = w}
+    take
+    σtail
+    σtail′
+    d0
+
+lift-un-head-through-lookup :
+  ∀ {Δ n m pk pk′}
+    {Γ Γ′ : Ctx Δ n}
+    {Γt Γt′ : Ctx Δ m}
+    {σ : Sub Δ (suc n) m}
+    {Γo : Ctx Δ m}
+    {x : Fin n}
+    {T : NfTy Δ (KV pk Un)}
+    {U : NfTy Δ (KV pk′ Lin)}
+  → Γ ⊢ˡ x ∶ U ⊣ Γ′
+  → Γt ⊢σ tailSub σ ∶ Γ ⊣ Γo
+  → Γt′ ⊢σ tailSub σ ∶ Γ′ ⊣ Γo
+  → allUsedCtx Γt ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt
+  → allUsedCtx Γt′ ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt′
+lift-un-head-through-lookup {σ = σ} take σtail σtail′ d0 =
+  lift-un-head-through-lookup′
+    {τ = tailSub σ}
+    {w = σ zero}
+    take
+    σtail
+    σtail′
+    d0
+
+merge-right-allUsed :
+  ∀ {Δ n}
+    (Γ : Ctx Δ n)
+  → MergeCtx Γ (allUsedCtx Γ) Γ
+merge-right-allUsed ∅ = MC-∅
+merge-right-allUsed (B-Lin T ▻ Γ) = MC-used-right (merge-right-allUsed Γ)
+merge-right-allUsed (B-Un T ▻ Γ) = MC-un (merge-right-allUsed Γ)
+merge-right-allUsed (B-Used T ▻ Γ) = MC-used-used (merge-right-allUsed Γ)
+
+tailSub-extSub-empty :
+  ∀ {Δ m}
+    (σ : Sub Δ 0 m)
+  → tailSub (extSub σ) ≡ (λ ())
+tailSub-extSub-empty σ = ext _ _ λ ()
+
+mutual
+
+  lift-tailSub-extSub-used :
     ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
       {T : NfTy Δ (KV pk Lin)}
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
-    → (T ∷ˡ Γt) ⊢σ extSub σ ∶ (T ∷ˡ Γs) ⊣ used∷ {T = T} Γo
+    → used∷ {T = T} Γt ⊢σ tailSub (extSub σ) ∶ Γs ⊣ used∷ {T = T} Γo
 
-  extSub-preserves-σ-un :
+  lift-tailSub-extSub-un :
     ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
       {T : NfTy Δ (KV pk Un)}
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
-    → (T ∷ᵘ Γt) ⊢σ extSub σ ∶ (T ∷ᵘ Γs) ⊣ (T ∷ᵘ Γo)
+    → (T ∷ᵘ Γt) ⊢σ tailSub (extSub σ) ∶ Γs ⊣ (T ∷ᵘ Γo)
+
+  lift-tailSub-extSub-used {Γt = Γt} {T = T} (S-∅ au) =
+    subst
+      (λ τ → used∷ {T = T} Γt ⊢σ τ ∶ ∅ ⊣ used∷ {T = T} Γt)
+      (sym (tailSub-extSub-empty (λ ())))
+      (S-∅ (AU-used au))
+  lift-tailSub-extSub-used {T = T} (S-Lin {T = U} m ld dv au σtail) =
+    S-Lin
+      (MC-used-used m)
+      (LD-used-used ld)
+      (Ren.wk-preserves-value (B-Used T) dv)
+      (AU-used au)
+      (lift-tailSub-extSub-used {T = T} σtail)
+  lift-tailSub-extSub-used {T = T} (S-Un {T = U} d0 σtail) =
+    S-Un
+      (Ren.wk-preserves-value (B-Used T) d0)
+      (lift-tailSub-extSub-used {T = T} σtail)
+  lift-tailSub-extSub-used {T = T} (S-Used {T = U} σtail) =
+    S-Used (lift-tailSub-extSub-used {T = T} σtail)
+
+  lift-tailSub-extSub-un {Γt = Γt} {T = T} (S-∅ au) =
+    subst
+      (λ τ → (T ∷ᵘ Γt) ⊢σ τ ∶ ∅ ⊣ (T ∷ᵘ Γt))
+      (sym (tailSub-extSub-empty (λ ())))
+      (S-∅ (AU-un au))
+  lift-tailSub-extSub-un {T = T} (S-Lin {T = U} m ld dv au σtail) =
+    S-Lin
+      (MC-un m)
+      (LD-un-un ld)
+      (Ren.wk-preserves-value (B-Un T) dv)
+      (AU-un au)
+      (lift-tailSub-extSub-un {T = T} σtail)
+  lift-tailSub-extSub-un {T = T} (S-Un {T = U} d0 σtail) =
+    S-Un
+      (Ren.wk-preserves-value (B-Un T) d0)
+      (lift-tailSub-extSub-un {T = T} σtail)
+  lift-tailSub-extSub-un {T = T} (S-Used {T = U} σtail) =
+    S-Used (lift-tailSub-extSub-un {T = T} σtail)
+
+extSub-preserves-σ-lin :
+  ∀ {Δ n m pk}
+    {Γs : Ctx Δ n}
+    {Γt Γo : Ctx Δ m}
+    {σ : Sub Δ n m}
+    {T : NfTy Δ (KV pk Lin)}
+  → Γt ⊢σ σ ∶ Γs ⊣ Γo
+  → (T ∷ˡ Γt) ⊢σ extSub σ ∶ (T ∷ˡ Γs) ⊣ used∷ {T = T} Γo
+extSub-preserves-σ-lin {Γt = Γt} {T = T} σok =
+  S-Lin
+    (MC-used-left (merge-right-allUsed Γt))
+    (LD-used-live (merge-disjoint (merge-right-allUsed Γt)))
+    (TV-Var-Lin take-here)
+    (AU-used (allUsedCtx-AllUsed Γt))
+    (lift-tailSub-extSub-used {T = T} σok)
+
+extSub-preserves-σ-un :
+  ∀ {Δ n m pk}
+    {Γs : Ctx Δ n}
+    {Γt Γo : Ctx Δ m}
+    {σ : Sub Δ n m}
+    {T : NfTy Δ (KV pk Un)}
+  → Γt ⊢σ σ ∶ Γs ⊣ Γo
+  → (T ∷ᵘ Γt) ⊢σ extSub σ ∶ (T ∷ᵘ Γs) ⊣ (T ∷ᵘ Γo)
+extSub-preserves-σ-un {T = T} σok =
+  S-Un
+    (TV-Var-Un hereᵘ)
+    (lift-tailSub-extSub-un {T = T} σok)
+
+unliftTySub-preserves-σ :
+  ∀ {Δ n m K}
+    {Γs : Ctx Δ n}
+    {Γtwk : Ctx (K ∷ Δ) m}
+    {Γo : Ctx Δ m}
+    {σ : Sub Δ n m}
+  → Γtwk ⊢σ liftTySub σ ∶ wkCtx {K = K} Γs ⊣ wkCtx {K = K} Γo
+  → Σ (Ctx Δ m) λ Γt →
+      (Γtwk ≡ wkCtx {K = K} Γt)
+      × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
+unliftTySub-preserves-σ {K = K} {Γs = ∅} {Γtwk = Γtwk} {Γo = Γo} {σ = σ} d
+  with subst
+        (λ τ → Γtwk ⊢σ τ ∶ ∅ ⊣ wkCtx {K = K} Γo)
+        (liftTySub-empty-general {K = K} σ)
+        d
+... | S-∅ au =
+  Γo , refl ,
+  subst
+    (λ τ → Γo ⊢σ τ ∶ ∅ ⊣ Γo)
+    (sym (emptySub-η σ))
+    (S-∅ (unwkAllUsed au))
+unliftTySub-preserves-σ {K = K} {Γs = B-Lin Ts ▻ Γs′} {σ = σ}
+  (S-Lin {Γrest = Γrest} {Γv = Γv} {Γv′ = Γv′} m ld dv au σtail)
+  rewrite tailSub-liftTySub {K = K} σ
+  with unliftTySub-preserves-σ {K = K} {Γs = Γs′} {σ = tailSub σ} σtail
+... | Γrest₀ , eqrest , σtail₀
+  with unwkMergeLeft {K = K} m eqrest
+... | Γv₀ , Γt₀ , eqv , eqt , m₀
+  with substTy-preserves-value {U = inhabitTy {K = K}} dv
+... | dv₀ rewrite eqv
+               | substTy-wkCtx-id Γv₀ (inhabitTy {K = K})
+               | substTy-wkTyValue-id (σ zero) (inhabitTy {K = K})
+               | substTy-wkNfTy-id Ts (inhabitTy {K = K}) =
+  Γt₀ , eqt ,
+  S-Lin
+    m₀
+    (merge-disjoint m₀)
+    dv₀
+    (substTy-allUsed (inhabitTy {K = K}) au)
+    σtail₀
+unliftTySub-preserves-σ {K = K} {Γs = B-Un Tu ▻ Γs′} {σ = σ}
+  (S-Un d0 σtail)
+  rewrite tailSub-liftTySub {K = K} σ
+  with unliftTySub-preserves-σ {K = K} {Γs = Γs′} {σ = tailSub σ} σtail
+... | Γt₀ , eqt , σtail₀
+  with substTy-preserves-value {U = inhabitTy {K = K}} d0
+... | d0′ rewrite eqt
+              | substTy-wkAllUsedCtx-id Γt₀ (inhabitTy {K = K})
+              | substTy-wkTyValue-id (σ zero) (inhabitTy {K = K})
+              | substTy-wkNfTy-id Tu (inhabitTy {K = K}) =
+  Γt₀ , refl , S-Un d0′ σtail₀
+unliftTySub-preserves-σ {K = K} {Γs = B-Used Tu ▻ Γs′} {σ = σ}
+  (S-Used σtail)
+  rewrite tailSub-liftTySub {K = K} σ
+  with unliftTySub-preserves-σ {K = K} {Γs = Γs′} {σ = tailSub σ} σtail
+... | Γt₀ , eqt , σtail₀ =
+  Γt₀ , eqt , S-Used σtail₀
+
+postulate
 
   unextSub-used :
     ∀ {Δ n m pk}
       {Γs : Ctx Δ n}
-      {Γtwk Γowk : Ctx Δ (suc m)}
+      {Γtwk : Ctx Δ (suc m)}
+      {Γo : Ctx Δ m}
       {σ : Sub Δ n m}
       {T : NfTy Δ (KV pk Lin)}
-    → Γtwk ⊢σ extSub σ ∶ used∷ {T = T} Γs ⊣ Γowk
+    → Γtwk ⊢σ extSub σ ∶ used∷ {T = T} Γs ⊣ used∷ {T = T} Γo
     → Σ (Ctx Δ m) λ Γt →
-      Σ (Ctx Δ m) λ Γo →
         (Γtwk ≡ used∷ {T = T} Γt)
-        × (Γowk ≡ used∷ {T = T} Γo)
         × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
 
   unextSub-un-fixed :
@@ -693,24 +1514,22 @@ extSub2-preserves-σ-lin2 σok =
 unextSub2-used2 :
   ∀ {Δ n m pk pk′}
     {Γs : Ctx Δ n}
-    {Γtwk Γowk : Ctx Δ (suc (suc m))}
+    {Γtwk : Ctx Δ (suc (suc m))}
+    {Γo : Ctx Δ m}
     {σ : Sub Δ n m}
     {T : NfTy Δ (KV pk Lin)}
     {U : NfTy Δ (KV pk′ Lin)}
-  → Γtwk ⊢σ extSub2 σ ∶ used∷ {T = T} (used∷ {T = U} Γs) ⊣ Γowk
+  → Γtwk ⊢σ extSub2 σ ∶ used∷ {T = T} (used∷ {T = U} Γs) ⊣ used∷ {T = T} (used∷ {T = U} Γo)
   → Σ (Ctx Δ m) λ Γt →
-    Σ (Ctx Δ m) λ Γo →
       (Γtwk ≡ used∷ {T = T} (used∷ {T = U} Γt))
-      × (Γowk ≡ used∷ {T = T} (used∷ {T = U} Γo))
       × (Γt ⊢σ σ ∶ Γs ⊣ Γo)
-unextSub2-used2 {Γs = Γs} {Γtwk = Γtwk} {σ = σ} {T = T} {U = U} σok
+unextSub2-used2 {Γs = Γs} {Γtwk = Γtwk} {Γo = Γo} {σ = σ} {T = T} {U = U} σok
   with unextSub-used {Γtwk = Γtwk} {σ = extSub σ} {T = T} σok
-... | Γu , Γou , eq₁ , eqo₁ , σu
+... | Γu , eq₁ , σu
   with unextSub-used {Γtwk = Γu} {σ = σ} {T = U} σu
-... | Γt , Γo , eq₂ , eqo₂ , σt =
-  Γt , Γo ,
+... | Γt , eq₂ , σt =
+  Γt ,
   trans eq₁ (cong (used∷ {T = T}) eq₂) ,
-  trans eqo₁ (cong (used∷ {T = T}) eqo₂) ,
   σt
 
 
@@ -809,28 +1628,6 @@ subst-next-ctx-connect :
   → Γti ⊢σ σ ∶ Γs′ ⊣ Γo
   → Γti ≡ Γt′
 subst-next-ctx-connect rm σin σcalc σout = σ-target-unique σout σcalc
-  where
-  σ-target-unique :
-    ∀ {Δ₀ n₀ m₀}
-      {Γs₀ : Ctx Δ₀ n₀}
-      {Γt₁ Γt₂ Γo₀ : Ctx Δ₀ m₀}
-      {σ₀ : Sub Δ₀ n₀ m₀}
-    → Γt₁ ⊢σ σ₀ ∶ Γs₀ ⊣ Γo₀
-    → Γt₂ ⊢σ σ₀ ∶ Γs₀ ⊣ Γo₀
-    → Γt₁ ≡ Γt₂
-  σ-target-unique (S-∅ _) (S-∅ _) = refl
-  σ-target-unique
-    (S-Lin {Γrest = Γrest₁} m₁ _ dv₁ au₁ σtail₁)
-    (S-Lin {Γrest = Γrest₂} m₂ _ dv₂ au₂ σtail₂)
-    with σ-target-unique σtail₁ σtail₂
-  ... | eqrest rewrite eqrest =
-    value-input-unique
-      (consume-lin-head-merge m₁ dv₁ au₁)
-      (consume-lin-head-merge m₂ dv₂ au₂)
-  σ-target-unique (S-Un _ σtail₁) (S-Un _ σtail₂) =
-    σ-target-unique σtail₁ σtail₂
-  σ-target-unique (S-Used σtail₁) (S-Used σtail₂) =
-    σ-target-unique σtail₁ σtail₂
 
 pack-synth-result :
   ∀ {Δ n m K}
@@ -889,32 +1686,6 @@ pack-value-result :
 pack-value-result d (Γt′ , d′ , σok′) with leftover-value d
 ... | G , rm = G , rm , Γt′ , d′ , σok′
 
-pack-synth-eq :
-  ∀ {Δ n m K}
-    {Γs Γs′ : Ctx Δ n}
-    {Γt Γo : Ctx Δ m}
-    {σ : Sub Δ n m}
-    {e : Expr Δ n}
-    {T : NfTy Δ K}
-  → (de : Γs ⊢ e ⇒ T ⊣ Γs′)
-  → (⊢σ : Γt ⊢σ σ ∶ Γs ⊣ Γo)
-  → (Σ (Ctx Δ m) λ Γt′ →
-      (Γt ⊢ substExprWith σ e ⇒ T ⊣ Γt′)
-      × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo))
-  → let _ , rm = leftover-synth de in
-    let Γt0 , _ = subst-next-ctx _ _ _ _ _ rm σ ⊢σ in
-    Σ (Ctx Δ m) λ Γt′ →
-      Γt0 ≡ Γt′
-      × (Γt ⊢ substExprWith σ e ⇒ T ⊣ Γt′)
-      × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
-pack-synth-eq {σ = σ} de ⊢σ (Γt′ , d′ , σok′)
-  with leftover-synth de
-... | G , rm
-  with subst-next-ctx _ _ _ _ _ rm σ ⊢σ
-... | Γt0 , _ , σ0 , _ , _ =
-  Γt′ , sym (subst-next-ctx-connect rm ⊢σ σ0 σok′) , d′ , σok′
-
-
 mutual
 
   substσ-preserves-value-abs-body :
@@ -935,10 +1706,10 @@ mutual
 
   substσ-preserves-value-abs-body d σok
     with substσ-preserves-synth d (extSub-preserves-σ-lin σok)
-  ... | Γtwk , _ , d′ , σwk
+  ... | Γtwk , d′ , σwk
     with unextSub-used σwk
-  ... | Γt′ , Γo′ , eq , eqo , σok′
-    rewrite eq | used∷-injective eqo
+  ... | Γt′ , eq , σok′
+    rewrite eq
     with leftover-synth d
   ... | G₀ , rm₀
     with strip-lin-used rm₀
@@ -990,12 +1761,12 @@ mutual
 
   substσ-preserves-synth-letpair d₁ d₂ σok
     with substσ-preserves-synth d₁ σok
-  ... | Γtmid , _ , d₁′ , σmid
+  ... | Γtmid , d₁′ , σmid
     with substσ-preserves-synth d₂ (extSub2-preserves-σ-lin2 σmid)
-  ... | Γtwk , _ , d₂′ , σwk
+  ... | Γtwk , d₂′ , σwk
     with unextSub2-used2 σwk
-  ... | Γt′ , Γo′ , eq , eqo , σok′
-    rewrite eq | used∷-injective (used∷-injective eqo) =
+  ... | Γt′ , eq , σok′
+    rewrite eq =
       pack-synth-result
         (T-LetPair d₁ d₂)
         (Γt′ , T-LetPair d₁′ d₂′ , σok′)
@@ -1040,7 +1811,7 @@ mutual
   substσ-preserves-value-rec (TV-Rec {T = T} {U = U} d) σok =
     pack-value-result
       (TV-Rec d)
-      (_ , TV-Rec (substσ-preserves-value-rec-body {T = T} {U = U} d σok) , σok)
+      (_ , TV-Rec (substσ-preserves-value-rec-body {T = T} {U =  U} d σok) , σok)
 
   substσ-preserves-value-tabs :
     ∀ {Δ n m K m′}
@@ -1143,7 +1914,7 @@ mutual
     {P = P} {S = S} {U = U} {branches = branches} {V = V}
     d bs j σok
     with substσ-preserves-synth d σok
-  ... | Γt₂ , _ , d′ , σmid
+  ... | Γt₂ , d′ , σmid
     with leftover-synth (bs (proj₁ ne) (proj₂ ne))
   ... | G₀ , rm₀
     with strip-lin-used rm₀
@@ -1162,10 +1933,10 @@ mutual
           × (Γti ⊢σ σ ∶ _ ⊣ _)
     branch i i∈
       with substσ-preserves-synth (bs i i∈) (extSub-preserves-σ-lin σmid)
-    ... | Γtwki , _ , di , σwki
+    ... | Γtwki , di , σwki
       with unextSub-used σwki
-    ... | Γti , Γoi , eqi , eqoi , σoki
-      rewrite eqi | used∷-injective eqoi = Γti , di , σoki
+    ... | Γti , eqi , σoki
+      rewrite eqi = Γti , di , σoki
 
     bs′ :
       (i : Fin _)
@@ -1186,48 +1957,42 @@ mutual
       {T : NfTy Δ K}
     → (de : Γs ⊢ e ⇒ T ⊣ Γs′)
     → (⊢σ : Γt ⊢σ σ ∶ Γs ⊣ Γo)
-    → let G , rm = leftover-synth de in
-      let Γt0 , _ = subst-next-ctx _ _ _ _ _ rm σ ⊢σ in
-      Σ (Ctx Δ m) λ Γt′ →
-        Γt0 ≡ Γt′
-        × (Γt ⊢ substExprWith σ e ⇒ T ⊣ Γt′)
+    → Σ (Ctx Δ m) λ Γt′ →
+        (Γt ⊢ substExprWith σ e ⇒ T ⊣ Γt′)
         × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
 
   substσ-preserves-synth (T-Val d) σok
     with substσ-preserves-value d σok
   ... | _ , _ , Γt′ , d′ , σok′ =
-    pack-synth-eq (T-Val d) σok (Γt′ , T-Val d′ , σok′)
+    Γt′ , T-Val d′ , σok′
   substσ-preserves-synth (T-Pair d₁ d₂) σok
     with substσ-preserves-synth d₁ σok
-  ... | Γt₂ , _ , d₁′ , σok₂
+  ... | Γt₂ , d₁′ , σok₂
     with substσ-preserves-synth d₂ σok₂
-  ... | Γt₃ , _ , d₂′ , σok₃ =
-    pack-synth-eq (T-Pair d₁ d₂) σok (Γt₃ , T-Pair d₁′ d₂′ , σok₃)
+  ... | Γt₃ , d₂′ , σok₃ =
+    Γt₃ , T-Pair d₁′ d₂′ , σok₃
   substσ-preserves-synth (T-App d₁ d₂) σok
     with substσ-preserves-synth d₁ σok
-  ... | Γt₂ , _ , d₁′ , σok₂
+  ... | Γt₂ , d₁′ , σok₂
     with substσ-preserves-check d₂ σok₂
   ... | Γt₃ , d₂′ , σok₃ =
-    pack-synth-eq (T-App d₁ d₂) σok (Γt₃ , T-App d₁′ d₂′ , σok₃)
+    Γt₃ , T-App d₁′ d₂′ , σok₃
   substσ-preserves-synth (T-LetUnit d₁ d₂) σok
     with substσ-preserves-check d₁ σok
   ... | Γt₂ , d₁′ , σok₂
     with substσ-preserves-synth d₂ σok₂
-  ... | Γt₃ , _ , d₂′ , σok₃ =
-    pack-synth-eq (T-LetUnit d₁ d₂) σok (Γt₃ , T-LetUnit d₁′ d₂′ , σok₃)
+  ... | Γt₃ , d₂′ , σok₃ =
+    Γt₃ , T-LetUnit d₁′ d₂′ , σok₃
   substσ-preserves-synth d@(T-LetPair d₁ d₂) σok
     with substσ-preserves-synth-letpair d₁ d₂ σok
   ... | _ , _ , Γt′ , d′ , σok′ =
-    pack-synth-eq d σok (Γt′ , d′ , σok′)
+    Γt′ , d′ , σok′
   substσ-preserves-synth (T-Match {ss = ss} {incl = incl} d bs j) σok =
-    pack-synth-eq
-      (T-Match {ss = ss} {incl = incl} d bs j)
-      σok
-      (substσ-preserves-synth-match {ss = ss} {incl = incl} d bs j σok)
+    substσ-preserves-synth-match {ss = ss} {incl = incl} d bs j σok
   substσ-preserves-synth (T-TApp d) σok
     with substσ-preserves-synth d σok
-  ... | Γt′ , _ , d′ , σok′ =
-    pack-synth-eq (T-TApp d) σok (Γt′ , T-TApp d′ , σok′)
+  ... | Γt′ , d′ , σok′ =
+    Γt′ , T-TApp d′ , σok′
 
   substσ-preserves-check :
     ∀ {Δ n m pk mult}
@@ -1244,5 +2009,5 @@ mutual
 
   substσ-preserves-check (T-Check d sub) σok
     with substσ-preserves-synth d σok
-  ... | Γt′ , _ , d′ , σok′ =
+  ... | Γt′ , d′ , σok′ =
     Γt′ , T-Check d′ sub , σok′
