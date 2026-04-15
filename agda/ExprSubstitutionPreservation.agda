@@ -1693,15 +1693,15 @@ mutual
       {Γs Γs′ : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
-      {T : Ty Δ TLin}
+      {T : NfTy Δ TLin}
       {e : Expr Δ (suc n)}
       {U : NfTy Δ TLin}
-    → (normalizeTy T ∷ˡ Γs) ⊢ e ⇒ U ⊣ used∷ {T = normalizeTy T} Γs′
+    → (T ∷ˡ Γs) ⊢ e ⇒ U ⊣ used∷ {T = T} Γs′
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
     → Σ (Ctx Δ n) λ G →
         RemoveCtx Γs G Γs′ ×
         Σ (Ctx Δ m) λ Γt′ →
-          ((normalizeTy T ∷ˡ Γt) ⊢ substExprWith (extSub σ) e ⇒ U ⊣ used∷ {T = normalizeTy T} Γt′)
+          ((T ∷ˡ Γt) ⊢ substExprWith (extSub σ) e ⇒ U ⊣ used∷ {T = T} Γt′)
           × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
 
   substσ-preserves-value-abs-body d σok
@@ -1721,20 +1721,20 @@ mutual
       {Γs : Ctx Δ n}
       {Γt Γo : Ctx Δ m}
       {σ : Sub Δ n m}
-      {T U : Ty Δ TLin}
+      {T U : NfTy Δ TLin}
       {v : Value Δ (suc n)}
-    → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γs)
-        ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-        ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γs)
+    → (unArrNf (T) (U) ∷ᵘ Γs)
+        ⊢ E-Val v ⇐ unArrNf (T) (U)
+        ⊣ (unArrNf (T) (U) ∷ᵘ Γs)
     → Γt ⊢σ σ ∶ Γs ⊣ Γo
-    → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γt)
-        ⊢ E-Val (substValueWith (extSub σ) v) ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-        ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γt)
+    → (unArrNf (T) (U) ∷ᵘ Γt)
+        ⊢ E-Val (substValueWith (extSub σ) v) ⇐ unArrNf (T) (U)
+        ⊣ (unArrNf (T) (U) ∷ᵘ Γt)
 
   substσ-preserves-value-rec-body {Γt = Γt} {σ = σ} {T = T} {U = U} d σok
     with substσ-preserves-check d (extSub-preserves-σ-un σok)
   ... | Γtwk , d′ , σwk
-    with unextSub-un-fixed {Γt = Γt} {σ = σ} {T = unArrNf (normalizeTy T) (normalizeTy U)} σok σwk
+    with unextSub-un-fixed {Γt = Γt} {σ = σ} {T = unArrNf (T) (U)} σok σwk
   ... | eq , eqo
     rewrite eq =
       d′
@@ -1788,7 +1788,7 @@ mutual
           × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
 
   substσ-preserves-value-abs (TV-Abs {T = T} d) σok
-    with substσ-preserves-value-abs-body {T = T} d σok
+    with substσ-preserves-value-abs-body {T = normalizeTy T} d σok
   ... | G , rm , Γt′ , d′ , σok′ =
     G , rm , Γt′ , TV-Abs d′ , σok′
 
@@ -1811,7 +1811,7 @@ mutual
   substσ-preserves-value-rec (TV-Rec {T = T} {U = U} d) σok =
     pack-value-result
       (TV-Rec d)
-      (_ , TV-Rec (substσ-preserves-value-rec-body {T = T} {U =  U} d σok) , σok)
+      (_ , TV-Rec (substσ-preserves-value-rec-body {T = normalizeTy T} {U = normalizeTy U} d σok) , σok)
 
   substσ-preserves-value-tabs :
     ∀ {Δ n m K m′}
