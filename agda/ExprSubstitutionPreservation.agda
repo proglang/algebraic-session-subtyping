@@ -435,11 +435,11 @@ replay-allUsed-value {Γ = Γ} d =
   replay-value d (frame-allUsedCtx Γ) (frame-allUsedCtx Γ)
 
 unwk-used-head-value :
-  ∀ {Δ n K pk}
+  ∀ {Δ n pk m pk′}
     {Γ₁ Γ₂ : Ctx Δ n}
     {v : Value Δ n}
-    {T : NfTy Δ K}
-    {U : NfTy Δ (KV pk Lin)}
+    {T : NfTy Δ (KV pk m)}
+    {U : NfTy Δ (KV pk′ Lin)}
   → (B-Used U ▻ Γ₁) ⊢ᵥ wkValue v ⇒ T ⊣ (B-Used U ▻ Γ₂)
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
 unwk-used-head-value {U = U} d =
