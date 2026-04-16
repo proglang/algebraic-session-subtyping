@@ -1,3 +1,4 @@
+{-# OPTIONS --termination-depth=2 #-}
 module ExprRenamingPreservation where
 
 open import Data.Fin using (Fin; zero; suc)
@@ -682,7 +683,6 @@ mutual
     insertAt-output-synth k b d
 
 mutual
-  {-# TERMINATING #-}
   unren-preserves-value :
     ∀ {Δ n pk m}
       (k : ℕ)
@@ -776,7 +776,6 @@ mutual
     rewrite eqT =
       cast-value-ctx TV-Select₂ refl eqΓ
 
-  {-# TERMINATING #-}
   unren-preserves-synth :
     ∀ {Δ n pk m}
       (k : ℕ)
@@ -858,7 +857,6 @@ mutual
   unren-preserves-synth k b {e = E-TApp e U} (T-TApp d) =
     T-TApp (unren-preserves-synth k b d)
 
-  {-# TERMINATING #-}
   unren-preserves-check :
     ∀ {Δ n pk m}
       (k : ℕ)
