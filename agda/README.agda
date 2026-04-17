@@ -143,6 +143,10 @@ import AlgorithmicNFSubstitution
 -- environments and result types.
 import ExprNormalTyping
 
+-- Inversion and shape lemmas for expression typing
+-- derivations and primitive typing forms.
+import ExprTypingInversion
+
 -- Labelled reduction of full typing contexts
 -- for expression actions.
 import ExprContextReduction

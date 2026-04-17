@@ -11,6 +11,7 @@ open import Duality
 open import Types
 open import ExprSyntax using (Expr; Value; Const; E-Val; E-Match; V-Pair)
 open import ExprNormalTyping
+open import ExprTypingInversion using (abs-inversion; rec-inversion; tabs-inversion)
 open import ExprContextReduction using (RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un; AllUsed; AU-∅; AU-used; AU-un)
 open import ExprTypingProperties using (FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un; replay-value-allUsed)
 

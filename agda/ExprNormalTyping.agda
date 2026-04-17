@@ -484,39 +484,6 @@ mutual
       → normalTyOf U <:ₜ normalTyOf T
       → Γ₁ ⊢ e ⇐ T ⊣ Γ₂
 
-tabs-inversion :
-  ∀ {Δ n K m} {Γ₁ Γ₂ : Ctx Δ n} {v : Value (K ∷ Δ) n} {W : NfTy Δ (KV KT m)}
-  → Γ₁ ⊢ᵥ V-TAbs K v ⇒ W ⊣ Γ₂
-  → Σ (NfTy (K ∷ Δ) (KV KT m)) λ T →
-      (W ≡ polyNf T) × (wkCtx {K = K} Γ₁ ⊢ᵥ v ⇒ T ⊣ wkCtx Γ₂)
-tabs-inversion (TV-TAbs {T = T} p) = T , refl , p
-
-abs-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {e : Expr Δ (suc n)} {W : NfTy Δ TLin}
-  → Γ₁ ⊢ᵥ V-Abs T e ⇒ W ⊣ Γ₂
-  → Σ (NfTy Δ TLin) λ U →
-      (W ≡ linArrNf (normalizeTy T) U) × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂))
-abs-inversion (TV-Abs {U = U} p) = U , refl , p
-
-pair-inversion :
-  ∀ {Δ n m} {Γ₁ Γ₃ : Ctx Δ n} {u v : Value Δ n} {W : NfTy Δ (KV KT m)}
-  → Γ₁ ⊢ᵥ V-Pair u v ⇒ W ⊣ Γ₃
-  → Σ PreKind λ pk₁ →
-      Σ PreKind λ pk₂ →
-      Σ (NfTy Δ (KV pk₁ m)) λ T →
-      Σ (NfTy Δ (KV pk₂ m)) λ U →
-        Σ (Ctx Δ n) λ Γ₂ →
-          (W ≡ pairNf T U) × ((Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃))
-pair-inversion (TV-Pair {pk₁ = pk₁} {pk₂ = pk₂} p q) = pk₁ , pk₂ , _ , _ , _ , refl , (p , q)
-
-pair-inversion′ :
-  ∀ {Δ n pk₁ pk₂ m} {Γ₁ Γ₃ : Ctx Δ n} {u v : Value Δ n}
-    {T : NfTy Δ (KV pk₁ m)} {U : NfTy Δ (KV pk₂ m)}
-  → Γ₁ ⊢ᵥ V-Pair u v ⇒ pairNf T U ⊣ Γ₃
-  → Σ (Ctx Δ n) λ Γ₂ →
-      (Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂) × (Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃)
-pair-inversion′ (TV-Pair p q) = _ , p , q
-
 pair-injective :
   ∀ {Δ pk₁ pk₂ m} {T₁ T₂ : Ty Δ (KV pk₁ m)} {U₁ U₂ : Ty Δ (KV pk₂ m)}
   → T-Pair T₁ U₁ ≡ T-Pair T₂ U₂
@@ -628,22 +595,6 @@ pairNf-injective :
   → pairNf T₁ U₁ ≡ pairNf T₂ U₂
   → (T₁ ≡ T₂) × (U₁ ≡ U₂)
 pairNf-injective refl = refl , refl
-
-rec-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)} {W : NfTy Δ (KV KT Un)}
-  → Γ₁ ⊢ᵥ V-Rec T U v ⇒ W ⊣ Γ₂
-  → (Γ₁ ≡ Γ₂) ×
-    ((W ≡ unArrNf (normalizeTy T) (normalizeTy U)) ×
-     ((unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-       ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-       ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)))
-rec-inversion (TV-Rec p) = refl , refl , p
-
-receive₂-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin} {W : NfTy Δ TLin}
-  → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ W ⊣ Γ₂
-  → (Γ₁ ≡ Γ₂) × (W ≡ receiveNf (normalizeTy T) (normalizeTy S))
-receive₂-inversion TV-Receive₂ = refl , refl
 
 linArrNf-injective :
   ∀ {Δ} {T₁ T₂ U₁ U₂ : NfTy Δ TLin}
