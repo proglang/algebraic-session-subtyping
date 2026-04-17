@@ -51,7 +51,8 @@ open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; i
 
 open import ExprNormalTyping
 open import ExprSyntax
-open import ExprContextReduction using (used-head-eq)
+open import ExprContextReduction using (RM-lin)
+open import ExprTypingLeftover using (leftover-synth)
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
 open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)
@@ -216,6 +217,30 @@ used-tail-<:Γ :
         Γ₁ ≡ used∷ {T = T₁} Γ₁′ × Γ₁′ <:Γ Γ₂
 used-tail-<:Γ {Γ₁ = B-Used T ▻ Γ₁} (<:-used rel) = T , Γ₁ , refl , rel
 used-tail-<:Γ {Γ₁ = B-Used T₁ ▻ Γ₁} (<:-sub-used _ rel) = T₁ , Γ₁ , refl , rel
+
+lin-used-head-rigid :
+  ∀ {Δ n K pk}
+    {Γin Γout : Ctx Δ n}
+    {T T′ : NfTy Δ (KV pk Lin)}
+    {e : Expr Δ (suc n)}
+    {U : NfTy Δ K}
+  → (T ∷ˡ Γin) ⊢ e ⇒ U ⊣ (B-Used T′ ▻ Γout)
+  → T ≡ T′
+lin-used-head-rigid d with leftover-synth d
+... | _ , RM-lin _ = refl
+
+lin2-used2-head-rigid :
+  ∀ {Δ n K pk₁ pk₂}
+    {Γin Γout : Ctx Δ n}
+    {T T′ : NfTy Δ (KV pk₁ Lin)}
+    {U U′ : NfTy Δ (KV pk₂ Lin)}
+    {e : Expr Δ (suc (suc n))}
+    {V : NfTy Δ K}
+  → (T ∷ˡ (U ∷ˡ Γin)) ⊢ e ⇒ V ⊣ (B-Used T′ ▻ (B-Used U′ ▻ Γout))
+  → (T ≡ T′) × (U ≡ U′)
+lin2-used2-head-rigid d with leftover-synth d
+... | _ , RM-lin r with r
+... | RM-lin _ = refl , refl
 
 check-subsumption :
   ∀ {Δ n pk m}
@@ -793,12 +818,19 @@ mutual
     let U′ , Γbody′ , d′ , U′<:U , relBody =
           strengthen-synth (<:-sub-lin (<:ₜ-refl (normalizeTy T)) rel) d in
     let Tused , Γ₂′ , eqBody , rel₂ = used-tail-<:Γ relBody in
+    let eqHead : normalizeTy T ≡ Tused
+        eqHead =
+          lin-used-head-rigid
+            (subst
+              (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ)
+              eqBody
+              d′) in
     let eqBody′ :
           Γbody′ ≡ used∷ {T = normalizeTy T} Γ₂′
         eqBody′ =
           trans
             eqBody
-            (used-head-eq {T₁ = Tused} {T₂ = normalizeTy T} {Γ = Γ₂′}) in
+            (cong (λ X → used∷ {T = X} Γ₂′) (sym eqHead)) in
     linArrNf (normalizeTy T) U′ , Γ₂′ ,
     TV-Abs (subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′) ,
     <:ₜ-arrow (<:ₜ-refl (normalizeTy T)) U′<:U ,
@@ -922,15 +954,22 @@ mutual
              in
              let Tout , Γ₃′ , eqUsed , rel₃ = used-tail-<:Γ relout
              in
+             let eqHead : MatchBranchOutput ssbranches v P′ S′ i i∈ ≡ Tout
+                 eqHead =
+                   lin-used-head-rigid
+                     (subst
+                       (λ Γ →
+                         (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
+                           ⊢ branches i i∈ ⇒ V′i ⊣ Γ)
+                       eqUsed
+                       d′)
+             in
              let eqUsed′ :
                    Γout′ ≡ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′
                  eqUsed′ =
                    trans
                      eqUsed
-                     (used-head-eq
-                       {T₁ = Tout}
-                       {T₂ = MatchBranchOutput ssbranches v P′ S′ i i∈}
-                       {Γ = Γ₃′})
+                     (cong (λ X → used∷ {T = X} Γ₃′) (sym eqHead))
              in
              V′i , Γ₃′ ,
              subst
@@ -993,14 +1032,22 @@ mutual
     let Tused₂ , Γ₃′ , eqUsed₂ , rel₃ = used-tail-<:Γ relUsed₁ in
     let eqBodyRaw : Γbody′ ≡ used∷ {T = Tused₁} (used∷ {T = Tused₂} Γ₃′)
         eqBodyRaw = trans eqUsed₁ (cong (used∷ {T = Tused₁}) eqUsed₂) in
+    let eqHeads :
+          (T′ ≡ Tused₁) × (U′ ≡ Tused₂)
+        eqHeads =
+          lin2-used2-head-rigid
+            (subst
+              (λ Γ → (T′ ∷ˡ (U′ ∷ˡ Γ₂′)) ⊢ e₂ ⇒ V′ ⊣ Γ)
+              eqBodyRaw
+              d₂′) in
     let eqBody : Γbody′ ≡ used∷ {T = T′} (used∷ {T = U′} Γ₃′)
         eqBody =
           trans
             eqBodyRaw
-            (trans
-              (cong (used∷ {T = Tused₁})
-                (used-head-eq {T₁ = Tused₂} {T₂ = U′} {Γ = Γ₃′}))
-              (used-head-eq {T₁ = Tused₁} {T₂ = T′} {Γ = used∷ {T = U′} Γ₃′})) in
+            (cong₂
+              (λ A B → used∷ {T = A} (used∷ {T = B} Γ₃′))
+              (sym (proj₁ eqHeads))
+              (sym (proj₂ eqHeads))) in
     V′ , Γ₃′ ,
     T-LetPair
       (subst (λ X → Γ₁ ⊢ e₁ ⇒ X ⊣ Γ₂′) eqPair d₁′)
@@ -1066,15 +1113,20 @@ strengthen-match-branch
   in
   let Tout , Γ₃′ , eqUsed , rel₃ = used-tail-<:Γ relout
   in
+  let eqHead : MatchBranchOutput ssbranches v P′ S′ i i∈ ≡ Tout
+      eqHead =
+        lin-used-head-rigid
+          (subst
+            (λ Γ → (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′i ⊣ Γ)
+            eqUsed
+            d′)
+  in
   let eqUsed′ :
         Γout′ ≡ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′
       eqUsed′ =
         trans
           eqUsed
-          (used-head-eq
-            {T₁ = Tout}
-            {T₂ = MatchBranchOutput ssbranches v P′ S′ i i∈}
-            {Γ = Γ₃′})
+          (cong (λ X → used∷ {T = X} Γ₃′) (sym eqHead))
   in
   V′i , Γ₃′ ,
   subst
