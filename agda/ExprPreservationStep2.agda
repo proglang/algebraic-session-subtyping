@@ -2,7 +2,7 @@ module ExprPreservationStep2 where
 
 open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 import Data.Fin.Subset as Subset
-open import Data.List using (List; []; _∷_)
+open import Data.List using (List; []; _∷_; length)
 open import Data.Maybe using (just)
 open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Relation.Unary.Any using (here; there)
@@ -158,6 +158,7 @@ open import ExprContextReduction using
   ; Label-β; Label-Fork; Label-RecvVal; Label-SendVal; Label-SendLab; Label-Close
   ; recvChanNf; sendChanNf; selectInNf; selectOutNf; sessNf
   ; allUsedCtx
+  ; extendUsed
   ; used-head-eq
   ; Ex-β; Ex-Fork; Ex-New; Ex-RecvVal; Ex-RecvLab; Ex-SendVal; Ex-SendLab; Ex-Close
   ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-SendVal; Compat-Select; Compat-Close
@@ -172,19 +173,13 @@ open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
 open CTraversal record { fusion = Types.fusion }
 
-extendUsed : ∀ (k : ℕ) {n} → Ctx [] n → Ctx [] (k + n)
-extendUsed zero Γ = Γ
-extendUsed (suc k) Γ = B-Used unitLinNf ▻ extendUsed k Γ
-
 extendUsed-eq :
-  ∀ (k : ℕ) {n} (Γ : Ctx [] n) → extendUsed k Γ ≡ extendUsed k Γ
-extendUsed-eq zero Γ = refl
-extendUsed-eq (suc k) Γ = cong (B-Used unitLinNf ▻_) (extendUsed-eq k Γ)
+  ∀ (Θ : List (Ty [] SLin)) {n} (Γ : Ctx [] n) → extendUsed Θ Γ ≡ extendUsed Θ Γ
+extendUsed-eq Θ Γ = refl
 
 extendUsedCR-eq :
-  ∀ (k : ℕ) {n} (Γ : Ctx [] n) → ECR.extendUsed k Γ ≡ extendUsed k Γ
-extendUsedCR-eq zero Γ = refl
-extendUsedCR-eq (suc k) Γ = cong (B-Used unitLinNf ▻_) (extendUsedCR-eq k Γ)
+  ∀ (Θ : List (Ty [] SLin)) {n} (Γ : Ctx [] n) → ECR.extendUsed Θ Γ ≡ extendUsed Θ Γ
+extendUsedCR-eq Θ Γ = refl
 
 postulate
   check-output-unique :
@@ -252,11 +247,11 @@ postulate
     → normalTyOf (sessNf S₁) <:ₜ normalTyOf (sessNf S₂)
 
   weaken-synth :
-    ∀ {n k K}
+    ∀ {n Θ K}
       {Γ₁ Γ₂ : Ctx [] n}
       {e : Expr [] n} {T : NfTy [] K}
     → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
-    → extendUsed k Γ₁ ⊢ ES.weakenExprBy k e ⇒ T ⊣ extendUsed k Γ₂
+    → extendUsed Θ Γ₁ ⊢ ES.weakenExprBy (length Θ) e ⇒ T ⊣ extendUsed Θ Γ₂
 
   arrow-subtype-inversion :
     ∀ {m A V U}
@@ -283,14 +278,14 @@ postulate
         × (normalTyOf V′ <:ₜ normalTyOf V)
 
   weaken-synth2 :
-    ∀ {n k pk₁ pk₂}
+    ∀ {n Θ pk₁ pk₂}
       {Γ₂ Γ₃ : Ctx [] n}
       {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Lin)}
       {V : NfTy [] TLin}
       {e : Expr [] (suc (suc n))}
     → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} Γ₃)
-    → (T ∷ˡ (U ∷ˡ extendUsed k Γ₂))
-        ⊢ ES.weakenExprBy2 k e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} (extendUsed k Γ₃))
+    → (T ∷ˡ (U ∷ˡ extendUsed Θ Γ₂))
+        ⊢ ES.weakenExprBy2 (length Θ) e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} (extendUsed Θ Γ₃))
 
   substTy-wkCtx-id :
     ∀ {K n} (Γ : Ctx [] n) (U : Ty [] K) → EST.substTyCtx (wkCtx Γ) U ≡ Γ
@@ -310,50 +305,50 @@ postulate
 
 
 record PresSynth
-    {n k pk mult}
+    {n Θ pk mult}
     (Γin : Ctx [] n)
     (Γv : Ctx [] n)
-    {ℓ : Label n k}
+    {ℓ : Label n Θ}
     (lbl : ℓ ⦂ Γin ⇒ Γv)
     (Γ₀ : Ctx [] n)
     (Γ₂ : Ctx [] n)
-    (e₂ : Expr [] (k + n))
+    (e₂ : Expr [] (length Θ + n))
     (T : NfTy [] (KV pk mult)) : Set where
   field
     Gf : Ctx [] n
     Γ₀′ : Ctx [] n
-    Γ₁ : Ctx [] (k + n)
-    Γ₁′ : Ctx [] (k + n)
+    Γ₁ : Ctx [] (length Θ + n)
+    Γ₁′ : Ctx [] (length Θ + n)
     U : NfTy [] (KV pk mult)
 
     src-remove : RemoveCtx Γ₀ Gf Γ₀′
-    dst-remove : RemoveCtx Γ₁ (extendUsed k Gf) Γ₁′
+    dst-remove : RemoveCtx Γ₁ (extendUsed Θ Gf) Γ₁′
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
-    synth : Γ₁ ⊢ e₂ ⇒ U ⊣ extendUsed k Γ₂
+    synth : Γ₁ ⊢ e₂ ⇒ U ⊣ extendUsed Θ Γ₂
     subtype : normalTyOf U <:ₜ normalTyOf T
 
 record PresCheck
-    {n k pk mult}
+    {n Θ pk mult}
     (Γin : Ctx [] n)
     (Γv : Ctx [] n)
-    {ℓ : Label n k}
+    {ℓ : Label n Θ}
     (lbl : ℓ ⦂ Γin ⇒ Γv)
     (Γ₀ : Ctx [] n)
     (Γ₂ : Ctx [] n)
-    (e₂ : Expr [] (k + n))
+    (e₂ : Expr [] (length Θ + n))
     (T : NfTy [] (KV pk mult)) : Set where
   field
     Gf : Ctx [] n
     Γ₀′ : Ctx [] n
-    Γ₁ : Ctx [] (k + n)
-    Γ₁′ : Ctx [] (k + n)
+    Γ₁ : Ctx [] (length Θ + n)
+    Γ₁′ : Ctx [] (length Θ + n)
 
     src-remove : RemoveCtx Γ₀ Gf Γ₀′
-    dst-remove : RemoveCtx Γ₁ (extendUsed k Gf) Γ₁′
+    dst-remove : RemoveCtx Γ₁ (extendUsed Θ Gf) Γ₁′
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
-    check : Γ₁ ⊢ e₂ ⇐ T ⊣ extendUsed k Γ₂
+    check : Γ₁ ⊢ e₂ ⇐ T ⊣ extendUsed Θ Γ₂
 
 match-branch-subtype :
   ∀ {k}
@@ -383,7 +378,7 @@ pair-subtype-inversion (<:ₜ-pair T′<:T U′<:U) =
   _ , _ , refl , T′<:T , U′<:U
 
 letpair-body-pres :
-  ∀ {n k pk₁ pk₂}
+  ∀ {n Θ pk₁ pk₂}
     {Γ₂ Γ₃ : Ctx [] n}
     {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Lin)}
     {T′ : NfTy [] (KV pk₁ Lin)} {U′ : NfTy [] (KV pk₂ Lin)}
@@ -393,17 +388,17 @@ letpair-body-pres :
   → normalTyOf U′ <:ₜ normalTyOf U
   → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e ⇒ V ⊣ used∷ {T = T} (used∷ {T = U} Γ₃)
   → Σ (NfTy [] TLin) λ V′ →
-      ((T′ ∷ˡ (U′ ∷ˡ extendUsed k Γ₂))
-        ⊢ ES.weakenExprBy2 k e ⇒ V′ ⊣ used∷ {T = T′} (used∷ {T = U′} (extendUsed k Γ₃)))
+      ((T′ ∷ˡ (U′ ∷ˡ extendUsed Θ Γ₂))
+        ⊢ ES.weakenExprBy2 (length Θ) e ⇒ V′ ⊣ used∷ {T = T′} (used∷ {T = U′} (extendUsed Θ Γ₃)))
       × (normalTyOf V′ <:ₜ normalTyOf V)
 letpair-body-pres
-  {k = k}
+  {Θ = Θ}
   {T = T} {U = U}
   {T′ = T′} {U′ = U′}
   T′<:T U′<:U d
   with strengthen-letpair-body {T = T} {U = U} {T′ = T′} {U′ = U′} T′<:T U′<:U d
 ... | V′ , d′ , V′<:V =
-  V′ , weaken-synth2 {k = k} d′ , V′<:V
+  V′ , weaken-synth2 {Θ = Θ} d′ , V′<:V
 
 selectIn-subtype :
   ∀ {k}
@@ -773,10 +768,10 @@ send-remove-membership (RM-drop r) (take-there✖ take)
   _ ∷ˡ Γx , RM-drop rm , thereˡˡ x∈
 
 remove-extract :
-  ∀ {n k}
+  ∀ {n Θ}
     {Γ₀ Γ₂ : Ctx [] n}
     {Γin G : Ctx [] n}
-    {ℓ : Label n k}
+    {ℓ : Label n Θ}
   → RemoveCtx Γ₀ G Γ₂
   → LinearDisjoint G Γin
   → Extract Γ₀ ℓ Γin
@@ -1945,20 +1940,20 @@ receive-live-check (T-Check d _) step ex =
   receive-live-synth d step ex
 
 weaken-val-synth :
-  ∀ {n k K}
+  ∀ {n Θ K}
     {Γ₁ Γ₂ : Ctx [] n}
     {v : Value [] n}
     {T : NfTy [] K}
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
-  → extendUsed k Γ₁ ⊢ E-Val (ES.weakenValueBy k v) ⇒ T ⊣ extendUsed k Γ₂
-weaken-val-synth {k = k} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} dv =
+  → extendUsed Θ Γ₁ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ T ⊣ extendUsed Θ Γ₂
+weaken-val-synth {Θ = Θ} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} dv =
   subst
-    (λ G₁′ → G₁′ ⊢ E-Val (ES.weakenValueBy k v) ⇒ _ ⊣ extendUsed k Γ₂)
-    (extendUsed-eq k Γ₁)
+    (λ G₁′ → G₁′ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ _ ⊣ extendUsed Θ Γ₂)
+    (extendUsed-eq Θ Γ₁)
     (subst
-      (λ G₂′ → extendUsed k Γ₁ ⊢ E-Val (ES.weakenValueBy k v) ⇒ _ ⊣ G₂′)
-      (extendUsed-eq k Γ₂)
-      (weaken-synth {k = k} (T-Val dv)))
+      (λ G₂′ → extendUsed Θ Γ₁ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ _ ⊣ G₂′)
+      (extendUsed-eq Θ Γ₂)
+      (weaken-synth {Θ = Θ} (T-Val dv)))
 
 tapp-receive-output-id :
   ∀ {n}
@@ -1980,27 +1975,28 @@ tapp-receive₁-output-id :
 tapp-receive₁-output-id d = sym (receive₂-rigid d)
 
 allUsed-extendUsed :
-  ∀ {n} (k : ℕ) {Γ : Ctx [] n}
+  ∀ {n} (Θ : List (Ty [] SLin)) {Γ : Ctx [] n}
   → AllUsed Γ
-  → AllUsed (extendUsed k Γ)
-allUsed-extendUsed zero au = au
-allUsed-extendUsed (suc k) au = AU-used (allUsed-extendUsed k au)
+  → AllUsed (extendUsed Θ Γ)
+allUsed-extendUsed [] au = au
+allUsed-extendUsed (S ∷ Θ) au = AU-used {T = normalizeTy (SessLin S)} (allUsed-extendUsed Θ au)
 
 extendUsed-disjoint :
-  ∀ {n} (k : ℕ)
+  ∀ {n} (Θ : List (Ty [] SLin))
     {Γ₁ Γ₂ : Ctx [] n}
   → LinearDisjoint Γ₁ Γ₂
-  → LinearDisjoint (extendUsed k Γ₁) (extendUsed k Γ₂)
-extendUsed-disjoint zero ld = ld
-extendUsed-disjoint (suc k) ld = LD-used-used (extendUsed-disjoint k ld)
+  → LinearDisjoint (extendUsed Θ Γ₁) (extendUsed Θ Γ₂)
+extendUsed-disjoint [] ld = ld
+extendUsed-disjoint (S ∷ Θ) ld =
+  LD-used-used {T = normalizeTy (SessLin S)} (extendUsed-disjoint Θ ld)
 
 extend-remove :
-  ∀ (k : ℕ) {n}
+  ∀ (Θ : List (Ty [] SLin)) {n}
     {Γ₀ G Γ₂ : Ctx [] n}
   → RemoveCtx Γ₀ G Γ₂
-  → RemoveCtx (extendUsed k Γ₀) (extendUsed k G) (extendUsed k Γ₂)
-extend-remove zero r = r
-extend-remove (suc k) r = RM-allused (extend-remove k r)
+  → RemoveCtx (extendUsed Θ Γ₀) (extendUsed Θ G) (extendUsed Θ Γ₂)
+extend-remove [] r = r
+extend-remove (S ∷ Θ) r = RM-allused {T = normalizeTy (SessLin S)} (extend-remove Θ r)
 
 merge-result-unique :
   ∀ {n}
@@ -2020,12 +2016,13 @@ merge-result-unique (MC-un m₁) (MC-un m₂)
 
 merge-extendUsed :
   ∀ {n}
-    (k : ℕ)
+    (Θ : List (Ty [] SLin))
     {Γ₁ Γ₂ Γ : Ctx [] n}
   → MergeCtx Γ₁ Γ₂ Γ
-  → MergeCtx (extendUsed k Γ₁) (extendUsed k Γ₂) (extendUsed k Γ)
-merge-extendUsed zero m = m
-merge-extendUsed (suc k) m = MC-used-used (merge-extendUsed k m)
+  → MergeCtx (extendUsed Θ Γ₁) (extendUsed Θ Γ₂) (extendUsed Θ Γ)
+merge-extendUsed [] m = m
+merge-extendUsed (S ∷ Θ) m =
+  MC-used-used {T = normalizeTy (SessLin S)} (merge-extendUsed Θ m)
 
 sym-disjoint :
   ∀ {n} {Γ₁ Γ₂ : Ctx [] n}
@@ -2080,7 +2077,7 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
         ; src-remove = remove-usedCtx Γ₀
         ; dst-remove =
             subst
-              (λ Gf → RemoveCtx Γ₂ (extendUsed zero Gf) Γ₂)
+              (λ Gf → RemoveCtx Γ₂ (extendUsed [] Gf) Γ₂)
               (sym (allUsedCtx-take take′))
               (remove-usedCtx Γ₂)
         ; ctx-step = step
@@ -2171,14 +2168,14 @@ preserve⇒-send
 mutual
 
   preserve⇒-appR-core :
-    ∀ {n k}
+    ∀ {n Θ}
       {Γ₀ Γ₂ Γ₃ : Ctx [] n}
       {Γin Γv G G′ : Ctx [] n}
       {v : Value [] n}
-      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
+      {e₁ : Expr [] n} {e₂ : Expr [] (length Θ + n)}
       {m : Multiplicity}
       {A V : NfTy [] TLin}
-      {ℓ : Label n k}
+      {ℓ : Label n Θ}
     → (r : RemoveCtx Γ₀ G Γ₂)
     → G ⊢ᵥ v ⇒ N-Arrow {m = m} (≤p-step <p-mt) A V ⊣ G′
     → AllUsed G′
@@ -2188,8 +2185,8 @@ mutual
     → (ex : Extract Γ₀ ℓ Γin)
     → LinearDisjoint Γ₀ Γv
     → LinearDisjoint G Γin
-    → PresSynth Γin Γv lbl Γ₀ Γ₃ (E-App (E-Val (ES.weakenValueBy k v)) e₂) V
-  preserve⇒-appR-core {k = k} {Γ₀ = Γ₀} {Γ₂ = Γ₂} {Γ₃ = Γ₃}
+    → PresSynth Γin Γv lbl Γ₀ Γ₃ (E-App (E-Val (ES.weakenValueBy (length Θ) v)) e₂) V
+  preserve⇒-appR-core {Θ = Θ} {Γ₀ = Γ₀} {Γ₂ = Γ₂} {Γ₃ = Γ₃}
     {Γin = Γin} {Γv = Γv} {G = G} {v = v} {e₂ = e₂} {A = A} {V = V}
     r dv′ au darg step lbl ex disj ldex
     with preserve⇐ {T = A} darg step lbl
@@ -2209,9 +2206,9 @@ mutual
            (PresCheck.dst-remove pc)
            (subst
              (λ X → LinearDisjoint (PresCheck.Γ₁′ pc) X)
-             (extendUsedCR-eq k G)
+             (extendUsedCR-eq Θ G)
              ldstep)
-           (extendUsed-disjoint k
+           (extendUsed-disjoint Θ
              (remove-removed-disjoint
                (PresCheck.src-remove pc)
                (sym-disjoint (remove-linear r))))
@@ -2225,7 +2222,7 @@ mutual
   ... | dstr
     with mergeRemoveContext dstr (PresCheck.dst-remove pc)
   ... | Gfdst , mdst , rdst
-    with merge-result-unique mdst (merge-extendUsed k msrc)
+    with merge-result-unique mdst (merge-extendUsed Θ msrc)
   ... | eqG = record
     { Gf = Gf
     ; Γ₀′ = PresCheck.Γ₀′ pc
@@ -2243,23 +2240,23 @@ mutual
     ; synth =
         T-App
           (replay-synth-allUsed
-            (weaken-val-synth {k = k} dv′)
+            (weaken-val-synth {Θ = Θ} dv′)
             (remove-frame dstr)
-            (allUsed-extendUsed k au))
+            (allUsed-extendUsed Θ au))
           (PresCheck.check pc)
     ; subtype = <:ₜ-refl (normalTyOf V)
     }
 
   preserve⇒-pairR-core :
-    ∀ {n k}
+    ∀ {n Θ}
       {Γ₀ Γ₂ Γ₃ : Ctx [] n}
       {Γin Γv G G′ : Ctx [] n}
       {v : Value [] n}
-      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
+      {e₁ : Expr [] n} {e₂ : Expr [] (length Θ + n)}
       {pk₁ pk₂ m}
       {T : NfTy [] (KV pk₁ m)}
       {U : NfTy [] (KV pk₂ m)}
-      {ℓ : Label n k}
+      {ℓ : Label n Θ}
     → (r : RemoveCtx Γ₀ G Γ₂)
     → G ⊢ᵥ v ⇒ T ⊣ G′
     → AllUsed G′
@@ -2269,8 +2266,8 @@ mutual
     → (ex : Extract Γ₀ ℓ Γin)
     → LinearDisjoint Γ₀ Γv
     → LinearDisjoint G Γin
-    → PresSynth Γin Γv lbl Γ₀ Γ₃ (E-Pair (E-Val (ES.weakenValueBy k v)) e₂) (pairNf T U)
-  preserve⇒-pairR-core {k = k} {Γ₀ = Γ₀} {Γ₂ = Γ₂} {Γ₃ = Γ₃}
+    → PresSynth Γin Γv lbl Γ₀ Γ₃ (E-Pair (E-Val (ES.weakenValueBy (length Θ) v)) e₂) (pairNf T U)
+  preserve⇒-pairR-core {Θ = Θ} {Γ₀ = Γ₀} {Γ₂ = Γ₂} {Γ₃ = Γ₃}
     {Γin = Γin} {Γv = Γv} {G = G} {v = v} {e₂ = e₂} {T = T} {U = U}
     r dv′ au darg step lbl ex disj ldex
     with preserve⇒ darg step lbl
@@ -2290,9 +2287,9 @@ mutual
            (PresSynth.dst-remove ps)
            (subst
              (λ X → LinearDisjoint (PresSynth.Γ₁′ ps) X)
-             (extendUsedCR-eq k G)
+             (extendUsedCR-eq Θ G)
              ldstep)
-           (extendUsed-disjoint k
+           (extendUsed-disjoint Θ
              (remove-removed-disjoint
                (PresSynth.src-remove ps)
                (sym-disjoint (remove-linear r))))
@@ -2306,7 +2303,7 @@ mutual
   ... | dstr
     with mergeRemoveContext dstr (PresSynth.dst-remove ps)
   ... | Gfdst , mdst , rdst
-    with merge-result-unique mdst (merge-extendUsed k msrc)
+    with merge-result-unique mdst (merge-extendUsed Θ msrc)
   ... | eqG = record
     { Gf = Gf
     ; Γ₀′ = PresSynth.Γ₀′ ps
@@ -2324,9 +2321,9 @@ mutual
     ; synth =
         T-Pair
           (replay-synth-allUsed
-            (weaken-val-synth {k = k} dv′)
+            (weaken-val-synth {Θ = Θ} dv′)
             (remove-frame dstr)
-            (allUsed-extendUsed k au))
+            (allUsed-extendUsed Θ au))
           (PresSynth.synth ps)
     ; subtype =
         <:ₜ-pair
@@ -2335,11 +2332,11 @@ mutual
     }
 
   preserve⇒ :
-    ∀ {n k pk mult}
+    ∀ {n Θ pk mult}
       {Γ₀ : Ctx [] n} {Γ₂ : Ctx [] n}
       {Γin Γv : Ctx [] n}
-      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
-      {T : NfTy [] (KV pk mult)} {ℓ : Label n k}
+      {e₁ : Expr [] n} {e₂ : Expr [] (length Θ + n)}
+      {T : NfTy [] (KV pk mult)} {ℓ : Label n Θ}
     → Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂
     → e₁ —[ ℓ ]→ e₂
     → (lbl : ℓ ⦂ Γin ⇒ Γv)
@@ -2432,7 +2429,7 @@ mutual
       ; src-remove = remove-usedCtx Γ₀
       ; dst-remove =
           subst
-            (λ X → RemoveCtx Γ₂ (extendUsed zero X) Γ₂)
+            (λ X → RemoveCtx Γ₂ (extendUsed [] X) Γ₂)
             (sym (allUsedCtx-remove r))
             (remove-usedCtx Γ₂)
       ; ctx-step = Ctx-Fork r (T-Check (T-Val dv′) sub) au
@@ -2510,22 +2507,26 @@ mutual
         allUsed-new-eq :
           allUsedCtx (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
             ≡
-          extendUsed 2 (allUsedCtx Γ₀)
+          extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ₀)
         allUsed-new-eq =
-          trans
-            (cong (B-Used sessT ▻_)
-              (used-head-eq {T₁ = dualT} {T₂ = unitLinNf} {Γ = allUsedCtx Γ₀}))
-            (used-head-eq {T₁ = sessT} {T₂ = unitLinNf} {Γ = B-Used unitLinNf ▻ allUsedCtx Γ₀})
+          cong
+            (B-Used sessT ▻_)
+            (used-head-eq
+              {T₁ = dualT}
+              {T₂ = normalizeTy (SessLin (Types.T-Dual Duality.D-S S))}
+              {Γ = allUsedCtx Γ₀})
 
         synth-new-eq :
           (B-Used sessT ▻ (B-Used dualT ▻ Γ₀))
             ≡
-          extendUsed 2 Γ₀
+          extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) Γ₀
         synth-new-eq =
-          trans
-            (cong (B-Used sessT ▻_)
-              (used-head-eq {T₁ = dualT} {T₂ = unitLinNf} {Γ = Γ₀}))
-            (used-head-eq {T₁ = sessT} {T₂ = unitLinNf} {Γ = B-Used unitLinNf ▻ Γ₀})
+          cong
+            (B-Used sessT ▻_)
+            (used-head-eq
+              {T₁ = dualT}
+              {T₂ = normalizeTy (SessLin (Types.T-Dual Duality.D-S S))}
+              {Γ = Γ₀})
 
         synth-new :
           (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
@@ -2879,7 +2880,7 @@ mutual
     {e₁ = E-TApp e₁ Uty}
     {ℓ = ℓ}
     (T-TApp {Γ₁ = Γ₂} {Γ₂ = Γ₃} {K = K} {m = m} {T = Tₚ} {U = Uty} d₁)
-    (Act-TAppE {k = k} {K = K} {e₁ = e₁} {e₂ = e₂} {T = Uty} step)
+    (Act-TAppE {Θ = Θ} {K = K} {e₁ = e₁} {e₂ = e₂} {T = Uty} step)
     lbl ex disj
     with preserve⇒ d₁ step lbl ex disj
   ... | ps
@@ -2898,7 +2899,7 @@ mutual
       ; synth =
           T-TApp {T = Tₚ′} {U = Uty}
             (subst
-              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed k Γ₃)
+              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed Θ Γ₃)
               eqPoly
               (PresSynth.synth ps))
       ; subtype =
@@ -2911,22 +2912,22 @@ mutual
     {e₁ = E-App e₁ e₃}
     {T = V} {ℓ = ℓ}
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V} d₁ (T-Check pArg subArg))
-    (Act-AppL {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    (Act-AppL {Θ = Θ} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
     lbl ex disj
     with preserve⇒ d₁ step lbl ex disj
   ... | ps
     with arrow-subtype-inversion {A = A} {V = V} (PresSynth.subtype ps)
   ... | A′ , V′ , eqU , A<:A′ , V′<:V =
     let
-      pArg′ : extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃
+      pArg′ : extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃
       pArg′ =
         subst
-          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃)
-          (extendUsed-eq k Γ₂)
+          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃)
+          (extendUsed-eq Θ Γ₂)
           (subst
-            (λ G₃′ → extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
-            (extendUsed-eq k Γ₃)
-            (weaken-synth {k = k} pArg))
+            (λ G₃′ → extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ G₃′)
+            (extendUsed-eq Θ Γ₃)
+            (weaken-synth {Θ = Θ} pArg))
     in
     record
       { Gf = PresSynth.Gf ps
@@ -2941,7 +2942,7 @@ mutual
       ; synth =
           T-App
             (subst
-              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed k Γ₂)
+              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed Θ Γ₂)
               eqU
               (PresSynth.synth ps))
             (T-Check pArg′
@@ -2953,20 +2954,20 @@ mutual
     {e₁ = E-Pair e₁ e₃}
     {ℓ = ℓ}
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ} d₁ d₂)
-    (Act-PairL {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    (Act-PairL {Θ = Θ} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
     lbl ex disj
     with preserve⇒ d₁ step lbl ex disj
   ... | ps =
     let
-      d₂′ : extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ Uₚ ⊣ extendUsed k Γ₃
+      d₂′ : extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ Uₚ ⊣ extendUsed Θ Γ₃
       d₂′ =
         subst
-          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃)
-          (extendUsed-eq k Γ₂)
+          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃)
+          (extendUsed-eq Θ Γ₂)
           (subst
-            (λ G₃′ → extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
-            (extendUsed-eq k Γ₃)
-            (weaken-synth {k = k} d₂))
+            (λ G₃′ → extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ G₃′)
+            (extendUsed-eq Θ Γ₃)
+            (weaken-synth {Θ = Θ} d₂))
     in
     record
       { Gf = PresSynth.Gf ps
@@ -2989,14 +2990,14 @@ mutual
     {e₁ = E-LetPair e₁ e₃}
     {T = V} {ℓ = ℓ}
     (T-LetPair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ} {V = V} d₁ d₂)
-    (Act-LetPairE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    (Act-LetPairE {Θ = Θ} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
     lbl ex disj
     with preserve⇒ d₁ step lbl ex disj
   ... | ps
     with pair-subtype-inversion {T = Tₚ} {U = Uₚ} (PresSynth.subtype ps)
   ... | Tₚ′ , Uₚ′ , eqPair , Tₚ′<:Tₚ , Uₚ′<:Uₚ
     with letpair-body-pres
-           {k = k}
+           {Θ = Θ}
            {T = Tₚ} {U = Uₚ}
            {T′ = Tₚ′} {U′ = Uₚ′}
            Tₚ′<:Tₚ Uₚ′<:Uₚ d₂
@@ -3014,7 +3015,7 @@ mutual
       ; synth =
           T-LetPair
             (subst
-              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed k Γ₂)
+              (λ X → PresSynth.Γ₁ ps ⊢ e₂ ⇒ X ⊣ extendUsed Θ Γ₂)
               eqPair
               (PresSynth.synth ps))
             d₂′
@@ -3025,20 +3026,20 @@ mutual
     {e₁ = E-LetUnit e₁ e₃}
     {T = T} {ℓ = ℓ}
     (T-LetUnit {Γ₂ = Γ₂} {Γ₃ = Γ₃} d₁ d₂)
-    (Act-LetUnitE {k = k} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
+    (Act-LetUnitE {Θ = Θ} {e₁ = e₁} {e₂ = e₂} {e₃ = e₃} step)
     lbl ex disj
     with preserve⇐ {T = unitConstNf} d₁ step lbl ex disj
   ... | pc =
     let
-      d₂′ : extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ T ⊣ extendUsed k Γ₃
+      d₂′ : extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ T ⊣ extendUsed Θ Γ₃
       d₂′ =
         subst
-          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ extendUsed k Γ₃)
-          (extendUsed-eq k Γ₂)
+          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃)
+          (extendUsed-eq Θ Γ₂)
           (subst
-            (λ G₃′ → extendUsed k Γ₂ ⊢ ES.weakenExprBy k e₃ ⇒ _ ⊣ G₃′)
-            (extendUsed-eq k Γ₃)
-            (weaken-synth {k = k} d₂))
+            (λ G₃′ → extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ G₃′)
+            (extendUsed-eq Θ Γ₃)
+            (weaken-synth {Θ = Θ} d₂))
     in
     record
       { Gf = PresCheck.Gf pc
@@ -3060,7 +3061,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@(Ex-RecvVal {x = x} {v = vᵣ} _ _ _) disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3085,7 +3086,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-β disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3106,7 +3107,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-Fork disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3127,7 +3128,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-New disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3148,7 +3149,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-RecvLab disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3169,7 +3170,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@(Ex-SendVal _ _ _ _) disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3196,7 +3197,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl@(Label-SendLab {v = vₗ} {P = Pₗ} {S = Sₗ} _ _)
     ex@(Ex-SendLab {i = i} _ _) disj
     with strip-value dv
@@ -3226,7 +3227,7 @@ mutual
     (T-Pair {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = Tₚ} {U = Uₚ}
       (T-Val dv)
       d₂)
-    (Act-PairR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-PairR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-Close disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3247,7 +3248,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@(Ex-RecvVal {x = x} {v = vᵣ} _ _ _) disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3268,7 +3269,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-β disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3289,7 +3290,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-Fork disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3310,7 +3311,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-New disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3331,7 +3332,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-RecvLab disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3352,7 +3353,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@(Ex-SendVal _ _ _ _) disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3373,7 +3374,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl@(Label-SendLab {v = vₗ} {P = Pₗ} {S = Sₗ} _ _)
     ex@(Ex-SendLab {i = i} _ _) disj
     with strip-value dv
@@ -3404,7 +3405,7 @@ mutual
     (T-App {Γ₂ = Γ₂} {Γ₃ = Γ₃} {T = A} {U = V}
       (T-Val dv)
       (T-Check pArg subArg))
-    (Act-AppR {k = k} {v = v} {e₁ = e₁} {e₂ = e₂} step)
+    (Act-AppR {Θ = Θ} {v = v} {e₁ = e₁} {e₂ = e₂} step)
     lbl ex@Ex-Close disj
     with strip-value dv
   ... | G , G′ , r , dv′ , au
@@ -3419,11 +3420,11 @@ mutual
         disj
         (remove-allused-disjoint r)
   preserve⇐ :
-    ∀ {n k pk mult}
+    ∀ {n Θ pk mult}
       {Γ₀ : Ctx [] n} {Γ₂ : Ctx [] n}
       {Γin Γv : Ctx [] n}
-      {e₁ : Expr [] n} {e₂ : Expr [] (k + n)}
-      {T : NfTy [] (KV pk mult)} {ℓ : Label n k}
+      {e₁ : Expr [] n} {e₂ : Expr [] (length Θ + n)}
+      {T : NfTy [] (KV pk mult)} {ℓ : Label n Θ}
     → Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂
     → e₁ —[ ℓ ]→ e₂
     → (lbl : ℓ ⦂ Γin ⇒ Γv)

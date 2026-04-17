@@ -2,7 +2,7 @@ module ExprContextReduction where
 
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Subset as Subset
-open import Data.List using ([])
+open import Data.List using (List; []; _∷_; length)
 open import Data.Product using (Σ; _×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; subst)
 
@@ -443,7 +443,7 @@ postulate
 
 infix 4 _—ctx[_]→_
 
-data _—ctx[_]→_ : ∀ {n k} → Ctx [] n → Label n k → Ctx [] (k + n) → Set where
+data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length Θ + n) → Set where
   Ctx-β : ∀ {n} {Γ : Ctx [] n}
     → Γ —ctx[ ExprSemantics.L-β ]→ Γ
 
@@ -495,7 +495,7 @@ data _—ctx[_]→_ : ∀ {n k} → Ctx [] n → Label n k → Ctx [] (k + n) �
     → ReplaceAt Γ₀ x (B-Lin (selectOutNf v i P S)) Γ₁
     → Γ₀ —ctx[ L-SendLab x i ]→ Γ₁
 
-data _⦂_⇒_ : ∀ {n k} → Label n k → Ctx [] n → Ctx [] n → Set where
+data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set where
 
   Label-β : ∀ {n} {Γin Γv : Ctx [] n}
     → AllUsed Γin
@@ -548,14 +548,14 @@ data _⦂_⇒_ : ∀ {n k} → Label n k → Ctx [] n → Ctx [] n → Set where
     → AllUsed Γv
     → L-Close x ⦂ Γin ⇒ Γv
 
-extendUsed : ∀ (k : ℕ) {n} → Ctx [] n → Ctx [] (k + n)
-extendUsed zero Γ = Γ
-extendUsed (suc k) Γ = B-Used unitLinNf ▻ extendUsed k Γ
+extendUsed : ∀ (Θ : List (Ty [] SLin)) {n} → Ctx [] n → Ctx [] (length Θ + n)
+extendUsed [] Γ = Γ
+extendUsed (S ∷ Θ) Γ = B-Used (normalizeTy (SessLin S)) ▻ extendUsed Θ Γ
 
 data Compatible :
-  ∀ {n k}
-    {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (k + n)}
-    {ℓ : Label n k}
+  ∀ {n Θ}
+    {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (length Θ + n)}
+    {ℓ : Label n Θ}
   → (Γ₀ —ctx[ ℓ ]→ Γ₁)
   → {Γin Γv : Ctx [] n}
   → (ℓ ⦂ Γin ⇒ Γv)
@@ -649,10 +649,10 @@ data Compatible :
         (Label-SendLab {v = v} {P = P} {S = S} take au)
 
 data InputCompatible :
-  ∀ {n k}
+  ∀ {n Θ}
     (Γ₀ : Ctx [] n)
     {Γin Γv : Ctx [] n}
-    {ℓ : Label n k}
+    {ℓ : Label n Θ}
   → (ℓ ⦂ Γin ⇒ Γv)
   → Set where
   IC-β :
@@ -716,7 +716,7 @@ data InputCompatible :
     → allUsedCtx Γ₀ ≡ Γin
     → InputCompatible Γ₀ {ℓ = L-Close x} (Label-Close auin auv)
 
-data Extract : ∀ {n k} → Ctx [] n → Label n k → Ctx [] n → Set where
+data Extract : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] n → Set where
   Ex-β :
     ∀ {n} {Γ₀ : Ctx [] n}
     → Extract Γ₀ L-β (allUsedCtx Γ₀)
@@ -772,9 +772,9 @@ data Extract : ∀ {n k} → Ctx [] n → Label n k → Ctx [] n → Set where
     → Extract Γ₀ (L-Close x) (allUsedCtx Γ₀)
 
 extract-remove :
-  ∀ {n k}
+  ∀ {n Θ}
     {Γ₀ Γin : Ctx [] n}
-    {ℓ : Label n k}
+    {ℓ : Label n Θ}
   → Extract Γ₀ ℓ Γin
   → Σ (Ctx [] n) λ Γr → RemoveCtx Γ₀ Γin Γr
 extract-remove Ex-β = _ , remove-allUsedCtx _
@@ -787,9 +787,9 @@ extract-remove (Ex-SendLab rm _) = _ , rm
 extract-remove Ex-Close = _ , remove-allUsedCtx _
 
 extract-disjoint-active :
-  ∀ {n k}
+  ∀ {n Θ}
     {Γ₀ Γ₂ Γin G : Ctx [] n}
-    {ℓ : Label n k}
+    {ℓ : Label n Θ}
   → RemoveCtx Γ₀ G Γ₂
   → Extract Γ₂ ℓ Γin
   → LinearDisjoint G Γin
@@ -799,43 +799,28 @@ extract-disjoint-active r ex with extract-remove ex
     (remove-removed-disjoint rin (sym-disjoint (remove-linear r)))
 
 ctx-step-preserves-disjoint :
-    ∀ {n k}
-      {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (k + n)}
+    ∀ {n Θ}
+      {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (length Θ + n)}
       {Γin Γv Γf : Ctx [] n}
-      {ℓ : Label n k}
+      {ℓ : Label n Θ}
     → (step : Γ₀ —ctx[ ℓ ]→ Γ₁)
     → (lbl : ℓ ⦂ Γin ⇒ Γv)
     → Compatible step lbl
     → LinearDisjoint Γ₀ Γf
     → LinearDisjoint Γv Γf
-    → LinearDisjoint Γ₁ (extendUsed k Γf)
+    → LinearDisjoint Γ₁ (extendUsed Θ Γf)
 ctx-step-preserves-disjoint Ctx-β (Label-β _ _) (Compat-β _) ld0 ldv = ld0
 ctx-step-preserves-disjoint {Γ₀ = Γ₀} {Γf = Γf} (Ctx-New {S = S}) (Label-New _ _) (Compat-New _) ld0 ldv =
-  let
-    p₀ :
-      LinearDisjoint
-        (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
-        (B-Used (normalizeTy (SessLin S)) ▻ (B-Used (dualSessNf (normalizeTy S)) ▻ Γf))
-    p₀ = LD-live-used (LD-live-used ld0)
-
-    p₁ :
-      LinearDisjoint
-        (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
-        (B-Used (normalizeTy (SessLin S)) ▻ (B-Used unitLinNf ▻ Γf))
-    p₁ =
-      subst
-        (LinearDisjoint
-          (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
-        (cong
-          (λ X → B-Used (normalizeTy (SessLin S)) ▻ X)
-          (used-head-eq {T₁ = dualSessNf (normalizeTy S)} {T₂ = unitLinNf} {Γ = Γf}))
-        p₀
-  in
   subst
     (LinearDisjoint
       (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
-    (used-head-eq {T₁ = normalizeTy (SessLin S)} {T₂ = unitLinNf} {Γ = B-Used unitLinNf ▻ Γf})
-    p₁
+    (cong
+      (λ X → B-Used (normalizeTy (SessLin S)) ▻ X)
+      (used-head-eq
+        {T₁ = dualSessNf (normalizeTy S)}
+        {T₂ = normalizeTy (SessLin (T-Dual D-S S))}
+        {Γ = Γf}))
+    (LD-live-used (LD-live-used ld0))
 ctx-step-preserves-disjoint (Ctx-Fork rm _ _) (Label-Fork _ _) (Compat-Fork _) ld0 ldv =
   remove-preserves-disjoint rm ld0
 ctx-step-preserves-disjoint
