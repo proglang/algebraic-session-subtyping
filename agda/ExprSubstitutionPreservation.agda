@@ -391,7 +391,6 @@ data _⊢σ_∶_⊣_ {Δ m} (Γt : Ctx Δ m) : ∀ {n} → Sub Δ n m → Ctx Δ
       {T : NfTy Δ (KV pk Lin)}
       {Γrest Γv Γv′ Γo : Ctx Δ m}
     → MergeCtx Γrest Γv Γt
-    → LinearDisjoint Γrest Γv
     → Γv ⊢ᵥ σ zero ⇒ T ⊣ Γv′
     → AllUsed Γv′
     → Γrest ⊢σ tailSub σ ∶ Γ ⊣ Γo
@@ -1109,10 +1108,9 @@ liftTySub-preserves-σ {n = 0} {K = K} {Γt = Γt} {σ = σ} (S-∅ au)
     (λ τ → wkCtx Γt ⊢σ τ ∶ ∅ ⊣ wkCtx Γt)
     (sym (liftTySub-empty {K = K}))
     (S-∅ (wkAllUsed au))
-liftTySub-preserves-σ {K = K} (S-Lin {T = T} m ld dv au σtail) =
+liftTySub-preserves-σ {K = K} (S-Lin {T = T} m dv au σtail) =
   S-Lin
     (wkMergeCtx {K = K} m)
-    (wkLinearDisjoint {K = K} ld)
     (wkTy-preserves-value {K′ = K} dv)
     (wkAllUsed au)
     (liftTySub-preserves-σ {K = K} σtail)
@@ -1211,8 +1209,8 @@ lift-un-through-merge m d =
   → Γt₁ ≡ Γt₂
 σ-target-unique (S-∅ _) (S-∅ _) = refl
 σ-target-unique
-  (S-Lin {Γrest = Γrest₁} m₁ _ dv₁ au₁ σtail₁)
-  (S-Lin {Γrest = Γrest₂} m₂ _ dv₂ au₂ σtail₂)
+  (S-Lin {Γrest = Γrest₁} m₁ dv₁ au₁ σtail₁)
+  (S-Lin {Γrest = Γrest₂} m₂ dv₂ au₂ σtail₂)
   with σ-target-unique σtail₁ σtail₂
 ... | eqrest rewrite eqrest =
   value-input-unique
@@ -1238,7 +1236,7 @@ lift-un-head-through-lookup′ :
   → Γt′ ⊢σ τ ∶ Γ′ ⊣ Γo
   → allUsedCtx Γt ⊢ᵥ w ⇒ T ⊣ allUsedCtx Γt
   → allUsedCtx Γt′ ⊢ᵥ w ⇒ T ⊣ allUsedCtx Γt′
-lift-un-head-through-lookup′ {w = w} take-here (S-Lin {Γrest = Γrest} m ld dv au σtail) (S-Used σtail′) d0 =
+lift-un-head-through-lookup′ {w = w} take-here (S-Lin {Γrest = Γrest} m dv au σtail) (S-Used σtail′) d0 =
   subst
     (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
     (cong allUsedCtx (sym (σ-target-unique σtail′ σtail)))
@@ -1248,8 +1246,8 @@ lift-un-head-through-lookup′ {w = w} take-here (S-Lin {Γrest = Γrest} m ld d
       d0)
 lift-un-head-through-lookup′ {τ = τ} {w = w}
   (take-thereˡ take)
-  (S-Lin {Γrest = Γrest} m ld dv au σtail)
-  (S-Lin {Γrest = Γrest′} m′ ld′ dv′ au′ σtail′)
+  (S-Lin {Γrest = Γrest} m dv au σtail)
+  (S-Lin {Γrest = Γrest′} m′ dv′ au′ σtail′)
   d0 =
   subst
     (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
@@ -1352,10 +1350,9 @@ mutual
       (λ τ → used∷ {T = T} Γt ⊢σ τ ∶ ∅ ⊣ used∷ {T = T} Γt)
       (sym (tailSub-extSub-empty (λ ())))
       (S-∅ (AU-used au))
-  lift-tailSub-extSub-used {T = T} (S-Lin {T = U} m ld dv au σtail) =
+  lift-tailSub-extSub-used {T = T} (S-Lin {T = U} m dv au σtail) =
     S-Lin
       (MC-used-used m)
-      (LD-used-used ld)
       (Ren.wk-preserves-value (B-Used T) dv)
       (AU-used au)
       (lift-tailSub-extSub-used {T = T} σtail)
@@ -1371,10 +1368,9 @@ mutual
       (λ τ → (T ∷ᵘ Γt) ⊢σ τ ∶ ∅ ⊣ (T ∷ᵘ Γt))
       (sym (tailSub-extSub-empty (λ ())))
       (S-∅ (AU-un au))
-  lift-tailSub-extSub-un {T = T} (S-Lin {T = U} m ld dv au σtail) =
+  lift-tailSub-extSub-un {T = T} (S-Lin {T = U} m dv au σtail) =
     S-Lin
       (MC-un m)
-      (LD-un-un ld)
       (Ren.wk-preserves-value (B-Un T) dv)
       (AU-un au)
       (lift-tailSub-extSub-un {T = T} σtail)
@@ -1396,7 +1392,6 @@ extSub-preserves-σ-lin :
 extSub-preserves-σ-lin {Γt = Γt} {T = T} σok =
   S-Lin
     (MC-used-left (merge-right-allUsed Γt))
-    (LD-used-live (merge-disjoint (merge-right-allUsed Γt)))
     (TV-Var-Lin take-here)
     (AU-used (allUsedCtx-AllUsed Γt))
     (lift-tailSub-extSub-used {T = T} σok)
@@ -1436,7 +1431,7 @@ unliftTySub-preserves-σ {K = K} {Γs = ∅} {Γtwk = Γtwk} {Γo = Γo} {σ = �
     (sym (emptySub-η σ))
     (S-∅ (unwkAllUsed au))
 unliftTySub-preserves-σ {K = K} {Γs = B-Lin Ts ▻ Γs′} {σ = σ}
-  (S-Lin {Γrest = Γrest} {Γv = Γv} {Γv′ = Γv′} m ld dv au σtail)
+  (S-Lin {Γrest = Γrest} {Γv = Γv} {Γv′ = Γv′} m dv au σtail)
   rewrite tailSub-liftTySub {K = K} σ
   with unliftTySub-preserves-σ {K = K} {Γs = Γs′} {σ = tailSub σ} σtail
 ... | Γrest₀ , eqrest , σtail₀
@@ -1450,7 +1445,6 @@ unliftTySub-preserves-σ {K = K} {Γs = B-Lin Ts ▻ Γs′} {σ = σ}
   Γt₀ , eqt ,
   S-Lin
     m₀
-    (merge-disjoint m₀)
     dv₀
     (substTy-allUsed (inhabitTy {K = K}) au)
     σtail₀
@@ -1548,14 +1542,14 @@ mutual
         (Γt ⊢ᵥ σ x ⇒ T ⊣ Γt′)
         × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
 
-  substσ-lookup-lin take-here (S-Lin m ld dv au σtail) =
+  substσ-lookup-lin take-here (S-Lin m dv au σtail) =
     _ , consume-lin-head-merge m dv au , S-Used σtail
-  substσ-lookup-lin (take-thereˡ take) (S-Lin m ld dv au σtail)
+  substσ-lookup-lin (take-thereˡ take) (S-Lin m dv au σtail)
     with substσ-lookup-lin take σtail
   ... | Γmid , dmid , σtail′
     with lift-lin-through-merge m dmid
-  ... | Γtout , ldout , mout , dout =
-    Γtout , dout , S-Lin mout ldout dv au σtail′
+  ... | Γtout , _ , mout , dout =
+    Γtout , dout , S-Lin mout dv au σtail′
   substσ-lookup-lin {σ = σ} (take-thereᵘ take) (S-Un d0 σtail)
     with substσ-lookup-lin take σtail
   ... | Γt′ , d′ , σtail′ =
@@ -1578,7 +1572,7 @@ mutual
 
   substσ-lookup-un hereᵘ (S-Un d0 σtail) =
     replay-allUsed-value d0
-  substσ-lookup-un (thereᵘˡ x∈) (S-Lin m ld dv au σtail) =
+  substσ-lookup-un (thereᵘˡ x∈) (S-Lin m dv au σtail) =
     lift-un-through-merge m (substσ-lookup-un x∈ σtail)
   substσ-lookup-un (thereᵘᵘ x∈) (S-Un d0 σtail) =
     substσ-lookup-un x∈ σtail
@@ -1598,12 +1592,12 @@ subst-next-ctx :
       × allUsedCtx Γt ≡ allUsedCtx Γt′
       × RemoveCtx Γt G′ Γt′
 subst-next-ctx ∅ ∅ ∅ Γt Γo RM-∅ σ (S-∅ x) = Γt , allUsedCtx Γt , (S-∅ x) , refl , rm-allUsed Γt
-subst-next-ctx (B-Lin T ▻ Γs) (B-Used T ▻ G) (B-Lin T ▻ Γs′) Γt Γo (RM-drop rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs lds dσ₀ auv ⊢σ)
+subst-next-ctx (B-Lin T ▻ Γs) (B-Used T ▻ G) (B-Lin T ▻ Γs′) Γt Γo (RM-drop rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs dσ₀ auv ⊢σ)
   with subst-next-ctx Γs G Γs′ Γrest Γo rm (tailSub σ) ⊢σ
 ... | Γt′ , G′ , ⊢σ′ , au-transport , rmg
   with compose-merge-remove2 mcs rmg
-... | Γt″ , mc , rm  = Γt″ , G′ , S-Lin mc (merge-disjoint mc) dσ₀ auv ⊢σ′ , trans (allUsed-merge mcs) (trans au-transport (sym (allUsed-merge mc))) , rm
-subst-next-ctx (B-Lin T ▻ Γs) (B-Lin T ▻ G) (B-Used T ▻ Γs′) Γt Γo (RM-lin rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs lds dσ₀ auv ⊢σ)
+... | Γt″ , mc , rm  = Γt″ , G′ , S-Lin mc dσ₀ auv ⊢σ′ , trans (allUsed-merge mcs) (trans au-transport (sym (allUsed-merge mc))) , rm
+subst-next-ctx (B-Lin T ▻ Γs) (B-Lin T ▻ G) (B-Used T ▻ Γs′) Γt Γo (RM-lin rm) σ (S-Lin {Γrest = Γrest} {Γv} mcs dσ₀ auv ⊢σ)
   with subst-next-ctx Γs G Γs′ Γrest Γo rm (tailSub σ) ⊢σ
 ... | Γt′ , G′ , ⊢σ′ , au-transport , rmg
   with compose-merge-remove mcs rmg
