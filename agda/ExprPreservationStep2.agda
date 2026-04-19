@@ -146,6 +146,7 @@ open import ExprContextReduction using
   (_—ctx[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint
   ; Ctx-β; Ctx-New; Ctx-Fork; Ctx-Rcv; Ctx-Send; Ctx-Select; Ctx-Close
   ; ReplaceAt; replace-preserves-disjoint
+  ; replace-used-eq
   ; RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
   ; MergeCtx; MC-∅; MC-used-used; MC-used-left; MC-used-right; MC-un
   ; mergeDisjointContext; mergeRemoveContext
@@ -159,6 +160,8 @@ open import ExprContextReduction using
   ; recvChanNf; sendChanNf; selectInNf; selectOutNf; sessNf
   ; allUsedCtx
   ; extendUsed
+  ; FrameUpdate; FU-β; FU-Fork; FU-New; FU-RecvVal; FU-SendVal; FU-RecvLab; FU-SendLab; FU-Close
+  ; frame-update-preserves-disjoint
   ; used-head-eq
   ; Ex-β; Ex-Fork; Ex-New; Ex-RecvVal; Ex-RecvLab; Ex-SendVal; Ex-SendLab; Ex-Close
   ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-SendVal; Compat-Select; Compat-Close
@@ -303,6 +306,30 @@ postulate
     → MergeCtx Γx Γv Γ₁
     → FrameCtx Γx Γv Γ₁
 
+  frame-update-merge :
+    ∀ {n Θ}
+      {ℓ : Label n Θ}
+      {Γa Γb Γab : Ctx [] n}
+      {Γa′ Γb′ Γab′ : Ctx [] (length Θ + n)}
+    → MergeCtx Γa Γb Γab
+    → FrameUpdate ℓ Γa Γa′
+    → FrameUpdate ℓ Γb Γb′
+    → MergeCtx Γa′ Γb′ Γab′
+    → FrameUpdate ℓ Γab Γab′
+
+  frame-update-value :
+    ∀ {n Θ K}
+      {ℓ : Label n Θ}
+      {Γ Γ′ : Ctx [] n}
+      {Γu : Ctx [] (length Θ + n)}
+      {v : Value [] n}
+      {T : NfTy [] K}
+    → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
+    → AllUsed Γ′
+    → FrameUpdate ℓ Γ Γu
+    → Σ (Ctx [] (length Θ + n)) λ Γu′ →
+        FrameUpdate ℓ Γ′ Γu′ × AllUsed Γu′ × (Γu ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ T ⊣ Γu′)
+
 
 record PresSynth
     {n Θ pk mult}
@@ -316,13 +343,15 @@ record PresSynth
     (T : NfTy [] (KV pk mult)) : Set where
   field
     Gf : Ctx [] n
+    Gf′ : Ctx [] (length Θ + n)
     Γ₀′ : Ctx [] n
     Γ₁ : Ctx [] (length Θ + n)
     Γ₁′ : Ctx [] (length Θ + n)
     U : NfTy [] (KV pk mult)
 
     src-remove : RemoveCtx Γ₀ Gf Γ₀′
-    dst-remove : RemoveCtx Γ₁ (extendUsed Θ Gf) Γ₁′
+    frame-update : FrameUpdate ℓ Gf Gf′
+    dst-remove : RemoveCtx Γ₁ Gf′ Γ₁′
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
     synth : Γ₁ ⊢ e₂ ⇒ U ⊣ extendUsed Θ Γ₂
@@ -340,12 +369,14 @@ record PresCheck
     (T : NfTy [] (KV pk mult)) : Set where
   field
     Gf : Ctx [] n
+    Gf′ : Ctx [] (length Θ + n)
     Γ₀′ : Ctx [] n
     Γ₁ : Ctx [] (length Θ + n)
     Γ₁′ : Ctx [] (length Θ + n)
 
     src-remove : RemoveCtx Γ₀ Gf Γ₀′
-    dst-remove : RemoveCtx Γ₁ (extendUsed Θ Gf) Γ₁′
+    frame-update : FrameUpdate ℓ Gf Gf′
+    dst-remove : RemoveCtx Γ₁ Gf′ Γ₁′
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
     check : Γ₁ ⊢ e₂ ⇐ T ⊣ extendUsed Θ Γ₂
@@ -661,11 +692,13 @@ basePres-proof :
   → PresSynth Γin Γv lbl Γ₀ Γ₂ e₂ T
 basePres-proof {Γ₀ = Γ₀} step lbl ex compat synth sub = record
   { Gf = allUsedCtx Γ₀
+  ; Gf′ = allUsedCtx Γ₀
   ; Γ₀′ = Γ₀
   ; Γ₁ = Γ₀
   ; Γ₁′ = Γ₀
   ; U = _
   ; src-remove = remove-usedCtx Γ₀
+  ; frame-update = FU-β
   ; dst-remove = remove-usedCtx Γ₀
   ; ctx-step = step
   ; compat = compat
@@ -2070,14 +2103,16 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
       (replace-used-output take′ rep)
       (record
         { Gf = allUsedCtx Γ₀
+        ; Gf′ = allUsedCtx Γ₀
         ; Γ₀′ = Γ₀
         ; Γ₁ = Γ₂
         ; Γ₁′ = Γ₂
         ; U = normalizeTy T-Base
         ; src-remove = remove-usedCtx Γ₀
+        ; frame-update = FU-Close
         ; dst-remove =
             subst
-              (λ Gf → RemoveCtx Γ₂ (extendUsed [] Gf) Γ₂)
+              (λ Gf → RemoveCtx Γ₂ Gf Γ₂)
               (sym (allUsedCtx-take take′))
               (remove-usedCtx Γ₂)
         ; ctx-step = step
@@ -2143,22 +2178,16 @@ preserve⇒-send
 ... | _ , S<:Sᵣ
   with take-replace-lin {U = sessNf S} take₀
 ... | Γ₁ , rep =
-  let
-    eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
-    eqAll = trans (allUsedCtx-remove rm) (allUsedCtx-replace-lin x∈ rep)
-  in
   record
     { Gf = allUsedCtx Γ₀
+    ; Gf′ = allUsedCtx Γ₁
     ; Γ₀′ = Γ₀
     ; Γ₁ = Γ₁
     ; Γ₁′ = Γ₁
     ; U = sessNf S
     ; src-remove = remove-usedCtx Γ₀
-    ; dst-remove =
-        subst
-          (λ X → RemoveCtx Γ₁ X Γ₁)
-          (sym eqAll)
-          (remove-usedCtx Γ₁)
+    ; frame-update = FU-SendVal
+    ; dst-remove = remove-usedCtx Γ₁
     ; ctx-step = Ctx-Send rm dv au x∈ rep
     ; compat = send-compatible ex
     ; synth = T-Val (TV-Var-Lin (replace-take take₀ rep))
@@ -2201,17 +2230,20 @@ mutual
              (PresCheck.src-remove pc)
              (sym-disjoint (remove-linear r)))
            (sym-disjoint (remove-removed-disjoint r disj))
-  ... | ldstep
+  ... | Gstep , upstep , ldstep
+    with frame-update-value dv′ au upstep
+  ... | Gstep′ , upstep′ , auStep , dvStep
+    with frame-update-preserves-disjoint
+           (PresCheck.frame-update pc)
+           upstep
+           (remove-removed-disjoint
+             (PresCheck.src-remove pc)
+             (sym-disjoint (remove-linear r)))
+  ... | ldframes
     with restore-disjoint
            (PresCheck.dst-remove pc)
-           (subst
-             (λ X → LinearDisjoint (PresCheck.Γ₁′ pc) X)
-             (extendUsedCR-eq Θ G)
-             ldstep)
-           (extendUsed-disjoint Θ
-             (remove-removed-disjoint
-               (PresCheck.src-remove pc)
-               (sym-disjoint (remove-linear r))))
+           ldstep
+           ldframes
   ... | ldtarget
     with mergeRemoveContext r (PresCheck.src-remove pc)
   ... | Gf , msrc , rsrc
@@ -2221,28 +2253,29 @@ mutual
            (merge-frame ldtarget mleft)
   ... | dstr
     with mergeRemoveContext dstr (PresCheck.dst-remove pc)
-  ... | Gfdst , mdst , rdst
-    with merge-result-unique mdst (merge-extendUsed Θ msrc)
-  ... | eqG = record
+  ... | Gfdst , mdst , rdst = record
     { Gf = Gf
+    ; Gf′ = Gfdst
     ; Γ₀′ = PresCheck.Γ₀′ pc
     ; Γ₁ = Γ₁
     ; Γ₁′ = PresCheck.Γ₁′ pc
     ; U = V
     ; src-remove = rsrc
-    ; dst-remove =
-        subst
-          (λ X → RemoveCtx Γ₁ X (PresCheck.Γ₁′ pc))
-          eqG
-          rdst
+    ; frame-update =
+        frame-update-merge
+          msrc
+          upstep
+          (PresCheck.frame-update pc)
+          mdst
+    ; dst-remove = rdst
     ; ctx-step = PresCheck.ctx-step pc
     ; compat = PresCheck.compat pc
     ; synth =
         T-App
           (replay-synth-allUsed
-            (weaken-val-synth {Θ = Θ} dv′)
+            dvStep
             (remove-frame dstr)
-            (allUsed-extendUsed Θ au))
+            auStep)
           (PresCheck.check pc)
     ; subtype = <:ₜ-refl (normalTyOf V)
     }
@@ -2282,17 +2315,20 @@ mutual
              (PresSynth.src-remove ps)
              (sym-disjoint (remove-linear r)))
            (sym-disjoint (remove-removed-disjoint r disj))
-  ... | ldstep
+  ... | Gstep , upstep , ldstep
+    with frame-update-value dv′ au upstep
+  ... | Gstep′ , upstep′ , auStep , dvStep
+    with frame-update-preserves-disjoint
+           (PresSynth.frame-update ps)
+           upstep
+           (remove-removed-disjoint
+             (PresSynth.src-remove ps)
+             (sym-disjoint (remove-linear r)))
+  ... | ldframes
     with restore-disjoint
            (PresSynth.dst-remove ps)
-           (subst
-             (λ X → LinearDisjoint (PresSynth.Γ₁′ ps) X)
-             (extendUsedCR-eq Θ G)
-             ldstep)
-           (extendUsed-disjoint Θ
-             (remove-removed-disjoint
-               (PresSynth.src-remove ps)
-               (sym-disjoint (remove-linear r))))
+           ldstep
+           ldframes
   ... | ldtarget
     with mergeRemoveContext r (PresSynth.src-remove ps)
   ... | Gf , msrc , rsrc
@@ -2302,28 +2338,29 @@ mutual
            (merge-frame ldtarget mleft)
   ... | dstr
     with mergeRemoveContext dstr (PresSynth.dst-remove ps)
-  ... | Gfdst , mdst , rdst
-    with merge-result-unique mdst (merge-extendUsed Θ msrc)
-  ... | eqG = record
+  ... | Gfdst , mdst , rdst = record
     { Gf = Gf
+    ; Gf′ = Gfdst
     ; Γ₀′ = PresSynth.Γ₀′ ps
     ; Γ₁ = Γ₁
     ; Γ₁′ = PresSynth.Γ₁′ ps
     ; U = pairNf T (PresSynth.U ps)
     ; src-remove = rsrc
-    ; dst-remove =
-        subst
-          (λ X → RemoveCtx Γ₁ X (PresSynth.Γ₁′ ps))
-          eqG
-          rdst
+    ; frame-update =
+        frame-update-merge
+          msrc
+          upstep
+          (PresSynth.frame-update ps)
+          mdst
+    ; dst-remove = rdst
     ; ctx-step = PresSynth.ctx-step ps
     ; compat = PresSynth.compat ps
     ; synth =
         T-Pair
           (replay-synth-allUsed
-            (weaken-val-synth {Θ = Θ} dv′)
+            dvStep
             (remove-frame dstr)
-            (allUsed-extendUsed Θ au))
+            auStep)
           (PresSynth.synth ps)
     ; subtype =
         <:ₜ-pair
@@ -2422,14 +2459,16 @@ mutual
   ... | G , G′ , r , dv′ , au
     rewrite eqA = record
       { Gf = allUsedCtx Γ₀
+      ; Gf′ = allUsedCtx Γ₀
       ; Γ₀′ = Γ₀
       ; Γ₁ = Γ₂
       ; Γ₁′ = Γ₂
       ; U = normalizeTy T-Base
       ; src-remove = remove-usedCtx Γ₀
+      ; frame-update = FU-Fork
       ; dst-remove =
           subst
-            (λ X → RemoveCtx Γ₂ (extendUsed [] X) Γ₂)
+            (λ X → RemoveCtx Γ₂ X Γ₂)
             (sym (allUsedCtx-remove r))
             (remove-usedCtx Γ₂)
       ; ctx-step = Ctx-Fork r (T-Check (T-Val dv′) sub) au
@@ -2460,25 +2499,16 @@ mutual
   ... | TV-Var-Lin take
     with take-replace-lin take
   ... | Γ₁ , rep =
-    let
-      eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
-      eqAll =
-        allUsedCtx-replace-lin
-          (take-implies-membership take)
-          rep
-    in
     record
       { Gf = allUsedCtx Γ₀
+      ; Gf′ = allUsedCtx Γ₁
       ; Γ₀′ = Γ₀
       ; Γ₁ = Γ₁
       ; Γ₁′ = Γ₁
       ; U = _
       ; src-remove = remove-usedCtx Γ₀
-      ; dst-remove =
-          subst
-            (λ X → RemoveCtx Γ₁ X Γ₁)
-            (sym eqAll)
-            (remove-usedCtx Γ₁)
+      ; frame-update = FU-RecvLab
+      ; dst-remove = remove-usedCtx Γ₁
       ; ctx-step =
           ECR.Ctx-Match {ssin = ssin} {ssout = ss} {incl = incl} i∈
             (take-implies-membership take)
@@ -2504,29 +2534,77 @@ mutual
         sessT = normalizeTy (SessLin S)
         dualT = dualSessNf (normalizeTy S)
 
+        Sⁿ = NormalTypes.nf-normal-type Duality.⊕ Duality.d?⊥ S
+        Sⁿ-ty = NormalTypes.nfTyTy Sⁿ
+        S⁺ = Types.nf Duality.⊕ Duality.d?⊥ S
+        Sⁿ-ty=S⁺ =
+          nfTyTy-fromNormalTy
+            (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S)
+
+        minus-eq =
+          Types.nf-complete-
+            (λ _ → Duality.D-S)
+            (Types.nf-sound+ S)
+
+        dual-conv =
+          Types.≡c-trns
+            (Types.dual-tinv S⁺)
+            (Types.≡c-trns
+              (Types.≡c-symm
+                (Types.nf-sound- {f = λ _ → Duality.D-S} S⁺))
+              (Types.≡c-trns
+                (Types.≡c-refl-eq minus-eq)
+                (Types.≡c-trns
+                  (Types.nf-sound- {f = λ _ → Duality.D-S} S)
+                  (Types.≡c-symm (Types.dual-tinv S)))))
+
+        sess-conv =
+          Types.≡c-sub
+            (≤k-step (≤p-step <p-st) ≤m-refl)
+            dual-conv
+
+        eq-left =
+          trans
+            (nfTyTy-fromNormalTy
+              (Types.nf-normal-type
+                Duality.⊕
+                Duality.d?⊥
+                (SessLin (Ty.T-Dual Duality.D-S Sⁿ-ty))))
+            (cong
+              (λ X →
+                Types.nf Duality.⊕ Duality.d?⊥
+                  (SessLin (Ty.T-Dual Duality.D-S X)))
+              Sⁿ-ty=S⁺)
+
+        eq-mid =
+          Types.nf-complete Duality.d?⊥ Duality.d?⊥ sess-conv
+
+        eq-right =
+          sym
+            (nfTyTy-fromNormalTy
+              (Types.nf-normal-type
+                Duality.⊕
+                Duality.d?⊥
+                (SessLin (Ty.T-Dual Duality.D-S S))))
+
+        dual-nf=nf-dual : dualSessNf (NormalTypes.nf-normal-type Duality.⊕ Duality.d?⊥ S)
+                        ≡ NormalTypes.nf-normal-type Duality.⊕ Duality.d?⊥ (SessLin (Ty.T-Dual Duality.D-S S))
+        dual-nf=nf-dual =
+          NormalTypes.nfTyTy-injective (trans eq-left (trans eq-mid eq-right))
+
         allUsed-new-eq :
           allUsedCtx (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
             ≡
           extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ₀)
         allUsed-new-eq =
-          cong
-            (B-Used sessT ▻_)
-            (used-head-eq
-              {T₁ = dualT}
-              {T₂ = normalizeTy (SessLin (Types.T-Dual Duality.D-S S))}
-              {Γ = allUsedCtx Γ₀})
+          cong (B-Used sessT ▻_) (cong (_▻ allUsedCtx Γ₀) (cong B-Used dual-nf=nf-dual))
 
         synth-new-eq :
           (B-Used sessT ▻ (B-Used dualT ▻ Γ₀))
             ≡
           extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) Γ₀
         synth-new-eq =
-          cong
-            (B-Used sessT ▻_)
-            (used-head-eq
-              {T₁ = dualT}
-              {T₂ = normalizeTy (SessLin (Types.T-Dual Duality.D-S S))}
-              {Γ = Γ₀})
+          cong (B-Used sessT ▻_) (cong (_▻ Γ₀) (cong B-Used dual-nf=nf-dual))
 
         synth-new :
           (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
@@ -2541,11 +2619,13 @@ mutual
       in
       record
         { Gf = allUsedCtx Γ₀
+        ; Gf′ = extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ₀)
         ; Γ₀′ = Γ₀
         ; Γ₁ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
         ; Γ₁′ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
         ; U = pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
         ; src-remove = remove-usedCtx Γ₀
+        ; frame-update = FU-New
         ; dst-remove =
             subst
               (λ X →
@@ -2655,16 +2735,6 @@ mutual
              take′)
   ... | Γ₁ , rep =
     let
-      eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
-      eqAll =
-        allUsedCtx-replace-lin
-          (take-implies-membership
-            (subst
-              (λ X → Γ₀ ⊢ˡ x ∶ X ⊣ Γ₂)
-              (sym eqChan)
-              take′))
-          rep
-
       selSub :
         normalTyOf (selectInNf v i P′ S′)
           <:ₜ
@@ -2680,16 +2750,14 @@ mutual
     in
     record
       { Gf = allUsedCtx Γ₀
+      ; Gf′ = allUsedCtx Γ₁
       ; Γ₀′ = Γ₀
       ; Γ₁ = Γ₁
       ; Γ₁′ = Γ₁
       ; U = selectOutNf v i P′ S′
       ; src-remove = remove-usedCtx Γ₀
-      ; dst-remove =
-          subst
-            (λ X → RemoveCtx Γ₁ X Γ₁)
-            (sym eqAll)
-            (remove-usedCtx Γ₁)
+      ; frame-update = FU-SendLab
+      ; dst-remove = remove-usedCtx Γ₁
       ; ctx-step =
           Ctx-Select
             (take-implies-membership
@@ -2810,27 +2878,32 @@ mutual
   ... | take₀ , _ , _ , sub
     with take-replace-lin {U = sessNf S} take₀
   ... | Γx , rep
-    with mergeDisjointContext (replace-preserves-disjoint x∈ disj rep)
+    with replace-preserves-disjoint x∈ disj rep
+  ... | Γv′ , repv , ld′
+    with mergeDisjointContext
+           (subst
+             (LinearDisjoint Γx)
+             (sym (replace-used-eq x∈ disj repv))
+             ld′)
   ... | Γ₁ , merge =
     let
       ld : LinearDisjoint Γx Γv
-      ld = replace-preserves-disjoint x∈ disj rep
-
-      eqAll : allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
-      eqAll = trans (allUsedCtx-replace-lin x∈ rep) (allUsedCtx-merge ld merge)
+      ld =
+        subst
+          (LinearDisjoint Γx)
+          (sym (replace-used-eq x∈ disj repv))
+          ld′
     in
     record
       { Gf = allUsedCtx Γ₀
+      ; Gf′ = allUsedCtx Γ₁
       ; Γ₀′ = Γ₀
       ; Γ₁ = Γ₁
       ; Γ₁′ = Γ₁
       ; U = pairNf T (sessNf S)
       ; src-remove = remove-usedCtx Γ₀
-      ; dst-remove =
-          subst
-            (λ X → RemoveCtx Γ₁ X Γ₁)
-            (sym eqAll)
-            (remove-usedCtx Γ₁)
+      ; frame-update = FU-RecvVal
+      ; dst-remove = remove-usedCtx Γ₁
       ; ctx-step = Ctx-Rcv dv au disj x∈ rep merge
       ; compat = Compat-RecvVal
       ; synth =
@@ -2888,11 +2961,13 @@ mutual
   ... | Tₚ′ , eqPoly , Tₚ′<:Tₚ =
     record
       { Gf = PresSynth.Gf ps
+      ; Gf′ = PresSynth.Gf′ ps
       ; Γ₀′ = PresSynth.Γ₀′ ps
       ; Γ₁ = PresSynth.Γ₁ ps
       ; Γ₁′ = PresSynth.Γ₁′ ps
       ; U = substNFTy Tₚ′ (normalizeTy Uty)
       ; src-remove = PresSynth.src-remove ps
+      ; frame-update = PresSynth.frame-update ps
       ; dst-remove = PresSynth.dst-remove ps
       ; ctx-step = PresSynth.ctx-step ps
       ; compat = PresSynth.compat ps
@@ -2931,11 +3006,13 @@ mutual
     in
     record
       { Gf = PresSynth.Gf ps
+      ; Gf′ = PresSynth.Gf′ ps
       ; Γ₀′ = PresSynth.Γ₀′ ps
       ; Γ₁ = PresSynth.Γ₁ ps
       ; Γ₁′ = PresSynth.Γ₁′ ps
       ; U = V′
       ; src-remove = PresSynth.src-remove ps
+      ; frame-update = PresSynth.frame-update ps
       ; dst-remove = PresSynth.dst-remove ps
       ; ctx-step = PresSynth.ctx-step ps
       ; compat = PresSynth.compat ps
@@ -2971,11 +3048,13 @@ mutual
     in
     record
       { Gf = PresSynth.Gf ps
+      ; Gf′ = PresSynth.Gf′ ps
       ; Γ₀′ = PresSynth.Γ₀′ ps
       ; Γ₁ = PresSynth.Γ₁ ps
       ; Γ₁′ = PresSynth.Γ₁′ ps
       ; U = pairNf (PresSynth.U ps) Uₚ
       ; src-remove = PresSynth.src-remove ps
+      ; frame-update = PresSynth.frame-update ps
       ; dst-remove = PresSynth.dst-remove ps
       ; ctx-step = PresSynth.ctx-step ps
       ; compat = PresSynth.compat ps
@@ -3004,11 +3083,13 @@ mutual
   ... | V′ , d₂′ , V′<:V =
     record
       { Gf = PresSynth.Gf ps
+      ; Gf′ = PresSynth.Gf′ ps
       ; Γ₀′ = PresSynth.Γ₀′ ps
       ; Γ₁ = PresSynth.Γ₁ ps
       ; Γ₁′ = PresSynth.Γ₁′ ps
       ; U = V′
       ; src-remove = PresSynth.src-remove ps
+      ; frame-update = PresSynth.frame-update ps
       ; dst-remove = PresSynth.dst-remove ps
       ; ctx-step = PresSynth.ctx-step ps
       ; compat = PresSynth.compat ps
@@ -3043,11 +3124,13 @@ mutual
     in
     record
       { Gf = PresCheck.Gf pc
+      ; Gf′ = PresCheck.Gf′ pc
       ; Γ₀′ = PresCheck.Γ₀′ pc
       ; Γ₁ = PresCheck.Γ₁ pc
       ; Γ₁′ = PresCheck.Γ₁′ pc
       ; U = T
       ; src-remove = PresCheck.src-remove pc
+      ; frame-update = PresCheck.frame-update pc
       ; dst-remove = PresCheck.dst-remove pc
       ; ctx-step = PresCheck.ctx-step pc
       ; compat = PresCheck.compat pc
@@ -3435,10 +3518,12 @@ mutual
     with preserve⇒ d step lbl ex disj
   ... | ps = record
     { Gf = PresSynth.Gf ps
+    ; Gf′ = PresSynth.Gf′ ps
     ; Γ₀′ = PresSynth.Γ₀′ ps
     ; Γ₁ = PresSynth.Γ₁ ps
     ; Γ₁′ = PresSynth.Γ₁′ ps
     ; src-remove = PresSynth.src-remove ps
+    ; frame-update = PresSynth.frame-update ps
     ; dst-remove = PresSynth.dst-remove ps
     ; ctx-step = PresSynth.ctx-step ps
     ; compat = PresSynth.compat ps

@@ -69,7 +69,6 @@ open import ExprContextReduction using
   ; LD-live-used
   ; LD-un-un
   ; allUsedCtx
-  ; used-head-eq
   ; Ex-β
   ; Ex-Fork
   ; Ex-New
@@ -155,20 +154,20 @@ allUsedCtx-remove (RM-lin r)
 allUsedCtx-remove (RM-un r)
   rewrite allUsedCtx-remove r = refl
 
-allUsedCtx-replace-lin :
+allUsedCtx-replace-lin-at :
   ∀ {n pk pk′}
     {Γ₀ Γ₁ : Ctx [] n}
     {x : Fin n} {T : NfTy [] (KV pk Lin)} {U : NfTy [] (KV pk′ Lin)}
   → Γ₀ ∋ˡ x ∶ T
   → ReplaceAt Γ₀ x (B-Lin U) Γ₁
-  → allUsedCtx Γ₀ ≡ allUsedCtx Γ₁
-allUsedCtx-replace-lin hereˡ ExprContextReduction.R-here = used-head-eq
-allUsedCtx-replace-lin (thereˡˡ x∈) (ExprContextReduction.R-there rep)
-  rewrite allUsedCtx-replace-lin x∈ rep = refl
-allUsedCtx-replace-lin (thereˡᵘ x∈) (ExprContextReduction.R-there rep)
-  rewrite allUsedCtx-replace-lin x∈ rep = refl
-allUsedCtx-replace-lin (thereˡ✖ x∈) (ExprContextReduction.R-there rep)
-  rewrite allUsedCtx-replace-lin x∈ rep = refl
+  → ReplaceAt (allUsedCtx Γ₀) x (B-Used U) (allUsedCtx Γ₁)
+allUsedCtx-replace-lin-at hereˡ ExprContextReduction.R-here = ExprContextReduction.R-here
+allUsedCtx-replace-lin-at (thereˡˡ x∈) (ExprContextReduction.R-there rep) =
+  ExprContextReduction.R-there (allUsedCtx-replace-lin-at x∈ rep)
+allUsedCtx-replace-lin-at (thereˡᵘ x∈) (ExprContextReduction.R-there rep) =
+  ExprContextReduction.R-there (allUsedCtx-replace-lin-at x∈ rep)
+allUsedCtx-replace-lin-at (thereˡ✖ x∈) (ExprContextReduction.R-there rep) =
+  ExprContextReduction.R-there (allUsedCtx-replace-lin-at x∈ rep)
 
 allUsedCtx-merge :
   ∀ {n}
