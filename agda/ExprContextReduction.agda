@@ -371,6 +371,12 @@ data ReplaceAt {Δ} : ∀ {n} → Ctx Δ n → Fin n → Binding Δ → Ctx Δ n
     → ReplaceAt Γ x b′ Γ′
     → ReplaceAt (b ▻ Γ) (suc x) b′ (b ▻ Γ′)
 
+replace-at : ∀ {n}{Δ} → (Γ : Ctx Δ n) → (x : Fin n) → (b : Binding Δ) → Σ (Ctx Δ n) λ Γ′ → ReplaceAt Γ x b Γ′
+replace-at (_ ▻ Γ) zero b = (b ▻ Γ) , R-here
+replace-at (_ ▻ Γ) (suc x) b
+  with replace-at Γ x b
+... | Γ′ , rm = _ ▻ Γ′ , R-there rm
+
 postulate
   used-head-eq :
     ∀ {Δ n pk₁ pk₂}
@@ -378,6 +384,41 @@ postulate
       {T₂ : NfTy Δ (KV pk₂ Lin)}
       {Γ : Ctx Δ n}
     → (B-Used T₁ ▻ Γ) ≡ (B-Used T₂ ▻ Γ)
+
+replace-frames-disjoint :
+  ∀ {Δ n pk}
+    {Γ₀ Γ₁ Γf Γf′ : Ctx Δ n}
+    {x : Fin n} {U : NfTy Δ (KV pk Lin)}
+  → LinearDisjoint Γ₀ Γf
+  → ReplaceAt Γ₀ x (B-Lin U) Γ₁
+  → ReplaceAt Γf x (B-Used U) Γf′
+  → LinearDisjoint Γ₁ Γf′
+replace-frames-disjoint (LD-used-used ld0f) R-here R-here = LD-live-used ld0f
+replace-frames-disjoint (LD-used-used ld0f) (R-there replin) (R-there repused) = LD-used-used (replace-frames-disjoint ld0f replin repused)
+replace-frames-disjoint (LD-used-live ld0f) R-here R-here = LD-live-used ld0f
+replace-frames-disjoint (LD-used-live ld0f) (R-there replin) (R-there repused) = LD-used-live (replace-frames-disjoint ld0f replin repused)
+replace-frames-disjoint (LD-live-used ld0f) R-here R-here = LD-live-used ld0f
+replace-frames-disjoint (LD-live-used ld0f) (R-there replin) (R-there repused) = LD-live-used (replace-frames-disjoint ld0f replin repused)
+replace-frames-disjoint (LD-un-un ld0f) R-here R-here = LD-live-used ld0f
+replace-frames-disjoint (LD-un-un ld0f) (R-there replin) (R-there repused) = LD-un-un (replace-frames-disjoint ld0f replin repused)
+
+replace-frames-used :
+  ∀ {Δ n pk}
+    {Γ₀ Γ₁ Γf Γf′ : Ctx Δ n}
+    {x : Fin n} {U : NfTy Δ (KV pk Lin)}
+  → LinearDisjoint Γ₀ Γf
+  → ReplaceAt Γ₀ x (B-Used U) Γ₁
+  → ReplaceAt Γf x (B-Used U) Γf′
+  → LinearDisjoint Γ₁ Γf′
+replace-frames-used (LD-used-used ld0f) R-here R-here = LD-used-used ld0f
+replace-frames-used (LD-used-used ld0f) (R-there rep0) (R-there repf) = LD-used-used (replace-frames-used ld0f rep0 repf)
+replace-frames-used (LD-used-live ld0f) R-here R-here = LD-used-used ld0f
+replace-frames-used (LD-used-live ld0f) (R-there rep0) (R-there repf) = LD-used-live (replace-frames-used ld0f rep0 repf)
+replace-frames-used (LD-live-used ld0f) R-here R-here = LD-used-used ld0f
+replace-frames-used (LD-live-used ld0f) (R-there rep0) (R-there repf) = LD-live-used (replace-frames-used ld0f rep0 repf)
+replace-frames-used (LD-un-un ld0f) R-here R-here = LD-used-used ld0f
+replace-frames-used (LD-un-un ld0f) (R-there rep0) (R-there repf) = LD-un-un (replace-frames-used ld0f rep0 repf)
+
 
 replace-preserves-disjoint :
   ∀ {Δ n pk}
@@ -425,37 +466,14 @@ replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-used d) (R-there rep)
 replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep) =
   LD-used-live (replace-used-preserves-disjoint x∈ d rep)
 
-replace-used-eq :
-  ∀ {Δ n pk pk′}
-    {Γ₀ Γf Γf′ : Ctx Δ n}
-    {x : Fin n}
-    {T : NfTy Δ (KV pk Lin)}
-    {U : NfTy Δ (KV pk′ Lin)}
-  → Γ₀ ∋ˡ x ∶ T
-  → LinearDisjoint Γ₀ Γf
-  → ReplaceAt Γf x (B-Used U) Γf′
-  → Γf ≡ Γf′
-replace-used-eq hereˡ (LD-live-used d) R-here = used-head-eq
-replace-used-eq (thereˡˡ x∈) (LD-live-used d) (R-there rep) =
-  cong (B-Used _ ▻_) (replace-used-eq x∈ d rep)
-replace-used-eq (thereˡᵘ x∈) (LD-un-un d) (R-there rep) =
-  cong (B-Un _ ▻_) (replace-used-eq x∈ d rep)
-replace-used-eq (thereˡ✖ x∈) (LD-used-used d) (R-there rep) =
-  cong (B-Used _ ▻_) (replace-used-eq x∈ d rep)
-replace-used-eq (thereˡ✖ x∈) (LD-used-live d) (R-there rep) =
-  cong (B-Lin _ ▻_) (replace-used-eq x∈ d rep)
-
-sessNf : NfTy [] SLin → NfTy [] TLin
-sessNf = sessTyNf
-
 unitLinNf : NfTy [] TLin
 unitLinNf = unitConstNf
 
-recvChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
-recvChanNf T S = sessTyNf (msgNF ⊝ (N-Normal (N-Up T)) S)
+recvChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] SLin
+recvChanNf T S = msgNF ⊝ (N-Normal (N-Up T)) S
 
-sendChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] TLin
-sendChanNf T S = sessTyNf (msgNF ⊕ (N-Normal (N-Up T)) S)
+sendChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] SLin
+sendChanNf T S = msgNF ⊕ (N-Normal (N-Up T)) S
 
 dualSessNf : NfTy [] SLin → NfTy [] TLin
 dualSessNf S = normalizeTy (SessLin (T-Dual D-S ⌞ S ⌟))
@@ -466,17 +484,14 @@ selectInNf = selectInTyNf
 selectOutNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
 selectOutNf = selectOutTyNf
 
-postulate
-  SelectBranches : ∀ {k} → NfTy [] SLin → (Fin k → NfTy [] SLin) → Set
-
 infix 4 _—ctx[_]→_
 
 data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length Θ + n) → Set where
   Ctx-β : ∀ {n} {Γ : Ctx [] n}
-    → Γ —ctx[ ExprSemantics.L-β ]→ Γ
+    → Γ —ctx[ L-β ]→ Γ
 
   Ctx-New : ∀ {n} {Γ₀ : Ctx [] n} {S : Ty [] SLin}
-    → Γ₀ —ctx[ L-New S ]→ (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
+    → Γ₀ —ctx[ L-New S ]→ (B-Lin (normalizeTy S) ▻ (B-Lin (normalizeTy (T-Dual D-S S)) ▻ Γ₀))
 
   Ctx-Fork : ∀ {n} {Γ₀ Γv Γv′ Γ₁ : Ctx [] n} {v : Value [] n}
     → RemoveCtx Γ₀ Γv Γ₁
@@ -484,14 +499,15 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → AllUsed Γv′
     → Γ₀ —ctx[ L-Fork v ]→ Γ₁
 
-  Ctx-Rcv : ∀ {n} {Γ₀ Γv Γv′ Γx Γ₁ : Ctx [] n}
+  Ctx-Rcv : ∀ {n} {Γ₀ Γv-in Γv-used Γv-out Γx Γ₁ : Ctx [] n}
       {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
-    → AllUsed Γv′
-    → LinearDisjoint Γ₀ Γv
+    → Γv-in ⊢ᵥ v ⇒ T ⊣ Γv-used
+    → AllUsed Γv-used
+    → LinearDisjoint Γ₀ Γv-in
     → Γ₀ ∋ˡ x ∶ recvChanNf T S
-    → ReplaceAt Γ₀ x (B-Lin (sessNf S)) Γx
-    → MergeCtx Γx Γv Γ₁
+    → ReplaceAt Γ₀ x (B-Lin S) Γx
+    → ReplaceAt Γv-in x (B-Used S) Γv-out
+    → MergeCtx Γx Γv-out Γ₁
     → Γ₀ —ctx[ L-RecvVal x v ]→ Γ₁
 
   Ctx-Send : ∀ {n} {Γ₀ Γx Γv Γv′ Γ₁ : Ctx [] n}
@@ -500,7 +516,7 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
     → AllUsed Γv′
     → Γx ∋ˡ x ∶ sendChanNf T S
-    → ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁
+    → ReplaceAt Γx x (B-Lin S) Γ₁
     → Γ₀ —ctx[ L-SendVal x v ]→ Γ₁
 
   Ctx-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
@@ -522,6 +538,47 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γ₀ ∋ˡ x ∶ selectInNf v i P S
     → ReplaceAt Γ₀ x (B-Lin (selectOutNf v i P S)) Γ₁
     → Γ₀ —ctx[ L-SendLab x i ]→ Γ₁
+
+infix 4 _—frm[_]→_
+
+data _—frm[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length Θ + n) → Set where
+  Frm-β : ∀ {n} {Γ : Ctx [] n}
+    → Γ —frm[ L-β ]→ Γ
+
+  Frm-New : ∀ {n} {Γ : Ctx [] n} {S : Ty [] SLin}
+    → Γ —frm[ L-New S ]→
+        (B-Used (normalizeTy S) ▻
+         (B-Used (normalizeTy (T-Dual D-S S)) ▻ Γ))
+
+  Frm-Fork : ∀ {n} {Γ : Ctx [] n} {v : Value [] n}
+    → Γ —frm[ L-Fork v ]→ Γ
+
+  Frm-Rcv : ∀ {n} {Γ₀ Γ₁ : Ctx [] n}
+      {x : Fin n} {S : NfTy [] SLin} {v : Value [] n}
+    → ReplaceAt Γ₀ x (B-Used S) Γ₁
+    → Γ₀ —frm[ L-RecvVal x v ]→ Γ₁
+
+  Frm-Send : ∀ {n} {Γ₀ Γ₁ : Ctx [] n}
+      {x : Fin n} {S : NfTy [] SLin} {v : Value [] n}
+    → ReplaceAt Γ₀ x (B-Used S) Γ₁
+    → Γ₀ —frm[ L-SendVal x v ]→ Γ₁
+
+  Frm-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
+    → ReplaceAt Γ₀ x (B-Used (normalizeTy EndLin)) Γ₁
+    → Γ₀ —frm[ L-Close x ]→ Γ₁
+
+  Frm-Match : ∀ {n k}
+      {ssout : Subset.Subset (suc k)}
+      {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin (suc k)}
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+    → (i∈ : i Subset.∈ ssout)
+    → ReplaceAt Γ₀ x (B-Used (MatchBranchOutput ssout v P S i i∈)) Γ₁
+    → Γ₀ —frm[ L-RecvLab x i ]→ Γ₁
+
+  Frm-Select : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+      {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
+    → ReplaceAt Γ₀ x (B-Used (selectOutNf v i P S)) Γ₁
+    → Γ₀ —frm[ L-SendLab x i ]→ Γ₁
 
 data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set where
 
@@ -609,16 +666,22 @@ data FrameUpdate : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] (length Θ 
   FU-Close : ∀ {n} {Γ : Ctx [] n} {x : Fin n}
     → FrameUpdate (L-Close x) Γ Γ
 
-postulate
-  frame-update-preserves-disjoint :
-    ∀ {n Θ}
-      {ℓ : Label n Θ}
-      {Γ₀ Γf : Ctx [] n}
-      {Γ₀′ Γf′ : Ctx [] (length Θ + n)}
-    → FrameUpdate ℓ Γ₀ Γ₀′
-    → FrameUpdate ℓ Γf Γf′
-    → LinearDisjoint Γ₀ Γf
-    → LinearDisjoint Γ₀′ Γf′
+{-
+frm-to-frame-update :
+  ∀ {n Θ}
+    {Γ : Ctx [] n} {Γ′ : Ctx [] (length Θ + n)}
+    {ℓ : Label n Θ}
+  → Γ —frm[ ℓ ]→ Γ′
+  → FrameUpdate ℓ Γ Γ′
+frm-to-frame-update Frm-β = FU-β
+frm-to-frame-update Frm-New = {!!}
+frm-to-frame-update Frm-Fork = FU-Fork
+frm-to-frame-update (Frm-Rcv _) = FU-RecvVal
+frm-to-frame-update (Frm-Send _) = FU-SendVal
+frm-to-frame-update Frm-Close = FU-Close
+frm-to-frame-update (Frm-Match _ _) = FU-RecvLab
+frm-to-frame-update (Frm-Select _) = FU-SendLab
+-}
 
 data Compatible :
   ∀ {n Θ}
@@ -656,18 +719,19 @@ data Compatible :
     → Compatible (Ctx-Fork rm dv auv) (Label-Fork auin aulbl)
 
   Compat-RecvVal :
-    ∀ {n} {Γ₀ Γv Γv′ Γx Γ₁ Γin Γin′ : Ctx [] n}
+    ∀ {n} {Γ₀ Γv Γv-out Γv′ Γx Γ₁ Γin Γin′ : Ctx [] n}
       {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
       {ld : LinearDisjoint Γ₀ Γv}
       {x∈ : Γ₀ ∋ˡ x ∶ recvChanNf T S}
-      {rep : ReplaceAt Γ₀ x (B-Lin (sessNf S)) Γx}
-      {merge : MergeCtx Γx Γv Γ₁}
+      {rep : ReplaceAt Γ₀ x (B-Lin S) Γx}
+      {repused : ReplaceAt Γv x (B-Used S) Γv-out}
+      {merge : MergeCtx Γx Γv-out Γ₁}
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
       {au : AllUsed Γv′}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvVal x v}
-        (Ctx-Rcv dv au ld x∈ rep merge) (Label-RecvVal take auin dv au)
+        (Ctx-Rcv dv au ld x∈ rep repused merge) (Label-RecvVal take auin dv au)
 
   Compat-SendVal :
     ∀ {n} {Γ₀ Γin Γx Γv Γv′ Γ₁ : Ctx [] n}
@@ -676,7 +740,7 @@ data Compatible :
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
       {auv : AllUsed Γv′}
       {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
-      {rep : ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁}
+      {rep : ReplaceAt Γx x (B-Lin S) Γ₁}
       {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendVal x v}
         (Ctx-Send rm dv auv x∈ rep) (Label-SendVal take dv auv)
@@ -877,122 +941,33 @@ ctx-step-preserves-disjoint :
     → LinearDisjoint Γ₀ Γf
     → LinearDisjoint Γv Γf
     → Σ (Ctx [] (length Θ + n)) λ Γf′ →
-        FrameUpdate ℓ Γf Γf′ × LinearDisjoint Γ₁ Γf′
-ctx-step-preserves-disjoint Ctx-β (Label-β _ _) (Compat-β _) ld0 ldv =
-  _ , FU-β , ld0
-ctx-step-preserves-disjoint {Γ₀ = Γ₀} {Γf = Γf} (Ctx-New {S = S}) (Label-New _ _) (Compat-New _) ld0 ldv =
-  let
-    eq-nf : NormalTypes.fromNormalTy (nf-normal-type ⊕
-                                     (λ x₁ → dualizable-sub (d?⊥ x₁) (≤k-step (≤p-step <p-st) ≤m-refl))
-                                     (T-Dual D-S ⌞ normalizeTy S ⌟))
-          ≡
-            NormalTypes.fromNormalTy (nf-normal-type ⊕
-                                     (λ x₁ → dualizable-sub (d?⊥ x₁) (≤k-step (≤p-step <p-st) ≤m-refl))
-                                     (T-Dual D-S S))
-    eq-nf =
-      let
-        km = ≤k-step (≤p-step <p-st) ≤m-refl
-        d?S = λ x₁ → dualizable-sub (d?⊥ x₁) km
+        Γf —frm[ ℓ ]→ Γf′ × LinearDisjoint Γ₁ Γf′
+ctx-step-preserves-disjoint {Γf = Γf} Ctx-β (Label-β x x₁) (Compat-β x₂) ld0 ldv =
+  Γf , Frm-β , ld0
+ctx-step-preserves-disjoint {Γf = Γf} Ctx-New (Label-New {S = S} au-in au-v) (Compat-New x₂) ld0 ldv =
+  ((B-Used (normalizeTy S)) ▻ (B-Used (normalizeTy (T-Dual D-S S)) ▻ Γf)) , Frm-New , LD-live-used (LD-live-used ld0)
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Fork rmv ⊢v au-v′) (Label-Fork au-in au-v) (Compat-Fork x) ld0 ldv =
+  Γf , Frm-Fork , (remove-preserves-disjoint rmv ld0)
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Rcv {x = x} {S = S} ⊢v au-vrest ld0v1 x∈ replin rep-v mcxv) (Label-RecvVal ⊢x au-in ⊢v' au-v'rest) Compat-RecvVal ld0 ldv
+  with replace-at Γf x (B-Used S)
+... | Γf′ , repused
+  with replace-frames-disjoint ld0 replin repused
+... | ldxf
+  with replace-frames-used ldv rep-v repused
+... | ld-vout-f' =
+  Γf′ , Frm-Rcv repused ,  merge-preserves-disjoint mcxv ldxf ld-vout-f'
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Send {x = x} {S = S} remv ⊢v au-vrest x∈ rep-x) (Label-SendVal ⊢x ⊢v' au-v'rest) Compat-SendVal ld0 ldv
+  with replace-at Γf x (B-Used S)
+... | Γf′ , repused
+  with remove-preserves-disjoint remv ld0
+... | ldxf = Γf′ , (Frm-Send repused) , replace-frames-disjoint ldxf rep-x repused
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Close {Γ₁ = Γ₁} {x = x} x∈ repused) (Label-Close au-in au-v) (Compat-Close refl) ld0 ldv
+  with replace-at Γf x (B-Used (normalizeTy EndLin))
+... | Γf′ , repframe  = Γf′ , Frm-Close repframe , replace-frames-used ld0 repused repframe
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Match {ssout = ssout} {x = x} {v = v} {P} {S} i∈ x∈ replin) (Label-RecvLab au-in au-v) (Compat-Match refl) ld0 ldv
+  with replace-at Γf x (B-Used (MatchBranchOutput ssout v P S _ i∈))
+... | Γf′ , repframe = Γf′ , Frm-Match i∈ repframe , replace-frames-disjoint ld0 replin repframe
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Select {x = x} {i} {v = v} {P} {S} x∈ rep-lin) (Label-SendLab ⊢x au-v) Compat-Select ld0 ldv
+  with replace-at Γf x (B-Used (selectOutNf v i P S))
+... | Γf′ , repframe = Γf′ , Frm-Select repframe , replace-frames-disjoint ld0 rep-lin repframe
 
-        S⁺ = nf ⊕ d?⊥ S
-
-        norm-eq :
-          ⌞ normalizeTy S ⌟ ≡ S⁺
-        norm-eq =
-          NormalTypes.nfTyTy-fromNormalTy (nf-normal-type ⊕ d?⊥ S)
-
-        minus-eq :
-          nf ⊝ (λ _ → D-S) S⁺ ≡ nf ⊝ (λ _ → D-S) S
-        minus-eq =
-          nf-complete- (λ _ → D-S) (nf-sound+ S)
-
-        dual-conv :
-          T-Dual D-S S⁺ ≡c T-Dual D-S S
-        dual-conv =
-          ≡c-trns
-            (dual-tinv S⁺)
-            (≡c-trns
-              (≡c-symm (nf-sound- {f = λ _ → D-S} S⁺))
-              (≡c-trns
-                (≡c-refl-eq minus-eq)
-                (≡c-trns
-                  (nf-sound- {f = λ _ → D-S} S)
-                  (≡c-symm (dual-tinv S)))))
-
-        eq-raw :
-          NormalTypes.nfTyTy
-            (NormalTypes.fromNormalTy
-              (nf-normal-type ⊕ d?S (T-Dual D-S ⌞ normalizeTy S ⌟)))
-            ≡
-          NormalTypes.nfTyTy
-            (NormalTypes.fromNormalTy
-              (nf-normal-type ⊕ d?S (T-Dual D-S S)))
-        eq-raw =
-          trans
-            (NormalTypes.nfTyTy-fromNormalTy
-              (nf-normal-type ⊕ d?S (T-Dual D-S ⌞ normalizeTy S ⌟)))
-            (trans
-              (trans
-                (cong
-                  (λ X → nf ⊕ d?S (T-Dual D-S X))
-                  norm-eq)
-                (nf-complete d?S d?S dual-conv))
-              (sym
-                (NormalTypes.nfTyTy-fromNormalTy
-                  (nf-normal-type ⊕ d?S (T-Dual D-S S)))))
-      in
-      NormalTypes.nfTyTy-injective eq-raw
-  in
-  _ , FU-New ,
-  subst
-    (LinearDisjoint
-      (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
-    (cong (B-Used (normalizeTy (SessLin S)) ▻_)
-      (cong (λ X → B-Used X ▻ Γf)
-        (cong (NormalTypes.N-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-          eq-nf)))
-    (LD-live-used (LD-live-used ld0))
-ctx-step-preserves-disjoint (Ctx-Fork rm _ _) (Label-Fork _ _) (Compat-Fork _) ld0 ldv =
-  _ , FU-Fork , remove-preserves-disjoint rm ld0
-ctx-step-preserves-disjoint
-  (Ctx-Rcv _ _ _ x∈ rep merge)
-  (Label-RecvVal _ _ _ _)
-  Compat-RecvVal
-  ld0 ldv
-  with replace-preserves-disjoint x∈ ld0 rep
-... | Γf′ , repf , ldx =
-  Γf′ , FU-RecvVal ,
-    merge-preserves-disjoint
-      merge
-      ldx
-      (subst (LinearDisjoint _) (replace-used-eq x∈ ld0 repf) ldv)
-ctx-step-preserves-disjoint
-  (Ctx-Send rm _ _ x∈ rep)
-  (Label-SendVal _ _ _)
-  Compat-SendVal
-  ld0 ldv
-  with replace-preserves-disjoint x∈ (remove-preserves-disjoint rm ld0) rep
-... | Γf′ , repf , ld′ =
-  Γf′ , FU-SendVal , ld′
-ctx-step-preserves-disjoint
-  (Ctx-Close x∈ rep)
-  (Label-Close _ _)
-  (Compat-Close _)
-  ld0 ldv =
-  _ , FU-Close , replace-used-preserves-disjoint x∈ ld0 rep
-ctx-step-preserves-disjoint
-  (Ctx-Match _ x∈ rep)
-  (Label-RecvLab _ _)
-  (Compat-Match _)
-  ld0 ldv
-  with replace-preserves-disjoint x∈ ld0 rep
-... | Γf′ , repf , ld′ =
-  Γf′ , FU-RecvLab , ld′
-ctx-step-preserves-disjoint
-  (Ctx-Select {P = P} {S = S} x∈ rep)
-  (Label-SendLab {v = v} {P = P} {S = S} _ _)
-  (Compat-Select {v = v} {P = P} {S = S})
-  ld0 ldv
-  with replace-preserves-disjoint x∈ ld0 rep
-... | Γf′ , repf , ld′ =
-  Γf′ , FU-SendLab , ld′
