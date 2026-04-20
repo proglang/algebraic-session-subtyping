@@ -182,8 +182,8 @@ ForkTy = LinArr (LinArr UnitLin UnitLin) UnitLin
 
 NewTy : Ty Δ TLin
 NewTy = T-Poly SLin
-  (T-Pair (SessLin (T-Var (here refl)))
-          (SessLin (T-Dual D-S (T-Var (here refl)))))
+  (T-Pair (T-Var (here refl))
+          (T-Dual D-S (T-Var (here refl))))
 
 wkTy : ∀ {K K′} → Ty Δ K → Ty (K′ ∷ Δ) K
 wkTy {K′ = K′} T = T ⋯ weakenᵣ K′
@@ -191,7 +191,7 @@ wkTy {K′ = K′} T = T ⋯ weakenᵣ K′
 ReceiveTy : Ty Δ TLin → Ty Δ SLin → Ty Δ TLin
 ReceiveTy T S = LinArr
   (SessLin (T-Msg ⊝ (T-Up T) S))
-  (T-Pair T (SessLin S))
+  (T-Pair T S)
 
 ReceiveTy1 : Ty Δ TLin → Ty Δ TLin
 ReceiveTy1 T = T-Poly SLin
@@ -199,7 +199,7 @@ ReceiveTy1 T = T-Poly SLin
 
 SendTy : Ty Δ TLin → Ty Δ SLin → Ty Δ TLin
 SendTy T S = LinArr
-  (T-Pair T (SessLin (T-Msg ⊕ (T-Up T) S)))
+  (T-Pair T (T-Msg ⊕ (T-Up T) S))
   (SessLin S)
 
 SendTy1 : Ty Δ TLin → Ty Δ TLin
@@ -225,14 +225,14 @@ newConstNf : NfTy Δ TLin
 newConstNf =
   polyNf
     (pairNf
-      (sessTyNf (N-Var (NV-Var (here refl))))
-      (sessTyNf (N-Var (NV-Dual D-S (here refl)))))
+      (N-Var (NV-Var (here refl)))
+      (N-Var (NV-Dual D-S (here refl))))
 
 receiveNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
 receiveNf T S =
   linArrNf
     (sessTyNf (msgNF ⊝ (N-Normal (N-Up T)) S))
-    (pairNf T (sessTyNf S))
+    (pairNf T S)
 
 receive1Nf : NfTy Δ TLin → NfTy Δ TLin
 receive1Nf {Δ = Δ} T =
@@ -249,7 +249,7 @@ sendResultNf T S = sessTyNf S
 sendNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
 sendNf T S =
   linArrNf
-    (pairNf T (sessTyNf (msgNF ⊕ (N-Normal (N-Up T)) S)))
+    (pairNf T (msgNF ⊕ (N-Normal (N-Up T)) S))
     (sessTyNf S)
 
 send1Nf : NfTy Δ TLin → NfTy Δ TLin

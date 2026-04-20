@@ -1,7 +1,7 @@
 module NormalTypes where
 
 open import Data.Fin.Subset as Subset using ()
-open import Data.List using (List; _∷_)
+open import Data.List using (List; _∷_; [])
 open import Data.Nat using (ℕ; zero; suc; _⊔_)
 open import Data.Product using (_,_)
 open import Function using (case_of_)
@@ -363,3 +363,21 @@ mutual
   nfTyTy-injective {N₁ = N-ProtoD N₁} {N-Var (NV-Dual d x)} ()
   nfTyTy-injective {N₁ = N-ProtoD N₁} {N-ProtoD N₂} eq =
     cong N-ProtoD (nfTyTy-injective (protoD-injective eq))
+
+from-nt-idem : (S : Ty [] (KV KS Lin)) → fromNormalTy
+      (Types.nf-normal-type Duality.⊝ (λ _ → Duality.D-S) S)
+      ≡
+      fromNormalTy
+      (Types.nf-normal-type Duality.⊝ (λ _ → Duality.D-S) (Types.nf Duality.⊕ Duality.d?⊥ S))
+from-nt-idem S =
+  nfTyTy-injective
+    (Eq.trans
+      (nfTyTy-fromNormalTy
+        (Types.nf-normal-type Duality.⊝ (λ _ → Duality.D-S) S))
+      (Eq.trans
+        (Types.nf-complete- (λ _ → Duality.D-S)
+          (Types.≡c-symm (Types.nf-sound+ S)))
+        (Eq.sym
+          (nfTyTy-fromNormalTy
+            (Types.nf-normal-type Duality.⊝ (λ _ → Duality.D-S)
+              (Types.nf Duality.⊕ Duality.d?⊥ S))))))

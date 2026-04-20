@@ -635,7 +635,7 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
 
 extendUsed : ∀ (Θ : List (Ty [] SLin)) {n} → Ctx [] n → Ctx [] (length Θ + n)
 extendUsed [] Γ = Γ
-extendUsed (S ∷ Θ) Γ = B-Used (normalizeTy (SessLin S)) ▻ extendUsed Θ Γ
+extendUsed (S ∷ Θ) Γ = B-Used (normalizeTy S) ▻ extendUsed Θ Γ
 
 data FrameUpdate : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] (length Θ + n) → Set where
   FU-β : ∀ {n} {Γ : Ctx [] n}

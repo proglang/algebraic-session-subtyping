@@ -59,7 +59,6 @@ open import ExprContextReduction
   ; sendChanNf
   ; selectInNf
   ; selectOutNf
-  ; sessNf
   ; unitLinNf
   ; dualSessNf
   )
@@ -171,8 +170,8 @@ new-shape :
     {T : NfTy (SLin ∷ []) TLin}
   → Γ₁ ⊢ᵥ V-Const C-New ⇒ polyNf T ⊣ Γ₂
   → (Γ₁ ≡ Γ₂)
-    × (T ≡ normalizeTy (Ty.T-Pair (SessLin (Ty.T-Var (here refl)))
-                               (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))))
+    × (T ≡ normalizeTy (Ty.T-Pair (Ty.T-Var (here refl))
+                               (Types.T-Dual Duality.D-S (Ty.T-Var (here refl)))))
 new-shape vr
   with new-inversion vr
 ... | refl , eqNew
@@ -228,8 +227,8 @@ receive₂-shape :
     {A R : NfTy [] TLin}
   → Γ₁ ⊢ᵥ V-Receive₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γ₂
   → (Γ₁ ≡ Γ₂)
-    × ((A ≡ recvChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ))
-    × (R ≡ pairNf (normalizeTy Tᵣ) (sessNf (normalizeTy Sᵣ))))
+    × ((A ≡ sessTyNf (recvChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
+    × (R ≡ pairNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
 receive₂-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr
   with receive₂-inversion vr
 ... | refl , eqRecv
@@ -372,16 +371,9 @@ sendTy2-shape-local {T} {S} =
     (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
       (cong₂ Ty.T-Pair
         refl
-        (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
-          (cong₂ (Ty.T-Msg Duality.⊕)
-            refl
-            (trans
-              (nfTyTy-fromNormalTy
-                (Types.nf-normal-type
-                  Duality.⊕
-                  (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
-                  S))
-              (sessionNfEq-local {S = S})))))
+        (cong₂ (Ty.T-Msg Duality.⊕)
+          refl
+          refl))
       (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
         (trans
           (nfTyTy-fromNormalTy
@@ -450,7 +442,7 @@ send₂-shape :
   → Γ₁ ⊢ᵥ V-Send₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γ₂
   → (Γ₁ ≡ Γ₂)
     × ((A ≡ pairNf (normalizeTy Tᵣ) (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
-    × (R ≡ sessNf (normalizeTy Sᵣ)))
+    × (R ≡ sessTyNf (normalizeTy Sᵣ)))
 send₂-shape TV-Send₂ = refl , (refl , refl)
 
 postulate
@@ -505,7 +497,7 @@ postulate
     → (Γ₀ ⊢ˡ x ∶ recvChanNf T S ⊣ Γ₂)
       × ((normalTyOf T <:ₜ normalTyOf (normalizeTy Tᵣ))
       × ((normalTyOf S <:ₜ normalTyOf (normalizeTy Sᵣ))
-      × (normalTyOf (pairNf T (sessNf S)) <:ₜ normalTyOf R)))
+      × (normalTyOf (pairNf T S) <:ₜ normalTyOf R)))
 
 select₂-inversion :
   ∀ {n k}

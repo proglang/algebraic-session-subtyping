@@ -153,6 +153,10 @@ data _<:ₚ_ where
 <:ₜ-refl (N-Msg p NP N) = <:ₜ-msg (<<:ₚ′-refl NP) (<:ₜ-refl N)
 <:ₜ-refl (N-ProtoD N) = <:ₜ-data (<:ₜ-refl N)
 
+<:ₜ-refl-eq : ∀ {N₁ N₂ : NFTy Δ (KV pk m)} → N₁ ≡ N₂ → N₁ <:ₜ N₂
+<:ₜ-refl-eq refl = <:ₜ-refl _
+
+
 -- algorithmic subtyping is transitive
 
 <:ₜ-trans : ∀ {N₁ N₂ N₃ : NFTy Δ (KV pk m)} → N₁ <:ₜ N₂ → N₂ <:ₜ N₃ → N₁ <:ₜ N₃

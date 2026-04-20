@@ -169,6 +169,21 @@ allUsedCtx-replace-lin-at (thereˡᵘ x∈) (ExprContextReduction.R-there rep) =
 allUsedCtx-replace-lin-at (thereˡ✖ x∈) (ExprContextReduction.R-there rep) =
   ExprContextReduction.R-there (allUsedCtx-replace-lin-at x∈ rep)
 
+allUsedCtx-replace-used-self :
+  ∀ {n pk}
+    {Γ : Ctx [] n}
+    {x : Fin n}
+    {T : NfTy [] (KV pk Lin)}
+  → Γ ∋ˡ x ∶ T
+  → ReplaceAt (allUsedCtx Γ) x (B-Used T) (allUsedCtx Γ)
+allUsedCtx-replace-used-self hereˡ = ExprContextReduction.R-here
+allUsedCtx-replace-used-self (thereˡˡ x∈) =
+  ExprContextReduction.R-there (allUsedCtx-replace-used-self x∈)
+allUsedCtx-replace-used-self (thereˡᵘ x∈) =
+  ExprContextReduction.R-there (allUsedCtx-replace-used-self x∈)
+allUsedCtx-replace-used-self (thereˡ✖ x∈) =
+  ExprContextReduction.R-there (allUsedCtx-replace-used-self x∈)
+
 allUsedCtx-merge :
   ∀ {n}
     {Γx Γv Γ₁ : Ctx [] n}

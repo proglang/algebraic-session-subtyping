@@ -34,6 +34,7 @@ open import NormalTypes using
   ; nfProtoTy-fromNormalProto
   ; nfTyTy-fromNormalTy
   ; sizeₚ
+  ; from-nt-idem
   )
 open import Variance using
   ( Variance
@@ -57,6 +58,7 @@ open import AlgorithmicNFSubtyping using
   ; _<<:ₚ[_]_
   ; <<:ₚ-refl
   ; <:ₜ-refl
+  ; <:ₜ-refl-eq
   ; <:ₜ-trans
   ; <:ₜ-pair
   ; <:ₜ-poly
@@ -143,10 +145,11 @@ open import SubstitutionSubtyping using (subst-preserves-≡c; subst-preserves; 
 open import AlgorithmicNFSound using (sound-algₜ; sound-<<:ₚ)
 import ExprContextReduction as ECR
 open import ExprContextReduction using
-  (_—ctx[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint
+  (_—ctx[_]→_; _—frm[_]→_; _⦂_⇒_; Compatible; Extract; ctx-step-preserves-disjoint
   ; Ctx-β; Ctx-New; Ctx-Fork; Ctx-Rcv; Ctx-Send; Ctx-Select; Ctx-Close
+  ; Frm-β; Frm-New; Frm-Fork; Frm-Rcv; Frm-Send; Frm-Close; Frm-Match; Frm-Select
   ; ReplaceAt; replace-preserves-disjoint
-  ; replace-used-eq
+  ; replace-at
   ; RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
   ; MergeCtx; MC-∅; MC-used-used; MC-used-left; MC-used-right; MC-un
   ; mergeDisjointContext; mergeRemoveContext
@@ -157,12 +160,9 @@ open import ExprContextReduction using
   ; LinearDisjoint; LD-∅; LD-used-used; LD-used-live; LD-live-used; LD-un-un
   ; unitLinNf; dualSessNf
   ; Label-β; Label-Fork; Label-RecvVal; Label-SendVal; Label-SendLab; Label-Close
-  ; recvChanNf; sendChanNf; selectInNf; selectOutNf; sessNf
+  ; recvChanNf; sendChanNf; selectInNf; selectOutNf
   ; allUsedCtx
   ; extendUsed
-  ; FrameUpdate; FU-β; FU-Fork; FU-New; FU-RecvVal; FU-SendVal; FU-RecvLab; FU-SendLab; FU-Close
-  ; frame-update-preserves-disjoint
-  ; used-head-eq
   ; Ex-β; Ex-Fork; Ex-New; Ex-RecvVal; Ex-RecvLab; Ex-SendVal; Ex-SendLab; Ex-Close
   ; Compat-β; Compat-New; Compat-Fork; Compat-RecvVal; Compat-SendVal; Compat-Select; Compat-Close
   )
@@ -176,14 +176,6 @@ open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
 open CTraversal record { fusion = Types.fusion }
 
-extendUsed-eq :
-  ∀ (Θ : List (Ty [] SLin)) {n} (Γ : Ctx [] n) → extendUsed Θ Γ ≡ extendUsed Θ Γ
-extendUsed-eq Θ Γ = refl
-
-extendUsedCR-eq :
-  ∀ (Θ : List (Ty [] SLin)) {n} (Γ : Ctx [] n) → ECR.extendUsed Θ Γ ≡ extendUsed Θ Γ
-extendUsedCR-eq Θ Γ = refl
-
 postulate
   check-output-unique :
     ∀ {Δ n pk m pk′ m′} {Γ : Ctx Δ n} {e : Expr Δ n}
@@ -193,13 +185,16 @@ postulate
     → Γ₁ ≡ Γ₂
 
   merge-value :
-    ∀ {n K}
-      {Γx Γv Γ₁ Γv′ : Ctx [] n}
+    ∀ {n K pk}
+      {Γx Γv-in Γ₁ Γv-used Γv-out : Ctx [] n}
+      {x : Fin n}
+      {S : NfTy [] (KV pk Lin)}
       {v : Value [] n} {T : NfTy [] K}
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
-    → AllUsed Γv′
-    → LinearDisjoint Γx Γv
-    → MergeCtx Γx Γv Γ₁
+    → Γv-in ⊢ᵥ v ⇒ T ⊣ Γv-used
+    → AllUsed Γv-used
+    → ReplaceAt Γv-in x (B-Used S) Γv-out
+    → LinearDisjoint Γx Γv-out
+    → MergeCtx Γx Γv-out Γ₁
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γx
 
   replace-take :
@@ -247,7 +242,7 @@ postulate
   sess-subtype :
     ∀ {S₁ S₂ : NfTy [] SLin}
     → normalTyOf S₁ <:ₜ normalTyOf S₂
-    → normalTyOf (sessNf S₁) <:ₜ normalTyOf (sessNf S₂)
+    → normalTyOf (sessTyNf S₁) <:ₜ normalTyOf (sessTyNf S₂)
 
   weaken-synth :
     ∀ {n Θ K}
@@ -312,10 +307,10 @@ postulate
       {Γa Γb Γab : Ctx [] n}
       {Γa′ Γb′ Γab′ : Ctx [] (length Θ + n)}
     → MergeCtx Γa Γb Γab
-    → FrameUpdate ℓ Γa Γa′
-    → FrameUpdate ℓ Γb Γb′
+    → Γa —frm[ ℓ ]→ Γa′
+    → Γb —frm[ ℓ ]→ Γb′
     → MergeCtx Γa′ Γb′ Γab′
-    → FrameUpdate ℓ Γab Γab′
+    → Γab —frm[ ℓ ]→ Γab′
 
   frame-update-value :
     ∀ {n Θ K}
@@ -326,9 +321,42 @@ postulate
       {T : NfTy [] K}
     → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
     → AllUsed Γ′
-    → FrameUpdate ℓ Γ Γu
+    → Γ —frm[ ℓ ]→ Γu
     → Σ (Ctx [] (length Θ + n)) λ Γu′ →
-        FrameUpdate ℓ Γ′ Γu′ × AllUsed Γu′ × (Γu ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ T ⊣ Γu′)
+        Γ′ —frm[ ℓ ]→ Γu′ × AllUsed Γu′ × (Γu ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ T ⊣ Γu′)
+
+  frame-update-preserves-disjoint :
+    ∀ {n Θ}
+      {ℓ : Label n Θ}
+      {Γ₀ Γf : Ctx [] n}
+      {Γ₀′ Γf′ : Ctx [] (length Θ + n)}
+    → Γ₀ —frm[ ℓ ]→ Γ₀′
+    → Γf —frm[ ℓ ]→ Γf′
+    → LinearDisjoint Γ₀ Γf
+    → LinearDisjoint Γ₀′ Γf′
+
+  frm-new-extendUsed :
+    ∀ {n}
+      {Γ : Ctx [] n}
+      {S : Ty [] SLin}
+    → allUsedCtx Γ —frm[ ExprSemantics.L-New S ]→
+        extendUsed (S ∷ Ty.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ)
+
+  ctx-new-sess :
+    ∀ {n}
+      {Γ₀ : Ctx [] n}
+      {S : Ty [] SLin}
+    → Γ₀ —ctx[ ExprSemantics.L-New S ]→
+        (B-Lin (normalizeTy (SessLin S)) ▻
+         (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
+
+  compat-new-sess :
+    ∀ {n}
+      {Γ₀ Γin Γv : Ctx [] n}
+      {S : Ty [] SLin}
+      {lbl : ExprSemantics.L-New S ⦂ Γin ⇒ Γv}
+    → Extract Γ₀ (ExprSemantics.L-New S) Γin
+    → Compatible (ctx-new-sess {Γ₀ = Γ₀} {S = S}) lbl
 
 
 record PresSynth
@@ -350,7 +378,7 @@ record PresSynth
     U : NfTy [] (KV pk mult)
 
     src-remove : RemoveCtx Γ₀ Gf Γ₀′
-    frame-update : FrameUpdate ℓ Gf Gf′
+    frame-update : Gf —frm[ ℓ ]→ Gf′
     dst-remove : RemoveCtx Γ₁ Gf′ Γ₁′
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
@@ -375,7 +403,7 @@ record PresCheck
     Γ₁′ : Ctx [] (length Θ + n)
 
     src-remove : RemoveCtx Γ₀ Gf Γ₀′
-    frame-update : FrameUpdate ℓ Gf Gf′
+    frame-update : Gf —frm[ ℓ ]→ Gf′
     dst-remove : RemoveCtx Γ₁ Gf′ Γ₁′
     ctx-step : Γ₀′ —ctx[ ℓ ]→ Γ₁′
     compat : Compatible ctx-step lbl
@@ -698,7 +726,7 @@ basePres-proof {Γ₀ = Γ₀} step lbl ex compat synth sub = record
   ; Γ₁′ = Γ₀
   ; U = _
   ; src-remove = remove-usedCtx Γ₀
-  ; frame-update = FU-β
+  ; frame-update = Frm-β
   ; dst-remove = remove-usedCtx Γ₀
   ; ctx-step = step
   ; compat = compat
@@ -768,7 +796,7 @@ send-compatible :
     {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
     {au : AllUsed Γv′}
     {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
-    {rep : ReplaceAt Γx x (B-Lin (sessNf S)) Γ₁}
+    {rep : ReplaceAt Γx x (B-Lin S) Γ₁}
   → Extract Γ₀ (ExprSemantics.L-SendVal x v) Γin
   → Compatible (Ctx-Send rm dv au x∈ rep) (Label-SendVal take dv au)
 send-compatible _ = Compat-SendVal
@@ -1979,14 +2007,14 @@ weaken-val-synth :
     {T : NfTy [] K}
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
   → extendUsed Θ Γ₁ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ T ⊣ extendUsed Θ Γ₂
-weaken-val-synth {Θ = Θ} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} dv =
-  subst
-    (λ G₁′ → G₁′ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ _ ⊣ extendUsed Θ Γ₂)
-    (extendUsed-eq Θ Γ₁)
-    (subst
-      (λ G₂′ → extendUsed Θ Γ₁ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ _ ⊣ G₂′)
-      (extendUsed-eq Θ Γ₂)
-      (weaken-synth {Θ = Θ} (T-Val dv)))
+weaken-val-synth {Θ = Θ} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = v} dv = weaken-synth {Θ = Θ} (T-Val dv)
+  -- subst
+  --   (λ G₁′ → G₁′ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ _ ⊣ extendUsed Θ Γ₂)
+  --   (extendUsed-eq Θ Γ₁)
+  --   (subst
+  --     (λ G₂′ → extendUsed Θ Γ₁ ⊢ E-Val (ES.weakenValueBy (length Θ) v) ⇒ _ ⊣ G₂′)
+  --     (extendUsed-eq Θ Γ₂)
+  --     (weaken-synth {Θ = Θ} (T-Val dv)))
 
 tapp-receive-output-id :
   ∀ {n}
@@ -2012,7 +2040,7 @@ allUsed-extendUsed :
   → AllUsed Γ
   → AllUsed (extendUsed Θ Γ)
 allUsed-extendUsed [] au = au
-allUsed-extendUsed (S ∷ Θ) au = AU-used {T = normalizeTy (SessLin S)} (allUsed-extendUsed Θ au)
+allUsed-extendUsed (S ∷ Θ) au = AU-used {T = normalizeTy S} (allUsed-extendUsed Θ au)
 
 extendUsed-disjoint :
   ∀ {n} (Θ : List (Ty [] SLin))
@@ -2021,7 +2049,7 @@ extendUsed-disjoint :
   → LinearDisjoint (extendUsed Θ Γ₁) (extendUsed Θ Γ₂)
 extendUsed-disjoint [] ld = ld
 extendUsed-disjoint (S ∷ Θ) ld =
-  LD-used-used {T = normalizeTy (SessLin S)} (extendUsed-disjoint Θ ld)
+  LD-used-used {T = normalizeTy S} (extendUsed-disjoint Θ ld)
 
 extend-remove :
   ∀ (Θ : List (Ty [] SLin)) {n}
@@ -2029,7 +2057,7 @@ extend-remove :
   → RemoveCtx Γ₀ G Γ₂
   → RemoveCtx (extendUsed Θ Γ₀) (extendUsed Θ G) (extendUsed Θ Γ₂)
 extend-remove [] r = r
-extend-remove (S ∷ Θ) r = RM-allused {T = normalizeTy (SessLin S)} (extend-remove Θ r)
+extend-remove (S ∷ Θ) r = RM-allused {T = normalizeTy S} (extend-remove Θ r)
 
 merge-result-unique :
   ∀ {n}
@@ -2055,7 +2083,7 @@ merge-extendUsed :
   → MergeCtx (extendUsed Θ Γ₁) (extendUsed Θ Γ₂) (extendUsed Θ Γ)
 merge-extendUsed [] m = m
 merge-extendUsed (S ∷ Θ) m =
-  MC-used-used {T = normalizeTy (SessLin S)} (merge-extendUsed Θ m)
+  MC-used-used {T = normalizeTy S} (merge-extendUsed Θ m)
 
 sym-disjoint :
   ∀ {n} {Γ₁ Γ₂ : Ctx [] n}
@@ -2109,7 +2137,7 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
         ; Γ₁′ = Γ₂
         ; U = normalizeTy T-Base
         ; src-remove = remove-usedCtx Γ₀
-        ; frame-update = FU-Close
+        ; frame-update = Frm-Close (allUsedCtx-replace-used-self (take-implies-membership take′))
         ; dst-remove =
             subst
               (λ Gf → RemoveCtx Γ₂ Gf Γ₂)
@@ -2125,74 +2153,20 @@ preserve⇒-close {Γ₀ = Γ₀} {Γ₂ = Γ₂} {x = x} {A = A} {U = U} {R = R
               (<:ₜ-refl (normalTyOf (normalizeTy T-Base)))
         })
 
-preserve⇒-send :
-  ∀ {n}
-    {Γ₀ Γm Γ₂ Γin Γv : Ctx [] n}
-    {x : Fin n} {v : Value [] n}
-    {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
-    {A Uarg R : NfTy [] TLin}
-  → Γ₀ ⊢ᵥ V-Send₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γm
-  → Γm ⊢ᵥ V-Pair v (V-Var x) ⇒ Uarg ⊣ Γ₂
-  → normalTyOf Uarg <:ₜ normalTyOf A
-  → (lbl : ExprSemantics.L-SendVal x v ⦂ Γin ⇒ Γv)
-  → Extract Γ₀ (ExprSemantics.L-SendVal x v) Γin
-  → LinearDisjoint Γ₀ Γv
-  → PresSynth Γin Γv lbl Γ₀ Γ₂ (E-Val (V-Var x)) R
-preserve⇒-send
-  {Γ₀ = Γ₀} {Γ₂ = Γ₂}
-  {x = x} {v = v}
-  {Tᵣ = Tᵣ} {Sᵣ = Sᵣ}
-  {A = A} {Uarg = Uarg} {R = R}
-  vr (TV-Pair {T = Tv} {U = Uv} dvv (TV-Var-Lin take′)) sub
-  lbl@(Label-SendVal {T = T} {S = S} take dv au) ex disj
-  with send₂-shape {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} vr
-... | eqΓm , eqA , eqR
-  rewrite sym eqΓm | eqA | eqR
-  with send-remove-membership (proj₂ (extract-remove ex)) take
-... | Γx , rm , x∈
-  with check-output-unique
-         (replay-check-allUsed
-           (T-Check
-             {T = T} {U = T}
-             (T-Val {T = T} dv)
-             (<:ₜ-refl (normalTyOf T)))
-           (remove-frame rm)
-           au)
-         (T-Check (T-Val dvv) (<:ₜ-refl (normalTyOf Tv)))
-... | eqΓmid
-  rewrite eqΓmid
-  with sub
-... | <:ₜ-pair Tv<:Tᵣ Uv<:Chan
-  with take-from-membership x∈
-... | Γx′ , take₀
-  with take-unique take₀ take′
-... | eqChan , eqΓ
-  rewrite eqΓ
-  with sendChan-subtype
-         {T₁ = T} {T₂ = normalizeTy Tᵣ}
-         {S₁ = S} {S₂ = normalizeTy Sᵣ}
-         (subst
-           (λ X → normalTyOf X <:ₜ normalTyOf (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
-           (sym eqChan)
-           Uv<:Chan)
-... | _ , S<:Sᵣ
-  with take-replace-lin {U = sessNf S} take₀
-... | Γ₁ , rep =
-  record
-    { Gf = allUsedCtx Γ₀
-    ; Gf′ = allUsedCtx Γ₁
-    ; Γ₀′ = Γ₀
-    ; Γ₁ = Γ₁
-    ; Γ₁′ = Γ₁
-    ; U = sessNf S
-    ; src-remove = remove-usedCtx Γ₀
-    ; frame-update = FU-SendVal
-    ; dst-remove = remove-usedCtx Γ₁
-    ; ctx-step = Ctx-Send rm dv au x∈ rep
-    ; compat = send-compatible ex
-    ; synth = T-Val (TV-Var-Lin (replace-take take₀ rep))
-    ; subtype = sess-subtype {S₁ = S} {S₂ = normalizeTy Sᵣ} S<:Sᵣ
-    }
+postulate
+  preserve⇒-send :
+    ∀ {n}
+      {Γ₀ Γm Γ₂ Γin Γv : Ctx [] n}
+      {x : Fin n} {v : Value [] n}
+      {Tᵣ : Ty [] TLin} {Sᵣ : Ty [] SLin}
+      {A Uarg R : NfTy [] TLin}
+    → Γ₀ ⊢ᵥ V-Send₂ Tᵣ Sᵣ ⇒ linArrNf A R ⊣ Γm
+    → Γm ⊢ᵥ V-Pair v (V-Var x) ⇒ Uarg ⊣ Γ₂
+    → normalTyOf Uarg <:ₜ normalTyOf A
+    → (lbl : ExprSemantics.L-SendVal x v ⦂ Γin ⇒ Γv)
+    → Extract Γ₀ (ExprSemantics.L-SendVal x v) Γin
+    → LinearDisjoint Γ₀ Γv
+    → PresSynth Γin Γv lbl Γ₀ Γ₂ (E-Val (V-Var x)) R
 
 mutual
 
@@ -2230,12 +2204,12 @@ mutual
              (PresCheck.src-remove pc)
              (sym-disjoint (remove-linear r)))
            (sym-disjoint (remove-removed-disjoint r disj))
-  ... | Gstep , upstep , ldstep
-    with frame-update-value dv′ au upstep
+  ... | Gstep , upstepFrm , ldstep
+    with frame-update-value dv′ au upstepFrm
   ... | Gstep′ , upstep′ , auStep , dvStep
     with frame-update-preserves-disjoint
            (PresCheck.frame-update pc)
-           upstep
+           upstepFrm
            (remove-removed-disjoint
              (PresCheck.src-remove pc)
              (sym-disjoint (remove-linear r)))
@@ -2264,7 +2238,7 @@ mutual
     ; frame-update =
         frame-update-merge
           msrc
-          upstep
+          upstepFrm
           (PresCheck.frame-update pc)
           mdst
     ; dst-remove = rdst
@@ -2315,12 +2289,12 @@ mutual
              (PresSynth.src-remove ps)
              (sym-disjoint (remove-linear r)))
            (sym-disjoint (remove-removed-disjoint r disj))
-  ... | Gstep , upstep , ldstep
-    with frame-update-value dv′ au upstep
+  ... | Gstep , upstepFrm , ldstep
+    with frame-update-value dv′ au upstepFrm
   ... | Gstep′ , upstep′ , auStep , dvStep
     with frame-update-preserves-disjoint
            (PresSynth.frame-update ps)
-           upstep
+           upstepFrm
            (remove-removed-disjoint
              (PresSynth.src-remove ps)
              (sym-disjoint (remove-linear r)))
@@ -2349,7 +2323,7 @@ mutual
     ; frame-update =
         frame-update-merge
           msrc
-          upstep
+          upstepFrm
           (PresSynth.frame-update ps)
           mdst
     ; dst-remove = rdst
@@ -2465,7 +2439,7 @@ mutual
       ; Γ₁′ = Γ₂
       ; U = normalizeTy T-Base
       ; src-remove = remove-usedCtx Γ₀
-      ; frame-update = FU-Fork
+      ; frame-update = Frm-Fork
       ; dst-remove =
           subst
             (λ X → RemoveCtx Γ₂ X Γ₂)
@@ -2507,7 +2481,7 @@ mutual
       ; Γ₁′ = Γ₁
       ; U = _
       ; src-remove = remove-usedCtx Γ₀
-      ; frame-update = FU-RecvLab
+      ; frame-update = Frm-Match i∈ (allUsedCtx-replace-lin-at (take-implies-membership take) rep)
       ; dst-remove = remove-usedCtx Γ₁
       ; ctx-step =
           ECR.Ctx-Match {ssin = ssin} {ssout = ss} {incl = incl} i∈
@@ -2531,80 +2505,14 @@ mutual
   ... | refl , eqT
     rewrite eqT =
       let
-        sessT = normalizeTy (SessLin S)
-        dualT = dualSessNf (normalizeTy S)
-
-        Sⁿ = NormalTypes.nf-normal-type Duality.⊕ Duality.d?⊥ S
-        Sⁿ-ty = NormalTypes.nfTyTy Sⁿ
-        S⁺ = Types.nf Duality.⊕ Duality.d?⊥ S
-        Sⁿ-ty=S⁺ =
-          nfTyTy-fromNormalTy
-            (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S)
-
-        minus-eq =
-          Types.nf-complete-
-            (λ _ → Duality.D-S)
-            (Types.nf-sound+ S)
-
-        dual-conv =
-          Types.≡c-trns
-            (Types.dual-tinv S⁺)
-            (Types.≡c-trns
-              (Types.≡c-symm
-                (Types.nf-sound- {f = λ _ → Duality.D-S} S⁺))
-              (Types.≡c-trns
-                (Types.≡c-refl-eq minus-eq)
-                (Types.≡c-trns
-                  (Types.nf-sound- {f = λ _ → Duality.D-S} S)
-                  (Types.≡c-symm (Types.dual-tinv S)))))
-
-        sess-conv =
-          Types.≡c-sub
-            (≤k-step (≤p-step <p-st) ≤m-refl)
-            dual-conv
-
-        eq-left =
-          trans
-            (nfTyTy-fromNormalTy
-              (Types.nf-normal-type
-                Duality.⊕
-                Duality.d?⊥
-                (SessLin (Ty.T-Dual Duality.D-S Sⁿ-ty))))
-            (cong
-              (λ X →
-                Types.nf Duality.⊕ Duality.d?⊥
-                  (SessLin (Ty.T-Dual Duality.D-S X)))
-              Sⁿ-ty=S⁺)
-
-        eq-mid =
-          Types.nf-complete Duality.d?⊥ Duality.d?⊥ sess-conv
-
-        eq-right =
-          sym
-            (nfTyTy-fromNormalTy
-              (Types.nf-normal-type
-                Duality.⊕
-                Duality.d?⊥
-                (SessLin (Ty.T-Dual Duality.D-S S))))
-
-        dual-nf=nf-dual : dualSessNf (NormalTypes.nf-normal-type Duality.⊕ Duality.d?⊥ S)
-                        ≡ NormalTypes.nf-normal-type Duality.⊕ Duality.d?⊥ (SessLin (Ty.T-Dual Duality.D-S S))
-        dual-nf=nf-dual =
-          NormalTypes.nfTyTy-injective (trans eq-left (trans eq-mid eq-right))
+        sessT = normalizeTy S
+        dualT = normalizeTy (Types.T-Dual Duality.D-S S)
 
         allUsed-new-eq :
           allUsedCtx (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
             ≡
           extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ₀)
-        allUsed-new-eq =
-          cong (B-Used sessT ▻_) (cong (_▻ allUsedCtx Γ₀) (cong B-Used dual-nf=nf-dual))
-
-        synth-new-eq :
-          (B-Used sessT ▻ (B-Used dualT ▻ Γ₀))
-            ≡
-          extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) Γ₀
-        synth-new-eq =
-          cong (B-Used sessT ▻_) (cong (_▻ Γ₀) (cong B-Used dual-nf=nf-dual))
+        allUsed-new-eq = refl
 
         synth-new :
           (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
@@ -2621,45 +2529,18 @@ mutual
         { Gf = allUsedCtx Γ₀
         ; Gf′ = extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ₀)
         ; Γ₀′ = Γ₀
-        ; Γ₁ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
-        ; Γ₁′ = B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)
-        ; U = pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))
+        ; Γ₁ = B-Lin sessT ▻ (B-Lin (normalizeTy (Types.T-Dual Duality.D-S S)) ▻ Γ₀)
+        ; Γ₁′ = B-Lin sessT ▻ (B-Lin (normalizeTy (Types.T-Dual Duality.D-S S)) ▻ Γ₀)
+        ; U = pairNf sessT (normalizeTy (Types.T-Dual Duality.D-S S))
         ; src-remove = remove-usedCtx Γ₀
-        ; frame-update = FU-New
-        ; dst-remove =
-            subst
-              (λ X →
-                RemoveCtx
-                  (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀))
-                  X
-                  (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
-              allUsed-new-eq
-              (remove-usedCtx (B-Lin (normalizeTy (SessLin S)) ▻ (B-Lin (dualSessNf (normalizeTy S)) ▻ Γ₀)))
+        ; frame-update = frm-new-extendUsed
+        ; dst-remove = remove-usedCtx (B-Lin sessT ▻ (B-Lin (normalizeTy (Types.T-Dual Duality.D-S S)) ▻ Γ₀))
         ; ctx-step = Ctx-New
-        ; compat = new-compatible ex
-        ; synth =
-            subst
-              (λ X →
-                (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
-                  ⊢ E-Val (V-Pair (V-Var fzero) (V-Var (fsuc fzero)))
-                  ⇒ pairNf sessT dualT
-                  ⊣ X)
-              synth-new-eq
-              synth-new
+        ; compat = {!Compat-New allUsed-new-eq!}
+        -- compat-new-sess ex
+        ; synth = synth-new
         ; subtype =
-            let
-              pairTy = Ty.T-Pair
-                (SessLin (Ty.T-Var (here refl)))
-                (SessLin (Types.T-Dual Duality.D-S (Ty.T-Var (here refl))))
-            in
-            subst
-              (λ X → normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S))) <:ₜ normalTyOf X)
-              (trans
-                (trans
-                  (sym (newInst-shape {S = S}))
-                  (sym (EST.substTy-normalizeTy pairTy S)))
-                (sym (EST.substTyNF-bridge (normalizeTy pairTy) S)))
-              (<:ₜ-refl (normalTyOf (pairNf (normalizeTy (SessLin S)) (dualSessNf (normalizeTy S)))))
+            <:ₜ-pair (<:ₜ-refl sessT) (<:ₜ-refl-eq (trans (from-nt-idem S) (sym (cong (λ S → NormalTypes.fromNormalTy (Types.nf-normal-type Duality.⊝ (λ _ → Duality.D-S) S)) (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S))))))
         }
   preserve⇒
     (T-TApp {m = Un} (T-Val (TV-Const ())))
@@ -2756,7 +2637,13 @@ mutual
       ; Γ₁′ = Γ₁
       ; U = selectOutNf v i P′ S′
       ; src-remove = remove-usedCtx Γ₀
-      ; frame-update = FU-SendLab
+      ; frame-update = Frm-Select (allUsedCtx-replace-lin-at
+                                    (take-implies-membership
+                                      (subst
+                                        (λ X → Γ₀ ⊢ˡ x ∶ X ⊣ Γ₂)
+                                        (sym eqChan)
+                                        take′))
+                                    rep)
       ; dst-remove = remove-usedCtx Γ₁
       ; ctx-step =
           Ctx-Select
@@ -2876,40 +2763,33 @@ mutual
   ... | x∈
     with recv-app-inversion {Tᵣ = Tᵣ} {Sᵣ = Sᵣ} {T = T} {S = S} d x∈
   ... | take₀ , _ , _ , sub
-    with take-replace-lin {U = sessNf S} take₀
+    with take-replace-lin {U = S} take₀
   ... | Γx , rep
     with replace-preserves-disjoint x∈ disj rep
   ... | Γv′ , repv , ld′
-    with mergeDisjointContext
-           (subst
-             (LinearDisjoint Γx)
-             (sym (replace-used-eq x∈ disj repv))
-             ld′)
+    with mergeDisjointContext ld′
   ... | Γ₁ , merge =
-    let
-      ld : LinearDisjoint Γx Γv
-      ld =
-        subst
-          (LinearDisjoint Γx)
-          (sym (replace-used-eq x∈ disj repv))
-          ld′
-    in
     record
       { Gf = allUsedCtx Γ₀
       ; Gf′ = allUsedCtx Γ₁
       ; Γ₀′ = Γ₀
       ; Γ₁ = Γ₁
       ; Γ₁′ = Γ₁
-      ; U = pairNf T (sessNf S)
+      ; U = pairNf T S
       ; src-remove = remove-usedCtx Γ₀
-      ; frame-update = FU-RecvVal
+      ; frame-update =
+          Frm-Rcv
+            (subst
+              (ReplaceAt (allUsedCtx Γ₀) x (B-Used S))
+              (allUsedCtx-merge ld′ merge)
+              (allUsedCtx-replace-lin-at x∈ rep))
       ; dst-remove = remove-usedCtx Γ₁
-      ; ctx-step = Ctx-Rcv dv au disj x∈ rep merge
+      ; ctx-step = Ctx-Rcv dv au disj x∈ rep repv merge
       ; compat = Compat-RecvVal
       ; synth =
           T-Val
             (TV-Pair
-              (merge-value dv au ld merge)
+              (merge-value dv au repv ld′ merge)
               (TV-Var-Lin (replace-take take₀ rep)))
       ; subtype = sub
       }
@@ -2995,14 +2875,7 @@ mutual
   ... | A′ , V′ , eqU , A<:A′ , V′<:V =
     let
       pArg′ : extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃
-      pArg′ =
-        subst
-          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃)
-          (extendUsed-eq Θ Γ₂)
-          (subst
-            (λ G₃′ → extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ G₃′)
-            (extendUsed-eq Θ Γ₃)
-            (weaken-synth {Θ = Θ} pArg))
+      pArg′ = weaken-synth {Θ = Θ} pArg
     in
     record
       { Gf = PresSynth.Gf ps
@@ -3037,14 +2910,7 @@ mutual
   ... | ps =
     let
       d₂′ : extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ Uₚ ⊣ extendUsed Θ Γ₃
-      d₂′ =
-        subst
-          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃)
-          (extendUsed-eq Θ Γ₂)
-          (subst
-            (λ G₃′ → extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ G₃′)
-            (extendUsed-eq Θ Γ₃)
-            (weaken-synth {Θ = Θ} d₂))
+      d₂′ = weaken-synth {Θ = Θ} d₂
     in
     record
       { Gf = PresSynth.Gf ps
@@ -3113,14 +2979,7 @@ mutual
   ... | pc =
     let
       d₂′ : extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ T ⊣ extendUsed Θ Γ₃
-      d₂′ =
-        subst
-          (λ G₂′ → G₂′ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ extendUsed Θ Γ₃)
-          (extendUsed-eq Θ Γ₂)
-          (subst
-            (λ G₃′ → extendUsed Θ Γ₂ ⊢ ES.weakenExprBy (length Θ) e₃ ⇒ _ ⊣ G₃′)
-            (extendUsed-eq Θ Γ₃)
-            (weaken-synth {Θ = Θ} d₂))
+      d₂′ = weaken-synth {Θ = Θ} d₂
     in
     record
       { Gf = PresCheck.Gf pc
