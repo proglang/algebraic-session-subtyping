@@ -2508,12 +2508,6 @@ mutual
         sessT = normalizeTy S
         dualT = normalizeTy (Types.T-Dual Duality.D-S S)
 
-        allUsed-new-eq :
-          allUsedCtx (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
-            ≡
-          extendUsed (S ∷ Types.T-Dual Duality.D-S S ∷ []) (allUsedCtx Γ₀)
-        allUsed-new-eq = refl
-
         synth-new :
           (B-Lin sessT ▻ (B-Lin dualT ▻ Γ₀))
             ⊢ E-Val (V-Pair (V-Var fzero) (V-Var (fsuc fzero)))
@@ -2536,8 +2530,7 @@ mutual
         ; frame-update = frm-new-extendUsed
         ; dst-remove = remove-usedCtx (B-Lin sessT ▻ (B-Lin (normalizeTy (Types.T-Dual Duality.D-S S)) ▻ Γ₀))
         ; ctx-step = Ctx-New
-        ; compat = {!Compat-New allUsed-new-eq!}
-        -- compat-new-sess ex
+        ; compat = new-compatible ex
         ; synth = synth-new
         ; subtype =
             <:ₜ-pair (<:ₜ-refl sessT) (<:ₜ-refl-eq (trans (from-nt-idem S) (sym (cong (λ S → NormalTypes.fromNormalTy (Types.nf-normal-type Duality.⊝ (λ _ → Duality.D-S) S)) (nfTyTy-fromNormalTy (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S))))))
