@@ -104,12 +104,8 @@ p-dual : ∀ p → (p ≡ ⊝ → Dualizable K) → p ≡ ⊕ ⊎ Dualizable K
 p-dual ⊕ f = inj₁ refl
 p-dual ⊝ f = inj₂ (f refl)
 
-¬-dual-mun : ¬ Dualizable MUn
-¬-dual-mun ()
-
-¬-dual-m≤ : (M≤ : KM ≤p pk) → ¬ Dualizable (KV pk m)
-¬-dual-m≤ ≤p-refl ()
-¬-dual-m≤ (≤p-step <p-mt) ()
+¬-dual-t : ¬ Dualizable (KV KT m)
+¬-dual-t ()
 
 ¬-dual-p : ¬ Dualizable KP
 ¬-dual-p ()
@@ -123,7 +119,6 @@ ext-dual-s-irrelevant f g = ext f g (λ x → dual-s-irrelevant (f x) (g x))
 
 
 dual-irrelevant : ∀ {K} → (f g : ⊝ ≡ ⊝ → Dualizable K) → f ≡ g
-dual-irrelevant {KV KM x₁} f g with () ← f refl
 dual-irrelevant {KV KS x₁} f g = ext-dual-s-irrelevant f g
 dual-irrelevant {KV KT x₁} f g with () ← f refl
 dual-irrelevant {KP} f g with () ← f refl

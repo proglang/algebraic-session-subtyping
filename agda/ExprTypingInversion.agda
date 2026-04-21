@@ -368,7 +368,7 @@ sendTy2-shape-local :
   → normalizeTy (SendTy T S) ≡ sendNf (normalizeTy T) (normalizeTy S)
 sendTy2-shape-local {T} {S} =
   nfTyEq
-    (cong₂ (Ty.T-Arrow (≤p-step <p-mt))
+    (cong₂ Ty.T-Arrow
       (cong₂ Ty.T-Pair
         refl
         (cong₂ (Ty.T-Msg Duality.⊕)

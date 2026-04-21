@@ -175,15 +175,13 @@ t-dual-preserves-≡c {T = Types.T-Msg p T S} (Types.≡c-msg-minus {p = p}) =
   Types.≡c-msg-minus {p = D.invert p}
 t-dual-preserves-≡c (Types.≡c-msg eqT eqS) =
   Types.≡c-msg eqT (t-dual-preserves-≡c eqS)
-t-dual-preserves-≡c (Types.≡c-fun {≤pk = ≤p-step ()} _ _)
-
 subst-preserves-≡c-pointwise :
   ∀ {Δ₁ Δ₂ K} {ϕ ψ : Δ₁ →ₛ Δ₂} (T : Ty Δ₁ K)
   → ϕ ≈ₛ ψ
   → (T ⋯ ϕ) Types.≡c (T ⋯ ψ)
 subst-preserves-≡c-pointwise (Types.T-Var x) rel = rel _ x
 subst-preserves-≡c-pointwise T-Base rel = Types.≡c-refl
-subst-preserves-≡c-pointwise (Types.T-Arrow ≤pk T U) rel =
+subst-preserves-≡c-pointwise (Types.T-Arrow T U) rel =
   Types.≡c-fun
     (subst-preserves-≡c-pointwise T rel)
     (subst-preserves-≡c-pointwise U rel)

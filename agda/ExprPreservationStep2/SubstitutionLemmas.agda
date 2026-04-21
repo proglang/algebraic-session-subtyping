@@ -184,15 +184,13 @@ t-dual-preserves-≡c {T = Types.T-Msg p T S} (Types.≡c-msg-minus {p = p}) =
   Types.≡c-msg-minus {p = Duality.invert p}
 t-dual-preserves-≡c (Types.≡c-msg eqT eqS) =
   Types.≡c-msg eqT (t-dual-preserves-≡c eqS)
-t-dual-preserves-≡c (Types.≡c-fun {≤pk = ≤p-step ()} _ _)
-
 subst-preserves-≡c-pointwise :
   ∀ {Δ₁ Δ₂ K} {ϕ ψ : Δ₁ →ₛ Δ₂} (T : Ty Δ₁ K)
   → ϕ ≈ₛ ψ
   → (T ⋯ ϕ) Types.≡c (T ⋯ ψ)
 subst-preserves-≡c-pointwise (Types.T-Var x) rel = rel _ x
 subst-preserves-≡c-pointwise T-Base rel = Types.≡c-refl
-subst-preserves-≡c-pointwise (Types.T-Arrow ≤pk T U) rel =
+subst-preserves-≡c-pointwise (Types.T-Arrow T U) rel =
   Types.≡c-fun
     (subst-preserves-≡c-pointwise T rel)
     (subst-preserves-≡c-pointwise U rel)
@@ -419,13 +417,12 @@ sub-<<: {K≤K′ = K≤K′} {v = ⊝} rel = <:-sub K≤K′ rel
 sub-<<: {v = ⊘} rel = Types.≡c-sub _ rel
 
 fun-<<: :
-  ∀ {Δ pk m}
-    {≤pk : KM ≤p pk}
-    {T₁ T₂ : Ty Δ _} {U₁ U₂ : Ty Δ _}
+  ∀ {Δ m}
+    {T₁ T₂ : Ty Δ TLin} {U₁ U₂ : Ty Δ TLin}
     {v : Variance}
   → T₁ <<:[ vswap v ] T₂
   → U₁ <<:[ v ] U₂
-  → Types.T-Arrow {m = m} ≤pk T₁ U₁ <<:[ v ] Types.T-Arrow ≤pk T₂ U₂
+  → Types.T-Arrow {m = m} T₁ U₁ <<:[ v ] Types.T-Arrow T₂ U₂
 fun-<<: {v = ⊕} dom cod = <:-fun dom cod
 fun-<<: {v = ⊝} dom cod = <:-fun dom cod
 fun-<<: {v = ⊘} dom cod = Types.≡c-fun dom cod
@@ -596,7 +593,7 @@ subst-preserves-<<:-used⊕ (Types.T-Var (there x)) {p = here refl} () rel cov
 subst-preserves-<<:-used⊕ (Types.T-Var (there x)) {p = there p} uv rel cov =
   subst-preserves-<<:-used⊕ (Types.T-Var x) {p = p} uv (λ K′ y → rel K′ (there y)) cov
 subst-preserves-<<:-used⊕ T-Base () rel cov
-subst-preserves-<<:-used⊕ (Types.T-Arrow ≤pk T U) {p = p} {u = u} {v = v} uv rel cov
+subst-preserves-<<:-used⊕ (Types.T-Arrow T U) {p = p} {u = u} {v = v} uv rel cov
   with usageVariance T p | inspect (usageVariance T) p
      | usageVariance U p | inspect (usageVariance U) p
      | uv
@@ -908,7 +905,7 @@ var-subst-ignores-unused (there x) (there p) uv rel =
 subst-preserves-≡c-unused (Types.T-Var x) {p = p} uv rel =
   var-subst-ignores-unused x p uv rel
 subst-preserves-≡c-unused T-Base uv rel = Types.≡c-refl
-subst-preserves-≡c-unused (Types.T-Arrow ≤pk T U) {p = p} uv rel =
+subst-preserves-≡c-unused (Types.T-Arrow T U) {p = p} uv rel =
   Types.≡c-fun
     (subst-preserves-≡c-unused
       T

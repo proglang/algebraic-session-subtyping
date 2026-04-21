@@ -168,7 +168,7 @@ nft-size T₁ T₂ <:-var {p = ⊝} (N-Var x) (N-Var x₁) = refl
 nft-size T₁ T₂ <:-dual-var {p = ⊕} (N-Var x) (N-Var x₁) = refl
 nft-size T₁ T₂ <:-dual-var {p = ⊝} (N-Var x) (N-Var x₁) = refl
 nft-size T₁ T₂ <:-base N-Base N-Base = refl
-nft-size (T-Arrow _ T₁ T₂) (T-Arrow _ T₃ T₄) (<:-fun T₃<:T₁ T₂<:T₄) (N-Arrow _ N₁ N₂) (N-Arrow _ N₃ N₄)
+nft-size (T-Arrow T₁ T₂) (T-Arrow T₃ T₄) (<:-fun T₃<:T₁ T₂<:T₄) (N-Arrow N₁ N₂) (N-Arrow N₃ N₄)
   = cong suc $ begin
       (sizeₜ N₁ ⊔ sizeₜ N₂)
     ≡⟨ cong₂ _⊔_ (sym $ nft-size T₃ T₁ T₃<:T₁ N₃ N₁) (nft-size T₂ T₄ T₂<:T₄ N₂ N₄) ⟩

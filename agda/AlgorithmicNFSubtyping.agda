@@ -87,8 +87,8 @@ data _<:ₜ_ : NFTy Δ (KV pk m) → NFTy Δ (KV pk m) → Set where
 
   <:ₜ-var : ∀ {nv : NFVar Δ (KV pk m)} → N-Var nv <:ₜ N-Var nv
   <:ₜ-base : N-Base {Δ = Δ} <:ₜ N-Base
-  <:ₜ-arrow : ∀ {≤pk : KM ≤p pk} {M₁ N₁ M₂ N₂ : NFTy Δ TLin}
-        → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow {m = m} ≤pk M₁ N₁) <:ₜ (N-Arrow {m = m} ≤pk M₂ N₂)
+  <:ₜ-arrow : ∀ {M₁ N₁ M₂ N₂ : NFTy Δ TLin}
+        → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow {m = m} M₁ N₁) <:ₜ (N-Arrow {m = m} M₂ N₂)
   <:ₜ-pair : ∀ {m}
         {M₁ M₂ : NFTy Δ (KV pk₁ m)} {N₁ N₂ : NFTy Δ (KV pk₂ m)}
         → M₁ <:ₜ M₂ → N₁ <:ₜ N₂ → N-Pair M₁ N₁ <:ₜ N-Pair M₂ N₂
@@ -145,7 +145,7 @@ data _<:ₚ_ where
 
 <:ₜ-refl (N-Var x) = <:ₜ-var
 <:ₜ-refl N-Base = <:ₜ-base
-<:ₜ-refl (N-Arrow {m = m} _ N N₁) = <:ₜ-arrow {m = m} (<:ₜ-refl N) (<:ₜ-refl N₁)
+<:ₜ-refl (N-Arrow {m = m} N N₁) = <:ₜ-arrow {m = m} (<:ₜ-refl N) (<:ₜ-refl N₁)
 <:ₜ-refl (N-Pair N N₁) = <:ₜ-pair (<:ₜ-refl N) (<:ₜ-refl N₁)
 <:ₜ-refl (N-Poly _ N) = <:ₜ-poly (<:ₜ-refl N)
 <:ₜ-refl (N-Sub _ N) = <:ₜ-sub (<:ₜ-refl N)

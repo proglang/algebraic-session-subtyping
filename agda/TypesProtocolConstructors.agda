@@ -57,7 +57,7 @@ usageVariance-Var (there p) (there q) = usageVariance-Var p q
 usageVariance : Ty Δ K → KP ∈ Δ → UsageVariance
 usageVariance (T-Var x) p = usageVariance-Var x p
 usageVariance T-Base p = unused
-usageVariance (T-Arrow x T₁ T₂) p =
+usageVariance (T-Arrow T₁ T₂) p =
   joinUsage (swapUsage (usageVariance T₁ p)) (usageVariance T₂ p)
 usageVariance (T-Pair T₁ T₂) p =
   joinUsage (usageVariance T₁ p) (usageVariance T₂ p)
@@ -120,7 +120,7 @@ materialize-at : ∀ {n v} → AllConstructorSignatures n v → Fin n → Polari
 materialize-at {n} {v} cs i p P S = materialize (cs i) p P S
 
 SelectTy0 : (k : ℕ) → (v : Variance) → AllConstructorSignatures k v → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
-SelectTy0 k v cs i P S = T-Arrow (≤p-step <p-mt)
+SelectTy0 k v cs i P S = T-Arrow
                      (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
                             (T-Msg ⊕ (T-ProtoP (Subset.⁅ i ⁆) v P) S))
                      (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl) 

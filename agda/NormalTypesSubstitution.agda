@@ -138,7 +138,7 @@ mutual
 
   substNFTyWith σ (N-Var N) = substNFVarWith σ N
   substNFTyWith σ N-Base = N-Base
-  substNFTyWith σ (N-Arrow km N₁ N₂) = N-Arrow km (substNFTyWith σ N₁) (substNFTyWith σ N₂)
+  substNFTyWith σ (N-Arrow N₁ N₂) = N-Arrow (substNFTyWith σ N₁) (substNFTyWith σ N₂)
   substNFTyWith σ (N-Pair N₁ N₂) = N-Pair (substNFTyWith σ N₁) (substNFTyWith σ N₂)
   substNFTyWith σ (N-Poly K′ N) = N-Poly K′ (substNFTyWith (wkNFSub {K = K′} σ) N)
   substNFTyWith σ (N-Sub km≤ N) = N-Sub km≤ (substNFTyWith σ N)
@@ -196,8 +196,8 @@ mutual
 
   substNFTy-sound σ (N-Var N) = substNFVar-sound σ N
   substNFTy-sound σ N-Base = refl
-  substNFTy-sound σ (N-Arrow km N₁ N₂) =
-    cong₂ (Types.T-Arrow km) (substNFTy-sound σ N₁) (substNFTy-sound σ N₂)
+  substNFTy-sound σ (N-Arrow N₁ N₂) =
+    cong₂ Types.T-Arrow (substNFTy-sound σ N₁) (substNFTy-sound σ N₂)
   substNFTy-sound σ (N-Pair N₁ N₂) =
     cong₂ Types.T-Pair (substNFTy-sound σ N₁) (substNFTy-sound σ N₂)
   substNFTy-sound σ (N-Poly K′ N) =

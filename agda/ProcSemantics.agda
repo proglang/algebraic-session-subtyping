@@ -1,7 +1,7 @@
 module ProcSemantics where
 
 open import Data.Fin using (Fin) renaming (suc to fsuc)
-open import Data.List using ([])
+open import Data.List using ([]; length)
 open import Data.Nat using (ℕ; _+_) renaming (zero to zeroℕ; suc to sucℕ)
 
 open import ExprSyntax using
@@ -60,7 +60,7 @@ weakenProcessBy : ∀ (k : ℕ) {n} → Process [] n → Process [] (k + n)
 weakenProcessBy k = renameProcess (shiftRen k)
 
 data ProcLabel : ℕ → ℕ → Set where
-  P-Expr    : ∀ {n k} → Label n k → ProcLabel n k
+  P-Expr    : ∀ {n ks} → Label n ks → ProcLabel n (length ks)
   P-τ       : ∀ {n} → ProcLabel n 0
   P-ParAct  : ∀ {n k} → ProcLabel n k → ProcLabel n k → ProcLabel n k
   P-Open    : ∀ {n} → Side → Fin n → ProcLabel n 2

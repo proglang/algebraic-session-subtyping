@@ -17,14 +17,12 @@ data _≤m_ : Rel Multiplicity where
   ≤m-unl  : Un ≤m Lin
 
 data PreKind : Set where
-  KM KS KT : PreKind
+  KS KT : PreKind
 
 variable
   pk pk′ pk₁ pk₂ pk₃ : PreKind
 
 data _<p_ : Rel PreKind where
-  <p-sm : KS <p KM
-  <p-mt : KM <p KT
   <p-st : KS <p KT
 
 data _≤p_ : Rel PreKind where
@@ -43,10 +41,8 @@ data _≤k_ : Rel Kind where
   ≤k-step   : pk₁ ≤p pk₂ → m₁ ≤m m₂ → KV pk₁ m₁ ≤k KV pk₂ m₂
 
 TLin = KV KT Lin
-MLin = KV KM Lin
 SLin = KV KS Lin
 SUn  = KV KS Un
-MUn  = KV KM Un
 
 -- properties
 
@@ -57,14 +53,10 @@ MUn  = KV KM Un
 ≤m-irrelevant ≤m-unl ≤m-unl = refl
 
 <p-irrelevant : ∀ {pk₁ pk₂} (<p₁ <p₂ : pk₁ <p pk₂) → <p₁ ≡ <p₂
-<p-irrelevant <p-sm <p-sm = refl
-<p-irrelevant <p-mt <p-mt = refl
 <p-irrelevant <p-st <p-st = refl
 
 ≤p-irrelevant : ∀ {pk₁ pk₂} (≤pk₁ ≤pk₂ : pk₁ ≤p pk₂) → ≤pk₁ ≡ ≤pk₂
 ≤p-irrelevant ≤p-refl ≤p-refl = refl
-≤p-irrelevant (≤p-step <p-sm) (≤p-step <p-sm) = refl
-≤p-irrelevant (≤p-step <p-mt) (≤p-step <p-mt) = refl
 ≤p-irrelevant (≤p-step <p-st) (≤p-step <p-st) = refl
 
 ≤k-irrelevant : ∀ {K₁ K₂} (≤k₁ ≤k₂ : K₁ ≤k K₂) → ≤k₁ ≡ ≤k₂
@@ -86,9 +78,6 @@ MUn  = KV KM Un
 
 ≤p-trans : pk₁ ≤p pk₂ → pk₂ ≤p pk₃ → pk₁ ≤p pk₃
 ≤p-trans ≤p-refl pk₂≤pk₃ = pk₂≤pk₃
-≤p-trans (≤p-step <p-sm) ≤p-refl = ≤p-step <p-sm
-≤p-trans (≤p-step <p-sm) (≤p-step <p-mt) = ≤p-step <p-st
-≤p-trans (≤p-step <p-mt) ≤p-refl = ≤p-step <p-mt
 ≤p-trans (≤p-step <p-st) ≤p-refl = ≤p-step <p-st
 
 ≤k-trans : K₁ ≤k K₂ → K₂ ≤k K₃ → K₁ ≤k K₃
@@ -104,13 +93,8 @@ eq-multiplicity Un Lin = no λ()
 eq-multiplicity Un Un = yes refl
 
 eq-prekind : ∀ (pk₁ pk₂ : PreKind) → Dec (pk₁ ≡ pk₂)
-eq-prekind KM KM = yes refl
-eq-prekind KM KS = no λ()
-eq-prekind KM KT = no λ()
-eq-prekind KS KM = no λ()
 eq-prekind KS KS = yes refl
 eq-prekind KS KT = no λ()
-eq-prekind KT KM = no λ()
 eq-prekind KT KS = no λ()
 eq-prekind KT KT = yes refl
 
@@ -127,8 +111,6 @@ eq-kind KP (KV _ _) = no λ()
 eq-kind KP KP = yes refl
 
 eq-kind′ : ∀ K → eq-kind K K ≡ yes refl
-eq-kind′ (KV KM Lin) = refl
-eq-kind′ (KV KM Un) = refl
 eq-kind′ (KV KS Lin) = refl
 eq-kind′ (KV KS Un) = refl
 eq-kind′ (KV KT Lin) = refl
@@ -136,7 +118,6 @@ eq-kind′ (KV KT Un) = refl
 eq-kind′ KP = refl
 
 eq-prekind′ : ∀ (pk : PreKind) → eq-prekind pk pk ≡ yes refl
-eq-prekind′ KM = refl
 eq-prekind′ KS = refl
 eq-prekind′ KT = refl
 

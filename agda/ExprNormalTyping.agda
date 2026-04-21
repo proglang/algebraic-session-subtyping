@@ -148,13 +148,13 @@ wkCtx ∅ = ∅
 wkCtx (b ▻ Γ) = wkBinding b ▻ wkCtx Γ
 
 LinArr : Ty Δ TLin → Ty Δ TLin → Ty Δ TLin
-LinArr = T-Arrow {pk = KT} {m = Lin} (≤p-step <p-mt)
+LinArr = T-Arrow {m = Lin}
 
 linArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ TLin
-linArrNf = N-Arrow (≤p-step <p-mt)
+linArrNf = N-Arrow
 
 unArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ (KV KT Un)
-unArrNf = N-Arrow (≤p-step <p-mt)
+unArrNf = N-Arrow
 
 pairNf : ∀ {pk₁ pk₂ m}
   → NfTy Δ (KV pk₁ m)
@@ -442,7 +442,7 @@ mutual
     T-App : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {e₁ e₂ : Expr Δ n}
         {m : Multiplicity}
         {T U : NfTy Δ TLin}
-      → Γ₁ ⊢ e₁ ⇒ N-Arrow {m = m} (≤p-step <p-mt) T U ⊣ Γ₂
+      → Γ₁ ⊢ e₁ ⇒ N-Arrow {m = m} T U ⊣ Γ₂
       → Γ₂ ⊢ e₂ ⇐ T ⊣ Γ₃
       → Γ₁ ⊢ E-App e₁ e₂ ⇒ U ⊣ Γ₃
 

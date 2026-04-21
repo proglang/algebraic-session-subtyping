@@ -50,11 +50,11 @@ module Example0 where
                 S
     
     example1 : Ty [] SLin → Ty [] TLin
-    example1 S = T-Arrow (≤p-step <p-mt) 
+    example1 S = T-Arrow
                         (example S)
                         (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
                              (T-Msg ⊕ (T-ProtoP {k = 2} Subset.⊤ ⊕ (T-Up T-Base)) S))
-    _ : example ≡ λ S → T-Arrow (≤p-step <p-mt)
+    _ : example ≡ λ S → T-Arrow
                              (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
                                  (T-Msg ⊕ (T-ProtoP Subset.⁅ fzero ⁆ ⊕ (T-Up T-Base)) S))
                              (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl) 

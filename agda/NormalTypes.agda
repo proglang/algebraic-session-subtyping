@@ -68,7 +68,7 @@ mutual
   data NFTy Δ where
     N-Var    : NFVar Δ (KV pk m) → NFTy Δ (KV pk m)
     N-Base   : NFTy Δ TLin
-    N-Arrow  : (km : KM ≤p pk) → NFTy Δ TLin → NFTy Δ TLin → NFTy Δ (KV pk m)
+    N-Arrow  : NFTy Δ TLin → NFTy Δ TLin → NFTy Δ (KV KT m)
     N-Pair   : NFTy Δ (KV pk₁ m) → NFTy Δ (KV pk₂ m) → NFTy Δ (KV KT m)
     N-Poly   : (K′ : Kind) → NFTy (K′ ∷ Δ) (KV KT m) → NFTy Δ (KV KT m)
     N-Sub    : (km≤ : KV pk m ≤k KV pk′ m′) → NFTy Δ (KV pk m) → NFTy Δ (KV pk′ m′)
@@ -85,7 +85,7 @@ mutual
   sizeₜ N = suc (case N of λ where
     (N-Var x) → zero
     N-Base → zero
-    (N-Arrow _ N₁ N₂) → sizeₜ N₁ ⊔ sizeₜ N₂
+    (N-Arrow N₁ N₂) → sizeₜ N₁ ⊔ sizeₜ N₂
     (N-Pair N₁ N₂) → sizeₜ N₁ ⊔ sizeₜ N₂
     (N-Poly _ N) → sizeₜ N
     (N-Sub _ N) → sizeₜ N
@@ -120,7 +120,7 @@ mutual
   nfTyTy : NFTy Δ K → Ty Δ K
   nfTyTy (N-Var NV) = nfVarTy NV
   nfTyTy N-Base = T-Base
-  nfTyTy (N-Arrow km N₁ N₂) = T-Arrow km (nfTyTy N₁) (nfTyTy N₂)
+  nfTyTy (N-Arrow N₁ N₂) = T-Arrow (nfTyTy N₁) (nfTyTy N₂)
   nfTyTy (N-Pair N₁ N₂) = T-Pair (nfTyTy N₁) (nfTyTy N₂)
   nfTyTy (N-Poly K′ N) = T-Poly K′ (nfTyTy N)
   nfTyTy (N-Sub km≤ N) = T-Sub km≤ (nfTyTy N)
@@ -147,7 +147,7 @@ mutual
 
   toNormalTy (N-Var N) = Types.N-Var (toNormalVar N)
   toNormalTy N-Base = Types.N-Base
-  toNormalTy (N-Arrow km N₁ N₂) = Types.N-Arrow km (toNormalTy N₁) (toNormalTy N₂)
+  toNormalTy (N-Arrow N₁ N₂) = Types.N-Arrow (toNormalTy N₁) (toNormalTy N₂)
   toNormalTy (N-Pair N₁ N₂) = Types.N-Pair (toNormalTy N₁) (toNormalTy N₂)
   toNormalTy (N-Poly K′ N) = Types.N-Poly K′ (toNormalTy N)
   toNormalTy (N-Sub km≤ N) = Types.N-Sub km≤ (toNormalTy N)
@@ -163,7 +163,7 @@ mutual
 
   sizeₜ-toNormal (N-Var x) = refl
   sizeₜ-toNormal N-Base = refl
-  sizeₜ-toNormal (N-Arrow km N₁ N₂) =
+  sizeₜ-toNormal (N-Arrow N₁ N₂) =
     cong suc (cong₂ _⊔_ (sizeₜ-toNormal N₁) (sizeₜ-toNormal N₂))
   sizeₜ-toNormal (N-Pair N₁ N₂) =
     cong suc (cong₂ _⊔_ (sizeₜ-toNormal N₁) (sizeₜ-toNormal N₂))
@@ -199,7 +199,7 @@ mutual
   fromNormalTy : ∀ {pk m} {T : Ty Δ (KV pk m)} → Types.NormalTy T → NFTy Δ (KV pk m)
   fromNormalTy (Types.N-Var NV) = N-Var (fromNormalVar NV)
   fromNormalTy Types.N-Base = N-Base
-  fromNormalTy (Types.N-Arrow km N₁ N₂) = N-Arrow km (fromNormalTy N₁) (fromNormalTy N₂)
+  fromNormalTy (Types.N-Arrow N₁ N₂) = N-Arrow (fromNormalTy N₁) (fromNormalTy N₂)
   fromNormalTy (Types.N-Pair N₁ N₂) = N-Pair (fromNormalTy N₁) (fromNormalTy N₂)
   fromNormalTy (Types.N-Poly K′ N) = N-Poly K′ (fromNormalTy N)
   fromNormalTy (Types.N-Sub km≤ N) = N-Sub km≤ (fromNormalTy N)
@@ -247,8 +247,8 @@ mutual
   nfTyTy-fromNormalTy (Types.N-Var NV) =
     nfVarTy-fromNormalVar NV
   nfTyTy-fromNormalTy Types.N-Base = refl
-  nfTyTy-fromNormalTy (Types.N-Arrow km N₁ N₂) =
-    cong₂ (T-Arrow km) (nfTyTy-fromNormalTy N₁) (nfTyTy-fromNormalTy N₂)
+  nfTyTy-fromNormalTy (Types.N-Arrow N₁ N₂) =
+    cong₂ T-Arrow (nfTyTy-fromNormalTy N₁) (nfTyTy-fromNormalTy N₂)
   nfTyTy-fromNormalTy (Types.N-Pair N₁ N₂) =
     cong₂ T-Pair (nfTyTy-fromNormalTy N₁) (nfTyTy-fromNormalTy N₂)
   nfTyTy-fromNormalTy (Types.N-Poly K′ N) =
@@ -310,8 +310,8 @@ mutual
     cong N-Var (nfVarTy-injective eq)
   nfTyTy-injective {N₁ = N-Var (NV-Var x)} {N-Base} ()
   nfTyTy-injective {N₁ = N-Var (NV-Dual d x)} {N-Base} ()
-  nfTyTy-injective {N₁ = N-Var (NV-Var x)} {N-Arrow km N₂ N₃} ()
-  nfTyTy-injective {N₁ = N-Var (NV-Dual d x)} {N-Arrow km N₂ N₃} ()
+  nfTyTy-injective {N₁ = N-Var (NV-Var x)} {N-Arrow N₂ N₃} ()
+  nfTyTy-injective {N₁ = N-Var (NV-Dual d x)} {N-Arrow N₂ N₃} ()
   nfTyTy-injective {N₁ = N-Var (NV-Var x)} {N-Pair N₂ N₃} ()
   nfTyTy-injective {N₁ = N-Var (NV-Dual d x)} {N-Pair N₂ N₃} ()
   nfTyTy-injective {N₁ = N-Var (NV-Var x)} {N-Poly K′ N₂} ()
@@ -327,12 +327,12 @@ mutual
   nfTyTy-injective {N₁ = N-Base} {N-Base} refl = refl
   nfTyTy-injective {N₁ = N-Base} {N-Var (NV-Var x)} ()
   nfTyTy-injective {N₁ = N-Base} {N-Var (NV-Dual d x)} ()
-  nfTyTy-injective {N₁ = N-Arrow km N₁ N₃} {N-Var (NV-Var x)} ()
-  nfTyTy-injective {N₁ = N-Arrow km N₁ N₃} {N-Var (NV-Dual d x)} ()
-  nfTyTy-injective {N₁ = N-Arrow km N₁ N₃} {N-Arrow km′ N₂ N₄} eq
+  nfTyTy-injective {N₁ = N-Arrow N₁ N₃} {N-Var (NV-Var x)} ()
+  nfTyTy-injective {N₁ = N-Arrow N₁ N₃} {N-Var (NV-Dual d x)} ()
+  nfTyTy-injective {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} eq
     with arrow-injective eq
-  ... | refl , eq₁ , eq₂ =
-    cong₂ (N-Arrow km) (nfTyTy-injective eq₁) (nfTyTy-injective eq₂)
+  ... | eq₁ , eq₂ =
+    cong₂ N-Arrow (nfTyTy-injective eq₁) (nfTyTy-injective eq₂)
   nfTyTy-injective {N₁ = N-Pair N₁ N₃} {N-Var (NV-Var x)} ()
   nfTyTy-injective {N₁ = N-Pair N₁ N₃} {N-Var (NV-Dual d x)} ()
   nfTyTy-injective {N₁ = N-Pair N₁ N₃} {N-Pair N₂ N₄} eq

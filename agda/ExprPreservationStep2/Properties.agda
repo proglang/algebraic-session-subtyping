@@ -103,10 +103,10 @@ sess-subtype sub = <:ₜ-sub sub
 
 arrow-subtype-inversion :
   ∀ {m A V U}
-  → normalTyOf U <:ₜ normalTyOf (N-Arrow {m = m} (≤p-step <p-mt) A V)
+  → normalTyOf U <:ₜ normalTyOf (N-Arrow {m = m} A V)
   → Σ (NfTy [] TLin) λ A′ →
       Σ (NfTy [] TLin) λ V′ →
-        (U ≡ N-Arrow {m = m} (≤p-step <p-mt) A′ V′)
+        (U ≡ N-Arrow {m = m} A′ V′)
         × (normalTyOf A <:ₜ normalTyOf A′)
         × (normalTyOf V′ <:ₜ normalTyOf V)
 arrow-subtype-inversion = ETS.arrow-subtype-inversion
@@ -224,4 +224,3 @@ postulate
     → Γf —frm[ ℓ ]→ Γf′
     → LinearDisjoint Γ₀ Γf
     → LinearDisjoint Γ₀′ Γf′
-

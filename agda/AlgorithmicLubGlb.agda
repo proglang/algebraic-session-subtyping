@@ -79,14 +79,13 @@ lub-joinₜ {T₁ = T₁} N₁ N₂ N₃ (<:ₜ-var {nv = NV-Dual D-S x}) <:ₜ-
 ... | yes (T , refl , refl)
   rewrite var-equal′ x = (T-Dual D-S (T-Var x)) , ((N-Var (NV-Dual D-S x)) , (<:ₜ-var , (<:ₜ-var , (refl , <:ₜ-var))))
 lub-joinₜ N₁ N₂ N₃ <:ₜ-base <:ₜ-base = T-Base , N-Base , <:ₜ-base , <:ₜ-base , refl , <:ₜ-base
-lub-joinₜ (N-Arrow _ N₁₁ N₁₂) (N-Arrow _ N₂₁ N₂₂) (N-Arrow _ N₃₁ N₃₂) (<:ₜ-arrow {≤pk = ≤pk} N₁<:N₃ N₁<:N₄) (<:ₜ-arrow N₂<:N₃ N₂<:N₄)
-  rewrite ≤p-irrelevant ≤pk ≤pk
+lub-joinₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁ N₃₂) (<:ₜ-arrow N₁<:N₃ N₁<:N₄) (<:ₜ-arrow N₂<:N₃ N₂<:N₄)
   with glb-meetₜ N₂₁ N₁₁ N₃₁ N₂<:N₃ N₁<:N₃
 ... | Tdom , Ndom , <:₁₁ , <:₁₂ , meet≡ , <:₁₃
   with lub-joinₜ N₁₂ N₂₂ N₃₂ N₁<:N₄ N₂<:N₄
 ... | Tcod , Ncod , <:₂₁ , <:₂₂ , join≡ , <:₂₃
   rewrite meet≡ | join≡
-  = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow ≤pk Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
+  = (T-Arrow Tdom Tcod) , ((N-Arrow Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
 lub-joinₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₁<:N₃ N₁<:N₄) (<:ₜ-pair N₂<:N₃ N₂<:N₄)
   with lub-joinₜ N₁₁ N₂₁ N₃₁ N₁<:N₃ N₂<:N₃
 ... | Tfst , Nfst , <:₁₁ , <:₁₂ , join≡₁ , <:₁₃
@@ -189,14 +188,13 @@ glb-meetₜ {T₁ = T₁} (N-Var (NV-Dual D-S x)) (N-Var (NV-Dual D-S x)) (N-Var
 ... | yes (T , refl , refl)
   rewrite var-equal′ x = (T-Dual D-S (T-Var x)) , ((N-Var (NV-Dual D-S x)) , (<:ₜ-var , (<:ₜ-var , (refl , <:ₜ-var))))
 glb-meetₜ N₁ N₂ N₃ <:ₜ-base <:ₜ-base = T-Base , N-Base , <:ₜ-base , <:ₜ-base , refl , <:ₜ-base
-glb-meetₜ (N-Arrow _ N₁₁ N₁₂) (N-Arrow _ N₂₁ N₂₂) (N-Arrow _ N₃₁ N₃₂) (<:ₜ-arrow {≤pk = ≤pk} N₁<:N₃ N₃<:N₄) (<:ₜ-arrow N₂<:N₃ N₃<:N₅)
-  rewrite ≤p-irrelevant ≤pk ≤pk
+glb-meetₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁ N₃₂) (<:ₜ-arrow N₁<:N₃ N₃<:N₄) (<:ₜ-arrow N₂<:N₃ N₃<:N₅)
   with lub-joinₜ N₂₁ N₁₁ N₃₁ N₂<:N₃ N₁<:N₃
 ... | Tdom , Ndom , <:₁₁ , <:₁₂ , join≡ , <:₁₃
   with glb-meetₜ N₁₂ N₂₂ N₃₂ N₃<:N₄ N₃<:N₅
 ... | Tcod , Ncod , <:₂₁ , <:₂₂ , meet≡ , <:₂₃
   rewrite join≡ | meet≡
-  = (T-Arrow ≤pk Tdom Tcod) , ((N-Arrow ≤pk Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
+  = (T-Arrow Tdom Tcod) , ((N-Arrow Ndom Ncod) , ((<:ₜ-arrow <:₁₂ <:₂₁) , ((<:ₜ-arrow <:₁₁ <:₂₂) , (refl , (<:ₜ-arrow <:₁₃ <:₂₃)))))
 glb-meetₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₃<:N₁ N₃<:N₂) (<:ₜ-pair N₃<:N₄ N₃<:N₅)
   with glb-meetₜ N₁₁ N₂₁ N₃₁ N₃<:N₁ N₃<:N₄
 ... | Tfst , Nfst , <:₁₁ , <:₁₂ , meet≡₁ , <:₁₃

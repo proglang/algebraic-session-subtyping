@@ -287,13 +287,11 @@ complete-algₜ (suc n) {p = ⊝} {T₁ = T-Dual D-S (T-Var x)} <:-dual-var {f�
   rewrite nt-unique N₁ N₂
   = <<:ₜ-refl {T = T-Var x}{⊝} N₂
 complete-algₜ (suc n) {p = p} <:-base {f₁ = f₁} {f₂} {N₁ = N-Base} {N-Base} sz≤ = <<:ₜ-base
-complete-algₜ (suc n) {p = ⊕} (<:-fun T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow _ N₁ N₃} {N-Arrow _ N₂ N₄} (s≤s sz≤)
+complete-algₜ (suc n) {p = ⊕} (<:-fun T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} (s≤s sz≤)
   rewrite shuffle-⊔ (sizeₜ N₁) (sizeₜ N₃) (sizeₜ N₂) (sizeₜ N₄)
   = <:ₜ-arrow (complete-algₜ n T₁<:T₂ {N₁ = N₂}{N₂ = N₁} (≤-trans (≤-reflexive (⊔-comm (sizeₜ N₂) (sizeₜ N₁))) (⊔-≤ₗ {sizeₜ N₁ ⊔ sizeₜ N₂} {sizeₜ N₃ ⊔ sizeₜ N₄} sz≤)))
               (complete-algₜ n T₁<:T₃ {N₁ = N₃} {N₂ = N₄} (⊔-≤ᵣ {sizeₜ N₁ ⊔ sizeₜ N₂} {sizeₜ N₃ ⊔ sizeₜ N₄} sz≤))
-complete-algₜ (suc n) {p = ⊝} (<:-fun {≤pk = ≤p-refl} T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow _ N₁ N₃} {N-Arrow _ N₂ N₄} sz≤
-  with () ←  f₁ refl
-complete-algₜ (suc n) {p = ⊝} (<:-fun {≤pk = ≤p-step <p-mt} T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow _ N₁ N₃} {N-Arrow _ N₂ N₄} sz≤
+complete-algₜ (suc n) {p = ⊝} (<:-fun T₁<:T₂ T₁<:T₃) {f₁ = f₁} {f₂} {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} sz≤
   with () ← f₁ refl
 complete-algₜ (suc n) {p = ⊕} (<:-pair T₁<:T₂ T₃<:T₄) {f₁ = f₁} {f₂} {N₁ = N-Pair N₁ N₂} {N-Pair N₃ N₄} (s≤s sz≤)
   rewrite shuffle-⊔ (sizeₜ N₁) (sizeₜ N₂) (sizeₜ N₃) (sizeₜ N₄)

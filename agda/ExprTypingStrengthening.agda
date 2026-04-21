@@ -256,10 +256,10 @@ arrow-subtype-inversion :
   ∀ {Δ m}
     {A B : NfTy Δ TLin}
     {X : NfTy Δ (KV KT m)}
-  → normalTyOf X <:ₜ normalTyOf (NT.N-Arrow {m = m} (≤p-step <p-mt) A B)
+  → normalTyOf X <:ₜ normalTyOf (NT.N-Arrow {m = m} A B)
   → Σ (NfTy Δ TLin) λ A′ →
       Σ (NfTy Δ TLin) λ B′ →
-        (X ≡ NT.N-Arrow {m = m} (≤p-step <p-mt) A′ B′)
+        (X ≡ NT.N-Arrow {m = m} A′ B′)
         × (normalTyOf A <:ₜ normalTyOf A′)
         × (normalTyOf B′ <:ₜ normalTyOf B)
 arrow-subtype-inversion (<:ₜ-arrow dom cod) = _ , _ , refl , dom , cod
@@ -490,12 +490,12 @@ mutual
     NT.N-Var x , refl , <:ₜ-var
   split-renTy-from-sub ρ {T₂ = NT.N-Base} <:ₜ-base =
     NT.N-Base , refl , <:ₜ-base
-  split-renTy-from-sub ρ {T₂ = NT.N-Arrow km A₂ B₂} (<:ₜ-arrow dom cod)
+  split-renTy-from-sub ρ {T₂ = NT.N-Arrow A₂ B₂} (<:ₜ-arrow dom cod)
     with split-renTy-to-sub ρ {T₂ = A₂} dom
        | split-renTy-from-sub ρ {T₂ = B₂} cod
   ... | A₁′ , eqA , A₂<:A₁′ | B₁′ , eqB , B₁′<:B₂
     rewrite eqA | eqB =
-      NT.N-Arrow km A₁′ B₁′ , refl , <:ₜ-arrow A₂<:A₁′ B₁′<:B₂
+      NT.N-Arrow A₁′ B₁′ , refl , <:ₜ-arrow A₂<:A₁′ B₁′<:B₂
   split-renTy-from-sub ρ {T₂ = NT.N-Pair A₂ B₂} (<:ₜ-pair l r)
     with split-renTy-from-sub ρ {T₂ = A₂} l
        | split-renTy-from-sub ρ {T₂ = B₂} r
@@ -530,12 +530,12 @@ mutual
     NT.N-Var x , refl , <:ₜ-var
   split-renTy-to-sub ρ {T₂ = NT.N-Base} <:ₜ-base =
     NT.N-Base , refl , <:ₜ-base
-  split-renTy-to-sub ρ {T₂ = NT.N-Arrow km A₂ B₂} (<:ₜ-arrow dom cod)
+  split-renTy-to-sub ρ {T₂ = NT.N-Arrow A₂ B₂} (<:ₜ-arrow dom cod)
     with split-renTy-from-sub ρ {T₂ = A₂} dom
        | split-renTy-to-sub ρ {T₂ = B₂} cod
   ... | A₁′ , eqA , A₁′<:A₂ | B₁′ , eqB , B₂<:B₁′
     rewrite eqA | eqB =
-      NT.N-Arrow km A₁′ B₁′ , refl , <:ₜ-arrow A₁′<:A₂ B₂<:B₁′
+      NT.N-Arrow A₁′ B₁′ , refl , <:ₜ-arrow A₁′<:A₂ B₂<:B₁′
   split-renTy-to-sub ρ {T₂ = NT.N-Pair A₂ B₂} (<:ₜ-pair l r)
     with split-renTy-to-sub ρ {T₂ = A₂} l
        | split-renTy-to-sub ρ {T₂ = B₂} r

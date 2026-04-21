@@ -35,7 +35,7 @@ mutual
 
   renNFTy ρ (N-Var N) = N-Var (renNFVar ρ N)
   renNFTy ρ N-Base = N-Base
-  renNFTy ρ (N-Arrow km N₁ N₂) = N-Arrow km (renNFTy ρ N₁) (renNFTy ρ N₂)
+  renNFTy ρ (N-Arrow N₁ N₂) = N-Arrow (renNFTy ρ N₁) (renNFTy ρ N₂)
   renNFTy ρ (N-Pair N₁ N₂) = N-Pair (renNFTy ρ N₁) (renNFTy ρ N₂)
   renNFTy ρ (N-Poly K′ N) = N-Poly K′ (renNFTy (ρ ↑ᵣ K′) N)
   renNFTy ρ (N-Sub km≤ N) = N-Sub km≤ (renNFTy ρ N)
@@ -88,8 +88,8 @@ mutual
 
   renNFTy-sound ρ (N-Var N) = renNFVar-sound ρ N
   renNFTy-sound ρ N-Base = refl
-  renNFTy-sound ρ (N-Arrow km N₁ N₂) =
-    cong₂ (Types.T-Arrow km) (renNFTy-sound ρ N₁) (renNFTy-sound ρ N₂)
+  renNFTy-sound ρ (N-Arrow N₁ N₂) =
+    cong₂ Types.T-Arrow (renNFTy-sound ρ N₁) (renNFTy-sound ρ N₂)
   renNFTy-sound ρ (N-Pair N₁ N₂) =
     cong₂ Types.T-Pair (renNFTy-sound ρ N₁) (renNFTy-sound ρ N₂)
   renNFTy-sound ρ (N-Poly K′ N) =

@@ -25,10 +25,10 @@ there-injective :
 there-injective refl = refl
 
 arrow-injective :
-  ∀ {Δ pk m} {km km′ : KM ≤p pk} {t t′ u u′ : Ty Δ TLin}
-  → T-Arrow {pk = pk} {m = m} km t u ≡ T-Arrow km′ t′ u′
-  → (km ≡ km′) × (t ≡ t′) × (u ≡ u′)
-arrow-injective refl = refl , refl , refl
+  ∀ {Δ m} {t t′ u u′ : Ty Δ TLin}
+  → T-Arrow {m = m} t u ≡ T-Arrow t′ u′
+  → (t ≡ t′) × (u ≡ u′)
+arrow-injective refl = refl , refl
 
 pair-injective :
   ∀ {Δ m pk₁ pk₂ pk₁′ pk₂′}
@@ -117,10 +117,10 @@ renaming-injective :
 renaming-injective {T₁ = T-Var x} {T₂ = T-Var y} ρ inj eq =
   cong T-Var (inj (t-var-injective eq))
 renaming-injective {T₁ = T-Base} {T₂ = T-Base} ρ inj eq = refl
-renaming-injective {T₁ = T-Arrow x t u} {T₂ = T-Arrow x₁ t₁ u₁} ρ inj eq
+renaming-injective {T₁ = T-Arrow t u} {T₂ = T-Arrow t₁ u₁} ρ inj eq
   with arrow-injective eq
-... | refl , eq₁ , eq₂
-  = cong₂ (T-Arrow x)
+... | eq₁ , eq₂
+  = cong₂ T-Arrow
       (renaming-injective ρ inj eq₁)
       (renaming-injective ρ inj eq₂)
 renaming-injective {T₁ = T-Pair t u} {T₂ = T-Pair t₁ u₁} ρ inj eq

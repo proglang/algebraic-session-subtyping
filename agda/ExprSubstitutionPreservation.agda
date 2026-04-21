@@ -955,9 +955,7 @@ inhabitTy : ∀ {Δ K} → Ty Δ K
 inhabitTy {K = KP} = T-Up T-End
 inhabitTy {K = KV KS Un} = T-End
 inhabitTy {K = KV KS Lin} = T-Sub (≤k-step ≤p-refl ≤m-unl) T-End
-inhabitTy {K = KV KM Un} = T-Arrow ≤p-refl T-Base T-Base
-inhabitTy {K = KV KM Lin} = T-Arrow ≤p-refl T-Base T-Base
-inhabitTy {K = KV KT Un} = T-Arrow (≤p-step <p-mt) T-Base T-Base
+inhabitTy {K = KV KT Un} = T-Arrow T-Base T-Base
 inhabitTy {K = KV KT Lin} = T-Base
 
 substTy-wkNfTy-id :

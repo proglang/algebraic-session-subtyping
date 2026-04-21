@@ -1,7 +1,7 @@
 module ProcContextReduction where
 
 open import Data.Fin using (Fin)
-open import Data.List using ([])
+open import Data.List using ([]; length)
 open import Data.Nat using (suc; _+_)
 
 open import ExprSemantics using (Label)
@@ -16,7 +16,7 @@ open import ProcSemantics using (ProcLabel; Side; P-Expr; P-τ; P-ParAct; P-Open
 infix 4 _—procctx[_]→_
 
 data _—procctx[_]→_ : ∀ {n k} → Ctx [] n → ProcLabel n k → Ctx [] (k + n) → Set where
-  PCtx-Expr : ∀ {n k} {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (k + n)} {ℓ : Label n k}
+  PCtx-Expr : ∀ {n ks} {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (length ks + n)} {ℓ : Label n ks}
     → Γ₀ —ctx[ ℓ ]→ Γ₁
     → Γ₀ —procctx[ P-Expr ℓ ]→ Γ₁
 

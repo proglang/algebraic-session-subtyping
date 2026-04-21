@@ -1999,7 +1999,7 @@ mutual
       {A V : NfTy [] TLin}
       {ℓ : Label n Θ}
     → (r : RemoveCtx Γ₀ G Γ₂)
-    → G ⊢ᵥ v ⇒ N-Arrow {m = m} (≤p-step <p-mt) A V ⊣ G′
+    → G ⊢ᵥ v ⇒ N-Arrow {m = m} A V ⊣ G′
     → AllUsed G′
     → Γ₂ ⊢ e₁ ⇐ A ⊣ Γ₃
     → e₁ —[ ℓ ]→ e₂
