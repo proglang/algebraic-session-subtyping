@@ -35,16 +35,6 @@ Run the project verification command from the Agda project root:
       - Remove the definitions of `BindingView` and its conversion function `bindingView`. 
       - Change all uses of `BindingView` to `Binding`, fix the constructor names, and process the fallout.
 
-- [ ] tighten-bindings:
-      Variables are never bound to types of kind KP, so the definition of `Binding` should be restricted.
-
-      Specifically:
-      - In constructor B-Lin, change kind K to KV pk m.
-      - In constructor B-Un, change kind K to KV pk Un.
-      - Tighten the types of related auxiliary functions like _∷ˡ_ accordingly.
-      - Adjust the kinds of types in other definitions that range over bindings accordingly. Examples are the various context predicates in module `ExprContextReduction`.
-      - Process the fallout.
-
 - [ ] unused-postulates:
       Remove unused postulates from the codebase.
 
