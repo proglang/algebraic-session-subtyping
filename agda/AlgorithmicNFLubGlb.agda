@@ -120,12 +120,15 @@ lub-joinₜ (N-Var (NV-Dual D-S x)) (N-Var (NV-Dual D-S .x)) (N-Var (NV-Dual D-S
 ... | no ¬a = ⊥-elim (¬a refl)
 ... | yes refl = N-Var (NV-Dual D-S x) , <:ₜ-var , <:ₜ-var , refl , <:ₜ-var
 lub-joinₜ N₁ N₂ N₃ <:ₜ-base <:ₜ-base = N-Base , <:ₜ-base , <:ₜ-base , refl , <:ₜ-base
-lub-joinₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁ N₃₂) (<:ₜ-arrow N₁<:N₃ N₁<:N₄) (<:ₜ-arrow N₂<:N₃ N₂<:N₄)
+lub-joinₜ (N-Arrow {pk₁ = pk₁} {m₁ = m₁} {pk₂ = pk₂} {m₂ = m₂} N₁₁ N₁₂)
+          (N-Arrow {pk₁ = .pk₁} {m₁ = .m₁} {pk₂ = .pk₂} {m₂ = .m₂} N₂₁ N₂₂)
+          (N-Arrow {pk₁ = .pk₁} {m₁ = .m₁} {pk₂ = .pk₂} {m₂ = .m₂} N₃₁ N₃₂)
+          (<:ₜ-arrow N₁<:N₃ N₁<:N₄) (<:ₜ-arrow N₂<:N₃ N₂<:N₄)
   with glb-meetₜ N₂₁ N₁₁ N₃₁ N₂<:N₃ N₁<:N₃
 ... | Ndom , <:₁₁ , <:₁₂ , meet≡ , <:₁₃
   with lub-joinₜ N₁₂ N₂₂ N₃₂ N₁<:N₄ N₂<:N₄
 ... | Ncod , <:₂₁ , <:₂₂ , join≡ , <:₂₃
-  rewrite meet≡ | join≡
+  rewrite eq-prekind′ pk₁ | eq-multiplicity′ m₁ | eq-prekind′ pk₂ | eq-multiplicity′ m₂ | meet≡ | join≡
   = N-Arrow Ndom Ncod , <:ₜ-arrow <:₁₂ <:₂₁ , <:ₜ-arrow <:₁₁ <:₂₂ , refl , <:ₜ-arrow <:₁₃ <:₂₃
 lub-joinₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₁<:N₃ N₁<:N₄) (<:ₜ-pair N₂<:N₃ N₂<:N₄)
   with lub-joinₜ N₁₁ N₂₁ N₃₁ N₁<:N₃ N₂<:N₃
@@ -230,12 +233,15 @@ glb-meetₜ (N-Var (NV-Dual D-S x)) (N-Var (NV-Dual D-S .x)) (N-Var (NV-Dual D-S
 ... | no ¬a = ⊥-elim (¬a refl)
 ... | yes refl = N-Var (NV-Dual D-S x) , <:ₜ-var , <:ₜ-var , refl , <:ₜ-var
 glb-meetₜ N₁ N₂ N₃ <:ₜ-base <:ₜ-base = N-Base , <:ₜ-base , <:ₜ-base , refl , <:ₜ-base
-glb-meetₜ (N-Arrow N₁₁ N₁₂) (N-Arrow N₂₁ N₂₂) (N-Arrow N₃₁ N₃₂) (<:ₜ-arrow N₁<:N₃ N₃<:N₄) (<:ₜ-arrow N₂<:N₃ N₃<:N₅)
+glb-meetₜ (N-Arrow {pk₁ = pk₁} {m₁ = m₁} {pk₂ = pk₂} {m₂ = m₂} N₁₁ N₁₂)
+          (N-Arrow {pk₁ = .pk₁} {m₁ = .m₁} {pk₂ = .pk₂} {m₂ = .m₂} N₂₁ N₂₂)
+          (N-Arrow {pk₁ = .pk₁} {m₁ = .m₁} {pk₂ = .pk₂} {m₂ = .m₂} N₃₁ N₃₂)
+          (<:ₜ-arrow N₁<:N₃ N₃<:N₄) (<:ₜ-arrow N₂<:N₃ N₃<:N₅)
   with lub-joinₜ N₂₁ N₁₁ N₃₁ N₂<:N₃ N₁<:N₃
 ... | Ndom , <:₁₁ , <:₁₂ , join≡ , <:₁₃
   with glb-meetₜ N₁₂ N₂₂ N₃₂ N₃<:N₄ N₃<:N₅
 ... | Ncod , <:₂₁ , <:₂₂ , meet≡ , <:₂₃
-  rewrite join≡ | meet≡
+  rewrite eq-prekind′ pk₁ | eq-multiplicity′ m₁ | eq-prekind′ pk₂ | eq-multiplicity′ m₂ | join≡ | meet≡
   = N-Arrow Ndom Ncod , <:ₜ-arrow <:₁₂ <:₂₁ , <:ₜ-arrow <:₁₁ <:₂₂ , refl , <:ₜ-arrow <:₁₃ <:₂₃
 glb-meetₜ (N-Pair {pk₁ = pk₁} {pk₂ = pk₂} N₁₁ N₁₂) (N-Pair {pk₁ = .pk₁} {pk₂ = .pk₂} N₂₁ N₂₂) (N-Pair N₃₁ N₃₂) (<:ₜ-pair N₃<:N₁ N₃<:N₂) (<:ₜ-pair N₃<:N₄ N₃<:N₅)
   with glb-meetₜ N₁₁ N₂₁ N₃₁ N₃<:N₁ N₃<:N₄

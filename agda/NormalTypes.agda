@@ -68,7 +68,7 @@ mutual
   data NFTy Δ where
     N-Var    : NFVar Δ (KV pk m) → NFTy Δ (KV pk m)
     N-Base   : NFTy Δ TLin
-    N-Arrow  : NFTy Δ TLin → NFTy Δ TLin → NFTy Δ (KV KT m)
+    N-Arrow  : NFTy Δ (KV pk₁ m₁) → NFTy Δ (KV pk₂ m₂) → NFTy Δ (KV KT m)
     N-Pair   : NFTy Δ (KV pk₁ m) → NFTy Δ (KV pk₂ m) → NFTy Δ (KV KT m)
     N-Poly   : (K′ : Kind) → NFTy (K′ ∷ Δ) (KV KT m) → NFTy Δ (KV KT m)
     N-Sub    : (km≤ : KV pk m ≤k KV pk′ m′) → NFTy Δ (KV pk m) → NFTy Δ (KV pk′ m′)
@@ -331,7 +331,7 @@ mutual
   nfTyTy-injective {N₁ = N-Arrow N₁ N₃} {N-Var (NV-Dual d x)} ()
   nfTyTy-injective {N₁ = N-Arrow N₁ N₃} {N-Arrow N₂ N₄} eq
     with arrow-injective eq
-  ... | eq₁ , eq₂ =
+  ... | refl , refl , refl , refl , eq₁ , eq₂ =
     cong₂ N-Arrow (nfTyTy-injective eq₁) (nfTyTy-injective eq₂)
   nfTyTy-injective {N₁ = N-Pair N₁ N₃} {N-Var (NV-Var x)} ()
   nfTyTy-injective {N₁ = N-Pair N₁ N₃} {N-Var (NV-Dual d x)} ()

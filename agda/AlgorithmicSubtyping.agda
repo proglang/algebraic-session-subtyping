@@ -41,7 +41,10 @@ data _<:ₜ_ : {T₁ T₂ : Ty Δ (KV pk m)} → NormalTy T₁ → NormalTy T₂
 
   <:ₜ-var : ∀ {T : Ty Δ (KV pk m)} {nv : NormalVar T} → N-Var nv <:ₜ N-Var nv
   <:ₜ-base : N-Base{Δ = Δ} <:ₜ N-Base
-  <:ₜ-arrow : ∀ {m} {T₁ : Ty Δ TLin}{U₁}{T₂}{U₂}
+  <:ₜ-arrow : ∀ {m}
+               {pk₁ pk₂ : PreKind} {m₁ m₂ : Multiplicity}
+               {T₁ : Ty Δ (KV pk₁ m₁)} {U₁ : Ty Δ (KV pk₂ m₂)}
+               {T₂ : Ty Δ (KV pk₁ m₁)} {U₂ : Ty Δ (KV pk₂ m₂)}
                {M₁ : NormalTy T₁}{N₁ : NormalTy U₁}{M₂ : NormalTy T₂}{N₂ : NormalTy U₂}
         → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow {m = m} M₁ N₁) <:ₜ (N-Arrow {m = m} M₂ N₂)
   <:ₜ-pair : ∀ {m} {T₁ : Ty Δ (KV pk₁ m)} {U₁ : Ty Δ (KV pk₂ m)} {T₂ : Ty Δ (KV pk₁ m)} {U₂ : Ty Δ (KV pk₂ m)}

@@ -29,7 +29,7 @@ module _ where
   data Ty (Δ : List Kind) : Kind → Set where
     T-Var   : K ∈ Δ → Ty Δ K
     T-Base  : Ty Δ TLin
-    T-Arrow : Ty Δ TLin → Ty Δ TLin → Ty Δ (KV KT m)
+    T-Arrow : Ty Δ (KV pk₁ m₁) → Ty Δ (KV pk₂ m₂) → Ty Δ (KV KT m)
     T-Pair  : Ty Δ (KV pk₁ m) → Ty Δ (KV pk₂ m) → Ty Δ (KV KT m)
     T-Poly  : (K′ : Kind) → Ty (K′ ∷ Δ) (KV KT m) → Ty Δ (KV KT m)
     T-Sub   : KV pk m ≤k KV pk′ m′ → Ty Δ (KV pk m) → Ty Δ (KV pk′ m′)
@@ -157,7 +157,9 @@ module _ where
   data NormalTy {Δ} where
     N-Var    : (NV : NormalVar T) → NormalTy T
     N-Base   : NormalTy T-Base
-    N-Arrow  : {m : Multiplicity} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Arrow {m = m} T₁ T₂)
+    N-Arrow  : {pk₁ pk₂ : PreKind} {m₁ m₂ m : Multiplicity}
+             → {T₁ : Ty Δ (KV pk₁ m₁)} {T₂ : Ty Δ (KV pk₂ m₂)}
+             → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Arrow {m = m} T₁ T₂)
     N-Pair   : {T₁ : Ty Δ (KV pk₁ m)} {T₂ : Ty Δ (KV pk₂ m)} → (N₁ : NormalTy T₁) → (N₂ : NormalTy T₂) → NormalTy (T-Pair T₁ T₂)
     N-Poly   : (K′ : Kind) → ∀ {m}{T : Ty (K′ ∷ Δ) (KV KT m)} → (N : NormalTy T) → NormalTy (T-Poly K′ T)
     N-Sub    : (km≤ : KV pk m ≤k KV pk′ m′) → (N : NormalTy T) → NormalTy (T-Sub km≤ T)

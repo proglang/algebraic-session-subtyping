@@ -67,7 +67,20 @@ ty-equal T-Base (T-Sub x T₂) = no λ()
 ty-equal T-Base (T-ProtoD T₂) = no λ()
 ty-equal (T-Arrow T₁ T₂) (T-Var x₁) = no λ()
 ty-equal (T-Arrow T₁ T₂) T-Base = no λ()
-ty-equal (T-Arrow T₁ T₂) (T-Arrow T₃ T₄)
+ty-equal (T-Arrow {pk₁ = pk₁} {m₁ = m₁} {pk₂ = pk₂} {m₂ = m₂} T₁ T₂)
+         (T-Arrow {pk₁ = pk₃} {m₁ = m₃} {pk₂ = pk₄} {m₂ = m₄} T₃ T₄)
+  with eq-prekind pk₁ pk₃
+... | no pk₁≢pk₃ = no (λ{ refl → pk₁≢pk₃ refl })
+... | yes refl
+  with eq-multiplicity m₁ m₃
+... | no m₁≢m₃ = no (λ{ refl → m₁≢m₃ refl })
+... | yes refl
+  with eq-prekind pk₂ pk₄
+... | no pk₂≢pk₄ = no (λ{ refl → pk₂≢pk₄ refl })
+... | yes refl
+  with eq-multiplicity m₂ m₄
+... | no m₂≢m₄ = no (λ{ refl → m₂≢m₄ refl })
+... | yes refl
   with ty-equal T₁ T₃
 ... | no T₁≢T₃ = no (λ{ refl → T₁≢T₃ refl})
 ... | yes refl

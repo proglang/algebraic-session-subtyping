@@ -418,7 +418,8 @@ sub-<<: {v = ⊘} rel = Types.≡c-sub _ rel
 
 fun-<<: :
   ∀ {Δ m}
-    {T₁ T₂ : Ty Δ TLin} {U₁ U₂ : Ty Δ TLin}
+    {pk₁ pk₂ : PreKind} {m₁ m₂ : Multiplicity}
+    {T₁ T₂ : Ty Δ (KV pk₁ m₁)} {U₁ U₂ : Ty Δ (KV pk₂ m₂)}
     {v : Variance}
   → T₁ <<:[ vswap v ] T₂
   → U₁ <<:[ v ] U₂

@@ -137,7 +137,20 @@ joinₜ N-Base (N-ProtoD N₂) = no (λ{ (_ , <:ₜ-base , ())})
 joinₜ (N-Arrow N₁ N₂) (N-Var NV) = no (λ{ (_ , <:ₜ-arrow _ _ , ())})
 joinₜ (N-Arrow N₁ N₂) N-Base = no (λ{ (_ , <:ₜ-arrow _ _ , ())})
 joinₜ (N-Arrow N₁ N₂) (N-Pair N₃ N₄) = no (λ{ (_ , <:ₜ-arrow _ _ , ())})
-joinₜ (N-Arrow N₁ N₂) (N-Arrow N₃ N₄)
+joinₜ (N-Arrow {pk₁ = pk₁} {m₁ = m₁} {pk₂ = pk₂} {m₂ = m₂} N₁ N₂)
+      (N-Arrow {pk₁ = pk₃} {m₁ = m₃} {pk₂ = pk₄} {m₂ = m₄} N₃ N₄)
+  with eq-prekind pk₁ pk₃
+... | no pk₁≢pk₃ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → pk₁≢pk₃ refl })
+... | yes refl
+  with eq-multiplicity m₁ m₃
+... | no m₁≢m₃ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → m₁≢m₃ refl })
+... | yes refl
+  with eq-prekind pk₂ pk₄
+... | no pk₂≢pk₄ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → pk₂≢pk₄ refl })
+... | yes refl
+  with eq-multiplicity m₂ m₄
+... | no m₂≢m₄ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → m₂≢m₄ refl })
+... | yes refl
   with meetₜ N₃ N₁
 ... | no ¬meet = no λ{ (_ , <:ₜ-arrow <:₁ <:₂ , <:ₜ-arrow <:₃ <:₄) → ¬meet (_ , <:₃ , <:₁)}
 ... | yes (N₃⊓N₁ , <:₁ , <:₂)
@@ -337,7 +350,20 @@ meetₜ N-Base (N-ProtoD N₂) = no (λ{ (_ , <:ₜ-base , ())})
 meetₜ (N-Arrow N₁ N₂) (N-Var NV) = no (λ{ (_ , <:ₜ-arrow _ _ , ())})
 meetₜ (N-Arrow N₁ N₂) N-Base = no (λ{ (_ , <:ₜ-arrow _ _ , ())})
 meetₜ (N-Arrow N₁ N₂) (N-Pair N₃ N₄) = no (λ{ (_ , <:ₜ-arrow _ _ , ())})
-meetₜ (N-Arrow N₁ N₂) (N-Arrow N₃ N₄)
+meetₜ (N-Arrow {pk₁ = pk₁} {m₁ = m₁} {pk₂ = pk₂} {m₂ = m₂} N₁ N₂)
+      (N-Arrow {pk₁ = pk₃} {m₁ = m₃} {pk₂ = pk₄} {m₂ = m₄} N₃ N₄)
+  with eq-prekind pk₁ pk₃
+... | no pk₁≢pk₃ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → pk₁≢pk₃ refl })
+... | yes refl
+  with eq-multiplicity m₁ m₃
+... | no m₁≢m₃ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → m₁≢m₃ refl })
+... | yes refl
+  with eq-prekind pk₂ pk₄
+... | no pk₂≢pk₄ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → pk₂≢pk₄ refl })
+... | yes refl
+  with eq-multiplicity m₂ m₄
+... | no m₂≢m₄ = no (λ{ (_ , <:ₜ-arrow _ _ , <:ₜ-arrow _ _) → m₂≢m₄ refl })
+... | yes refl
   with joinₜ N₃ N₁
 ... | no ¬meet = no λ{ (_ , <:ₜ-arrow <:₁ <:₂ , <:ₜ-arrow <:₃ <:₄) → ¬meet (_ , <:₃ , <:₁)}
 ... | yes (N₃⊓N₁ , <:₁ , <:₂)

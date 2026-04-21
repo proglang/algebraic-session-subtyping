@@ -87,7 +87,10 @@ data _<:ₜ_ : NFTy Δ (KV pk m) → NFTy Δ (KV pk m) → Set where
 
   <:ₜ-var : ∀ {nv : NFVar Δ (KV pk m)} → N-Var nv <:ₜ N-Var nv
   <:ₜ-base : N-Base {Δ = Δ} <:ₜ N-Base
-  <:ₜ-arrow : ∀ {M₁ N₁ M₂ N₂ : NFTy Δ TLin}
+  <:ₜ-arrow : ∀
+        {pk₁ pk₂ : PreKind} {m₁ m₂ : Multiplicity}
+        {M₁ : NFTy Δ (KV pk₁ m₁)} {N₁ : NFTy Δ (KV pk₂ m₂)}
+        {M₂ : NFTy Δ (KV pk₁ m₁)} {N₂ : NFTy Δ (KV pk₂ m₂)}
         → M₂ <:ₜ M₁ → N₁ <:ₜ N₂ → (N-Arrow {m = m} M₁ N₁) <:ₜ (N-Arrow {m = m} M₂ N₂)
   <:ₜ-pair : ∀ {m}
         {M₁ M₂ : NFTy Δ (KV pk₁ m)} {N₁ N₂ : NFTy Δ (KV pk₂ m)}
