@@ -4,7 +4,7 @@ open import Data.Fin using (Fin)
 open import Data.List using ([])
 open import Data.Product using (Σ; _,_)
 open import Data.Empty using (⊥)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym)
 
 import Duality
 open import Kinds
@@ -56,12 +56,12 @@ open import ExprContextReduction using
   ; AU-∅
   ; AU-used
   ; AU-un
-  ; MergeCtx
-  ; MC-∅
-  ; MC-used-used
-  ; MC-used-left
-  ; MC-used-right
-  ; MC-un
+  ; FrameCtx
+  ; FC-∅
+  ; FC-allused
+  ; FC-live
+  ; FC-frame
+  ; FC-un
   ; LinearDisjoint
   ; LD-∅
   ; LD-used-used
@@ -187,18 +187,9 @@ allUsedCtx-replace-used-self (thereˡ✖ x∈) =
 allUsedCtx-merge :
   ∀ {n}
     {Γx Γv Γ₁ : Ctx [] n}
-  → LinearDisjoint Γx Γv
-  → MergeCtx Γx Γv Γ₁
+  → FrameCtx Γx Γv Γ₁
   → allUsedCtx Γx ≡ allUsedCtx Γ₁
-allUsedCtx-merge LD-∅ MC-∅ = refl
-allUsedCtx-merge (LD-used-used ld) (MC-used-used merge)
-  rewrite allUsedCtx-merge ld merge = refl
-allUsedCtx-merge (LD-used-live ld) (MC-used-left merge)
-  rewrite allUsedCtx-merge ld merge = refl
-allUsedCtx-merge (LD-live-used ld) (MC-used-right merge)
-  rewrite allUsedCtx-merge ld merge = refl
-allUsedCtx-merge (LD-un-un ld) (MC-un merge)
-  rewrite allUsedCtx-merge ld merge = refl
+allUsedCtx-merge merge = sym (ExprContextReduction.allUsed-merge merge)
 
 end-subtype-invert :
   ∀ {U : NfTy [] TLin}

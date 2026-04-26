@@ -26,14 +26,14 @@ mutual
   data Value (Δ : List Kind) (n : ℕ) : Set where
     V-Const    : Const → Value Δ n
     V-Var      : Fin n → Value Δ n
-    V-Abs      : Ty Δ TLin → Expr Δ (suc n) → Value Δ n
-    V-Rec      : Ty Δ TLin → Ty Δ TLin → Value Δ (suc n) → Value Δ n
+    V-Abs      : Ty Δ (KV pk m) → Expr Δ (suc n) → Value Δ n
+    V-Rec      : Ty Δ (KV pk₁ m₁) → Ty Δ (KV pk₂ m₂) → Value Δ (suc n) → Value Δ n
     V-TAbs     : (K : Kind) → Value (K ∷ Δ) n → Value Δ n
     V-Pair     : Value Δ n → Value Δ n → Value Δ n
-    V-Receive₁ : Ty Δ TLin → Value Δ n
-    V-Receive₂ : Ty Δ TLin → Ty Δ SLin → Value Δ n
-    V-Send₁    : Ty Δ TLin → Value Δ n
-    V-Send₂    : Ty Δ TLin → Ty Δ SLin → Value Δ n
+    V-Receive₁ : Ty Δ (KV pk Lin) → Value Δ n
+    V-Receive₂ : Ty Δ (KV pk Lin) → Ty Δ SLin → Value Δ n
+    V-Send₁    : Ty Δ (KV pk Lin) → Value Δ n
+    V-Send₂    : Ty Δ (KV pk Lin) → Ty Δ SLin → Value Δ n
     V-Select₁  : ∀ {k} → Variance → Fin k → Ty Δ KP → Value Δ n
     V-Select₂  : ∀ {k} → Variance → Fin k → Ty Δ KP → Ty Δ SLin → Value Δ n
 

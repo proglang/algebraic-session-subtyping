@@ -21,3 +21,40 @@ When updating `README.agda`:
 After changing `README.agda`, run the following project verification command from this directory.
 
 `agda -i . README.agda`
+
+## AGENTS.md -- global instructions for the whole project
+
+This is an Agda proof project.
+
+Always run Agda after every nontrivial edit:
+  agda -i . README.agda
+
+Do not weaken theorem statements, do not remove constructors, do not postulate missing proofs,
+do not add TERMINATING/NON_TERMINATING pragmas, do not use --type-in-type unless explicitly asked.
+
+Prefer small local lemmas over large rewrites.
+
+When stuck:
+1. state the current goal and context,
+2. explain the obstruction,
+3. propose one or two lemma statements,
+4. do not make speculative global refactorings.
+
+Preserve existing naming and style.
+
+Use holes deliberately:
+- temporary holes are allowed while exploring;
+- the final patch must contain no new holes unless explicitly requested.
+
+For equality/transport problems:
+- first try pattern matching and with-abstraction;
+- then try rewrite/equational reasoning;
+- only introduce subst/transport lemmas if the proof remains readable.
+
+For termination problems:
+- do not add pragmas;
+- expose a structurally smaller argument;
+- consider auxiliary functions with explicit measures.
+
+
+

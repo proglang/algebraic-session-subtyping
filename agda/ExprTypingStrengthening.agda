@@ -52,6 +52,7 @@ open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; i
 open import ExprNormalTyping
 open import ExprSyntax
 open import ExprContextReduction using (RM-lin)
+open import ExprTypingInversion using (tv-abs-inversion)
 open import ExprTypingLeftover using (leftover-synth)
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
@@ -219,23 +220,23 @@ used-tail-<:Γ {Γ₁ = B-Used T ▻ Γ₁} (<:-used rel) = T , Γ₁ , refl , r
 used-tail-<:Γ {Γ₁ = B-Used T₁ ▻ Γ₁} (<:-sub-used _ rel) = T₁ , Γ₁ , refl , rel
 
 lin-used-head-rigid :
-  ∀ {Δ n K pk}
+  ∀ {Δ n pk pk′ m′}
     {Γin Γout : Ctx Δ n}
     {T T′ : NfTy Δ (KV pk Lin)}
     {e : Expr Δ (suc n)}
-    {U : NfTy Δ K}
+    {U : NfTy Δ (KV pk′ m′)}
   → (T ∷ˡ Γin) ⊢ e ⇒ U ⊣ (B-Used T′ ▻ Γout)
   → T ≡ T′
 lin-used-head-rigid d with leftover-synth d
 ... | _ , RM-lin _ = refl
 
 lin2-used2-head-rigid :
-  ∀ {Δ n K pk₁ pk₂}
+  ∀ {Δ n pk₁ pk₂ pk′ m′}
     {Γin Γout : Ctx Δ n}
     {T T′ : NfTy Δ (KV pk₁ Lin)}
     {U U′ : NfTy Δ (KV pk₂ Lin)}
     {e : Expr Δ (suc (suc n))}
-    {V : NfTy Δ K}
+    {V : NfTy Δ (KV pk′ m′)}
   → (T ∷ˡ (U ∷ˡ Γin)) ⊢ e ⇒ V ⊣ (B-Used T′ ▻ (B-Used U′ ▻ Γout))
   → (T ≡ T′) × (U ≡ U′)
 lin2-used2-head-rigid d with leftover-synth d
@@ -253,12 +254,13 @@ check-subsumption :
 check-subsumption (T-Check d sub) sub′ = T-Check d (<:ₜ-trans sub sub′)
 
 arrow-subtype-inversion :
-  ∀ {Δ m}
-    {A B : NfTy Δ TLin}
+  ∀ {Δ m pk₁ pk₂ m₁ m₂}
+    {A : NfTy Δ (KV pk₁ m₁)}
+    {B : NfTy Δ (KV pk₂ m₂)}
     {X : NfTy Δ (KV KT m)}
   → normalTyOf X <:ₜ normalTyOf (NT.N-Arrow {m = m} A B)
-  → Σ (NfTy Δ TLin) λ A′ →
-      Σ (NfTy Δ TLin) λ B′ →
+  → Σ (NfTy Δ (KV pk₁ m₁)) λ A′ →
+      Σ (NfTy Δ (KV pk₂ m₂)) λ B′ →
         (X ≡ NT.N-Arrow {m = m} A′ B′)
         × (normalTyOf A <:ₜ normalTyOf A′)
         × (normalTyOf B′ <:ₜ normalTyOf B)
@@ -407,9 +409,10 @@ take-no-id :
 take-no-id take = take-not-refl take refl
 
 strengthen-value-rec :
-  ∀ {Δ n}
+  ∀ {Δ n pk₁ m₁ pk₂ m₂}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {T U : Ty Δ TLin}
+    {T : Ty Δ (KV pk₁ m₁)}
+    {U : Ty Δ (KV pk₂ m₂)}
     {v : Value Δ (suc n)}
   → Γ₁ <:Γ Γ₂
   → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₂)
@@ -765,21 +768,21 @@ postulate
 
 postulate
   cohere-strengthened-branches :
-    ∀ {Δ n k}
+    ∀ {Δ n k pk m}
       {Γmid′ Γmid Γ₃ : Ctx Δ n}
       {ssbranches : Subset.Subset (suc k)} {v : Variance}
       {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
       {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
-      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
+      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
     → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
-         Σ (NfTy Δ TLin) λ V′i →
+         Σ (NfTy Δ (KV pk m)) λ V′i →
            Σ (Ctx Δ n) λ Γ₃i →
              ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
                 ⊢ branches i i∈ ⇒ V′i ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃i)
              × (V′i <:ₜ V i i∈)
              × (Γ₃i <:Γ Γ₃))
     → Σ (Ctx Δ n) λ Γ₃′ →
-        Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin) λ V′ →
+        Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)) λ V′ →
           (((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
               (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
                 ⊢ branches i i∈ ⇒ V′ i i∈ ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′))
@@ -788,14 +791,14 @@ postulate
 
 postulate
   branchjoin⁺-monotone :
-    ∀ {Δ k}
+    ∀ {Δ k pk m}
       {ss : Subset.Subset k}
-      {V V′ : (i : Fin k) → i Subset.∈ ss → NfTy Δ TLin}
-      {U : NfTy Δ TLin}
+      {V V′ : (i : Fin k) → i Subset.∈ ss → NfTy Δ (KV pk m)}
+      {U : NfTy Δ (KV pk m)}
       {sub : (i : Fin k) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
     → BranchJoin⁺ ss V ≡ just (U , sub)
     → ((i : Fin k) → (i∈ : i Subset.∈ ss) → V′ i i∈ <:ₜ V i i∈)
-    → Σ (NfTy Δ TLin) λ U′ →
+    → Σ (NfTy Δ (KV pk m)) λ U′ →
         Σ ((i : Fin k) → (i∈ : i Subset.∈ ss) → V′ i i∈ <:ₜ U′) λ sub′ →
           (BranchJoin⁺ ss V′ ≡ just (U′ , sub′))
           × (U′ <:ₜ U)
@@ -803,20 +806,23 @@ postulate
 mutual
 
   strengthen-value-abs :
-    ∀ {Δ n}
+    ∀ {Δ n pk₁}
       {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
-      {T : Ty Δ TLin} {U : NfTy Δ TLin} {e : Expr Δ (suc n)}
+      {T : Ty Δ (KV pk₁ Lin)} {e : Expr Δ (suc n)}
+      {W : NfTy Δ (KV KT Lin)}
     → Γ₁ <:Γ Γ₂
-    → Γ₂ ⊢ᵥ V-Abs T e ⇒ linArrNf (normalizeTy T) U ⊣ Γ₃
-    → Σ (NfTy Δ TLin) λ W′ →
+    → Γ₂ ⊢ᵥ V-Abs T e ⇒ W ⊣ Γ₃
+    → Σ (NfTy Δ (KV KT Lin)) λ W′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ᵥ V-Abs T e ⇒ W′ ⊣ Γ₃′)
-        × (normalTyOf W′ <:ₜ normalTyOf (linArrNf (normalizeTy T) U)
+        × (normalTyOf W′ <:ₜ normalTyOf W
         × Γ₃′ <:Γ Γ₃)
 
-  strengthen-value-abs {Γ₁ = Γ₁} rel (TV-Abs {T = T} {U = U} {e = e} d) =
+  strengthen-value-abs {Γ₁ = Γ₁} {T = T} {e = e} {W = W} rel d
+    with tv-abs-inversion d
+  ... | pk₂ , m₂ , U , eqW , dBody =
     let U′ , Γbody′ , d′ , U′<:U , relBody =
-          strengthen-synth (<:-sub-lin (<:ₜ-refl (normalizeTy T)) rel) d in
+          strengthen-synth (<:-sub-lin (<:ₜ-refl (normalizeTy T)) rel) dBody in
     let Tused , Γ₂′ , eqBody , rel₂ = used-tail-<:Γ relBody in
     let eqHead : normalizeTy T ≡ Tused
         eqHead =
@@ -831,9 +837,26 @@ mutual
           trans
             eqBody
             (cong (λ X → used∷ {T = X} Γ₂′) (sym eqHead)) in
-    linArrNf (normalizeTy T) U′ , Γ₂′ ,
-    TV-Abs (subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′) ,
-    <:ₜ-arrow (<:ₜ-refl (normalizeTy T)) U′<:U ,
+    let d″ :
+          (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ used∷ {T = normalizeTy T} Γ₂′
+        d″ = subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′ in
+    NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy ⌞ U′ ⌟) , Γ₂′ ,
+    TV-Abs {U = ⌞ U′ ⌟}
+      (subst
+        (λ X → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ X ⊣ used∷ {T = normalizeTy T} Γ₂′)
+        (sym (normalizeTy-id U′))
+        d″) ,
+    subst
+      (λ X →
+        normalTyOf (NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy ⌞ U′ ⌟))
+          <:ₜ normalTyOf X)
+      (sym eqW)
+      (<:ₜ-arrow
+        (<:ₜ-refl (normalizeTy T))
+        (subst
+          (λ X → X <:ₜ normalizeTy U)
+          (sym (normalizeTy-id U′))
+          U′<:U)) ,
     rel₂
 
   strengthen-value-tabs :
@@ -911,21 +934,21 @@ mutual
         × Γ₃′ <:Γ Γ₃)
 
   strengthen-synth-match :
-    ∀ {Δ n k}
+    ∀ {Δ n k pk m}
       {Γ₁ Γ₂ Γmid Γ₃ : Ctx Δ n}
       {ss : Subset.Subset (suc k)}
       {ssbranches : Subset.Subset (suc k)} {incl : ss Subset.⊆ ssbranches}
       {ne : Subset.Nonempty ssbranches} {v : Variance}
-      {P : NfTy Δ KP} {S : NfTy Δ SLin} {U : NfTy Δ TLin}
+      {P : NfTy Δ KP} {S : NfTy Δ SLin} {U : NfTy Δ (KV pk m)}
       {e : Expr Δ n}
       {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
-      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
+      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
       {sub : (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
     → Γ₁ <:Γ Γ₂
     → Γ₂ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γmid
     → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
     → BranchJoin⁺ ssbranches V ≡ just (U , sub)
-    → Σ (NfTy Δ TLin) λ U′ →
+    → Σ (NfTy Δ (KV pk m)) λ U′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ E-Match {ss = ssbranches} e ne branches ⇒ U′ ⊣ Γ₃′)
         × (normalTyOf U′ <:ₜ normalTyOf U
@@ -1080,12 +1103,12 @@ mutual
     Γ₃′ , T-Check d′ (<:ₜ-trans sub′ sub) , rel′
 
 strengthen-match-branch :
-  ∀ {Δ n k}
+  ∀ {Δ n k pk m}
     {Γmid′ Γmid Γ₃ : Ctx Δ n}
     {ssbranches : Subset.Subset (suc k)} {v : Variance}
     {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
     {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
-    {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
+    {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
     (i : Fin (suc k)) (i∈ : i Subset.∈ ssbranches)
   → P′ <<:ₚ[ v ] P
   → S′ <:ₜ S
@@ -1093,7 +1116,7 @@ strengthen-match-branch :
   → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid)
       ⊢ branches i i∈ ⇒ V i i∈
       ⊣ used∷ {T = MatchBranchOutput ssbranches v P S i i∈} Γ₃
-  → Σ (NfTy Δ TLin) λ V′i →
+  → Σ (NfTy Δ (KV pk m)) λ V′i →
       Σ (Ctx Δ n) λ Γ₃′ →
         ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
           ⊢ branches i i∈ ⇒ V′i ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′)
@@ -1137,18 +1160,18 @@ strengthen-match-branch
   rel₃
 
 strengthen-match-branches :
-  ∀ {Δ n k}
+  ∀ {Δ n k pk m}
     {Γmid′ Γmid Γ₃ : Ctx Δ n}
     {ssbranches : Subset.Subset (suc k)} {v : Variance}
     {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
     {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
-    {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
+    {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
   → P′ <<:ₚ[ v ] P
   → S′ <:ₜ S
   → Γmid′ <:Γ Γmid
   → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
   → Σ (Ctx Δ n) λ Γ₃′ →
-      Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin) λ V′ →
+      Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)) λ V′ →
         (((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′) ⊢ branches i i∈ ⇒ V′ i i∈ ⊣ used∷ Γ₃′))
         × ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V′ i i∈ <:ₜ V i i∈)
         × (Γ₃′ <:Γ Γ₃)

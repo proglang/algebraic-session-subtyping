@@ -71,42 +71,42 @@ data LinearDisjoint {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Set where
 -- Merge the full context used to type the payload into the updated channel
 -- context. Live linear positions of Γv are turned into `B-Used`; live
 -- unrestricted positions leave Γx unchanged.
-data MergeCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
-  MC-∅ : MergeCtx ∅ ∅ ∅
+data FrameCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
+  FC-∅ : FrameCtx ∅ ∅ ∅
 
-  MC-used-used : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
-    → MergeCtx Γx Γv Γ₁
-    → MergeCtx (B-Used T ▻ Γx) (B-Used T ▻ Γv) (B-Used T ▻ Γ₁)
+  FC-allused : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
+    → FrameCtx Γx Γv Γ₁
+    → FrameCtx (B-Used T ▻ Γx) (B-Used T ▻ Γv) (B-Used T ▻ Γ₁)
 
-  MC-used-left : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
-    → MergeCtx Γx Γv Γ₁
-    → MergeCtx (B-Used T ▻ Γx) (B-Lin T ▻ Γv) (B-Lin T ▻ Γ₁)
+  FC-live : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
+    → FrameCtx Γx Γv Γ₁
+    → FrameCtx (B-Used T ▻ Γx) (B-Lin T ▻ Γv) (B-Lin T ▻ Γ₁)
 
-  MC-used-right : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
-    → MergeCtx Γx Γv Γ₁
-    → MergeCtx (B-Lin T ▻ Γx) (B-Used T ▻ Γv) (B-Lin T ▻ Γ₁)
+  FC-frame : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Lin)}
+    → FrameCtx Γx Γv Γ₁
+    → FrameCtx (B-Lin T ▻ Γx) (B-Used T ▻ Γv) (B-Lin T ▻ Γ₁)
 
-  MC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Un)}
-    → MergeCtx Γx Γv Γ₁
-    → MergeCtx (B-Un T ▻ Γx) (B-Un T ▻ Γv) (B-Un T ▻ Γ₁)
+  FC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Un)}
+    → FrameCtx Γx Γv Γ₁
+    → FrameCtx (B-Un T ▻ Γx) (B-Un T ▻ Γv) (B-Un T ▻ Γ₁)
 
 mergeDisjointContext :
   ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
   → LinearDisjoint Γ₁ Γ₂
-  → Σ (Ctx Δ n) λ Γ → MergeCtx Γ₁ Γ₂ Γ
-mergeDisjointContext LD-∅ = ∅ , MC-∅
+  → Σ (Ctx Δ n) λ Γ → FrameCtx Γ₁ Γ₂ Γ
+mergeDisjointContext LD-∅ = ∅ , FC-∅
 mergeDisjointContext (LD-used-used ld)
   with mergeDisjointContext ld
-... | Γ , m = _ , MC-used-used m
+... | Γ , m = _ , FC-allused m
 mergeDisjointContext (LD-used-live ld)
   with mergeDisjointContext ld
-... | Γ , m = _ , MC-used-left m
+... | Γ , m = _ , FC-live m
 mergeDisjointContext (LD-live-used ld)
   with mergeDisjointContext ld
-... | Γ , m = _ , MC-used-right m
+... | Γ , m = _ , FC-frame m
 mergeDisjointContext {Γ₁ = B-Un T ▻ Γ₁} {Γ₂ = B-Un .T ▻ Γ₂} (LD-un-un {T = T} ld)
   with mergeDisjointContext {Γ₁ = Γ₁} {Γ₂ = Γ₂} ld
-... | Γ , m = (B-Un T ▻ Γ) , MC-un {Γ₁ = Γ} {T = T} m
+... | Γ , m = (B-Un T ▻ Γ) , FC-un {Γ₁ = Γ} {T = T} m
 
 -- Remove a full payload context from a full source context. Live linear
 -- bindings of Γv are consumed from Γ₀; live unrestricted bindings are shared
@@ -138,13 +138,13 @@ remove-allUsedCtx (B-Used _ ▻ Γ) = RM-allused (remove-allUsedCtx Γ)
 
 allUsed-merge :
   ∀ {Δ n} {Γ₀ Γ₁ Γ₂ : Ctx Δ n}
-  → MergeCtx Γ₀ Γ₁ Γ₂
+  → FrameCtx Γ₀ Γ₁ Γ₂
   → allUsedCtx Γ₂ ≡ allUsedCtx Γ₀
-allUsed-merge MC-∅ = refl
-allUsed-merge (MC-used-used mc) rewrite allUsed-merge mc = refl
-allUsed-merge (MC-used-left mc) rewrite allUsed-merge mc = refl
-allUsed-merge (MC-used-right mc) rewrite allUsed-merge mc = refl
-allUsed-merge (MC-un mc) = cong (B-Un _ ▻_) (allUsed-merge mc)
+allUsed-merge FC-∅ = refl
+allUsed-merge (FC-allused mc) rewrite allUsed-merge mc = refl
+allUsed-merge (FC-live mc) rewrite allUsed-merge mc = refl
+allUsed-merge (FC-frame mc) rewrite allUsed-merge mc = refl
+allUsed-merge (FC-un mc) = cong (B-Un _ ▻_) (allUsed-merge mc)
 
 rm-allUsed : ∀ {Δ n} (Γ : Ctx Δ n) → RemoveCtx Γ (allUsedCtx Γ) Γ
 rm-allUsed = remove-allUsedCtx
@@ -158,70 +158,70 @@ remove-unique (RM-un rm₁) (RM-un rm₂) = cong (B-Un _ ▻_) (remove-unique rm
 
 compose-merge-remove :
   ∀ {Δ n} {Γrest Γv Γt G′ Γt′ : Ctx Δ n}
-  → (mcs : MergeCtx Γrest Γv Γt)
+  → (mcs : FrameCtx Γrest Γv Γt)
   → (rmg : RemoveCtx Γrest G′ Γt′)
   → Σ (Ctx Δ n) λ G″ → RemoveCtx Γt G″ Γt′
-compose-merge-remove MC-∅ RM-∅ = ∅ , RM-∅
-compose-merge-remove (MC-used-used mcs) (RM-allused rmg)
+compose-merge-remove FC-∅ RM-∅ = ∅ , RM-∅
+compose-merge-remove (FC-allused mcs) (RM-allused rmg)
   with compose-merge-remove mcs rmg
 ... | G″ , rm = _ , RM-allused rm
-compose-merge-remove (MC-used-left mcs) (RM-allused rmg)
+compose-merge-remove (FC-live mcs) (RM-allused rmg)
   with compose-merge-remove mcs rmg
 ... | G″ , rm = _ , RM-lin rm
-compose-merge-remove (MC-used-right mcs) (RM-drop rmg)
+compose-merge-remove (FC-frame mcs) (RM-drop rmg)
   with compose-merge-remove mcs rmg
 ... | G″ , rm = _ , RM-drop rm
-compose-merge-remove (MC-used-right mcs) (RM-lin rmg)
+compose-merge-remove (FC-frame mcs) (RM-lin rmg)
   with compose-merge-remove mcs rmg
 ... | G″ , rm = _ , RM-lin rm
-compose-merge-remove (MC-un {T = T} mcs) (RM-un rmg)
+compose-merge-remove (FC-un {T = T} mcs) (RM-un rmg)
   with compose-merge-remove mcs rmg
 ... | G″ , rm = B-Un T ▻ G″ , RM-un rm
 
 compose-merge-remove2 :
   ∀ {Δ n} {Γrest Γv Γt G′ Γt′ : Ctx Δ n}
-  → (mcs : MergeCtx Γrest Γv Γt)
+  → (mcs : FrameCtx Γrest Γv Γt)
   → (rmg : RemoveCtx Γrest G′ Γt′)
-  → Σ (Ctx Δ n) λ Γt″ → MergeCtx Γt′ Γv Γt″ × RemoveCtx Γt G′ Γt″
-compose-merge-remove2 MC-∅ RM-∅ = ∅ , MC-∅ , RM-∅
-compose-merge-remove2 (MC-used-left mcs) (RM-allused rmg)
+  → Σ (Ctx Δ n) λ Γt″ → FrameCtx Γt′ Γv Γt″ × RemoveCtx Γt G′ Γt″
+compose-merge-remove2 FC-∅ RM-∅ = ∅ , FC-∅ , RM-∅
+compose-merge-remove2 (FC-live mcs) (RM-allused rmg)
   with compose-merge-remove2 mcs rmg
-... | Γt″ , mc , rm = _ , MC-used-left mc , RM-drop rm
-compose-merge-remove2 (MC-used-right mcs) (RM-drop rmg)
+... | Γt″ , mc , rm = _ , FC-live mc , RM-drop rm
+compose-merge-remove2 (FC-frame mcs) (RM-drop rmg)
   with compose-merge-remove2 mcs rmg
-... | Γt″ , mc , rm = _ , MC-used-right mc , RM-drop rm
-compose-merge-remove2 (MC-used-right mcs) (RM-lin rmg)
+... | Γt″ , mc , rm = _ , FC-frame mc , RM-drop rm
+compose-merge-remove2 (FC-frame mcs) (RM-lin rmg)
   with compose-merge-remove2 mcs rmg
-... | Γt″ , mc , rm = _ , MC-used-used mc , RM-lin rm
-compose-merge-remove2 (MC-used-used mcs) (RM-allused rmg)
+... | Γt″ , mc , rm = _ , FC-allused mc , RM-lin rm
+compose-merge-remove2 (FC-allused mcs) (RM-allused rmg)
   with compose-merge-remove2 mcs rmg
-... | Γt″ , mc , rm = _ , MC-used-used mc , RM-allused rm
-compose-merge-remove2 (MC-un mcs) (RM-un rmg)
+... | Γt″ , mc , rm = _ , FC-allused mc , RM-allused rm
+compose-merge-remove2 (FC-un mcs) (RM-un rmg)
   with compose-merge-remove2 mcs rmg
-... | Γt″ , mc , rm = _ , MC-un mc , RM-un rm
+... | Γt″ , mc , rm = _ , FC-un mc , RM-un rm
 
 mergeRemoveContext :
   ∀ {Δ n} {Γ₀ Γ₁ Γ₂ G₁ G₂ : Ctx Δ n}
   → RemoveCtx Γ₀ G₁ Γ₁
   → RemoveCtx Γ₁ G₂ Γ₂
   → Σ (Ctx Δ n) λ Γ →
-      MergeCtx G₁ G₂ Γ × RemoveCtx Γ₀ Γ Γ₂
-mergeRemoveContext RM-∅ RM-∅ = ∅ , MC-∅ , RM-∅
+      FrameCtx G₁ G₂ Γ × RemoveCtx Γ₀ Γ Γ₂
+mergeRemoveContext RM-∅ RM-∅ = ∅ , FC-∅ , RM-∅
 mergeRemoveContext (RM-drop {T = T} r₁) (RM-drop r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = _ , MC-used-used m , RM-drop r
+... | Γ , m , r = _ , FC-allused m , RM-drop r
 mergeRemoveContext (RM-drop {T = T} r₁) (RM-lin r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = _ , MC-used-left m , RM-lin r
+... | Γ , m , r = _ , FC-live m , RM-lin r
 mergeRemoveContext (RM-allused {T = T} r₁) (RM-allused r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = _ , MC-used-used m , RM-allused r
+... | Γ , m , r = _ , FC-allused m , RM-allused r
 mergeRemoveContext (RM-lin {T = T} r₁) (RM-allused r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = _ , MC-used-right m , RM-lin r
+... | Γ , m , r = _ , FC-frame m , RM-lin r
 mergeRemoveContext (RM-un r₁) (RM-un r₂)
   with mergeRemoveContext r₁ r₂
-... | Γ , m , r = _ , MC-un m , RM-un r
+... | Γ , m , r = _ , FC-un m , RM-un r
 
 remove-linear :
   ∀ {Δ n} {Γ₀ G Γ₁ : Ctx Δ n}
@@ -335,31 +335,31 @@ restore-disjoint (RM-un r) (LD-un-un d₁) (LD-un-un d₂) =
 merge-disjoint :
   ∀ {Δ n}
     {Γx Γv Γ : Ctx Δ n}
-  → MergeCtx Γx Γv Γ
+  → FrameCtx Γx Γv Γ
   → LinearDisjoint Γx Γv
-merge-disjoint MC-∅ = LD-∅
-merge-disjoint (MC-used-used m) = LD-used-used (merge-disjoint m)
-merge-disjoint (MC-used-left m) = LD-used-live (merge-disjoint m)
-merge-disjoint (MC-used-right m) = LD-live-used (merge-disjoint m)
-merge-disjoint (MC-un m) = LD-un-un (merge-disjoint m)
+merge-disjoint FC-∅ = LD-∅
+merge-disjoint (FC-allused m) = LD-used-used (merge-disjoint m)
+merge-disjoint (FC-live m) = LD-used-live (merge-disjoint m)
+merge-disjoint (FC-frame m) = LD-live-used (merge-disjoint m)
+merge-disjoint (FC-un m) = LD-un-un (merge-disjoint m)
 
 merge-preserves-disjoint :
   ∀ {Δ n}
     {Γx Γv Γ₁ Γf : Ctx Δ n}
-  → MergeCtx Γx Γv Γ₁
+  → FrameCtx Γx Γv Γ₁
   → LinearDisjoint Γx Γf
   → LinearDisjoint Γv Γf
   → LinearDisjoint Γ₁ Γf
-merge-preserves-disjoint MC-∅ LD-∅ LD-∅ = LD-∅
-merge-preserves-disjoint (MC-used-used m) (LD-used-used dx) (LD-used-used dv) =
+merge-preserves-disjoint FC-∅ LD-∅ LD-∅ = LD-∅
+merge-preserves-disjoint (FC-allused m) (LD-used-used dx) (LD-used-used dv) =
   LD-used-used (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-used-used m) (LD-used-live dx) (LD-used-live dv) =
+merge-preserves-disjoint (FC-allused m) (LD-used-live dx) (LD-used-live dv) =
   LD-used-live (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-used-left m) (LD-used-used dx) (LD-live-used dv) =
+merge-preserves-disjoint (FC-live m) (LD-used-used dx) (LD-live-used dv) =
   LD-live-used (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-used-right m) (LD-live-used dx) (LD-used-used dv) =
+merge-preserves-disjoint (FC-frame m) (LD-live-used dx) (LD-used-used dv) =
   LD-live-used (merge-preserves-disjoint m dx dv)
-merge-preserves-disjoint (MC-un m) (LD-un-un dx) (LD-un-un dv) =
+merge-preserves-disjoint (FC-un m) (LD-un-un dx) (LD-un-un dv) =
   LD-un-un (merge-preserves-disjoint m dx dv)
 
 -- Pointwise replacement in a full context.
@@ -507,7 +507,7 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γ₀ ∋ˡ x ∶ recvChanNf T S
     → ReplaceAt Γ₀ x (B-Lin S) Γx
     → ReplaceAt Γv-in x (B-Used S) Γv-out
-    → MergeCtx Γx Γv-out Γ₁
+    → FrameCtx Γx Γv-out Γ₁
     → Γ₀ —ctx[ L-RecvVal x v ]→ Γ₁
 
   Ctx-Send : ∀ {n} {Γ₀ Γx Γv Γv′ Γ₁ : Ctx [] n}
@@ -516,7 +516,7 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
     → AllUsed Γv′
     → Γx ∋ˡ x ∶ sendChanNf T S
-    → ReplaceAt Γx x (B-Lin S) Γ₁
+    → ReplaceAt Γx x (B-Lin (sessTyNf S)) Γ₁
     → Γ₀ —ctx[ L-SendVal x v ]→ Γ₁
 
   Ctx-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
@@ -560,7 +560,7 @@ data _—frm[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
 
   Frm-Send : ∀ {n} {Γ₀ Γ₁ : Ctx [] n}
       {x : Fin n} {S : NfTy [] SLin} {v : Value [] n}
-    → ReplaceAt Γ₀ x (B-Used S) Γ₁
+    → ReplaceAt Γ₀ x (B-Used (sessTyNf S)) Γ₁
     → Γ₀ —frm[ L-SendVal x v ]→ Γ₁
 
   Frm-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
@@ -725,7 +725,7 @@ data Compatible :
       {x∈ : Γ₀ ∋ˡ x ∶ recvChanNf T S}
       {rep : ReplaceAt Γ₀ x (B-Lin S) Γx}
       {repused : ReplaceAt Γv x (B-Used S) Γv-out}
-      {merge : MergeCtx Γx Γv-out Γ₁}
+      {merge : FrameCtx Γx Γv-out Γ₁}
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
@@ -740,7 +740,7 @@ data Compatible :
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
       {auv : AllUsed Γv′}
       {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
-      {rep : ReplaceAt Γx x (B-Lin S) Γ₁}
+      {rep : ReplaceAt Γx x (B-Lin (sessTyNf S)) Γ₁}
       {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendVal x v}
         (Ctx-Send rm dv auv x∈ rep) (Label-SendVal take dv auv)
@@ -957,7 +957,7 @@ ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Rcv {x = x} {S = S} ⊢v au-vrest l
 ... | ld-vout-f' =
   Γf′ , Frm-Rcv repused ,  merge-preserves-disjoint mcxv ldxf ld-vout-f'
 ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Send {x = x} {S = S} remv ⊢v au-vrest x∈ rep-x) (Label-SendVal ⊢x ⊢v' au-v'rest) Compat-SendVal ld0 ldv
-  with replace-at Γf x (B-Used S)
+  with replace-at Γf x (B-Used (sessTyNf S))
 ... | Γf′ , repused
   with remove-preserves-disjoint remv ld0
 ... | ldxf = Γf′ , (Frm-Send repused) , replace-frames-disjoint ldxf rep-x repused
@@ -970,4 +970,3 @@ ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Match {ssout = ssout} {x = x} {v = 
 ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Select {x = x} {i} {v = v} {P} {S} x∈ rep-lin) (Label-SendLab ⊢x au-v) Compat-Select ld0 ldv
   with replace-at Γf x (B-Used (selectOutNf v i P S))
 ... | Γf′ , repframe = Γf′ , Frm-Select repframe , replace-frames-disjoint ld0 rep-lin repframe
-

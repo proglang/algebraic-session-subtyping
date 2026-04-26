@@ -9,6 +9,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans
 open import Kinds
 open import Duality
 open import Types
+import NormalTypes as NT using (N-Arrow)
 open import ExprSyntax using (Expr; Value; Const; E-Val; E-Match; V-Pair)
 open import ExprNormalTyping
 open import ExprTypingInversion using (abs-inversion; rec-inversion; tabs-inversion)
@@ -237,21 +238,25 @@ strip-take (take-there✖ p)
 
 postulate
   strip-value-abs :
-    ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {U : NfTy Δ TLin} {e : Expr Δ (suc n)}
-    → (T ∷ⁿˡ Γ₀) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₁)
+    ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n}
+      {pk₁ pk₂ m₂}
+      {T : Ty Δ (KV pk₁ Lin)} {U : Ty Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+    → (T ∷ⁿˡ Γ₀) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ Γ₁)
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
-          RemoveCtx Γ₀ G Γ₁ × ((T ∷ⁿˡ G) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ G′)) × AllUsed G′
+          RemoveCtx Γ₀ G Γ₁ × ((T ∷ⁿˡ G) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ G′)) × AllUsed G′
 
   strip-value-rec :
-    ∀ {Δ n} {Γ₀ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
-    → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
-        ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-        ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
+    ∀ {Δ n} {Γ₀ : Ctx Δ n}
+      {pk₁ pk₂ m₁ m₂}
+      {T : Ty Δ (KV pk₁ m₁)} {U : Ty Δ (KV pk₂ m₂)} {v : Value Δ (suc n)}
+    → (NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
+        ⊢ E-Val v ⇐ NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U)
+        ⊣ (NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₀)
     → Σ (Ctx Δ n) λ G →
-          RemoveCtx Γ₀ G Γ₀ × ((unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ G)
-            ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-            ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ G)) × AllUsed G
+          RemoveCtx Γ₀ G Γ₀ × ((NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ G)
+            ⊢ E-Val v ⇐ NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U)
+            ⊣ (NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ G)) × AllUsed G
 
   strip-value-tabs :
     ∀ {Δ n K m} {Γ₀ Γ₁ : Ctx Δ n} {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV KT m)}
@@ -261,38 +266,40 @@ postulate
           RemoveCtx Γ₀ G Γ₁ × (wkCtx {K = K} G ⊢ᵥ v ⇒ T ⊣ wkCtx G′) × AllUsed G′
 
   strip-synth :
-    ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+    ∀ {Δ n pk m} {Γ₀ Γ₁ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
     → Γ₀ ⊢ e ⇒ T ⊣ Γ₁
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
           RemoveCtx Γ₀ G Γ₁ × (G ⊢ e ⇒ T ⊣ G′) × AllUsed G′
 
 strip-value-abs-case :
-  ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {U : NfTy Δ TLin} {e : Expr Δ (suc n)}
-  → Γ₀ ⊢ᵥ Value.V-Abs T e ⇒ linArrNf (normalizeTy T) U ⊣ Γ₁
+  ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n}
+    {pk₁ pk₂ m₂}
+    {T : Ty Δ (KV pk₁ Lin)} {U : Ty Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+  → Γ₀ ⊢ᵥ Value.V-Abs T e ⇒ NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U) ⊣ Γ₁
   → Σ (Ctx Δ n) λ G →
       Σ (Ctx Δ n) λ G′ →
-        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Abs T e ⇒ linArrNf (normalizeTy T) U ⊣ G′) × AllUsed G′
+        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Abs T e ⇒ NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U) ⊣ G′) × AllUsed G′
 strip-value-abs-case {T = T} {U = U} {e = e} d
   with abs-inversion d
-... | U′ , eq , body
-  with linArrNf-injective eq
-... | _ , eqU
+... | pk₂ , m₂ , U′ , eqW , body
   with strip-value-abs {T = T} {U = U′} {e = e} body
 ... | G , G′ , r , d′ , au =
   G , G′ , r ,
   subst
     (λ X → G ⊢ᵥ Value.V-Abs T e ⇒ X ⊣ G′)
-    (cong (linArrNf (normalizeTy T)) (sym eqU))
-    (TV-Abs d′) ,
+    (sym eqW)
+    (TV-Abs {T = T} {U = U′} d′) ,
   au
 
 strip-value-rec-case :
-  ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
-  → Γ₀ ⊢ᵥ Value.V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ₁
+  ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n}
+    {pk₁ pk₂ m₁ m₂}
+    {T : Ty Δ (KV pk₁ m₁)} {U : Ty Δ (KV pk₂ m₂)} {v : Value Δ (suc n)}
+  → Γ₀ ⊢ᵥ Value.V-Rec T U v ⇒ NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ⊣ Γ₁
   → Σ (Ctx Δ n) λ G →
       Σ (Ctx Δ n) λ G′ →
-        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ G′) × AllUsed G′
+        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Rec T U v ⇒ NT.N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ⊣ G′) × AllUsed G′
 strip-value-rec-case {Γ₀ = Γ₀} {T = T} {U = U} {v = v} d
   with rec-inversion d
 ... | eqΓ , refl , body
@@ -300,7 +307,7 @@ strip-value-rec-case {Γ₀ = Γ₀} {T = T} {U = U} {v = v} d
 ... | G , r , d′ , au =
   G , G ,
   subst (λ X → RemoveCtx Γ₀ G X) eqΓ r ,
-  TV-Rec d′ ,
+  TV-Rec {T = T} {U = U} d′ ,
   au
 
 strip-value-tabs-case :
@@ -335,7 +342,7 @@ strip-check (T-Check d sub)
 
 mutual
   strip-value :
-    ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+    ∀ {Δ n pk m} {Γ₀ Γ₁ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ (KV pk m)}
     → Γ₀ ⊢ᵥ v ⇒ T ⊣ Γ₁
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
@@ -349,11 +356,11 @@ mutual
   strip-value {Γ₀ = Γ₀} (TV-Var-Un x∈) =
     allUsedCtx Γ₀ , allUsedCtx Γ₀ ,
     remove-allUsedCtx Γ₀ , TV-Var-Un (allUsedCtx-∋ᵘ x∈) , allUsedCtx-AllUsed Γ₀
-  strip-value d@(TV-Abs _)
-    with strip-value-abs-case d
+  strip-value d@(TV-Abs {T = T} {U = U} _)
+    with strip-value-abs-case {T = T} {U = U} d
   ... | G , G′ , r , d′ , au = G , G′ , r , d′ , au
-  strip-value d@(TV-Rec _)
-    with strip-value-rec-case d
+  strip-value d@(TV-Rec {T = T} {U = U} _)
+    with strip-value-rec-case {T = T} {U = U} d
   ... | G , G′ , r , d′ , au = G , G′ , r , d′ , au
   strip-value d@(TV-TAbs _)
     with strip-value-tabs-case d
@@ -388,7 +395,7 @@ mutual
 
 mutual
   leftover-value :
-    ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+    ∀ {Δ n pk m} {Γ₀ Γ₁ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ (KV pk m)}
     → Γ₀ ⊢ᵥ v ⇒ T ⊣ Γ₁
     → Σ (Ctx Δ n) λ G → RemoveCtx Γ₀ G Γ₁
   leftover-value (TV-Const _) = _ , remove-refl _
@@ -419,7 +426,7 @@ mutual
   leftover-value TV-Select₂ = _ , remove-refl _
 
   leftover-synth :
-    ∀ {Δ n K} {Γ₀ Γ₁ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+    ∀ {Δ n pk m} {Γ₀ Γ₁ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
     → Γ₀ ⊢ e ⇒ T ⊣ Γ₁
     → Σ (Ctx Δ n) λ G → RemoveCtx Γ₀ G Γ₁
   leftover-synth (T-Val d) = leftover-value d

@@ -150,10 +150,10 @@ wkCtx (b ▻ Γ) = wkBinding b ▻ wkCtx Γ
 LinArr : Ty Δ TLin → Ty Δ TLin → Ty Δ TLin
 LinArr = T-Arrow {m = Lin}
 
-linArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ TLin
+linArrNf : NfTy Δ (KV pk₁ m₁) → NfTy Δ (KV pk₂ m₂) → NfTy Δ (KV KT Lin)
 linArrNf = N-Arrow
 
-unArrNf : NfTy Δ TLin → NfTy Δ TLin → NfTy Δ (KV KT Un)
+unArrNf : NfTy Δ (KV pk₁ m₁) → NfTy Δ (KV pk₂ m₂) → NfTy Δ (KV KT Un)
 unArrNf = N-Arrow
 
 pairNf : ∀ {pk₁ pk₂ m}
@@ -188,21 +188,21 @@ NewTy = T-Poly SLin
 wkTy : ∀ {K K′} → Ty Δ K → Ty (K′ ∷ Δ) K
 wkTy {K′ = K′} T = T ⋯ weakenᵣ K′
 
-ReceiveTy : Ty Δ TLin → Ty Δ SLin → Ty Δ TLin
+ReceiveTy : Ty Δ (KV pk Lin) → Ty Δ SLin → Ty Δ TLin
 ReceiveTy T S = LinArr
   (SessLin (T-Msg ⊝ (T-Up T) S))
   (T-Pair T S)
 
-ReceiveTy1 : Ty Δ TLin → Ty Δ TLin
+ReceiveTy1 : Ty Δ (KV pk Lin) → Ty Δ TLin
 ReceiveTy1 T = T-Poly SLin
   (ReceiveTy (wkTy {K′ = SLin} T) (T-Var (here refl)))
 
-SendTy : Ty Δ TLin → Ty Δ SLin → Ty Δ TLin
+SendTy : Ty Δ (KV pk Lin) → Ty Δ SLin → Ty Δ TLin
 SendTy T S = LinArr
   (T-Pair T (T-Msg ⊕ (T-Up T) S))
   (SessLin S)
 
-SendTy1 : Ty Δ TLin → Ty Δ TLin
+SendTy1 : Ty Δ (KV pk Lin) → Ty Δ TLin
 SendTy1 T = T-Poly SLin
   (SendTy (wkTy {K′ = SLin} T) (T-Var (here refl)))
 
@@ -228,13 +228,13 @@ newConstNf =
       (N-Var (NV-Var (here refl)))
       (N-Var (NV-Dual D-S (here refl))))
 
-receiveNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
+receiveNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ TLin
 receiveNf T S =
   linArrNf
     (sessTyNf (msgNF ⊝ (N-Normal (N-Up T)) S))
     (pairNf T S)
 
-receive1Nf : NfTy Δ TLin → NfTy Δ TLin
+receive1Nf : NfTy Δ (KV pk Lin) → NfTy Δ TLin
 receive1Nf {Δ = Δ} T =
   polyNf {K = SLin}
     (receiveNf (wkNfTy {K′ = SLin} T) (N-Var (NV-Var (here refl))))
@@ -243,16 +243,16 @@ receiveConstNf : NfTy Δ TLin
 receiveConstNf =
   polyNf {K = TLin} (receive1Nf (N-Var (NV-Var (here refl))))
 
-sendResultNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
+sendResultNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ TLin
 sendResultNf T S = sessTyNf S
 
-sendNf : NfTy Δ TLin → NfTy Δ SLin → NfTy Δ TLin
+sendNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ TLin
 sendNf T S =
   linArrNf
     (pairNf T (msgNF ⊕ (N-Normal (N-Up T)) S))
     (sessTyNf S)
 
-send1Nf : NfTy Δ TLin → NfTy Δ TLin
+send1Nf : NfTy Δ (KV pk Lin) → NfTy Δ TLin
 send1Nf {Δ = Δ} T =
   polyNf {K = SLin}
     (sendNf (wkNfTy {K′ = SLin} T) (N-Var (NV-Var (here refl))))
@@ -300,9 +300,9 @@ MatchBranchOutput : ∀ {k} → (ss : Subset.Subset (suc k)) → Variance → Nf
 MatchBranchOutput {k = k} ss v P S i x = materialize-atNf (ProtocolConstructors (suc k) v) i ⊝ P S
 
 
-BranchJoin⁺ : ∀ {k} (ss : Subset.Subset k)
-    → (V : ∀ i → i Subset.∈ ss → NfTy Δ TLin)
-    → Maybe (Σ (NfTy Δ TLin) λ N → ∀ i → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ N)
+BranchJoin⁺ : ∀ {k pk m} (ss : Subset.Subset k)
+    → (V : ∀ i → i Subset.∈ ss → NfTy Δ (KV pk m))
+    → Maybe (Σ (NfTy Δ (KV pk m)) λ N → ∀ i → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ N)
 BranchJoin⁺ {Δ} {k} [] V = nothing
 BranchJoin⁺ {Δ} {k} (Subset.outside ∷ ss) V
   with BranchJoin⁺ ss (λ i i∈ → V (suc i) (there i∈))
@@ -374,8 +374,8 @@ mutual
       → Γ ⊢ˡ x ∶ T ⊣ Γ′
       → (B-Used U ▻ Γ) ⊢ˡ suc x ∶ T ⊣ (B-Used U ▻ Γ′)
 
-  data _⊢ᵥ_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Value Δ n → ∀ {K} → NfTy Δ K → Ctx Δ n → Set where
-    TV-Const : ∀ {n} {Γ₁ : Ctx Δ n} {c K} {T : NfTy Δ K}
+  data _⊢ᵥ_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Value Δ n → ∀ {pk m} → NfTy Δ (KV pk m) → Ctx Δ n → Set where
+    TV-Const : ∀ {n} {Γ₁ : Ctx Δ n} {c pk m} {T : NfTy Δ (KV pk m)}
       → ConstTy c T
       → Γ₁ ⊢ᵥ V-Const c ⇒ T ⊣ Γ₁
 
@@ -387,15 +387,19 @@ mutual
       → Γ₁ ∋ᵘ x ∶ T
       → Γ₁ ⊢ᵥ V-Var x ⇒ T ⊣ Γ₁
 
-    TV-Abs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {U : NfTy Δ TLin} {e : Expr Δ (suc n)}
-      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
-      → Γ₁ ⊢ᵥ V-Abs T e ⇒ linArrNf (normalizeTy T) U ⊣ Γ₂
+    TV-Abs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n}
+        {pk₁ pk₂ m₂}
+        {T : Ty Δ (KV pk₁ Lin)} {U : Ty Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
+      → Γ₁ ⊢ᵥ V-Abs T e ⇒ N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U) ⊣ Γ₂
 
-    TV-Rec : ∀ {n} {Γ₁ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)}
-      → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-          ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-          ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-      → Γ₁ ⊢ᵥ V-Rec T U v ⇒ unArrNf (normalizeTy T) (normalizeTy U) ⊣ Γ₁
+    TV-Rec : ∀ {n} {Γ₁ : Ctx Δ n}
+        {pk₁ pk₂ m₁ m₂}
+        {T : Ty Δ (KV pk₁ m₁)} {U : Ty Δ (KV pk₂ m₂)} {v : Value Δ (suc n)}
+      → (N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+          ⊢ E-Val v ⇐ N-Arrow {m = Un} (normalizeTy T) (normalizeTy U)
+          ⊣ (N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+      → Γ₁ ⊢ᵥ V-Rec T U v ⇒ N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ⊣ Γ₁
 
     TV-TAbs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K m}
         {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV KT m)}
@@ -409,16 +413,16 @@ mutual
       → Γ₂ ⊢ᵥ v₂ ⇒ U ⊣ Γ₃
       → Γ₁ ⊢ᵥ V-Pair v₁ v₂ ⇒ pairNf T U ⊣ Γ₃
 
-    TV-Receive₁ : ∀ {n} {Γ₁ : Ctx Δ n} {T : Ty Δ TLin}
+    TV-Receive₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)}
       → Γ₁ ⊢ᵥ V-Receive₁ T ⇒ receive1Nf (normalizeTy T) ⊣ Γ₁
 
-    TV-Receive₂ : ∀ {n} {Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin}
+    TV-Receive₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)} {S : Ty Δ SLin}
       → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ receiveNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
 
-    TV-Send₁ : ∀ {n} {Γ₁ : Ctx Δ n} {T : Ty Δ TLin}
+    TV-Send₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)}
       → Γ₁ ⊢ᵥ V-Send₁ T ⇒ send1Nf (normalizeTy T) ⊣ Γ₁
 
-    TV-Send₂ : ∀ {n} {Γ₁ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin}
+    TV-Send₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)} {S : Ty Δ SLin}
       → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ sendNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
 
     TV-Select₁ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP}
@@ -427,8 +431,8 @@ mutual
     TV-Select₂ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP} {S : Ty Δ SLin}
       → Γ₁ ⊢ᵥ V-Select₂ v i P S ⇒ selectNf v i (normalizeTy P) (normalizeTy S) ⊣ Γ₁
 
-  data _⊢_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Expr Δ n → ∀ {K} → NfTy Δ K → Ctx Δ n → Set where
-    T-Val : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {v : Value Δ n} {K} {T : NfTy Δ K}
+  data _⊢_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Expr Δ n → ∀ {pk m} → NfTy Δ (KV pk m) → Ctx Δ n → Set where
+    T-Val : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {v : Value Δ n} {pk m} {T : NfTy Δ (KV pk m)}
       → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
       → Γ₁ ⊢ E-Val v ⇒ T ⊣ Γ₂
 
@@ -440,19 +444,22 @@ mutual
       → Γ₁ ⊢ E-Pair e₁ e₂ ⇒ pairNf T U ⊣ Γ₃
 
     T-App : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {e₁ e₂ : Expr Δ n}
-        {m : Multiplicity}
-        {T U : NfTy Δ TLin}
+        {m m₁ m₂ : Multiplicity} {pk₁ pk₂ : PreKind}
+        {T : NfTy Δ (KV pk₁ m₁)} {U : NfTy Δ (KV pk₂ m₂)}
       → Γ₁ ⊢ e₁ ⇒ N-Arrow {m = m} T U ⊣ Γ₂
       → Γ₂ ⊢ e₂ ⇐ T ⊣ Γ₃
       → Γ₁ ⊢ E-App e₁ e₂ ⇒ U ⊣ Γ₃
 
-    T-LetUnit : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {e₁ e₂ : Expr Δ n} {T : NfTy Δ TLin}
+    T-LetUnit : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {e₁ e₂ : Expr Δ n}
+        {pk : PreKind} {m : Multiplicity}
+        {T : NfTy Δ (KV pk m)}
       → Γ₁ ⊢ e₁ ⇐ unitConstNf ⊣ Γ₂
       → Γ₂ ⊢ e₂ ⇒ T ⊣ Γ₃
       → Γ₁ ⊢ E-LetUnit e₁ e₂ ⇒ T ⊣ Γ₃
 
-    T-LetPair : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {pk₁ pk₂}
-        {T : NfTy Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ Lin)} {V : NfTy Δ TLin}
+    T-LetPair : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
+        {pk₁ pk₂ : PreKind} {pk : PreKind} {m : Multiplicity}
+        {T : NfTy Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ Lin)} {V : NfTy Δ (KV pk m)}
         {e₁ : Expr Δ n} {e₂ : Expr Δ (suc (suc n))}
       → Γ₁ ⊢ e₁ ⇒ pairNf T U ⊣ Γ₂
       → (T ∷ˡ (U ∷ˡ Γ₂)) ⊢ e₂ ⇒ V ⊣ (B-Used T ▻ (B-Used U ▻ Γ₃))
@@ -461,9 +468,10 @@ mutual
     T-Match : ∀ {n} {Γ₁ Γ₂ Γ₃ : Ctx Δ n} {k} {e : Expr Δ n}
         {ss : Subset.Subset (suc k)} {v : Variance}
         {ssbranches : Subset.Subset (suc k)} {incl : ss Subset.⊆ ssbranches} {ne : Subset.Nonempty ssbranches}
-        {P : NfTy Δ KP} {S : NfTy Δ SLin} {U : NfTy Δ TLin}
+        {P : NfTy Δ KP} {S : NfTy Δ SLin} {pk : PreKind} {m : Multiplicity}
+        {U : NfTy Δ (KV pk m)}
         {branches : ∀ i → (i∈ : i Subset.∈ ssbranches) → Expr Δ (suc n)}
-        {V : ∀ i →  i Subset.∈ ssbranches → NfTy Δ TLin}
+        {V : ∀ i →  i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
         {sub : ∀ i → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
       → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
       → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →

@@ -14,7 +14,7 @@ open import Kits
 open import Variance using (Variance)
 import Types
 open import Types using (Ty)
-open import NormalTypes using (N-Var; NV-Var; nfTyTy-fromNormalTy; toNormalTy)
+open import NormalTypes using (N-Var; N-Arrow; NV-Var; nfTyTy-fromNormalTy; toNormalTy)
 open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-sub; <:ₜ-msg; <:ₚ′-proto)
 open import ExprSyntax
   using
@@ -80,11 +80,16 @@ tabs-inversion :
 tabs-inversion (TV-TAbs {T = T} p) = T , refl , p
 
 abs-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {e : Expr Δ (suc n)} {W : NfTy Δ TLin}
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
+    {pk₁}
+    {T : Ty Δ (KV pk₁ Lin)} {e : Expr Δ (suc n)} {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ V-Abs T e ⇒ W ⊣ Γ₂
-  → Σ (NfTy Δ TLin) λ U →
-      (W ≡ linArrNf (normalizeTy T) U) × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂))
-abs-inversion (TV-Abs {U = U} p) = U , refl , p
+  → Σ PreKind (λ pk₂ →
+      Σ Multiplicity (λ m₂ →
+        Σ (Ty Δ (KV pk₂ m₂)) λ U →
+          (W ≡ N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U))
+          × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ Γ₂))))
+abs-inversion (TV-Abs {pk₂ = pk₂} {m₂ = m₂} {U = U} p) = pk₂ , m₂ , U , refl , p
 
 pair-inversion :
   ∀ {Δ n m} {Γ₁ Γ₃ : Ctx Δ n} {u v : Value Δ n} {W : NfTy Δ (KV KT m)}
@@ -106,17 +111,20 @@ pair-inversion′ :
 pair-inversion′ (TV-Pair p q) = _ , p , q
 
 rec-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T U : Ty Δ TLin} {v : Value Δ (suc n)} {W : NfTy Δ (KV KT Un)}
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
+    {pk₁ pk₂ m₁ m₂}
+    {T : Ty Δ (KV pk₁ m₁)} {U : Ty Δ (KV pk₂ m₂)} {v : Value Δ (suc n)}
+    {W : NfTy Δ (KV KT Un)}
   → Γ₁ ⊢ᵥ V-Rec T U v ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) ×
-    ((W ≡ unArrNf (normalizeTy T) (normalizeTy U)) ×
-     ((unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-       ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-       ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)))
+    ((W ≡ N-Arrow {m = Un} (normalizeTy T) (normalizeTy U)) ×
+     ((N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+       ⊢ E-Val v ⇐ N-Arrow {m = Un} (normalizeTy T) (normalizeTy U)
+       ⊣ (N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)))
 rec-inversion (TV-Rec p) = refl , refl , p
 
 receive₂-inversion :
-  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {T : Ty Δ TLin} {S : Ty Δ SLin} {W : NfTy Δ TLin}
+  ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)} {S : Ty Δ SLin} {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ receiveNf (normalizeTy T) (normalizeTy S))
 receive₂-inversion TV-Receive₂ = refl , refl
@@ -529,8 +537,8 @@ select₂-shape {v = v} {i = i} {P = P} {S = S} vr
 tv-const-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {c K}
-    {T : NfTy Δ K}
+    {c pk m}
+    {T : NfTy Δ (KV pk m)}
   → Γ₁ ⊢ᵥ Value.V-Const c ⇒ T ⊣ Γ₂
   → ConstTy c T × (Γ₁ ≡ Γ₂)
 tv-const-inversion (TV-Const cT) = cT , refl
@@ -551,27 +559,32 @@ tv-var-inversion (TV-Var-Un x∈) = inj₂₀ (refl , (x∈ , refl))
 tv-abs-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {A : Ty Δ TLin}
+    {pk₁}
+    {A : Ty Δ (KV pk₁ Lin)}
     {e : Expr Δ (suc n)}
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Abs A e ⇒ W ⊣ Γ₂
-  → Σ (NfTy Δ TLin) λ U →
-      (W ≡ linArrNf (normalizeTy A) U)
-      × ((normalizeTy A ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ used∷ {T = normalizeTy A} Γ₂)
-tv-abs-inversion (TV-Abs d) = _ , refl , d
+  → Σ PreKind (λ pk₂ →
+      Σ Multiplicity (λ m₂ →
+        Σ (Ty Δ (KV pk₂ m₂)) λ U →
+          (W ≡ N-Arrow {m = Lin} (normalizeTy A) (normalizeTy U))
+          × ((normalizeTy A ∷ˡ Γ₁) ⊢ e ⇒ normalizeTy U ⊣ used∷ {T = normalizeTy A} Γ₂)))
+tv-abs-inversion (TV-Abs {pk₂ = pk₂} {m₂ = m₂} {U = U} d) =
+  pk₂ , m₂ , U , refl , d
 
 tv-rec-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {A B : Ty Δ TLin}
+    {pk₁ pk₂ m₁ m₂}
+    {A : Ty Δ (KV pk₁ m₁)} {B : Ty Δ (KV pk₂ m₂)}
     {v : Value Δ (suc n)}
     {W : NfTy Δ (KV KT Un)}
   → Γ₁ ⊢ᵥ Value.V-Rec A B v ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂)
-    × ((W ≡ unArrNf (normalizeTy A) (normalizeTy B))
-      × ((unArrNf (normalizeTy A) (normalizeTy B) ∷ᵘ Γ₁)
-          ⊢ E-Val v ⇐ unArrNf (normalizeTy A) (normalizeTy B)
-          ⊣ (unArrNf (normalizeTy A) (normalizeTy B) ∷ᵘ Γ₁)))
+    × ((W ≡ N-Arrow {m = Un} (normalizeTy A) (normalizeTy B))
+      × ((N-Arrow {m = Un} (normalizeTy A) (normalizeTy B) ∷ᵘ Γ₁)
+          ⊢ E-Val v ⇐ N-Arrow {m = Un} (normalizeTy A) (normalizeTy B)
+          ⊣ (N-Arrow {m = Un} (normalizeTy A) (normalizeTy B) ∷ᵘ Γ₁)))
 tv-rec-inversion (TV-Rec d) = refl , refl , d
 
 tv-tabs-inversion :
@@ -602,7 +615,7 @@ tv-pair-inversion (TV-Pair {pk₁ = pk₁} {pk₂ = pk₂} d₁ d₂) =
 tv-receive₁-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {T : Ty Δ TLin}
+    {pk} {T : Ty Δ (KV pk Lin)}
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Receive₁ T ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ receive1Nf (normalizeTy T))
@@ -611,7 +624,7 @@ tv-receive₁-inversion TV-Receive₁ = refl , refl
 tv-receive₂-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {T : Ty Δ TLin}
+    {pk} {T : Ty Δ (KV pk Lin)}
     {S : Ty Δ SLin}
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Receive₂ T S ⇒ W ⊣ Γ₂
@@ -621,7 +634,7 @@ tv-receive₂-inversion TV-Receive₂ = refl , refl
 tv-send₁-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {T : Ty Δ TLin}
+    {pk} {T : Ty Δ (KV pk Lin)}
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Send₁ T ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ send1Nf (normalizeTy T))
@@ -630,7 +643,7 @@ tv-send₁-inversion TV-Send₁ = refl , refl
 tv-send₂-inversion :
   ∀ {Δ n}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {T : Ty Δ TLin}
+    {pk} {T : Ty Δ (KV pk Lin)}
     {S : Ty Δ SLin}
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Send₂ T S ⇒ W ⊣ Γ₂

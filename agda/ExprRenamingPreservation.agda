@@ -54,10 +54,10 @@ wkCtx-insertAt (suc k) b (b′ ▻ Γ) =
   cong (wkBinding b′ ▻_) (wkCtx-insertAt k b Γ)
 
 cast-value-ctx :
-  ∀ {Δ n K}
+  ∀ {Δ n pk m}
     {Γ₁ Γ₂ Γ₁′ Γ₂′ : Ctx Δ n}
     {v : Value Δ n}
-    {T : NfTy Δ K}
+    {T : NfTy Δ (KV pk m)}
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
   → Γ₁ ≡ Γ₁′
   → Γ₂ ≡ Γ₂′
@@ -97,22 +97,22 @@ lift-take-at (suc k) b (take-there✖ take) = take-there✖ (lift-take-at k b ta
 mutual
 
   ren-preserves-value :
-    ∀ {Δ n K}
+    ∀ {Δ n pk m}
       (k : ℕ)
       (b : Binding Δ)
       {Γ₁ Γ₂ : Ctx Δ (k + n)}
       {v : Value Δ (k + n)}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk m)}
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
     → insertAt k b Γ₁ ⊢ᵥ renameValue (liftRen k) v ⇒ T ⊣ insertAt k b Γ₂
 
   ren-preserves-synth :
-    ∀ {Δ n K}
+    ∀ {Δ n pk m}
       (k : ℕ)
       (b : Binding Δ)
       {Γ₁ Γ₂ : Ctx Δ (k + n)}
       {e : Expr Δ (k + n)}
-      {T : NfTy Δ K}
+      {T : NfTy Δ (KV pk m)}
     → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
     → insertAt k b Γ₁ ⊢ renameExpr (liftRen k) e ⇒ T ⊣ insertAt k b Γ₂
 
@@ -131,8 +131,8 @@ mutual
     TV-Var-Lin (lift-take-at k b take)
   ren-preserves-value k b (TV-Var-Un x∈) =
     TV-Var-Un (lift-∋ᵘ-at k b x∈)
-  ren-preserves-value k b (TV-Abs d) =
-    TV-Abs (ren-preserves-synth (suc k) b d)
+  ren-preserves-value k b (TV-Abs {T = A} {U = U} d) =
+    TV-Abs {T = A} {U = U} (ren-preserves-synth (suc k) b d)
   ren-preserves-value k b (TV-Rec d) =
     TV-Rec (ren-preserves-check (suc k) b d)
   ren-preserves-value k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} (TV-TAbs {K = K} d) =
@@ -208,21 +208,21 @@ mutual
     T-Check (ren-preserves-synth k b d) sub
 
 wk-preserves-value :
-  ∀ {Δ n K}
+  ∀ {Δ n pk m}
     (b : Binding Δ)
     {Γ₁ Γ₂ : Ctx Δ n}
     {v : Value Δ n}
-    {T : NfTy Δ K}
+    {T : NfTy Δ (KV pk m)}
   → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
   → (b ▻ Γ₁) ⊢ᵥ wkValue v ⇒ T ⊣ (b ▻ Γ₂)
 wk-preserves-value b d = ren-preserves-value 0 b d
 
 wk-preserves-synth :
-  ∀ {Δ n K}
+  ∀ {Δ n pk m}
     (b : Binding Δ)
     {Γ₁ Γ₂ : Ctx Δ n}
     {e : Expr Δ n}
-    {T : NfTy Δ K}
+    {T : NfTy Δ (KV pk m)}
   → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
   → (b ▻ Γ₁) ⊢ renameExpr suc e ⇒ T ⊣ (b ▻ Γ₂)
 wk-preserves-synth b d = ren-preserves-synth 0 b d
@@ -467,15 +467,15 @@ mutual
   insertAt-output-value k b {Γ₁} {v = Value.V-Var x} d with tv-var-inversion d
   ... | inj₁₀ (refl , take) = insertAt-output-take k b take
   ... | inj₂₀ (refl , (_ , eq)) = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Abs A e} d with tv-abs-inversion d
-  ... | _ , _ , dabs
+  insertAt-output-value k b {Γ₁} {v = Value.V-Abs A e} d@(TV-Abs _) with tv-abs-inversion d
+  ... | _ , _ , _ , _ , dabs
     with insertAt-output-synth (suc k) b {Γ₁ = B-Lin (normalizeTy A) ▻ Γ₁} dabs
   ... | Γ₂′ , eq
     with insertAt-suc-tail k b {h = B-Used (normalizeTy A)} eq
   ... | Γ₂″ , tailEq = Γ₂″ , tailEq
-  insertAt-output-value {pk = KT} {m = Un} k b {Γ₁} {v = Value.V-Rec A B v} d with tv-rec-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Rec A B v} d@(TV-Rec _) with tv-rec-inversion d
   ... | eq , _ , _ = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = m} k b {Γ₁} {v = Value.V-TAbs K v} d with tv-tabs-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-TAbs K v} d@(TV-TAbs _) with tv-tabs-inversion d
   ... | _ , _ , dtabs
     with insertAt-output-value
            k
@@ -487,23 +487,23 @@ mutual
   ... | Γ₂wk , eqwk
     with wkCtx-insertAt-output k b eqwk
   ... | Γ₂′ , eq = Γ₂′ , eq
-  insertAt-output-value {pk = KT} {m = m} k b {v = Value.V-Pair u v} d with tv-pair-inversion d
+  insertAt-output-value k b {v = Value.V-Pair u v} d@(TV-Pair _ _) with tv-pair-inversion d
   ... | _ , _ , _ , _ , Γm , _ , (d₁ , d₂)
     with insertAt-output-value k b d₁
   ... | Γm′ , eqm
     with insertAt-output-value k b (cast-value-ctx d₂ eqm refl)
   ... | Γ₂′ , eq₂ = Γ₂′ , eq₂
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Receive₁ T} d with tv-receive₁-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Receive₁ T} d@TV-Receive₁ with tv-receive₁-inversion d
   ... | eq , _ = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Receive₂ T S} d with tv-receive₂-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Receive₂ T S} d@TV-Receive₂ with tv-receive₂-inversion d
   ... | eq , _ = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Send₁ T} d with tv-send₁-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Send₁ T} d@TV-Send₁ with tv-send₁-inversion d
   ... | eq , _ = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Send₂ T S} d with tv-send₂-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Send₂ T S} d@TV-Send₂ with tv-send₂-inversion d
   ... | eq , _ = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Select₁ v i P} d with tv-select₁-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Select₁ v i P} d@TV-Select₁ with tv-select₁-inversion d
   ... | eq , _ = Γ₁ , sym eq
-  insertAt-output-value {pk = KT} {m = Lin} k b {Γ₁} {v = Value.V-Select₂ v i P S} d with tv-select₂-inversion d
+  insertAt-output-value k b {Γ₁} {v = Value.V-Select₂ v i P S} d@TV-Select₂ with tv-select₂-inversion d
   ... | eq , _ = Γ₁ , sym eq
 
   insertAt-output-synth k b {e = e} d = insertAt-output-synth′ k b e d
@@ -585,8 +585,9 @@ mutual
     with insertAt-injective k b eq
   ... | eqΓ =
       cast-value-ctx (TV-Var-Un (unlift-∋ᵘ-at k b x∈)) refl eqΓ
-  unren-preserves-value {pk = KT} {m = Lin} k b {v = Value.V-Abs A e} (TV-Abs d) =
-    TV-Abs (unren-preserves-synth (suc k) b d)
+  unren-preserves-value {pk = KT} {m = Lin} k b {v = Value.V-Abs A e}
+    (TV-Abs {T = A} {U = U} d) =
+    TV-Abs {T = A} {U = U} (unren-preserves-synth (suc k) b d)
   unren-preserves-value {pk = KT} {m = Un} k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = Value.V-Rec A B v} d
     with tv-rec-inversion d
   ... | eqCtx , eqT , drec

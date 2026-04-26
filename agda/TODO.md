@@ -7,6 +7,7 @@ For each run:
 3. If running in Local mode, create a branch named `codex-<slug>` and switch to it.
    If running in a Codex worktree, keep the existing git/worktree setup unless instructed otherwise.
 4. Make the smallest coherent change that resolves the selected item.
+   Keep changes minimal and do not perform unrelated refactors.
 5. Run the project verification command(s).
 6. If verification succeeds, change the item marker from `[-]` to `[x]`.
 7. If verification fails or the task cannot be completed in this run, leave the item as `[-]` and report the blocker clearly.
@@ -35,6 +36,13 @@ Run the project verification command from the Agda project root:
       - Remove the definitions of `BindingView` and its conversion function `bindingView`. 
       - Change all uses of `BindingView` to `Binding`, fix the constructor names, and process the fallout.
 
+- [ ] remove-identities:
+      Remove identify functions from the code base.
+
+	  Specifically:
+	  - ExprNormalTyping.normalTyOf is an identity function. Remove it.
+	  - find further identity functions and remove them.
+
 - [ ] unused-postulates:
       Remove unused postulates from the codebase.
 
@@ -48,15 +56,3 @@ Run the project verification command from the Agda project root:
       Specifically:
       - scan all modules for unused imports
       - remove unused imports from the import list
-
-- [ ] kind-cleanup:
-      Remove `Kinds.KM` from the codebase.
-
-      More specifically:
-      - starting from module `Kinds`, eliminate `Kinds.KM` throughout the project
-      - whenever `KM ≤p pk` is used as a lower-bound constraint, remove that constraint
-      - in those cases, instantiate `pk` to `KT`
-      - remove the corresponding variable or parameter `pk` when it becomes unnecessary
-      - fix the resulting fallout
-
-      Keep changes minimal and do not perform unrelated refactors.

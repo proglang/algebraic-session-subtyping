@@ -93,8 +93,8 @@ postulate
       just (substTyNf U W , sub′)
 
   substTyWith-preserves-value :
-    ∀ {Δ Δ′ n K} {Γ₁ Γ₂ : Ctx Δ n}
-      {v : Value Δ n} {T : NfTy Δ K} {ϕ : Δ →ₛ Δ′}
+    ∀ {Δ Δ′ n pk m} {Γ₁ Γ₂ : Ctx Δ n}
+      {v : Value Δ n} {T : NfTy Δ (KV pk m)} {ϕ : Δ →ₛ Δ′}
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
     → substTyCtxWith Γ₁ ϕ ⊢ᵥ substTyValueWith ϕ v ⇒ substTyNfWith T ϕ ⊣ substTyCtxWith Γ₂ ϕ
 
@@ -375,18 +375,18 @@ postulate
 postulate
 
   subst2-preserves-synth :
-    ∀ {Δ n K pk₁ pk₂} {Γ₁ Γ₂ Γ₃ Γ₄ : Ctx Δ n}
+    ∀ {Δ n pk m pk₁ pk₂} {Γ₁ Γ₂ Γ₃ Γ₄ : Ctx Δ n}
       {T : NfTy Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ Lin)}
       {u v : Value Δ n} {e : Expr Δ (Data.Nat.suc (Data.Nat.suc n))}
-      {V : NfTy Δ K}
+      {V : NfTy Δ (KV pk m)}
     → Γ₁ ⊢ᵥ u ⇒ T ⊣ Γ₂
     → Γ₂ ⊢ᵥ v ⇒ U ⊣ Γ₃
     → (T ∷ˡ (U ∷ˡ Γ₃)) ⊢ e ⇒ V ⊣ (B-Used T ▻ (B-Used U ▻ Γ₄))
     → Γ₁ ⊢ substExpr₂ e u v ⇒ V ⊣ Γ₄
 
   subst-var-preserves-synth :
-    ∀ {Δ n K pk} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
-      {x : Fin n} {T : NfTy Δ (KV pk Lin)} {e : Expr Δ (Data.Nat.suc n)} {U : NfTy Δ K}
+    ∀ {Δ n pk₁ pk₂ m} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
+      {x : Fin n} {T : NfTy Δ (KV pk₁ Lin)} {e : Expr Δ (Data.Nat.suc n)} {U : NfTy Δ (KV pk₂ m)}
     → Γ₁ ⊢ˡ x ∶ T ⊣ Γ₂
     → (T ∷ˡ Γ₂) ⊢ e ⇒ U ⊣ (B-Used T ▻ Γ₃)
     → Γ₁ ⊢ substExpr e (V-Var x) ⇒ U ⊣ Γ₃
@@ -401,9 +401,9 @@ postulate
     → Γ₁ ⊢ substExpr e v ⇐ V ⊣ Γ₃
 
   subst-check-preserves-synth :
-    ∀ {Δ n K} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
+    ∀ {Δ n pk m} {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
       {T : Ty Δ TLin} {v : Value Δ n} {e : Expr Δ (Data.Nat.suc n)}
-      {U : NfTy Δ K}
+      {U : NfTy Δ (KV pk m)}
     → Γ₂ ⊢ E-Val v ⇐ normalizeTy T ⊣ Γ₃
     → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
     → Γ₁ ⊢ substExpr e v ⇒ U ⊣ Γ₃
@@ -416,14 +416,14 @@ postulate
 
 postulate
   substTy-preserves-value :
-    ∀ {Δ n K K′} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
-      {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
+    ∀ {Δ n K pk m} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
+      {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV pk m)} {U : Ty Δ K}
     → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γ₂
     → substTyCtx Γ₁ U ⊢ᵥ substTyValue v U ⇒ substTyNf T U ⊣ substTyCtx Γ₂ U
 
   substTy-preserves-synth :
-    ∀ {Δ n K K′} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
-      {e : Expr (K ∷ Δ) n} {T : NfTy (K ∷ Δ) K′} {U : Ty Δ K}
+    ∀ {Δ n K pk m} {Γ₁ Γ₂ : Ctx (K ∷ Δ) n}
+      {e : Expr (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV pk m)} {U : Ty Δ K}
     → Γ₁ ⊢ e ⇒ T ⊣ Γ₂
     → substTyCtx Γ₁ U ⊢ substTyExpr e U ⇒ substTyNf T U ⊣ substTyCtx Γ₂ U
 

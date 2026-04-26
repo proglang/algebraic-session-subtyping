@@ -17,30 +17,8 @@ open import ExprNormalTyping
 open import ExprContextReduction using
   ( RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
   ; AllUsed; AU-∅; AU-used; AU-un
-  )
-data FrameCtx {Δ : List Kind} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set where
-  FC-∅ :
-    FrameCtx ∅ ∅ ∅
-
-  FC-frame :
-    ∀ {n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
-    → FrameCtx Φ Γ Γ̂
-    → FrameCtx (B-Lin T ▻ Φ) (B-Used T ▻ Γ) (B-Lin T ▻ Γ̂)
-
-  FC-allused :
-    ∀ {n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
-    → FrameCtx Φ Γ Γ̂
-    → FrameCtx (B-Used T ▻ Φ) (B-Used T ▻ Γ) (B-Used T ▻ Γ̂)
-
-  FC-live :
-    ∀ {n pk} {Φ Γ Γ̂ : Ctx Δ n} {T : NfTy Δ (KV pk Lin)}
-    → FrameCtx Φ Γ Γ̂
-    → FrameCtx (B-Used T ▻ Φ) (B-Lin T ▻ Γ) (B-Lin T ▻ Γ̂)
-
-  FC-un :
-    ∀ {n} {Φ Γ Γ̂ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Un)}
-    → FrameCtx Φ Γ Γ̂
-    → FrameCtx (B-Un T ▻ Φ) (B-Un T ▻ Γ) (B-Un T ▻ Γ̂)
+  ; FrameCtx; FC-∅; FC-frame; FC-allused; FC-live; FC-un
+  ) public
 
 frame-unique :
   ∀ {Δ n} {Φ Γ Γ̂₁ Γ̂₂ : Ctx Δ n}
@@ -201,7 +179,7 @@ postulate
 mutual
 
   frame-value :
-    ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+    ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ (KV pk m)}
     → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
     → FrameCtx Φ Γ Γ̂
     → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ᵥ v ⇒ T ⊣ Γ̂′)
@@ -210,11 +188,11 @@ mutual
     with frame-take-exists take f
   ... | Γ̂′ , f′ , take′ = Γ̂′ , f′ , TV-Var-Lin take′
   frame-value (TV-Var-Un x∈) f = _ , f , TV-Var-Un (frame-∋ᵘ x∈ f)
-  frame-value (TV-Abs d) f
+  frame-value (TV-Abs {T = T} {U = U} d) f
     with frame-synth d (frame-cons-lin f)
   ... | Γ̂body , fbody , d′
     with invert-frame-used fbody
-  ... | Γ̂′ , refl , f′ = Γ̂′ , f′ , TV-Abs d′
+  ... | Γ̂′ , refl , f′ = Γ̂′ , f′ , TV-Abs {T = T} {U = U} d′
   frame-value (TV-Rec d) f
     with frame-check d (frame-cons-un-local f)
   ... | Γ̂body , fbody , d′
@@ -240,14 +218,14 @@ mutual
   frame-value TV-Select₂ f = _ , f , TV-Select₂
 
   frame-synth-match :
-    ∀ {Δ n} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k} {ss : Subset.Subset (suc k)}
+    ∀ {Δ n pk m} {Φ Γ₁ Γ₂ Γ₃ Γ̂₁ : Ctx Δ n} {k} {ss : Subset.Subset (suc k)}
       {e : Expr Δ n}
       {ssbranches : Subset.Subset (suc k)} {incl : ss Subset.⊆ ssbranches}
       {ne : Subset.Nonempty ssbranches} {v : Variance}
       {P : NfTy Δ KP} {S : NfTy Δ SLin}
       {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
-      {U : NfTy Δ TLin}
-      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ TLin}
+      {U : NfTy Δ (KV pk m)}
+      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
       {sub : (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V i i∈ <:ₜ U}
     → Γ₁ ⊢ e ⇒ MatchBranchInput ss v P S ⊣ Γ₂
     → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γ₂) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
@@ -286,7 +264,7 @@ mutual
       rewrite frame-unique f₃ f₃′ = di
 
   frame-synth :
-    ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+    ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
     → Γ ⊢ e ⇒ T ⊣ Γ′
     → FrameCtx Φ Γ Γ̂
     → Σ (Ctx Δ n) λ Γ̂′ → FrameCtx Φ Γ′ Γ̂′ × (Γ̂ ⊢ e ⇒ T ⊣ Γ̂′)
@@ -333,7 +311,7 @@ mutual
   ... | Γ̂′ , f′ , d′ = Γ̂′ , f′ , T-Check d′ sub
 
 replay-value :
-  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+  ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ (KV pk m)}
   → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
   → FrameCtx Φ Γ Γ̂
   → FrameCtx Φ Γ′ Γ̂′
@@ -344,7 +322,7 @@ replay-value d fin fout
   rewrite frame-unique fout f″ = d′
 
 replay-synth :
-  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+  ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ Γ̂′ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
   → Γ ⊢ e ⇒ T ⊣ Γ′
   → FrameCtx Φ Γ Γ̂
   → FrameCtx Φ Γ′ Γ̂′
@@ -366,7 +344,7 @@ replay-check d fin fout
   rewrite frame-unique fout f″ = d′
 
 replay-value-allUsed :
-  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ K}
+  ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {v : Value Δ n} {T : NfTy Δ (KV pk m)}
   → Γ ⊢ᵥ v ⇒ T ⊣ Γ′
   → FrameCtx Φ Γ Γ̂
   → AllUsed Γ′
@@ -377,7 +355,7 @@ replay-value-allUsed d fin au
   rewrite allUsed-frame au fout = d′
 
 replay-synth-allUsed :
-  ∀ {Δ n K} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ K}
+  ∀ {Δ n pk m} {Φ Γ Γ′ Γ̂ : Ctx Δ n} {e : Expr Δ n} {T : NfTy Δ (KV pk m)}
   → Γ ⊢ e ⇒ T ⊣ Γ′
   → FrameCtx Φ Γ Γ̂
   → AllUsed Γ′
