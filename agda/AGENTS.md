@@ -4,27 +4,14 @@
 
 These instructions apply to the Agda project rooted in this directory.
 
-## README.agda
-
-`README.agda` is the maintained module index for this Agda project.
-
-When updating `README.agda`:
-- Include every project module under this directory that belongs in the maintained index.
-- Ignore the contents of directory `Obsolete`.
-- For each imported module, place a two-line prose description immediately before the import.
-- Keep the existing module order unless the user explicitly asks to reorder it.
-- Preserve existing descriptions unless they are missing or no longer accurate.
-- Do not touch unrelated files unless required for verification.
-
-## Verification
-
-After changing `README.agda`, run the following project verification command from this directory.
-
-`agda -i . README.agda`
-
-## AGENTS.md -- global instructions for the whole project
+## global instructions for the whole project
 
 This is an Agda proof project.
+
+General rules about files:
+- Ignore the contents of directory `Obsolete`.
+- Ignore modules with names ending in `-exp`. These are experimental modules. 
+  You may read these modules, but you must not edit them in any way.
 
 Always run Agda after every nontrivial edit:
   agda -i . README.agda
@@ -56,5 +43,22 @@ For termination problems:
 - expose a structurally smaller argument;
 - consider auxiliary functions with explicit measures.
 
+## README.agda
 
+`README.agda` is the maintained module index for this Agda project.
+
+When updating `README.agda`:
+- Include every project module under this directory in the maintained index.
+- Observe the rules about ignored files and directories.
+- For each imported module, place a two-line prose description immediately before the import.
+- Place modules in subdirectory `X` directly before module `X.agda`.
+- Keep the existing module order unless the user explicitly asks to reorder it.
+- Preserve existing descriptions unless they are missing or no longer accurate.
+- Do not touch unrelated files unless required for verification.
+
+## Verification
+
+After changing `README.agda`, run the following project verification command from this directory.
+
+`agda -i . README.agda`
 
