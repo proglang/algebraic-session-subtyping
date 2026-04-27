@@ -1,21 +1,54 @@
 module ExprTypingInversion where
 
 open import Data.Fin using (Fin)
-open import Data.List using ([]; _∷_)
+import Data.Fin.Subset as Subset
+open import Data.List using (List; []; _∷_)
+open import Data.Maybe using (just)
 open import Data.List.Relation.Unary.Any using (here)
-open import Data.Nat using (suc)
+open import Data.Nat using (suc; _⊔_)
+open import Data.Nat.Properties using (n≤1+n)
 open import Data.Product using (Σ; _×_; _,_)
+open import Data.Sum using (inj₁; inj₂)
+open import Data.Unit using (⊤; tt)
+open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Binary.PropositionalEquality using
-  (_≡_; refl; sym; trans; cong; cong₂; subst)
+  (_≡_; refl; sym; trans; cong; cong₂; subst; inspect; Reveal_·_is_)
+import Relation.Binary.PropositionalEquality as Eq
 
 import Duality
 open import Kinds
 open import Kits
-open import Variance using (Variance)
+open import Variance using
+  ( Variance
+  ; ⊕
+  ; ⊝
+  ; ⊘
+  ; VarianceCovers
+  )
 import Types
 open import Types using (Ty)
-open import NormalTypes using (N-Var; N-Arrow; NV-Var; nfTyTy-fromNormalTy; toNormalTy)
-open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-sub; <:ₜ-msg; <:ₚ′-proto)
+open import NormalTypes using
+  ( N-Var
+  ; N-Arrow
+  ; NV-Var
+  ; nfProtoTy
+  ; nfProtoTy-fromNormalProto
+  ; nfTyTy-fromNormalTy
+  ; toNormalTy
+  ; sizeₚ
+  )
+open import AlgorithmicNFSubtyping using
+  ( _<:ₜ_
+  ; _<<:ₚ[_]_
+  ; <<:ₚ-refl
+  ; <:ₜ-sub
+  ; <:ₜ-msg
+  ; <:ₜ-pair
+  ; <:ₜ-poly
+  ; <:ₚ′-proto
+  ; <:ₚ′-up
+  )
+open import Subtyping using (_<<:[_]_)
 open import ExprSyntax
   using
   ( Expr
@@ -41,6 +74,17 @@ open import ExprSyntax
   ; C-Fork
   )
 open import ExprNormalTyping
+open import TypesProtocolConstructors using
+  ( ProtocolConstructors
+  ; instantiate
+  ; singletonSubst
+  ; used
+  ; unused
+  ; usageVariance
+  ; allUsageVariance
+  )
+open import AlgorithmicNFSubstitution using (msgNF-preserves-<:)
+open import AlgorithmicNFComplete using (complete-<<:ₚ)
 open import NormalTypesSubstitution
   using
   ( NFSub
@@ -48,11 +92,22 @@ open import NormalTypesSubstitution
   ; singleNFSub
   ; singleNFSub-sound
   ; substNFTy
-  ; substNFTyWith
-  ; substNFTy-sound
+    ; substNFTyWith
+    ; substNFTy-sound
   )
 import ExprSubstitutionTyping as EST
 open import SubstitutionSubtyping using (subst-preserves-≡c)
+open import AlgorithmicNFSound using (sound-<<:ₚ)
+open import ExprPreservationStep2.SubstitutionLemmas using
+  ( singletonSubst-≈ᵥ
+  ; subst-preserves-<<:-used⊕
+  ; instantiate-unused-independent
+  ; swap-<<:
+  ; covers-trans
+  ; join-left-covers
+  ; join-right-covers
+  ; joinUsage-used-used≢unused
+  )
 open import ExprContextReduction
   using
   ( recvChanNf
@@ -533,6 +588,280 @@ select₂-shape {v = v} {i = i} {P = P} {S = S} vr
 ... | refl , eqSelect
   with linArrNf-injective eqSelect
 ... | eqA , eqR = refl , eqA , eqR
+
+match-branch-subtype :
+  ∀ {k pk m}
+    {ss : Subset.Subset k}
+    {V : (i : Fin k) → i Subset.∈ ss → NfTy [] (KV pk m)}
+    {U : NfTy [] (KV pk m)}
+    {sub : (i : Fin k) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+    (i : Fin k)
+    (i∈ : i Subset.∈ ss)
+  → BranchJoin⁺ ss V ≡ just (U , sub)
+  → normalTyOf (V i i∈) <:ₜ normalTyOf U
+match-branch-subtype {sub = sub} i i∈ bj = sub i i∈
+
+pair-subtype-inversion :
+  ∀ {pk₁ pk₂}
+    {X : NfTy [] TLin}
+    {T : NfTy [] (KV pk₁ Lin)}
+    {U : NfTy [] (KV pk₂ Lin)}
+  → normalTyOf X <:ₜ normalTyOf (pairNf T U)
+  → Σ (NfTy [] (KV pk₁ Lin)) λ T′ →
+      Σ (NfTy [] (KV pk₂ Lin)) λ U′ →
+        (X ≡ pairNf T′ U′)
+        × (normalTyOf T′ <:ₜ normalTyOf T)
+        × (normalTyOf U′ <:ₜ normalTyOf U)
+pair-subtype-inversion (<:ₜ-pair T′<:T U′<:U) =
+  _ , _ , refl , T′<:T , U′<:U
+
+sendChan-subtype :
+  ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
+  → normalTyOf (sendChanNf T₁ S₁) <:ₜ normalTyOf (sendChanNf T₂ S₂)
+  → (normalTyOf T₂ <:ₜ normalTyOf T₁) × (normalTyOf S₁ <:ₜ normalTyOf S₂)
+sendChan-subtype (<:ₜ-msg (<:ₚ′-up T₂<:T₁) S₁<:S₂) = T₂<:T₁ , S₁<:S₂
+
+selectIn-subtype :
+  ∀ {k}
+    {v₁ v₂ : Variance} {i : Fin k}
+    {P₁ P₂ : NfTy [] KP}
+    {S₁ S₂ : NfTy [] SLin}
+  → normalTyOf (selectInNf v₁ i P₁ S₁) <:ₜ normalTyOf (selectInNf v₂ i P₂ S₂)
+  → (v₁ ≡ v₂)
+    × (P₂ <<:ₚ[ v₁ ] P₁)
+    × (S₁ <:ₜ S₂)
+selectIn-subtype
+  {v₁ = v₁}
+  (<:ₜ-sub (<:ₜ-msg (<:ₚ′-proto ss paramRel) Ssub)) =
+  refl , paramRel , Ssub
+
+covers-refl : ∀ {v} → VarianceCovers v v
+covers-refl {v = ⊕} = tt
+covers-refl {v = ⊝} = tt
+covers-refl {v = ⊘} = tt
+
+materialize-head-used :
+  ∀
+    (T : Ty (KP ∷ []) KP)
+    {u v : Variance}
+    {P₁ P₂ : NfTy [] KP}
+  → usageVariance T (here refl) ≡ used u
+  → P₂ <<:ₚ[ v ] P₁
+  → VarianceCovers v u
+  → normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+       <<:ₚ[ ⊝ ]
+    normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+materialize-head-used T {u = u} {v = v} {P₁} {P₂} uv pu cov =
+  complete-<<:ₚ
+    (suc (sizeₚ N₁ ⊔ sizeₚ N₂))
+    {⊙ = ⊝}
+    {T₁ = instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟}
+    {T₂ = instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟}
+    rawMinus
+    {f₁ = Duality.d?⊥}
+    {f₂ = Duality.d?⊥}
+    {N₁ = N₁}
+    {N₂ = N₂}
+    eqN₁
+    eqN₂
+    (n≤1+n _)
+  where
+  N₁ : NfTy [] KP
+  N₁ = normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+
+  N₂ : NfTy [] KP
+  N₂ = normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+
+  eqN₁ :
+    nfProtoTy N₁
+      ≡
+    Types.nf Duality.⊕ Duality.d?⊥ (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+  eqN₁ =
+    nfProtoTy-fromNormalProto
+      (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟))
+
+  eqN₂ :
+    nfProtoTy N₂
+      ≡
+    Types.nf Duality.⊕ Duality.d?⊥ (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+  eqN₂ =
+    nfProtoTy-fromNormalProto
+      (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟))
+
+  rawPlus :
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟
+      <<:[ ⊕ ]
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟
+  rawPlus =
+    subst-preserves-<<:-used⊕
+      T
+      {p = here refl}
+      {u = u}
+      {v = v}
+      {ϕ = singletonSubst ⌞ P₂ ⌟}
+      {ψ = singletonSubst ⌞ P₁ ⌟}
+      uv
+      (singletonSubst-≈ᵥ (sound-<<:ₚ pu))
+      cov
+
+  rawMinus :
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟
+      <<:[ ⊝ ]
+    instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟
+  rawMinus = swap-<<: {v = ⊕} rawPlus
+
+materialize-head-unused :
+  ∀
+    (T : Ty (KP ∷ []) KP)
+    {P₁ P₂ : NfTy [] KP}
+  → usageVariance T (here refl) ≡ unused
+  → normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+       <<:ₚ[ ⊝ ]
+     normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+materialize-head-unused T {P₁} {P₂} uv =
+  subst
+    (λ X →
+      X <<:ₚ[ ⊝ ]
+      normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟))
+    (sym eqNf)
+    (<<:ₚ-refl {⊙ = ⊝}
+      (normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)))
+  where
+  eqNf :
+    normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)
+      ≡
+    normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)
+  eqNf = nfEq eqRaw
+    where
+    eqConv :
+      instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟
+        Types.≡c
+      instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟
+    eqConv =
+      instantiate-unused-independent
+        T
+        {P = ⌞ P₁ ⌟}
+        {Q = ⌞ P₂ ⌟}
+        uv
+
+    eqRaw :
+      ⌞ normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟) ⌟
+        ≡
+      ⌞ normalizeTy (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟) ⌟
+    eqRaw =
+      trans
+        (nfProtoTy-fromNormalProto
+          (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₁ ⌟)))
+        (trans
+          (Types.nf-complete Duality.d?⊥ Duality.d?⊥ eqConv)
+          (sym
+            (nfProtoTy-fromNormalProto
+              (Types.nf-normal-proto (instantiate ⦃ Kₛ ⦄ Duality.⊕ T ⌞ P₂ ⌟)))))
+
+mutual
+
+  materializeListNf-sub-used :
+    ∀
+      (Ts : List (Ty (KP ∷ []) KP))
+      {u v : Variance}
+      {P₁ P₂ : NfTy [] KP}
+      {S₁ S₂ : NfTy [] SLin}
+    → allUsageVariance Ts (here refl) ≡ used u
+    → P₂ <<:ₚ[ v ] P₁
+    → VarianceCovers v u
+    → S₁ <:ₜ S₂
+    → materializeListNf Ts Duality.⊕ P₁ S₁
+         <:ₜ
+       materializeListNf Ts Duality.⊕ P₂ S₂
+
+  materializeListNf-sub-unused :
+    ∀
+      (Ts : List (Ty (KP ∷ []) KP))
+      {P₁ P₂ : NfTy [] KP}
+      {S₁ S₂ : NfTy [] SLin}
+    → allUsageVariance Ts (here refl) ≡ unused
+    → S₁ <:ₜ S₂
+    → materializeListNf Ts Duality.⊕ P₁ S₁
+         <:ₜ
+       materializeListNf Ts Duality.⊕ P₂ S₂
+
+  materializeListNf-sub-used [] ()
+  materializeListNf-sub-used (T ∷ Ts) {u = u} {v = v} {P₁} {P₂} {S₁} {S₂} eq pu cov ssub
+    with usageVariance T (here refl) | inspect (usageVariance T) (here refl)
+       | allUsageVariance Ts (here refl) | inspect (allUsageVariance Ts) (here refl)
+       | eq
+  ... | unused | Eq.[ eqT ] | used uTs | Eq.[ eqTs ] | refl =
+    msgNF-preserves-<:
+      (materialize-head-unused T {P₁ = P₁} {P₂ = P₂} eqT)
+      (materializeListNf-sub-used Ts eqTs pu cov ssub)
+  ... | used uT | Eq.[ eqT ] | unused | Eq.[ eqTs ] | refl =
+    msgNF-preserves-<:
+      (materialize-head-used T {u = uT} {v = v} {P₁ = P₁} {P₂ = P₂}
+        eqT pu (covers-trans cov (join-left-covers {u₂ = unused} refl)))
+      (materializeListNf-sub-unused Ts eqTs ssub)
+  ... | used uT | Eq.[ eqT ] | used uTs | Eq.[ eqTs ] | eqJoin =
+    msgNF-preserves-<:
+      (materialize-head-used T {u = uT} {v = v} {P₁ = P₁} {P₂ = P₂}
+        eqT pu (covers-trans cov (join-left-covers {u₂ = used uTs} eqJoin)))
+      (materializeListNf-sub-used Ts eqTs pu
+        (covers-trans cov (join-right-covers {u₂ = uTs} {u₁ = used uT} eqJoin))
+        ssub)
+
+  materializeListNf-sub-unused [] _ ssub = ssub
+  materializeListNf-sub-unused (T ∷ Ts) {P₁} {P₂} {S₁} {S₂} eq ssub
+    with usageVariance T (here refl) | inspect (usageVariance T) (here refl)
+       | allUsageVariance Ts (here refl) | inspect (allUsageVariance Ts) (here refl)
+       | eq
+  ... | unused | Eq.[ eqT ] | unused | Eq.[ eqTs ] | refl =
+    msgNF-preserves-<:
+      (materialize-head-unused T {P₁ = P₁} {P₂ = P₂} eqT)
+      (materializeListNf-sub-unused Ts eqTs ssub)
+  ... | used uT | Eq.[ eqT ] | unused | Eq.[ eqTs ] | ()
+  ... | used uT | Eq.[ eqT ] | used uTs | Eq.[ eqTs ] | eqJoin =
+    ⊥-elim (joinUsage-used-used≢unused eqJoin)
+
+select-app-subtype :
+  ∀ {n k}
+    {Γ Γ′ : Ctx [] n}
+    {v₁ v₂ : Variance} {i : Fin k}
+    {P : Ty [] KP} {S : Ty [] SLin}
+    {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
+    {A R : NfTy [] TLin}
+  → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
+  → normalTyOf (selectInNf v₂ i P′ S′) <:ₜ normalTyOf A
+  → normalTyOf (selectOutNf v₂ i P′ S′) <:ₜ normalTyOf R
+select-app-subtype
+  {v₁ = v₁} {i = i} {P = P} {S = S}
+  {P′ = P′} {S′ = S′}
+  vr selSub
+  with select₂-shape vr
+... | refl , refl , refl
+  with selectIn-subtype selSub
+... | refl , psub , ssub
+  with ProtocolConstructors _ v₁ i
+... | Ts , inj₁ usedTs =
+  <:ₜ-sub
+    (materializeListNf-sub-used
+      Ts
+      usedTs
+      psub
+      covers-refl
+      ssub)
+... | Ts , inj₂ unusedTs =
+  <:ₜ-sub
+    (materializeListNf-sub-unused
+      Ts
+      unusedTs
+      ssub)
+
+poly-subtype-inversion :
+  ∀ {K m}
+    {U : NfTy [] (KV KT m)}
+    {T : NfTy (K ∷ []) (KV KT m)}
+  → normalTyOf U <:ₜ normalTyOf (polyNf T)
+  → Σ (NfTy (K ∷ []) (KV KT m)) λ T′ →
+      (U ≡ polyNf T′) × (normalTyOf T′ <:ₜ normalTyOf T)
+poly-subtype-inversion (<:ₜ-poly sub) = _ , refl , sub
 
 tv-const-inversion :
   ∀ {Δ n}
