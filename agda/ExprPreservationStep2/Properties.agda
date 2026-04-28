@@ -31,11 +31,12 @@ open import ExprContextReduction using
   ; LinearDisjoint
   ; allUsedCtx
   ; extendUsed
+  ; recvChanNf
   ; sendChanNf
   ; dualSessNf
   ; Frm-New
   )
-open import ExprTypingProperties using (FrameCtx; frame-unique)
+open import ExprTypingProperties using (FrameCtx; frame-unique; replay-value-allUsed)
 import ExprTypingStrengthening as ETS
 import ExprSubstitutionPreservation as ESP
 import ExprSubstitutionTyping as EST
@@ -270,19 +271,46 @@ replace-take (take-thereᵘ take) (ECR.R-there rep) =
 replace-take (take-there✖ take) (ECR.R-there rep) =
   take-there✖ (replace-take take rep)
 
-postulate
+recv-disjoint-replace-eq :
+  ∀ {n}
+    {Γin Γin′ Γv Γv′ : Ctx [] n}
+    {x : Fin n}
+    {T : NfTy [] TLin}
+    {S : NfTy [] SLin}
+  → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
+  → LinearDisjoint Γin Γv
+  → ReplaceAt Γv x (B-Used S) Γv′
+  → Γv′ ≡ Γv
+recv-disjoint-replace-eq take-here (ECR.LD-live-used d) ECR.R-here =
+  ECR.used-head-eq {T₁ = _} {T₂ = _}
+recv-disjoint-replace-eq (take-thereˡ {U = U} take) (ECR.LD-live-used d) (ECR.R-there rep) =
+  cong (B-Used U ▻_) (recv-disjoint-replace-eq take d rep)
+recv-disjoint-replace-eq (take-thereᵘ {U = U} take) (ECR.LD-un-un d) (ECR.R-there rep) =
+  cong (B-Un U ▻_) (recv-disjoint-replace-eq take d rep)
+recv-disjoint-replace-eq (take-there✖ {U = U} take) (ECR.LD-used-used d) (ECR.R-there rep) =
+  cong (B-Used U ▻_) (recv-disjoint-replace-eq take d rep)
+recv-disjoint-replace-eq (take-there✖ {U = U} take) (ECR.LD-used-live d) (ECR.R-there rep) =
+  cong (B-Lin U ▻_) (recv-disjoint-replace-eq take d rep)
 
-  merge-value :
-    ∀ {n pk m pk′}
-      {Γx Γv-in Γ₁ Γv-used Γv-out : Ctx [] n}
-      {x : Fin n}
-      {S : NfTy [] (KV pk′ Lin)}
-      {v : Value [] n} {T : NfTy [] (KV pk m)}
-    → Γv-in ⊢ᵥ v ⇒ T ⊣ Γv-used
-    → AllUsed Γv-used
-    → ReplaceAt Γv-in x (B-Used S) Γv-out
-    → FrameCtx Γx Γv-out Γ₁
-    → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γx
+merge-value :
+  ∀ {n pk m}
+    {Γin Γin′ Γx Γv-in Γ₁ Γv-used Γv-out : Ctx [] n}
+    {x : Fin n}
+    {Trecv : NfTy [] TLin}
+    {S : NfTy [] SLin}
+    {v : Value [] n} {T : NfTy [] (KV pk m)}
+  → Γin ⊢ˡ x ∶ recvChanNf Trecv S ⊣ Γin′
+  → LinearDisjoint Γin Γv-in
+  → Γv-in ⊢ᵥ v ⇒ T ⊣ Γv-used
+  → AllUsed Γv-used
+  → ReplaceAt Γv-in x (B-Used S) Γv-out
+  → FrameCtx Γx Γv-out Γ₁
+  → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γx
+merge-value take ld dv au rep merge
+  rewrite recv-disjoint-replace-eq take ld rep =
+  replay-value-allUsed dv merge au
+
+postulate
 
   weaken-synth :
     ∀ {n Θ pk m}

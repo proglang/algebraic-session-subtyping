@@ -2081,7 +2081,7 @@ mutual
     {T = R}
     d
     (Act-Rcv {T = Tᵣ} {S = Sᵣ} {x = x} {v = v})
-    (Label-RecvVal {T = T} {S = S} take auin dv au)
+    (Label-RecvVal {T = T} {S = S} take auin dv au ld-in-v)
     (Ex-RecvVal rin _ _)
     disj
     with extract-membership rin (take-implies-membership take)
@@ -2114,7 +2114,7 @@ mutual
       ; synth =
           T-Val
             (TV-Pair
-              (merge-value dv au repv merge)
+              (merge-value take ld-in-v dv au repv merge)
               (TV-Var-Lin (replace-take take₀ rep)))
       ; subtype = sub
       }
@@ -2167,20 +2167,20 @@ mutual
     {pk = KS}
     (T-App {m = Lin} (T-Val ()) (T-Check _ _))
     (Act-Rcv {T = _} {S = _} {x = _} {v = _})
-    (Label-RecvVal _ _ _ _)
+    (Label-RecvVal _ _ _ _ _)
     (Ex-RecvVal _ _ _)
     _
   preserve⇒
     {pk = KT} {mult = Un}
     (T-App {m = Lin} (T-Val ()) (T-Check _ _))
     (Act-Rcv {T = _} {S = _} {x = _} {v = _})
-    (Label-RecvVal _ _ _ _)
+    (Label-RecvVal _ _ _ _ _)
     (Ex-RecvVal _ _ _)
     _
   preserve⇒
     (T-App {m = Un} (T-Val ()) _)
     (Act-Rcv {T = _} {S = _} {x = _} {v = _})
-    (Label-RecvVal _ _ _ _)
+    (Label-RecvVal _ _ _ _ _)
     (Ex-RecvVal _ _ _)
     _
   preserve⇒

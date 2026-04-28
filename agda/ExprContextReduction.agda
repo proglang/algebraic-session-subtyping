@@ -270,6 +270,7 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
     → AllUsed Γin′
     → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
     → AllUsed Γv′
+    → LinearDisjoint Γin Γv
     → L-RecvVal x v ⦂ Γin ⇒ Γv
 
   Label-RecvLab : ∀ {n k} {x : Fin n} {Γin Γv : Ctx [] n} {i : Fin k}
@@ -395,8 +396,9 @@ data Compatible :
       {auin : AllUsed Γin′}
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
       {au : AllUsed Γv′}
+      {ldin : LinearDisjoint Γin Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvVal x v}
-        (Ctx-Rcv dv au ld x∈ rep repused merge) (Label-RecvVal take auin dv au)
+        (Ctx-Rcv dv au ld x∈ rep repused merge) (Label-RecvVal take auin dv au ldin)
 
   Compat-SendVal :
     ∀ {n} {Γ₀ Γin Γx Γv Γv′ Γ₁ : Ctx [] n}
@@ -479,8 +481,9 @@ data InputCompatible :
       {auin : AllUsed Γin′}
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
       {auv : AllUsed Γv′}
+      {ld : LinearDisjoint Γin Γv}
     → RemoveCtx Γ₀ Γin Γr
-    → InputCompatible Γ₀ (Label-RecvVal take auin dv auv)
+    → InputCompatible Γ₀ (Label-RecvVal take auin dv auv ld)
 
   IC-RecvLab :
     ∀ {n k} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {i : Fin k}
@@ -613,7 +616,7 @@ ctx-step-preserves-disjoint {Γf = Γf} Ctx-New (Label-New {S = S} au-in au-v) (
   ((B-Used (normalizeTy S)) ▻ (B-Used (normalizeTy (T-Dual D-S S)) ▻ Γf)) , Frm-New , LD-live-used (LD-live-used ld0)
 ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Fork rmv ⊢v au-v′) (Label-Fork au-in au-v) (Compat-Fork x) ld0 ldv =
   Γf , Frm-Fork , (remove-preserves-disjoint rmv ld0)
-ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Rcv {x = x} {S = S} ⊢v au-vrest ld0v1 x∈ replin rep-v mcxv) (Label-RecvVal ⊢x au-in ⊢v' au-v'rest) Compat-RecvVal ld0 ldv
+ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Rcv {x = x} {S = S} ⊢v au-vrest ld0v1 x∈ replin rep-v mcxv) (Label-RecvVal ⊢x au-in ⊢v' au-v'rest ld-in-v) Compat-RecvVal ld0 ldv
   with replace-at Γf x (B-Used S)
 ... | Γf′ , repused
   with replace-frames-disjoint ld0 replin repused
