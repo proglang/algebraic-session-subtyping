@@ -84,6 +84,14 @@ import ExprSubstitution
 -- and their observable actions.
 import ExprSemantics
 
+-- Renaming preservation for expressions and values
+-- under context extension.
+import ExprRenamingPreservation
+
+-- Substitution preservation for expressions and values
+-- under well-formed substitutions.
+import ExprSubstitutionPreservation
+
 -- Algorithmic subtyping on declarative normal forms,
 -- predating the separate normal-form syntax.
 import AlgorithmicSubtyping
@@ -113,6 +121,7 @@ import AlgorithmicComplete
 import AlgorithmicSubstitution
 
 -- Algorithmic subtyping on normal forms.
+-- The normal-form variant feeds the later typing and preservation proofs.
 import AlgorithmicNFSubtyping
 
 -- Soundness of the algorithmic subtyping
@@ -175,13 +184,15 @@ import ExprTypingProperties
 -- including subcontext and merge lemmas.
 import ExprTypingStrengthening
 
--- Context and extraction lemmas factored out
--- of the preservation proof.
+-- Context and extraction lemmas factored out of the preservation proof.
 -- These helpers organize RemoveCtx, ReplaceAt, and all-used context arguments.
 import ExprPreservationStep2.ContextLemmas
 
--- Substitution and materialization lemmas factored
--- out of the preservation proof.
+-- Additional properties for the step-2 preservation setup.
+-- These lemmas connect context replacement, membership, and subtyping.
+import ExprPreservationStep2.Properties
+
+-- Substitution and materialization lemmas factored out of the preservation proof.
 -- These helpers package variance-aware substitution relations and normalization bridges.
 import ExprPreservationStep2.SubstitutionLemmas
 
