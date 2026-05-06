@@ -840,23 +840,16 @@ mutual
     let d″ :
           (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ used∷ {T = normalizeTy T} Γ₂′
         d″ = subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′ in
-    NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy ⌞ U′ ⌟) , Γ₂′ ,
-    TV-Abs {U = ⌞ U′ ⌟}
-      (subst
-        (λ X → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ X ⊣ used∷ {T = normalizeTy T} Γ₂′)
-        (sym (normalizeTy-id U′))
-        d″) ,
+    NT.N-Arrow {m = Lin} (normalizeTy T) U′ , Γ₂′ ,
+    TV-Abs {U = U′} d″ ,
     subst
       (λ X →
-        normalTyOf (NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy ⌞ U′ ⌟))
+        normalTyOf (NT.N-Arrow {m = Lin} (normalizeTy T) U′)
           <:ₜ normalTyOf X)
       (sym eqW)
       (<:ₜ-arrow
         (<:ₜ-refl (normalizeTy T))
-        (subst
-          (λ X → X <:ₜ normalizeTy U)
-          (sym (normalizeTy-id U′))
-          U′<:U)) ,
+        U′<:U) ,
     rel₂
 
   strengthen-value-tabs :

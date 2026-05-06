@@ -240,11 +240,11 @@ postulate
   strip-value-abs :
     ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n}
       {pk₁ pk₂ m₂}
-      {T : Ty Δ (KV pk₁ Lin)} {U : Ty Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
-    → (T ∷ⁿˡ Γ₀) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ Γ₁)
+      {T : Ty Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+    → (T ∷ⁿˡ Γ₀) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₁)
     → Σ (Ctx Δ n) λ G →
         Σ (Ctx Δ n) λ G′ →
-          RemoveCtx Γ₀ G Γ₁ × ((T ∷ⁿˡ G) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ G′)) × AllUsed G′
+          RemoveCtx Γ₀ G Γ₁ × ((T ∷ⁿˡ G) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ G′)) × AllUsed G′
 
   strip-value-rec :
     ∀ {Δ n} {Γ₀ : Ctx Δ n}
@@ -275,11 +275,11 @@ postulate
 strip-value-abs-case :
   ∀ {Δ n} {Γ₀ Γ₁ : Ctx Δ n}
     {pk₁ pk₂ m₂}
-    {T : Ty Δ (KV pk₁ Lin)} {U : Ty Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
-  → Γ₀ ⊢ᵥ Value.V-Abs T e ⇒ NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U) ⊣ Γ₁
+    {T : Ty Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+  → Γ₀ ⊢ᵥ Value.V-Abs T e ⇒ NT.N-Arrow {m = Lin} (normalizeTy T) U ⊣ Γ₁
   → Σ (Ctx Δ n) λ G →
       Σ (Ctx Δ n) λ G′ →
-        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Abs T e ⇒ NT.N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U) ⊣ G′) × AllUsed G′
+        RemoveCtx Γ₀ G Γ₁ × (G ⊢ᵥ Value.V-Abs T e ⇒ NT.N-Arrow {m = Lin} (normalizeTy T) U ⊣ G′) × AllUsed G′
 strip-value-abs-case {T = T} {U = U} {e = e} d
   with abs-inversion d
 ... | pk₂ , m₂ , U′ , eqW , body

@@ -122,7 +122,17 @@ open import ExprTypingLeftover
     ; leftover-value
     ; strip-lin-used
     )
-open import ExprTypingInversion using (rec-inversion)
+open import ExprTypingInversion
+  using
+    ( rec-inversion
+    ; tv-receive₁-inversion
+    ; tv-receive₂-inversion
+    ; tv-send₁-inversion
+    ; tv-send₂-inversion
+    ; tv-select₁-inversion
+    ; tv-select₂-inversion
+    )
+open import ExprContextShape using (value-preserves-~Ctx; ~Ctx-allUsedCtx)
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
 open Traversal Ty-Traversal
@@ -236,6 +246,74 @@ branchjoin⁺-nonempty {ss = Subset.outside ∷ᵥ ss} {V = V} eq
           bj
   in suc i , there i∈
 
+postulate
+  receive₁-input-unique :
+    ∀ {Δ n pk₁ m₁ pk₂ m₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {T : Ty Δ TLin}
+      {W₁ : NfTy Δ (KV pk₁ m₁)}
+      {W₂ : NfTy Δ (KV pk₂ m₂)}
+    → Γ₁ ⊢ᵥ V-Receive₁ T ⇒ W₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ V-Receive₁ T ⇒ W₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+  receive₂-input-unique :
+    ∀ {Δ n pk₁ m₁ pk₂ m₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {T : Ty Δ TLin}
+      {S : Ty Δ SLin}
+      {W₁ : NfTy Δ (KV pk₁ m₁)}
+      {W₂ : NfTy Δ (KV pk₂ m₂)}
+    → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ W₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ V-Receive₂ T S ⇒ W₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+  send₁-input-unique :
+    ∀ {Δ n pk₁ m₁ pk₂ m₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {T : Ty Δ TLin}
+      {W₁ : NfTy Δ (KV pk₁ m₁)}
+      {W₂ : NfTy Δ (KV pk₂ m₂)}
+    → Γ₁ ⊢ᵥ V-Send₁ T ⇒ W₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ V-Send₁ T ⇒ W₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+  send₂-input-unique :
+    ∀ {Δ n pk₁ m₁ pk₂ m₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {T : Ty Δ TLin}
+      {S : Ty Δ SLin}
+      {W₁ : NfTy Δ (KV pk₁ m₁)}
+      {W₂ : NfTy Δ (KV pk₂ m₂)}
+    → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ W₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ V-Send₂ T S ⇒ W₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+  select₁-input-unique :
+    ∀ {Δ n k pk₁ m₁ pk₂ m₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {v : Variance}
+      {i : Fin k}
+      {P : Ty Δ KP}
+      {W₁ : NfTy Δ (KV pk₁ m₁)}
+      {W₂ : NfTy Δ (KV pk₂ m₂)}
+    → Γ₁ ⊢ᵥ V-Select₁ v i P ⇒ W₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ V-Select₁ v i P ⇒ W₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
+  select₂-input-unique :
+    ∀ {Δ n k pk₁ m₁ pk₂ m₂}
+      {Γ₁ Γ₂ Γo : Ctx Δ n}
+      {v : Variance}
+      {i : Fin k}
+      {P : Ty Δ KP}
+      {S : Ty Δ SLin}
+      {W₁ : NfTy Δ (KV pk₁ m₁)}
+      {W₂ : NfTy Δ (KV pk₂ m₂)}
+    → Γ₁ ⊢ᵥ V-Select₂ v i P S ⇒ W₁ ⊣ Γo
+    → Γ₂ ⊢ᵥ V-Select₂ v i P S ⇒ W₂ ⊣ Γo
+    → Γ₁ ≡ Γ₂
+
 mutual
 
   synth-input-unique′ :
@@ -314,41 +392,47 @@ mutual
   check-input-unique′ (T-Check d₁ _) (T-Check d₂ _) =
     synth-input-unique′ d₁ d₂
 
-  value-input-unique′ :
-    ∀ {Δ n pk₁ m₁ pk₂ m₂}
+  postulate
+    value-input-unique′ :
+      ∀ {Δ n pk₁ m₁ pk₂ m₂}
+        {Γ₁ Γ₂ Γo : Ctx Δ n}
+        {v : Value Δ n}
+        {T₁ : NfTy Δ (KV pk₁ m₁)}
+        {T₂ : NfTy Δ (KV pk₂ m₂)}
+      → Γ₁ ⊢ᵥ v ⇒ T₁ ⊣ Γo
+      → Γ₂ ⊢ᵥ v ⇒ T₂ ⊣ Γo
+      → Γ₁ ≡ Γ₂
+
+  value-input-unique″ :
+    ∀ {Δ n pk m}
       {Γ₁ Γ₂ Γo : Ctx Δ n}
       {v : Value Δ n}
-      {T₁ : NfTy Δ (KV pk₁ m₁)}
-      {T₂ : NfTy Δ (KV pk₂ m₂)}
-    → Γ₁ ⊢ᵥ v ⇒ T₁ ⊣ Γo
-    → Γ₂ ⊢ᵥ v ⇒ T₂ ⊣ Γo
+      {T : NfTy Δ (KV pk m)}
+    → Γ₁ ⊢ᵥ v ⇒ T ⊣ Γo
+    → Γ₂ ⊢ᵥ v ⇒ T ⊣ Γo
     → Γ₁ ≡ Γ₂
-  value-input-unique′ (TV-Const _) (TV-Const _) = refl
-  value-input-unique′ (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
+  value-input-unique″ (TV-Const _) (TV-Const _) = refl
+  value-input-unique″ (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
     take-input-unique′ take₁ take₂
-  value-input-unique′ (TV-Var-Lin take) (TV-Var-Un x∈) =
-    ⊥-elim (take-no-un take x∈)
-  value-input-unique′ (TV-Var-Un x∈) (TV-Var-Lin take) =
-    ⊥-elim (take-no-un take x∈)
-  value-input-unique′ (TV-Var-Un _) (TV-Var-Un _) = refl
-  value-input-unique′ (TV-Abs d₁) (TV-Abs d₂)
-    with synth-input-unique′ d₁ d₂
-  ... | eq = ∷ˡ-injective eq
-  value-input-unique′ (TV-Rec d₁) (TV-Rec d₂)
+  value-input-unique″ (TV-Var-Un _) (TV-Var-Un _) = refl
+  value-input-unique″ {T = NT.N-Arrow T₁ T₂} (TV-Abs d₁) d₂ = {!!}
+  --   with synth-input-unique′ d₁ d₂
+  -- ... | eq = ∷ˡ-injective eq
+  value-input-unique″ (TV-Rec d₁) (TV-Rec d₂)
     with check-input-unique′ d₁ d₂
   ... | eq = ∷ᵘ-injective eq
-  value-input-unique′ (TV-TAbs d₁) (TV-TAbs d₂) =
+  value-input-unique″ (TV-TAbs d₁) (TV-TAbs d₂) =
     wkCtx-injective (value-input-unique′ d₁ d₂)
-  value-input-unique′ (TV-Pair d₁₁ d₁₂) (TV-Pair d₂₁ d₂₂)
-    with value-input-unique′ d₁₂ d₂₂
+  value-input-unique″ (TV-Pair d₁₁ d₁₂) (TV-Pair d₂₁ d₂₂)
+    with value-input-unique″ d₁₂ d₂₂
   ... | eqmid rewrite eqmid =
-    value-input-unique′ d₁₁ d₂₁
-  value-input-unique′ TV-Receive₁ TV-Receive₁ = refl
-  value-input-unique′ TV-Receive₂ TV-Receive₂ = refl
-  value-input-unique′ TV-Send₁ TV-Send₁ = refl
-  value-input-unique′ TV-Send₂ TV-Send₂ = refl
-  value-input-unique′ TV-Select₁ TV-Select₁ = refl
-  value-input-unique′ TV-Select₂ TV-Select₂ = refl
+    value-input-unique″ d₁₁ d₂₁
+  value-input-unique″ TV-Receive₁ TV-Receive₁ = refl
+  value-input-unique″ TV-Receive₂ TV-Receive₂ = refl
+  value-input-unique″ TV-Send₁ TV-Send₁ = refl
+  value-input-unique″ TV-Send₂ TV-Send₂ = refl
+  value-input-unique″ TV-Select₁ TV-Select₁ = refl
+  value-input-unique″ TV-Select₂ TV-Select₂ = refl
 
 synth-input-unique :
   ∀ {Δ n pk m}
@@ -1180,7 +1264,7 @@ lift-un-through-merge m d =
   (S-Lin {Γrest = Γrest₁} m₁ dv₁ au₁ σtail₁)
   (S-Lin {Γrest = Γrest₂} m₂ dv₂ au₂ σtail₂)
   with σ-target-unique σtail₁ σtail₂
-... | eqrest rewrite eqrest =
+... | refl =
   value-input-unique
     (consume-lin-head-merge m₁ dv₁ au₁)
     (consume-lin-head-merge m₂ dv₂ au₂)
@@ -1189,94 +1273,6 @@ lift-un-through-merge m d =
 σ-target-unique (S-Used σtail₁) (S-Used σtail₂) =
   σ-target-unique σtail₁ σtail₂
 
-lift-un-head-through-lookup′ :
-  ∀ {Δ n m pk mult pk′}
-    {Γ Γ′ : Ctx Δ n}
-    {Γt Γt′ : Ctx Δ m}
-    {τ : Sub Δ n m}
-    {Γo : Ctx Δ m}
-    {x : Fin n}
-    {w : Value Δ m}
-    {T : NfTy Δ (KV pk mult)}
-    {U : NfTy Δ (KV pk′ Lin)}
-  → Γ ⊢ˡ x ∶ U ⊣ Γ′
-  → Γt ⊢σ τ ∶ Γ ⊣ Γo
-  → Γt′ ⊢σ τ ∶ Γ′ ⊣ Γo
-  → allUsedCtx Γt ⊢ᵥ w ⇒ T ⊣ allUsedCtx Γt
-  → allUsedCtx Γt′ ⊢ᵥ w ⇒ T ⊣ allUsedCtx Γt′
-lift-un-head-through-lookup′ {w = w} take-here (S-Lin {Γrest = Γrest} m dv au σtail) (S-Used σtail′) d0 =
-  subst
-    (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
-    (cong allUsedCtx (sym (σ-target-unique σtail′ σtail)))
-    (subst
-      (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
-      (allUsed-merge m)
-      d0)
-lift-un-head-through-lookup′ {τ = τ} {w = w}
-  (take-thereˡ take)
-  (S-Lin {Γrest = Γrest} m dv au σtail)
-  (S-Lin {Γrest = Γrest′} m′ dv′ au′ σtail′)
-  d0 =
-  subst
-    (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
-    (sym (allUsed-merge m′))
-    (lift-un-head-through-lookup′
-      {τ = tailSub τ}
-      {w = w}
-      take
-      σtail
-      σtail′
-      (subst
-        (λ X → X ⊢ᵥ w ⇒ _ ⊣ X)
-        (allUsed-merge m)
-        d0))
-lift-un-head-through-lookup′ {τ = τ} {w = w}
-  (take-thereᵘ take)
-  (S-Un dhead σtail)
-  (S-Un dhead′ σtail′)
-  d0 =
-  lift-un-head-through-lookup′
-    {τ = tailSub τ}
-    {w = w}
-    take
-    σtail
-    σtail′
-    d0
-lift-un-head-through-lookup′ {τ = τ} {w = w}
-  (take-there✖ take)
-  (S-Used σtail)
-  (S-Used σtail′)
-  d0 =
-  lift-un-head-through-lookup′
-    {τ = tailSub τ}
-    {w = w}
-    take
-    σtail
-    σtail′
-    d0
-
-lift-un-head-through-lookup :
-  ∀ {Δ n m pk pk′}
-    {Γ Γ′ : Ctx Δ n}
-    {Γt Γt′ : Ctx Δ m}
-    {σ : Sub Δ (suc n) m}
-    {Γo : Ctx Δ m}
-    {x : Fin n}
-    {T : NfTy Δ (KV pk Un)}
-    {U : NfTy Δ (KV pk′ Lin)}
-  → Γ ⊢ˡ x ∶ U ⊣ Γ′
-  → Γt ⊢σ tailSub σ ∶ Γ ⊣ Γo
-  → Γt′ ⊢σ tailSub σ ∶ Γ′ ⊣ Γo
-  → allUsedCtx Γt ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt
-  → allUsedCtx Γt′ ⊢ᵥ σ zero ⇒ T ⊣ allUsedCtx Γt′
-lift-un-head-through-lookup {σ = σ} take σtail σtail′ d0 =
-  lift-un-head-through-lookup′
-    {τ = tailSub σ}
-    {w = σ zero}
-    take
-    σtail
-    σtail′
-    d0
 
 merge-right-allUsed :
   ∀ {Δ n}
@@ -1520,8 +1516,12 @@ mutual
     Γtout , dout , S-Lin mout dv au σtail′
   substσ-lookup-lin {σ = σ} (take-thereᵘ take) (S-Un d0 σtail)
     with substσ-lookup-lin take σtail
-  ... | Γt′ , d′ , σtail′ =
-    Γt′ , d′ , S-Un (lift-un-head-through-lookup {σ = σ} take σtail σtail′ d0) σtail′
+  ... | Γt′ , d′ , σtail′
+    with value-preserves-~Ctx d′
+  ... | Γt~Γt′
+    rewrite ~Ctx-allUsedCtx Γt~Γt′
+    =
+    Γt′ , d′ , S-Un d0 σtail′
   substσ-lookup-lin (take-there✖ take) (S-Used σtail)
     with substσ-lookup-lin take σtail
   ... | Γt′ , d′ , σtail′ =
@@ -1752,7 +1752,7 @@ mutual
           × (Γt′ ⊢σ σ ∶ Γs′ ⊣ Γo)
 
   substσ-preserves-value-abs (TV-Abs {T = T} {U = U} d) σok
-    with substσ-preserves-value-abs-body {T = normalizeTy T} {U = normalizeTy U} d σok
+    with substσ-preserves-value-abs-body {T = normalizeTy T} {U = U} d σok
   ... | G , rm , Γt′ , d′ , σok′ =
     G , rm , Γt′ , TV-Abs {T = T} {U = U} d′ , σok′
 

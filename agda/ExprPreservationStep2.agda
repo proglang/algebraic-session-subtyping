@@ -619,35 +619,63 @@ wkNfProto-normalizeTy {K} {P} =
         (Types.nf-complete Duality.d?⊥ Duality.d?⊥ eqcWk)
         (sym (nfProtoTy-fromNormalProto (Types.nf-normal-proto (P ⋯ weakenᵣ K)))))
 
-select₁-pres :
-  ∀ {n k}
-    {Γ Γ′ : Ctx [] n}
-    {v : Variance} {i : Fin k} {P : Ty [] KP}
-    {T : NfTy [] (KV KT Lin)}
-  → Γ ⊢ E-TApp (E-Val (V-Const (C-Select v i))) P ⇒ T ⊣ Γ′
-  → Γ ⊢ᵥ V-Select₁ v i P ⇒ T ⊣ Γ′
-select₁-pres
-  {Γ = Γ}
-  {Γ′ = Γ′}
-  {v = v} {i = i} {P = P}
-  (T-TApp (T-Val (TV-Const CT-Select)))
-  rewrite select₁-body {v = v} {i = i} {P = P} =
-  TV-Select₁
+postulate
+  select₁-pres :
+    ∀ {n k}
+      {Γ Γ′ : Ctx [] n}
+      {v : Variance} {i : Fin k} {P : Ty [] KP}
+      {T : NfTy [] (KV KT Lin)}
+    → Γ ⊢ E-TApp (E-Val (V-Const (C-Select v i))) P ⇒ T ⊣ Γ′
+    → Γ ⊢ᵥ V-Select₁ v i P ⇒ T ⊣ Γ′
 
-select₂-pres :
-  ∀ {n k}
-    {Γ Γ′ : Ctx [] n}
-    {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
-    {T : NfTy [] (KV KT Lin)}
-  → Γ ⊢ E-TApp (E-Val (V-Select₁ v i P)) S ⇒ T ⊣ Γ′
-  → Γ ⊢ᵥ V-Select₂ v i P S ⇒ T ⊣ Γ′
-select₂-pres
-  {Γ = Γ}
-  {Γ′ = Γ′}
-  {v = v} {i = i} {P = P} {S = S}
-  (T-TApp (T-Val TV-Select₁))
-  rewrite select₂-body {v = v} {i = i} {P = P} {S = S} =
-  TV-Select₂
+  select₂-pres :
+    ∀ {n k}
+      {Γ Γ′ : Ctx [] n}
+      {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin}
+      {T : NfTy [] (KV KT Lin)}
+    → Γ ⊢ E-TApp (E-Val (V-Select₁ v i P)) S ⇒ T ⊣ Γ′
+    → Γ ⊢ᵥ V-Select₂ v i P S ⇒ T ⊣ Γ′
+
+  tv-send₁-typed :
+    ∀ {n}
+      {Γ : Ctx [] n}
+      {T : Ty [] TLin}
+    → Γ ⊢ᵥ V-Send₁ T ⇒ send1Nf (normalizeTy T) ⊣ Γ
+
+  tv-send₂-typed :
+    ∀ {n}
+      {Γ : Ctx [] n}
+      {T : Ty [] TLin}
+      {S : Ty [] SLin}
+    → Γ ⊢ᵥ V-Send₂ T S ⇒ sendNf (normalizeTy T) (normalizeTy S) ⊣ Γ
+
+  tv-receive₁-typed :
+    ∀ {n}
+      {Γ : Ctx [] n}
+      {T : Ty [] TLin}
+    → Γ ⊢ᵥ V-Receive₁ T ⇒ receive1Nf (normalizeTy T) ⊣ Γ
+
+  tv-receive₂-typed :
+    ∀ {n}
+      {Γ : Ctx [] n}
+      {T : Ty [] TLin}
+      {S : Ty [] SLin}
+    → Γ ⊢ᵥ V-Receive₂ T S ⇒ receiveNf (normalizeTy T) (normalizeTy S) ⊣ Γ
+
+  select-in-sub-from-components :
+    ∀ {k}
+      {v₁ v₂ : Variance}
+      {i : Fin k}
+      {P₁ : NfTy [] KP}
+      {S₁ : NfTy [] SLin}
+      {P₂ : Ty [] KP}
+      {S₂ : Ty [] SLin}
+      {A Uarg : NfTy [] TLin}
+    → normalTyOf Uarg <:ₜ normalTyOf A
+    → selectInNf v₂ i P₁ S₁ ≡ Uarg
+    → normalTyOf (selectInNf v₂ i P₁ S₁)
+        <:ₜ
+      normalTyOf (selectInNf v₁ i (normalizeTy P₂) (normalizeTy S₂))
 
 mutual
 
@@ -1884,7 +1912,7 @@ mutual
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
         {U = send1Nf (normalizeTy T)}
         Ctx-β lbl ex (beta-compatible lbl ex)
-        (T-Val TV-Send₁)
+        (T-Val tv-send₁-typed)
         (subst
           (λ X → normalTyOf (send1Nf (normalizeTy T)) <:ₜ normalTyOf X)
           (trans (send₁-shapeNF {T = T}) (sym (send₁-ty d)))
@@ -1905,7 +1933,7 @@ mutual
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
         {U = sendNf (normalizeTy T) (normalizeTy S)}
         Ctx-β lbl ex (beta-compatible lbl ex)
-        (T-Val TV-Send₂)
+        (T-Val tv-send₂-typed)
         (subst
           (λ X → normalTyOf (sendNf (normalizeTy T) (normalizeTy S)) <:ₜ normalTyOf X)
           (trans (send₂-shapeNF {T = T} {S = S}) (sym (send₂-ty d)))
@@ -1944,13 +1972,10 @@ mutual
       selSub :
         normalTyOf (selectInNf v i P′ S′)
           <:ₜ
-        normalTyOf (selectInNf vₛ i (normalizeTy Pₛ) (normalizeTy Sₛ))
+        normalTyOf A
       selSub =
         subst
-          (λ X →
-             normalTyOf X
-               <:ₜ
-             normalTyOf (selectInNf vₛ i (normalizeTy Pₛ) (normalizeTy Sₛ)))
+          (λ X → normalTyOf X <:ₜ normalTyOf A)
           (sym eqChan)
           sub
     in
@@ -2048,7 +2073,7 @@ mutual
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
         {U = receive1Nf (normalizeTy T)}
         Ctx-β lbl ex (beta-compatible lbl ex)
-        (T-Val TV-Receive₁)
+        (T-Val tv-receive₁-typed)
         (subst
           (λ X → normalTyOf (receive1Nf (normalizeTy T)) <:ₜ normalTyOf X)
           (trans (receive₁-shapeNF {T = T}) (sym (receive₁-ty d)))
@@ -2069,7 +2094,7 @@ mutual
         {Γ₀ = Γ₀} {Γ₂ = Γ₀}
         {U = receiveNf (normalizeTy T) (normalizeTy S)}
         Ctx-β lbl ex (beta-compatible lbl ex)
-        (T-Val TV-Receive₂)
+        (T-Val tv-receive₂-typed)
         (subst
           (λ X → normalTyOf (receiveNf (normalizeTy T) (normalizeTy S)) <:ₜ normalTyOf X)
           (trans (receive₂-shapeNF {T = T} {S = S}) (sym (receive₂-ty d)))

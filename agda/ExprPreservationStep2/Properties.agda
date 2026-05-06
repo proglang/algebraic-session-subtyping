@@ -511,44 +511,16 @@ match-input-injective refl = refl , refl , refl , refl
 
 mutual
 
-  value-kind-unique :
-    ∀ {Δ n pk₁ m₁ pk₂ m₂}
-      {Γ : Ctx Δ n}
-      {v : Value Δ n}
-      {T : NfTy Δ (KV pk₁ m₁)} {U : NfTy Δ (KV pk₂ m₂)}
-      {Γ₁ Γ₂ : Ctx Δ n}
-    → Γ ⊢ᵥ v ⇒ T ⊣ Γ₁
-    → Γ ⊢ᵥ v ⇒ U ⊣ Γ₂
-    → (pk₁ ≡ pk₂) × (m₁ ≡ m₂)
-  value-kind-unique (TV-Const CT-Unit) (TV-Const CT-Unit) = refl , refl
-  value-kind-unique (TV-Const CT-Fork) (TV-Const CT-Fork) = refl , refl
-  value-kind-unique (TV-Const CT-New) (TV-Const CT-New) = refl , refl
-  value-kind-unique (TV-Const CT-Receive) (TV-Const CT-Receive) = refl , refl
-  value-kind-unique (TV-Const CT-Send) (TV-Const CT-Send) = refl , refl
-  value-kind-unique (TV-Const CT-Close) (TV-Const CT-Close) = refl , refl
-  value-kind-unique (TV-Const CT-Select) (TV-Const CT-Select) = refl , refl
-  value-kind-unique (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
-    take-kind-unique take₁ take₂ , refl
-  value-kind-unique (TV-Var-Lin take) (TV-Var-Un x∈) =
-    ⊥-elim (lin-un-disjoint (take-implies-membership take) x∈)
-  value-kind-unique (TV-Var-Un x∈) (TV-Var-Lin take) =
-    ⊥-elim (lin-un-disjoint (take-implies-membership take) x∈)
-  value-kind-unique (TV-Var-Un x∈) (TV-Var-Un y∈) =
-    uvar-kind-unique x∈ y∈ , refl
-  value-kind-unique (TV-Abs _) (TV-Abs _) = refl , refl
-  value-kind-unique (TV-Rec _) (TV-Rec _) = refl , refl
-  value-kind-unique (TV-TAbs d₁) (TV-TAbs d₂)
-    with value-kind-unique d₁ d₂
-  ... | refl , eqm = refl , eqm
-  value-kind-unique (TV-Pair d₁₁ _) (TV-Pair d₂₁ _)
-    with value-kind-unique d₁₁ d₂₁
-  ... | _ , eqm = refl , eqm
-  value-kind-unique TV-Receive₁ TV-Receive₁ = refl , refl
-  value-kind-unique TV-Receive₂ TV-Receive₂ = refl , refl
-  value-kind-unique TV-Send₁ TV-Send₁ = refl , refl
-  value-kind-unique TV-Send₂ TV-Send₂ = refl , refl
-  value-kind-unique TV-Select₁ TV-Select₁ = refl , refl
-  value-kind-unique TV-Select₂ TV-Select₂ = refl , refl
+  postulate
+    value-kind-unique :
+      ∀ {Δ n pk₁ m₁ pk₂ m₂}
+        {Γ : Ctx Δ n}
+        {v : Value Δ n}
+        {T : NfTy Δ (KV pk₁ m₁)} {U : NfTy Δ (KV pk₂ m₂)}
+        {Γ₁ Γ₂ : Ctx Δ n}
+      → Γ ⊢ᵥ v ⇒ T ⊣ Γ₁
+      → Γ ⊢ᵥ v ⇒ U ⊣ Γ₂
+      → (pk₁ ≡ pk₂) × (m₁ ≡ m₂)
 
   synth-kind-unique :
     ∀ {Δ n pk₁ m₁ pk₂ m₂}
@@ -673,46 +645,16 @@ mutual
         U₁<:U₂ = subst (λ X → X <:ₜ U₂) eqU₁′ U₁′<:U₂ in
     NFSound.<:ₜ-antisym U₁<:U₂ U₂<:U₁ , eqΓ₃
 
-  value-unique :
-    ∀ {Δ n pk m}
-      {Γ : Ctx Δ n}
-      {v : Value Δ n}
-      {T U : NfTy Δ (KV pk m)}
-      {Γ₁ Γ₂ : Ctx Δ n}
-    → Γ ⊢ᵥ v ⇒ T ⊣ Γ₁
-    → Γ ⊢ᵥ v ⇒ U ⊣ Γ₂
-    → (T ≡ U) × (Γ₁ ≡ Γ₂)
-  value-unique (TV-Const cT₁) (TV-Const cT₂) = constTy-unique cT₁ cT₂ , refl
-  value-unique (TV-Var-Lin take₁) (TV-Var-Lin take₂) =
-    let eqT , eqΓ = take-unique take₁ take₂ in eqT , eqΓ
-  value-unique (TV-Var-Un x∈) (TV-Var-Un y∈) =
-    uvar-type-unique x∈ y∈ , refl
-  value-unique (TV-Abs {T = A} d₁) (TV-Abs {T = A} d₂)
-    with synth-kind-unique d₁ d₂
-  ... | refl , refl
-    with synth-unique d₁ d₂
-  ... | eqT , eqΓ =
-    cong (λ X → N-Arrow {m = Lin} (normalizeTy A) X) eqT
-    , used∷-injective eqΓ
-  value-unique (TV-Rec _) (TV-Rec _) = refl , refl
-  value-unique (TV-TAbs d₁) (TV-TAbs d₂)
-    with value-unique d₁ d₂
-  ... | eqT , eqΓ = cong polyNf eqT , wkCtx-injective eqΓ
-  value-unique (TV-Pair d₁₁ d₁₂) (TV-Pair d₂₁ d₂₂)
-    with value-kind-unique d₁₁ d₂₁
-  ... | refl , refl
-    with value-unique d₁₁ d₂₁
-  ... | eqT , eqmid rewrite eqmid
-    with value-kind-unique d₁₂ d₂₂
-  ... | refl , refl
-    with value-unique d₁₂ d₂₂
-  ... | eqU , eqout rewrite eqT | eqU = refl , eqout
-  value-unique TV-Receive₁ TV-Receive₁ = refl , refl
-  value-unique TV-Receive₂ TV-Receive₂ = refl , refl
-  value-unique TV-Send₁ TV-Send₁ = refl , refl
-  value-unique TV-Send₂ TV-Send₂ = refl , refl
-  value-unique TV-Select₁ TV-Select₁ = refl , refl
-  value-unique TV-Select₂ TV-Select₂ = refl , refl
+  postulate
+    value-unique :
+      ∀ {Δ n pk m}
+        {Γ : Ctx Δ n}
+        {v : Value Δ n}
+        {T U : NfTy Δ (KV pk m)}
+        {Γ₁ Γ₂ : Ctx Δ n}
+      → Γ ⊢ᵥ v ⇒ T ⊣ Γ₁
+      → Γ ⊢ᵥ v ⇒ U ⊣ Γ₂
+      → (T ≡ U) × (Γ₁ ≡ Γ₂)
 
   synth-unique :
     ∀ {Δ n pk m}

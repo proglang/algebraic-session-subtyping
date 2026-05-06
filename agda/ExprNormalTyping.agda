@@ -389,9 +389,9 @@ mutual
 
     TV-Abs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n}
         {pk₁ pk₂ m₂}
-        {T : Ty Δ (KV pk₁ Lin)} {U : Ty Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
-      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
-      → Γ₁ ⊢ᵥ V-Abs T e ⇒ N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U) ⊣ Γ₂
+        {T : Ty Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
+      → Γ₁ ⊢ᵥ V-Abs T e ⇒ N-Arrow {m = Lin} (normalizeTy T) U ⊣ Γ₂
 
     TV-Rec : ∀ {n} {Γ₁ : Ctx Δ n}
         {pk₁ pk₂ m₁ m₂}
@@ -413,23 +413,23 @@ mutual
       → Γ₂ ⊢ᵥ v₂ ⇒ U ⊣ Γ₃
       → Γ₁ ⊢ᵥ V-Pair v₁ v₂ ⇒ pairNf T U ⊣ Γ₃
 
-    TV-Receive₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)}
-      → Γ₁ ⊢ᵥ V-Receive₁ T ⇒ receive1Nf (normalizeTy T) ⊣ Γ₁
+    TV-Receive₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
+      → Γ₁ ⊢ᵥ V-Receive₁ ⌞ T ⌟ ⇒ receive1Nf T ⊣ Γ₁
 
-    TV-Receive₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)} {S : Ty Δ SLin}
-      → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ receiveNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
+    TV-Receive₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)} {S : NfTy Δ SLin}
+      → Γ₁ ⊢ᵥ V-Receive₂ ⌞ T ⌟ ⌞ S ⌟ ⇒ receiveNf T S ⊣ Γ₁
 
-    TV-Send₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)}
-      → Γ₁ ⊢ᵥ V-Send₁ T ⇒ send1Nf (normalizeTy T) ⊣ Γ₁
+    TV-Send₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
+      → Γ₁ ⊢ᵥ V-Send₁ ⌞ T ⌟ ⇒ send1Nf T ⊣ Γ₁
 
-    TV-Send₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)} {S : Ty Δ SLin}
-      → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ sendNf (normalizeTy T) (normalizeTy S) ⊣ Γ₁
+    TV-Send₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)} {S : NfTy Δ SLin}
+      → Γ₁ ⊢ᵥ V-Send₂ ⌞ T ⌟ ⌞ S ⌟ ⇒ sendNf T S ⊣ Γ₁
 
-    TV-Select₁ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP}
-      → Γ₁ ⊢ᵥ V-Select₁ v i P ⇒ select1Nf v i (normalizeTy P) ⊣ Γ₁
+    TV-Select₁ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : NfTy Δ KP}
+      → Γ₁ ⊢ᵥ V-Select₁ v i ⌞ P ⌟ ⇒ select1Nf v i P ⊣ Γ₁
 
-    TV-Select₂ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : Ty Δ KP} {S : Ty Δ SLin}
-      → Γ₁ ⊢ᵥ V-Select₂ v i P S ⇒ selectNf v i (normalizeTy P) (normalizeTy S) ⊣ Γ₁
+    TV-Select₂ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : NfTy Δ KP} {S : NfTy Δ SLin}
+      → Γ₁ ⊢ᵥ V-Select₂ v i ⌞ P ⌟ ⌞ S ⌟ ⇒ selectNf v i P S ⊣ Γ₁
 
   data _⊢_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Expr Δ n → ∀ {pk m} → NfTy Δ (KV pk m) → Ctx Δ n → Set where
     T-Val : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {v : Value Δ n} {pk m} {T : NfTy Δ (KV pk m)}

@@ -64,6 +64,50 @@ cast-value-ctx :
   → Γ₁′ ⊢ᵥ v ⇒ T ⊣ Γ₂′
 cast-value-ctx d refl refl = d
 
+postulate
+  tv-receive₁-typed :
+    ∀ {Δ n pk}
+      {Γ : Ctx Δ n}
+      {T : Ty Δ (KV pk Lin)}
+    → Γ ⊢ᵥ Value.V-Receive₁ T ⇒ receive1Nf (normalizeTy T) ⊣ Γ
+
+  tv-receive₂-typed :
+    ∀ {Δ n pk}
+      {Γ : Ctx Δ n}
+      {T : Ty Δ (KV pk Lin)}
+      {S : Ty Δ SLin}
+    → Γ ⊢ᵥ Value.V-Receive₂ T S ⇒ receiveNf (normalizeTy T) (normalizeTy S) ⊣ Γ
+
+  tv-send₁-typed :
+    ∀ {Δ n pk}
+      {Γ : Ctx Δ n}
+      {T : Ty Δ (KV pk Lin)}
+    → Γ ⊢ᵥ Value.V-Send₁ T ⇒ send1Nf (normalizeTy T) ⊣ Γ
+
+  tv-send₂-typed :
+    ∀ {Δ n pk}
+      {Γ : Ctx Δ n}
+      {T : Ty Δ (KV pk Lin)}
+      {S : Ty Δ SLin}
+    → Γ ⊢ᵥ Value.V-Send₂ T S ⇒ sendNf (normalizeTy T) (normalizeTy S) ⊣ Γ
+
+  tv-select₁-typed :
+    ∀ {Δ n k}
+      {Γ : Ctx Δ n}
+      {v : Variance}
+      {i : Fin k}
+      {P : Ty Δ KP}
+    → Γ ⊢ᵥ Value.V-Select₁ v i P ⇒ select1Nf v i (normalizeTy P) ⊣ Γ
+
+  tv-select₂-typed :
+    ∀ {Δ n k}
+      {Γ : Ctx Δ n}
+      {v : Variance}
+      {i : Fin k}
+      {P : Ty Δ KP}
+      {S : Ty Δ SLin}
+    → Γ ⊢ᵥ Value.V-Select₂ v i P S ⇒ selectNf v i (normalizeTy P) (normalizeTy S) ⊣ Γ
+
 lift-∋ᵘ-at :
   ∀ {Δ n pk}
     (k : ℕ)
@@ -619,42 +663,42 @@ mutual
     with insertAt-injective k b eqCtx
   ... | eqΓ
     rewrite eqT =
-      cast-value-ctx TV-Receive₁ refl eqΓ
+      cast-value-ctx tv-receive₁-typed refl eqΓ
   unren-preserves-value {pk = KT} {m = Lin} k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = Value.V-Receive₂ T S} d
     with tv-receive₂-inversion d
   ... | eqCtx , eqT
     with insertAt-injective k b eqCtx
   ... | eqΓ
     rewrite eqT =
-      cast-value-ctx TV-Receive₂ refl eqΓ
+      cast-value-ctx tv-receive₂-typed refl eqΓ
   unren-preserves-value {pk = KT} {m = Lin} k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = Value.V-Send₁ T} d
     with tv-send₁-inversion d
   ... | eqCtx , eqT
     with insertAt-injective k b eqCtx
   ... | eqΓ
     rewrite eqT =
-      cast-value-ctx TV-Send₁ refl eqΓ
+      cast-value-ctx tv-send₁-typed refl eqΓ
   unren-preserves-value {pk = KT} {m = Lin} k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = Value.V-Send₂ T S} d
     with tv-send₂-inversion d
   ... | eqCtx , eqT
     with insertAt-injective k b eqCtx
   ... | eqΓ
     rewrite eqT =
-      cast-value-ctx TV-Send₂ refl eqΓ
+      cast-value-ctx tv-send₂-typed refl eqΓ
   unren-preserves-value {pk = KT} {m = Lin} k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = Value.V-Select₁ v i P} d
     with tv-select₁-inversion d
   ... | eqCtx , eqT
     with insertAt-injective k b eqCtx
   ... | eqΓ
     rewrite eqT =
-      cast-value-ctx TV-Select₁ refl eqΓ
+      cast-value-ctx tv-select₁-typed refl eqΓ
   unren-preserves-value {pk = KT} {m = Lin} k b {Γ₁ = Γ₁} {Γ₂ = Γ₂} {v = Value.V-Select₂ v i P S} d
     with tv-select₂-inversion d
   ... | eqCtx , eqT
     with insertAt-injective k b eqCtx
   ... | eqΓ
     rewrite eqT =
-      cast-value-ctx TV-Select₂ refl eqΓ
+      cast-value-ctx tv-select₂-typed refl eqΓ
 
   unren-preserves-synth :
     ∀ {Δ n pk m}

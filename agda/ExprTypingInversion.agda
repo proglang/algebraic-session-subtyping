@@ -141,9 +141,9 @@ abs-inversion :
   → Γ₁ ⊢ᵥ V-Abs T e ⇒ W ⊣ Γ₂
   → Σ PreKind (λ pk₂ →
       Σ Multiplicity (λ m₂ →
-        Σ (Ty Δ (KV pk₂ m₂)) λ U →
-          (W ≡ N-Arrow {m = Lin} (normalizeTy T) (normalizeTy U))
-          × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ normalizeTy U ⊣ (B-Used (normalizeTy T) ▻ Γ₂))))
+        Σ (NfTy Δ (KV pk₂ m₂)) λ U →
+          (W ≡ N-Arrow {m = Lin} (normalizeTy T) U)
+          × ((normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂))))
 abs-inversion (TV-Abs {pk₂ = pk₂} {m₂ = m₂} {U = U} p) = pk₂ , m₂ , U , refl , p
 
 pair-inversion :
@@ -182,7 +182,8 @@ receive₂-inversion :
   ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n} {pk} {T : Ty Δ (KV pk Lin)} {S : Ty Δ SLin} {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ receiveNf (normalizeTy T) (normalizeTy S))
-receive₂-inversion TV-Receive₂ = refl , refl
+receive₂-inversion (TV-Receive₂ {T = T} {S = S})
+  rewrite normalizeTy-id T | normalizeTy-id S = refl , refl
 
 closeTy-shape :
   normalizeTy {Δ = []} CloseTy
@@ -463,7 +464,18 @@ send₂-rigid :
   ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
   → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
   → Γ ≡ Γ′
-send₂-rigid (T-TApp (T-Val TV-Send₁)) = refl
+send₂-rigid (T-TApp (T-Val (TV-Send₁ {T = T}))) = refl
+
+send₂-body-nfTy :
+  ∀ {T : NfTy [] TLin} {S : Ty [] SLin}
+  → substNFTy
+      (sendNf (wkNfTy {K′ = SLin} T) (N-Var (NV-Var (here refl))))
+      (normalizeTy S)
+      ≡
+    sendNf T (normalizeTy S)
+send₂-body-nfTy {T = T} {S = S}
+  rewrite sym (normalizeTy-id T) =
+  send₂-body {T = ⌞ T ⌟} {S = S}
 
 send₁-ty :
   ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {T : NfTy [] TLin}
@@ -476,8 +488,16 @@ send₂-ty :
   ∀ {n} {Γ Γ′ : Ctx [] n} {U : Ty [] TLin} {S : Ty [] SLin} {T : NfTy [] TLin}
   → Γ ⊢ E-TApp (E-Val (V-Send₁ U)) S ⇒ T ⊣ Γ′
   → T ≡ normalizeTy (SendTy U S)
-send₂-ty {U = U} {S = S} (T-TApp (T-Val TV-Send₁)) =
-  trans (send₂-body {T = U} {S = S}) (sym (sendTy2-shape-local {T = U} {S = S}))
+send₂-ty {S = S} (T-TApp (T-Val (TV-Send₁ {T = T}))) =
+  trans
+    (send₂-body-nfTy {T = T} {S = S})
+    (sym shape)
+  where
+  shape : normalizeTy (SendTy ⌞ T ⌟ S) ≡ sendNf T (normalizeTy S)
+  shape =
+    trans
+      (sendTy2-shape-local {T = ⌞ T ⌟} {S = S})
+      (cong (λ X → sendNf X (normalizeTy S)) (normalizeTy-id T))
 
 send₁-shapeNF :
   ∀ {T : Ty [] TLin}
@@ -491,11 +511,7 @@ send₁-shapeNF {T = T} =
 send₂-shapeNF :
   ∀ {T : Ty [] TLin} {S : Ty [] SLin}
   → sendNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (SendTy T S)
-send₂-shapeNF {T = T} {S = S} =
-  trans
-    (sym (send₂-body {T = T} {S = S}))
-    (send₂-ty {Γ = ∅} {Γ′ = ∅} {U = T} {S = S}
-      (T-TApp (T-Val TV-Send₁)))
+send₂-shapeNF {T = T} {S = S} = sym (sendTy2-shape-local {T = T} {S = S})
 
 send₂-shape :
   ∀ {n}
@@ -506,7 +522,8 @@ send₂-shape :
   → (Γ₁ ≡ Γ₂)
     × ((A ≡ pairNf (normalizeTy Tᵣ) (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
     × (R ≡ sessTyNf (normalizeTy Sᵣ)))
-send₂-shape TV-Send₂ = refl , (refl , refl)
+send₂-shape (TV-Send₂ {T = T} {S = S})
+  rewrite normalizeTy-id T | normalizeTy-id S = refl , (refl , refl)
 
 postulate
   receive₁-rigid :
@@ -538,14 +555,30 @@ receive₁-shapeNF {T = T} =
     (receive₁-ty {Γ = ∅} {Γ′ = ∅} {U = T}
       (T-TApp (T-Val (TV-Const CT-Receive))))
 
+receiveTy2-shape-local :
+  ∀ {T : Ty [] TLin} {S : Ty [] SLin}
+  → normalizeTy (ReceiveTy T S) ≡ receiveNf (normalizeTy T) (normalizeTy S)
+receiveTy2-shape-local {T} {S} =
+  nfTyEq
+    (cong₂ Ty.T-Arrow
+      (cong (Ty.T-Sub (≤k-step (≤p-step <p-st) ≤m-refl))
+        (cong₂ (Ty.T-Msg Duality.⊝)
+          refl
+          (trans
+            (nfTyTy-fromNormalTy
+              (Types.nf-normal-type
+                Duality.⊕
+                (λ x → Duality.dualizable-sub (Duality.d?⊥ x) (≤k-step (≤p-step <p-st) ≤m-refl))
+                S))
+            (sessionNfEq-local {S = S}))))
+      (cong₂ Ty.T-Pair
+        refl
+        refl))
+
 receive₂-shapeNF :
   ∀ {T : Ty [] TLin} {S : Ty [] SLin}
   → receiveNf (normalizeTy T) (normalizeTy S) ≡ normalizeTy (ReceiveTy T S)
-receive₂-shapeNF {T = T} {S = S} =
-  trans
-    (sym (receive₂-body {T = T} {S = S}))
-    (receive₂-ty {Γ = ∅} {Γ′ = ∅} {U = T} {S = S}
-      (T-TApp (T-Val TV-Receive₁)))
+receive₂-shapeNF {T = T} {S = S} = sym (receiveTy2-shape-local {T = T} {S = S})
 
 postulate
   recv-app-inversion :
@@ -572,7 +605,8 @@ select₂-inversion :
     × (W ≡ linArrNf
              (selectInNf v i (normalizeTy P) (normalizeTy S))
              (selectOutNf v i (normalizeTy P) (normalizeTy S)))
-select₂-inversion TV-Select₂ = refl , refl
+select₂-inversion (TV-Select₂ {P = P} {S = S})
+  rewrite normalizeTy-id P | normalizeTy-id S = refl , refl
 
 select₂-shape :
   ∀ {n k}
@@ -895,9 +929,9 @@ tv-abs-inversion :
   → Γ₁ ⊢ᵥ Value.V-Abs A e ⇒ W ⊣ Γ₂
   → Σ PreKind (λ pk₂ →
       Σ Multiplicity (λ m₂ →
-        Σ (Ty Δ (KV pk₂ m₂)) λ U →
-          (W ≡ N-Arrow {m = Lin} (normalizeTy A) (normalizeTy U))
-          × ((normalizeTy A ∷ˡ Γ₁) ⊢ e ⇒ normalizeTy U ⊣ used∷ {T = normalizeTy A} Γ₂)))
+        Σ (NfTy Δ (KV pk₂ m₂)) λ U →
+          (W ≡ N-Arrow {m = Lin} (normalizeTy A) U)
+          × ((normalizeTy A ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ used∷ {T = normalizeTy A} Γ₂)))
 tv-abs-inversion (TV-Abs {pk₂ = pk₂} {m₂ = m₂} {U = U} d) =
   pk₂ , m₂ , U , refl , d
 
@@ -948,7 +982,8 @@ tv-receive₁-inversion :
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Receive₁ T ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ receive1Nf (normalizeTy T))
-tv-receive₁-inversion TV-Receive₁ = refl , refl
+tv-receive₁-inversion (TV-Receive₁ {T = T})
+  rewrite normalizeTy-id T = refl , refl
 
 tv-receive₂-inversion :
   ∀ {Δ n}
@@ -958,7 +993,8 @@ tv-receive₂-inversion :
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Receive₂ T S ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ receiveNf (normalizeTy T) (normalizeTy S))
-tv-receive₂-inversion TV-Receive₂ = refl , refl
+tv-receive₂-inversion (TV-Receive₂ {T = T} {S = S})
+  rewrite normalizeTy-id T | normalizeTy-id S = refl , refl
 
 tv-send₁-inversion :
   ∀ {Δ n}
@@ -967,7 +1003,8 @@ tv-send₁-inversion :
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Send₁ T ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ send1Nf (normalizeTy T))
-tv-send₁-inversion TV-Send₁ = refl , refl
+tv-send₁-inversion (TV-Send₁ {T = T})
+  rewrite normalizeTy-id T = refl , refl
 
 tv-send₂-inversion :
   ∀ {Δ n}
@@ -977,7 +1014,8 @@ tv-send₂-inversion :
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Send₂ T S ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ sendNf (normalizeTy T) (normalizeTy S))
-tv-send₂-inversion TV-Send₂ = refl , refl
+tv-send₂-inversion (TV-Send₂ {T = T} {S = S})
+  rewrite normalizeTy-id T | normalizeTy-id S = refl , refl
 
 tv-select₁-inversion :
   ∀ {Δ n k}
@@ -988,7 +1026,8 @@ tv-select₁-inversion :
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Select₁ v i P ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ select1Nf v i (normalizeTy P))
-tv-select₁-inversion TV-Select₁ = refl , refl
+tv-select₁-inversion (TV-Select₁ {P = P})
+  rewrite normalizeTy-id P = refl , refl
 
 tv-select₂-inversion :
   ∀ {Δ n k}
@@ -1000,4 +1039,5 @@ tv-select₂-inversion :
     {W : NfTy Δ TLin}
   → Γ₁ ⊢ᵥ Value.V-Select₂ v i P S ⇒ W ⊣ Γ₂
   → (Γ₁ ≡ Γ₂) × (W ≡ selectNf v i (normalizeTy P) (normalizeTy S))
-tv-select₂-inversion TV-Select₂ = refl , refl
+tv-select₂-inversion (TV-Select₂ {P = P} {S = S})
+  rewrite normalizeTy-id P | normalizeTy-id S = refl , refl
