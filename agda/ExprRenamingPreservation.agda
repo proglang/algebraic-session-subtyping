@@ -12,7 +12,7 @@ open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Kinds
 open import Variance using (Variance)
 open import Types using (Ty)
-open import ExprSyntax using (Expr; Value; E-Val; E-App; E-TApp; E-LetUnit; E-Pair; E-LetPair; E-Match)
+open import ExprSyntax using (NfTy; Expr; Value; E-Val; E-App; E-TApp; E-LetUnit; E-Pair; E-LetPair; E-Match)
 open import ExprSubstitution using (Ren; extRen; renameExpr; renameValue; wkValue)
 open import ExprNormalTyping
 open import ExprTypingInversion
@@ -64,49 +64,54 @@ cast-value-ctx :
   → Γ₁′ ⊢ᵥ v ⇒ T ⊣ Γ₂′
 cast-value-ctx d refl refl = d
 
-postulate
-  tv-receive₁-typed :
-    ∀ {Δ n pk}
-      {Γ : Ctx Δ n}
-      {T : Ty Δ (KV pk Lin)}
-    → Γ ⊢ᵥ Value.V-Receive₁ T ⇒ receive1Nf (normalizeTy T) ⊣ Γ
+tv-receive₁-typed :
+  ∀ {Δ n pk}
+    {Γ : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)}
+  → Γ ⊢ᵥ Value.V-Receive₁ T ⇒ receive1Nf T ⊣ Γ
+tv-receive₁-typed = TV-Receive₁
 
-  tv-receive₂-typed :
-    ∀ {Δ n pk}
-      {Γ : Ctx Δ n}
-      {T : Ty Δ (KV pk Lin)}
-      {S : Ty Δ SLin}
-    → Γ ⊢ᵥ Value.V-Receive₂ T S ⇒ receiveNf (normalizeTy T) (normalizeTy S) ⊣ Γ
+tv-receive₂-typed :
+  ∀ {Δ n pk}
+    {Γ : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)}
+    {S : NfTy Δ SLin}
+  → Γ ⊢ᵥ Value.V-Receive₂ T S ⇒ receiveNf T S ⊣ Γ
+tv-receive₂-typed = TV-Receive₂
 
-  tv-send₁-typed :
-    ∀ {Δ n pk}
-      {Γ : Ctx Δ n}
-      {T : Ty Δ (KV pk Lin)}
-    → Γ ⊢ᵥ Value.V-Send₁ T ⇒ send1Nf (normalizeTy T) ⊣ Γ
+tv-send₁-typed :
+  ∀ {Δ n pk}
+    {Γ : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)}
+  → Γ ⊢ᵥ Value.V-Send₁ T ⇒ send1Nf T ⊣ Γ
+tv-send₁-typed = TV-Send₁
 
-  tv-send₂-typed :
-    ∀ {Δ n pk}
-      {Γ : Ctx Δ n}
-      {T : Ty Δ (KV pk Lin)}
-      {S : Ty Δ SLin}
-    → Γ ⊢ᵥ Value.V-Send₂ T S ⇒ sendNf (normalizeTy T) (normalizeTy S) ⊣ Γ
+tv-send₂-typed :
+  ∀ {Δ n pk}
+    {Γ : Ctx Δ n}
+    {T : NfTy Δ (KV pk Lin)}
+    {S : NfTy Δ SLin}
+  → Γ ⊢ᵥ Value.V-Send₂ T S ⇒ sendNf T S ⊣ Γ
+tv-send₂-typed = TV-Send₂
 
-  tv-select₁-typed :
-    ∀ {Δ n k}
-      {Γ : Ctx Δ n}
-      {v : Variance}
-      {i : Fin k}
-      {P : Ty Δ KP}
-    → Γ ⊢ᵥ Value.V-Select₁ v i P ⇒ select1Nf v i (normalizeTy P) ⊣ Γ
+tv-select₁-typed :
+  ∀ {Δ n k}
+    {Γ : Ctx Δ n}
+    {v : Variance}
+    {i : Fin k}
+    {P : NfTy Δ KP}
+  → Γ ⊢ᵥ Value.V-Select₁ v i P ⇒ select1Nf v i P ⊣ Γ
+tv-select₁-typed = TV-Select₁
 
-  tv-select₂-typed :
-    ∀ {Δ n k}
-      {Γ : Ctx Δ n}
-      {v : Variance}
-      {i : Fin k}
-      {P : Ty Δ KP}
-      {S : Ty Δ SLin}
-    → Γ ⊢ᵥ Value.V-Select₂ v i P S ⇒ selectNf v i (normalizeTy P) (normalizeTy S) ⊣ Γ
+tv-select₂-typed :
+  ∀ {Δ n k}
+    {Γ : Ctx Δ n}
+    {v : Variance}
+    {i : Fin k}
+    {P : NfTy Δ KP}
+    {S : NfTy Δ SLin}
+  → Γ ⊢ᵥ Value.V-Select₂ v i P S ⇒ selectNf v i P S ⊣ Γ
+tv-select₂-typed = TV-Select₂
 
 lift-∋ᵘ-at :
   ∀ {Δ n pk}
@@ -513,9 +518,9 @@ mutual
   ... | inj₂₀ (refl , (_ , eq)) = Γ₁ , sym eq
   insertAt-output-value k b {Γ₁} {v = Value.V-Abs A e} d@(TV-Abs _) with tv-abs-inversion d
   ... | _ , _ , _ , _ , dabs
-    with insertAt-output-synth (suc k) b {Γ₁ = B-Lin (normalizeTy A) ▻ Γ₁} dabs
+    with insertAt-output-synth (suc k) b {Γ₁ = B-Lin A ▻ Γ₁} dabs
   ... | Γ₂′ , eq
-    with insertAt-suc-tail k b {h = B-Used (normalizeTy A)} eq
+    with insertAt-suc-tail k b {h = B-Used A} eq
   ... | Γ₂″ , tailEq = Γ₂″ , tailEq
   insertAt-output-value k b {Γ₁} {v = Value.V-Rec A B v} d@(TV-Rec _) with tv-rec-inversion d
   ... | eq , _ , _ = Γ₁ , sym eq

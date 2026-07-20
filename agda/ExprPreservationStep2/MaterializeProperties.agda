@@ -22,6 +22,7 @@ open import NormalTypes using
   ; toNormalProto
   ; toNormalTy
   )
+open import ExprSyntax using (NfTy)
 open import ExprNormalTyping
 open import NormalTypesSubstitution using
   ( NFSub

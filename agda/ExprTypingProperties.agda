@@ -12,7 +12,7 @@ import Relation.Binary.PropositionalEquality as Eq
 open import AlgorithmicNFSubtyping using (_<:ₜ_)
 open import Variance using (Variance)
 open import Kinds using (Kind; KV; KP; SLin; TLin; Lin; Un)
-open import ExprSyntax using (Expr; Value; E-Match)
+open import ExprSyntax using (NfTy; Expr; Value; E-Match)
 open import ExprNormalTyping
 open import ExprContextReduction using
   ( RemoveCtx; RM-∅; RM-drop; RM-allused; RM-lin; RM-un
@@ -170,11 +170,109 @@ allUsed-frame (AU-used au) (FC-allused f)
 allUsed-frame (AU-un au) (FC-un f)
   rewrite allUsed-frame au f = refl
 
-postulate
-  wkFrameCtx-invert :
-    ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx (K ∷ Δ) n}
-    → FrameCtx (wkCtx {K = K} Φ) (wkCtx Γ) Γ̂
-    → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ wkCtx {K = K} Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+frame-lin-used-head :
+  ∀ {Δ n pk₁ pk₂}
+    {Φ Γ : Ctx Δ n}
+    {Γ̂ : Ctx Δ (suc n)}
+    {T : NfTy Δ (KV pk₁ Lin)}
+    {U : NfTy Δ (KV pk₂ Lin)}
+  → FrameCtx (B-Lin T ▻ Φ) (B-Used U ▻ Γ) Γ̂
+  → Σ (pk₁ ≡ pk₂) λ where
+      refl → T ≡ U
+frame-lin-used-head (FC-frame _) = refl , refl
+
+frame-used-used-head :
+  ∀ {Δ n pk₁ pk₂}
+    {Φ Γ : Ctx Δ n}
+    {Γ̂ : Ctx Δ (suc n)}
+    {T : NfTy Δ (KV pk₁ Lin)}
+    {U : NfTy Δ (KV pk₂ Lin)}
+  → FrameCtx (B-Used T ▻ Φ) (B-Used U ▻ Γ) Γ̂
+  → Σ (pk₁ ≡ pk₂) λ where
+      refl → T ≡ U
+frame-used-used-head (FC-allused _) = refl , refl
+
+frame-used-lin-head :
+  ∀ {Δ n pk₁ pk₂}
+    {Φ Γ : Ctx Δ n}
+    {Γ̂ : Ctx Δ (suc n)}
+    {T : NfTy Δ (KV pk₁ Lin)}
+    {U : NfTy Δ (KV pk₂ Lin)}
+  → FrameCtx (B-Used T ▻ Φ) (B-Lin U ▻ Γ) Γ̂
+  → Σ (pk₁ ≡ pk₂) λ where
+      refl → T ≡ U
+frame-used-lin-head (FC-live _) = refl , refl
+
+wkFrameCtx-invert :
+  ∀ {Δ n K} {Φ Γ : Ctx Δ n} {Γ̂ : Ctx (K ∷ Δ) n}
+  → FrameCtx (wkCtx {K = K} Φ) (wkCtx Γ) Γ̂
+  → Σ (Ctx Δ n) λ Γ̂₀ → (Γ̂ ≡ wkCtx {K = K} Γ̂₀) × FrameCtx Φ Γ Γ̂₀
+wkFrameCtx-invert {Φ = ∅} {Γ = ∅} FC-∅ =
+  ∅ , refl , FC-∅
+wkFrameCtx-invert
+  {K = K}
+  {Φ = B-Lin T ▻ Φ}
+  {Γ = B-Used U ▻ Γ}
+  f
+  with frame-lin-used-head f
+... | refl , eq
+  with wkNfTy-injective eq
+... | refl
+  with f
+... | FC-frame ftail
+  with wkFrameCtx-invert {K = K} ftail
+... | Γ̂₀ , eq , f₀ =
+  (B-Lin T ▻ Γ̂₀) ,
+  Eq.cong (B-Lin (wkNfTy {K′ = K} T) ▻_) eq ,
+  FC-frame f₀
+wkFrameCtx-invert
+  {K = K}
+  {Φ = B-Used T ▻ Φ}
+  {Γ = B-Used U ▻ Γ}
+  f
+  with frame-used-used-head f
+... | refl , eq
+  with wkNfTy-injective eq
+... | refl
+  with f
+... | FC-allused ftail
+  with wkFrameCtx-invert {K = K} ftail
+... | Γ̂₀ , eq , f₀ =
+  (B-Used T ▻ Γ̂₀) ,
+  Eq.cong (B-Used (wkNfTy {K′ = K} T) ▻_) eq ,
+  FC-allused f₀
+wkFrameCtx-invert
+  {K = K}
+  {Φ = B-Used T ▻ Φ}
+  {Γ = B-Lin U ▻ Γ}
+  f
+  with frame-used-lin-head f
+... | refl , eq
+  with wkNfTy-injective eq
+... | refl
+  with f
+... | FC-live ftail
+  with wkFrameCtx-invert {K = K} ftail
+... | Γ̂₀ , eq , f₀ =
+  (B-Lin T ▻ Γ̂₀) ,
+  Eq.cong (B-Lin (wkNfTy {K′ = K} T) ▻_) eq ,
+  FC-live f₀
+wkFrameCtx-invert
+  {K = K}
+  {Φ = B-Un T ▻ Φ}
+  {Γ = B-Un U ▻ Γ}
+  f
+  with frame-un-head f
+... | refl , eq
+  with wkNfTy-injective eq
+... | refl
+  with f
+... | FC-un ftail
+  with wkFrameCtx-invert {K = K} ftail
+... | Γ̂₀ , eq , f₀ =
+  (B-Un T ▻ Γ̂₀) ,
+  Eq.cong (B-Un (wkNfTy {K′ = K} T) ▻_) eq ,
+  FC-un f₀
 
 mutual
 

@@ -45,6 +45,33 @@ subst-preserves-≡c (≡c-protoP T₁≡T₂) ϕ = ≡c-protoP (subst-preserves
 subst-preserves-≡c (≡c-up T₁≡T₂) ϕ = ≡c-up (subst-preserves-≡c T₁≡T₂ ϕ)
 subst-preserves-≡c (≡c-minus T₁≡T₂) ϕ = ≡c-minus (subst-preserves-≡c T₁≡T₂ ϕ)
 
+t-dual-preserves-≡c :
+  ∀ {Δ m} {T U : Ty Δ (KV KS m)}
+  → T ≡c U
+  → t-dual D-S T ≡c t-dual D-S U
+t-dual-preserves-≡c ≡c-refl = ≡c-refl
+t-dual-preserves-≡c (≡c-symm eq) =
+  ≡c-symm (t-dual-preserves-≡c eq)
+t-dual-preserves-≡c (≡c-trns eq₁ eq₂) =
+  ≡c-trns (t-dual-preserves-≡c eq₁) (t-dual-preserves-≡c eq₂)
+t-dual-preserves-≡c (≡c-sub (≤k-step ≤p-refl x) eq) =
+  ≡c-sub (≤k-step ≤p-refl x) (t-dual-preserves-≡c eq)
+t-dual-preserves-≡c
+  {T = T-Dual D-S (T-Sub (≤k-step ≤p-refl x) T)}
+  ≡c-sub-dual = ≡c-refl
+t-dual-preserves-≡c
+  {T = T-Dual D-S (T-Dual D-S U)}
+  (≡c-dual-dual D-S) =
+  dual-tinv U
+t-dual-preserves-≡c ≡c-dual-end = ≡c-refl
+t-dual-preserves-≡c {T = T-Dual D-S (T-Msg p T S)} ≡c-dual-msg
+  rewrite invert-involution {p} =
+    ≡c-msg ≡c-refl ≡c-refl
+t-dual-preserves-≡c {T = T-Msg p T S} (≡c-msg-minus {p = p}) =
+  ≡c-msg-minus {p = invert p}
+t-dual-preserves-≡c (≡c-msg eqT eqS) =
+  ≡c-msg eqT (t-dual-preserves-≡c eqS)
+
 subst-preserves : ⦃ KT : Kit _∋/⊢_ ⦄ → {T₁ T₂ : Ty Δ₁ K} → T₁ <: T₂ → (ϕ : Δ₁ –[ KT ]→ Δ₂) → (T₁ ⋯ ϕ) <: (T₂ ⋯ ϕ)
 subst-preserves-<<: : ⦃ KT : Kit _∋/⊢_ ⦄ → {T₁ T₂ : Ty Δ₁ K} → T₁ <<:[ ⊙ ] T₂ → (ϕ : Δ₁ –[ KT ]→ Δ₂) → (T₁ ⋯ ϕ) <<:[ ⊙ ] (T₂ ⋯ ϕ)
 

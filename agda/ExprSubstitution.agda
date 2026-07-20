@@ -7,7 +7,19 @@ open import Data.Product using (Σ; _,_)
 
 open import Kinds
 open import Kits
+open import Duality using (d?⊥; ⊕)
 open import Types using (Ty; Ty-Syntax; Ty-Traversal)
+open import NormalTypes using (nf-normal-proto; nf-normal-type)
+open import NormalTypesRenamings using (renNFProto; renNFTy)
+open import NormalTypesSubstitution
+  using
+  ( NFSub
+  ; nfSubTy
+  ; wkNFSub
+  ; singleNFSub
+  ; substNFProtoWith
+  ; substNFTyWith
+  )
 open import ExprSyntax
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
@@ -29,6 +41,22 @@ extRen ρ (suc x) = suc (ρ x)
 
 extRen2 : ∀ {tn tm} → Ren {tn} {tm} → Ren {sucℕ (sucℕ tn)} {sucℕ (sucℕ tm)}
 extRen2 ρ = extRen (extRen ρ)
+
+renNfTy : ∀ {Δ Δ′ K} → (ϕ : Δ →ᵣ Δ′) → NfTy Δ K → NfTy Δ′ K
+renNfTy {K = KP} ϕ T = renNFProto ϕ T
+renNfTy {K = KV pk m} ϕ T = renNFTy ϕ T
+
+toNFSub : ∀ {Δ Δ′} → (ϕ : Δ →ₛ Δ′) → NFSub Δ Δ′
+toNFSub ϕ KP x = nf-normal-proto (ϕ KP x)
+toNFSub ϕ (KV pk m) x = nf-normal-type ⊕ d?⊥ (ϕ (KV pk m) x)
+
+substNfTyWith : ∀ {Δ Δ′ K} → (ϕ : Δ →ₛ Δ′) → NfTy Δ K → NfTy Δ′ K
+substNfTyWith {K = KP} ϕ T = substNFProtoWith (toNFSub ϕ) T
+substNfTyWith {K = KV pk m} ϕ T = substNFTyWith (toNFSub ϕ) T
+
+substNFNfTyWith : ∀ {Δ Δ′ K} → NFSub Δ Δ′ → NfTy Δ K → NfTy Δ′ K
+substNFNfTyWith {K = KP} = substNFProtoWith
+substNFNfTyWith {K = KV pk m} = substNFTyWith
 
 mutual
 
@@ -71,21 +99,21 @@ mutual
   renTyValue : ∀ {Δ Δ′ n} → (ϕ : Δ →ᵣ Δ′) → Value Δ n → Value Δ′ n
   renTyValue ϕ (V-Const c) = V-Const c
   renTyValue ϕ (V-Var x) = V-Var x
-  renTyValue ϕ (V-Abs T e) = V-Abs (T ⋯ ϕ) (renTyExpr ϕ e)
-  renTyValue ϕ (V-Rec T U v) = V-Rec (T ⋯ ϕ) (U ⋯ ϕ) (renTyValue ϕ v)
+  renTyValue ϕ (V-Abs T e) = V-Abs (renNfTy ϕ T) (renTyExpr ϕ e)
+  renTyValue ϕ (V-Rec T U v) = V-Rec (renNfTy ϕ T) (renNfTy ϕ U) (renTyValue ϕ v)
   renTyValue ϕ (V-TAbs K v) = V-TAbs K (renTyValue (ϕ ↑ᵣ K) v)
   renTyValue ϕ (V-Pair v₁ v₂) = V-Pair (renTyValue ϕ v₁) (renTyValue ϕ v₂)
-  renTyValue ϕ (V-Receive₁ T) = V-Receive₁ (T ⋯ ϕ)
-  renTyValue ϕ (V-Receive₂ T S) = V-Receive₂ (T ⋯ ϕ) (S ⋯ ϕ)
-  renTyValue ϕ (V-Send₁ T) = V-Send₁ (T ⋯ ϕ)
-  renTyValue ϕ (V-Send₂ T S) = V-Send₂ (T ⋯ ϕ) (S ⋯ ϕ)
-  renTyValue ϕ (V-Select₁ v i P) = V-Select₁ v i (P ⋯ ϕ)
-  renTyValue ϕ (V-Select₂ v i P S) = V-Select₂ v i (P ⋯ ϕ) (S ⋯ ϕ)
+  renTyValue ϕ (V-Receive₁ T) = V-Receive₁ (renNfTy ϕ T)
+  renTyValue ϕ (V-Receive₂ T S) = V-Receive₂ (renNfTy ϕ T) (renNfTy ϕ S)
+  renTyValue ϕ (V-Send₁ T) = V-Send₁ (renNfTy ϕ T)
+  renTyValue ϕ (V-Send₂ T S) = V-Send₂ (renNfTy ϕ T) (renNfTy ϕ S)
+  renTyValue ϕ (V-Select₁ v i P) = V-Select₁ v i (renNfTy ϕ P)
+  renTyValue ϕ (V-Select₂ v i P S) = V-Select₂ v i (renNfTy ϕ P) (renNfTy ϕ S)
 
   renTyExpr : ∀ {Δ Δ′ n} → (ϕ : Δ →ᵣ Δ′) → Expr Δ n → Expr Δ′ n
   renTyExpr ϕ (E-Val v) = E-Val (renTyValue ϕ v)
   renTyExpr ϕ (E-App e₁ e₂) = E-App (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
-  renTyExpr ϕ (E-TApp e T) = E-TApp (renTyExpr ϕ e) (T ⋯ ϕ)
+  renTyExpr ϕ (E-TApp e T) = E-TApp (renTyExpr ϕ e) (renNfTy ϕ T)
   renTyExpr ϕ (E-LetUnit e₁ e₂) = E-LetUnit (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
   renTyExpr ϕ (E-Pair e₁ e₂) = E-Pair (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
   renTyExpr ϕ (E-LetPair e₁ e₂) = E-LetPair (renTyExpr ϕ e₁) (renTyExpr ϕ e₂)
@@ -164,29 +192,80 @@ mutual
   substTyValueWith : ∀ {Δ Δ′ n} → (ϕ : Δ →ₛ Δ′) → Value Δ n → Value Δ′ n
   substTyValueWith ϕ (V-Const c) = V-Const c
   substTyValueWith ϕ (V-Var x) = V-Var x
-  substTyValueWith ϕ (V-Abs T e) = V-Abs (T ⋯ ϕ) (substTyExprWith ϕ e)
-  substTyValueWith ϕ (V-Rec T U v) = V-Rec (T ⋯ ϕ) (U ⋯ ϕ) (substTyValueWith ϕ v)
+  substTyValueWith ϕ (V-Abs T e) = V-Abs (substNfTyWith ϕ T) (substTyExprWith ϕ e)
+  substTyValueWith ϕ (V-Rec T U v) = V-Rec (substNfTyWith ϕ T) (substNfTyWith ϕ U) (substTyValueWith ϕ v)
   substTyValueWith ϕ (V-TAbs K v) = V-TAbs K (substTyValueWith (ϕ ↑ₛ K) v)
   substTyValueWith ϕ (V-Pair v₁ v₂) = V-Pair (substTyValueWith ϕ v₁) (substTyValueWith ϕ v₂)
-  substTyValueWith ϕ (V-Receive₁ T) = V-Receive₁ (T ⋯ ϕ)
-  substTyValueWith ϕ (V-Receive₂ T S) = V-Receive₂ (T ⋯ ϕ) (S ⋯ ϕ)
-  substTyValueWith ϕ (V-Send₁ T) = V-Send₁ (T ⋯ ϕ)
-  substTyValueWith ϕ (V-Send₂ T S) = V-Send₂ (T ⋯ ϕ) (S ⋯ ϕ)
-  substTyValueWith ϕ (V-Select₁ v i P) = V-Select₁ v i (P ⋯ ϕ)
-  substTyValueWith ϕ (V-Select₂ v i P S) = V-Select₂ v i (P ⋯ ϕ) (S ⋯ ϕ)
+  substTyValueWith ϕ (V-Receive₁ T) = V-Receive₁ (substNfTyWith ϕ T)
+  substTyValueWith ϕ (V-Receive₂ T S) = V-Receive₂ (substNfTyWith ϕ T) (substNfTyWith ϕ S)
+  substTyValueWith ϕ (V-Send₁ T) = V-Send₁ (substNfTyWith ϕ T)
+  substTyValueWith ϕ (V-Send₂ T S) = V-Send₂ (substNfTyWith ϕ T) (substNfTyWith ϕ S)
+  substTyValueWith ϕ (V-Select₁ v i P) = V-Select₁ v i (substNfTyWith ϕ P)
+  substTyValueWith ϕ (V-Select₂ v i P S) = V-Select₂ v i (substNfTyWith ϕ P) (substNfTyWith ϕ S)
 
   substTyExprWith : ∀ {Δ Δ′ n} → (ϕ : Δ →ₛ Δ′) → Expr Δ n → Expr Δ′ n
   substTyExprWith ϕ (E-Val v) = E-Val (substTyValueWith ϕ v)
   substTyExprWith ϕ (E-App e₁ e₂) = E-App (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
-  substTyExprWith ϕ (E-TApp e T) = E-TApp (substTyExprWith ϕ e) (T ⋯ ϕ)
+  substTyExprWith ϕ (E-TApp e T) = E-TApp (substTyExprWith ϕ e) (substNfTyWith ϕ T)
   substTyExprWith ϕ (E-LetUnit e₁ e₂) = E-LetUnit (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
   substTyExprWith ϕ (E-Pair e₁ e₂) = E-Pair (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
   substTyExprWith ϕ (E-LetPair e₁ e₂) = E-LetPair (substTyExprWith ϕ e₁) (substTyExprWith ϕ e₂)
   substTyExprWith ϕ (E-Match e ne branches) =
     E-Match (substTyExprWith ϕ e) ne (λ i i∈ → substTyExprWith ϕ (branches i i∈))
 
-substTyValue : ∀ {Δ n K} → Value (K ∷ Δ) n → Ty Δ K → Value Δ n
-substTyValue v U = substTyValueWith ⦅ U ⦆ₛ v
+-- Type substitution in the operational semantics starts with normal-form
+-- arguments.  Keeping that substitution in the normal-form representation
+-- avoids normalizing its images again at every annotation and, under a type
+-- binder, uses the structural normal-form lift directly.
+mutual
 
-substTyExpr : ∀ {Δ n K} → Expr (K ∷ Δ) n → Ty Δ K → Expr Δ n
-substTyExpr e U = substTyExprWith ⦅ U ⦆ₛ e
+  substNFValueWith : ∀ {Δ Δ′ n} → NFSub Δ Δ′ → Value Δ n → Value Δ′ n
+  substNFValueWith σ (V-Const c) = V-Const c
+  substNFValueWith σ (V-Var x) = V-Var x
+  substNFValueWith σ (V-Abs T e) =
+    V-Abs (substNFTyWith σ T) (substNFExprWith σ e)
+  substNFValueWith σ (V-Rec T U v) =
+    V-Rec
+      (substNFTyWith σ T)
+      (substNFTyWith σ U)
+      (substNFValueWith σ v)
+  substNFValueWith σ (V-TAbs K v) =
+    V-TAbs K (substNFValueWith (wkNFSub σ) v)
+  substNFValueWith σ (V-Pair v₁ v₂) =
+    V-Pair (substNFValueWith σ v₁) (substNFValueWith σ v₂)
+  substNFValueWith σ (V-Receive₁ T) =
+    V-Receive₁ (substNFTyWith σ T)
+  substNFValueWith σ (V-Receive₂ T S) =
+    V-Receive₂ (substNFTyWith σ T) (substNFTyWith σ S)
+  substNFValueWith σ (V-Send₁ T) =
+    V-Send₁ (substNFTyWith σ T)
+  substNFValueWith σ (V-Send₂ T S) =
+    V-Send₂ (substNFTyWith σ T) (substNFTyWith σ S)
+  substNFValueWith σ (V-Select₁ v i P) =
+    V-Select₁ v i (substNFProtoWith σ P)
+  substNFValueWith σ (V-Select₂ v i P S) =
+    V-Select₂ v i (substNFProtoWith σ P) (substNFTyWith σ S)
+
+  substNFExprWith : ∀ {Δ Δ′ n} → NFSub Δ Δ′ → Expr Δ n → Expr Δ′ n
+  substNFExprWith σ (E-Val v) = E-Val (substNFValueWith σ v)
+  substNFExprWith σ (E-App e₁ e₂) =
+    E-App (substNFExprWith σ e₁) (substNFExprWith σ e₂)
+  substNFExprWith σ (E-TApp e T) =
+    E-TApp (substNFExprWith σ e) (substNFNfTyWith σ T)
+  substNFExprWith σ (E-LetUnit e₁ e₂) =
+    E-LetUnit (substNFExprWith σ e₁) (substNFExprWith σ e₂)
+  substNFExprWith σ (E-Pair e₁ e₂) =
+    E-Pair (substNFExprWith σ e₁) (substNFExprWith σ e₂)
+  substNFExprWith σ (E-LetPair e₁ e₂) =
+    E-LetPair (substNFExprWith σ e₁) (substNFExprWith σ e₂)
+  substNFExprWith σ (E-Match e ne branches) =
+    E-Match
+      (substNFExprWith σ e)
+      ne
+      (λ i i∈ → substNFExprWith σ (branches i i∈))
+
+substTyValue : ∀ {Δ n K} → Value (K ∷ Δ) n → NfTy Δ K → Value Δ n
+substTyValue v U = substTyValueWith (nfSubTy (singleNFSub U)) v
+
+substTyExpr : ∀ {Δ n K} → Expr (K ∷ Δ) n → NfTy Δ K → Expr Δ n
+substTyExpr e U = substTyExprWith (nfSubTy (singleNFSub U)) e

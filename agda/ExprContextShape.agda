@@ -8,7 +8,7 @@ open import Data.Product using (Σ; proj₁; proj₂; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 
 open import Kinds
-open import ExprSyntax using (Expr; Value)
+open import ExprSyntax using (NfTy; Expr; Value)
 open import ExprNormalTyping
 open import ExprContextProperties using (allUsedCtx)
 

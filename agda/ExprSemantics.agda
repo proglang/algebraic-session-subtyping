@@ -11,6 +11,7 @@ open import Duality using (D-S)
 open import Types
 open import ExprSyntax
 open import ExprSubstitution using (substExpr; substExpr₂; substValue; substTyValue; renameExpr; renameValue; extRen; extRen2)
+open import ExprNormalTyping using (normalizeTy)
 
 -- The paper distinguishes several observable labels.
 -- In the current syntax `wait` and `terminate` were merged into `C-Close`,
@@ -49,14 +50,14 @@ weakenExprBy2 k = renameExpr (extRen2 (shiftRen k))
 
 data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ → Expr [] (length Θ + n) → Set where
   Act-App : ∀ {T : Ty [] TLin} {e : Expr [] (sucℕ n)} {v : Value [] n} →
-      E-App (E-Val (V-Abs T e)) (E-Val v)
+      E-App (E-Val (V-Abs (normalizeTy T) e)) (E-Val v)
         —[ L-β ]→
       substExpr e v
 
   Act-TApp : ∀ {K} {T : Ty [] K} {v : Value (K ∷ []) n} →
-      E-TApp (E-Val (V-TAbs K v)) T
+      E-TApp (E-Val (V-TAbs K v)) (normalizeTy T)
         —[ L-β ]→
-      E-Val (substTyValue v T)
+      E-Val (substTyValue v (normalizeTy T))
 
   Act-LetPair : ∀ {u v : Value [] n} {e : Expr [] (sucℕ (sucℕ n))} →
       E-LetPair (E-Val (V-Pair u v)) e
@@ -74,9 +75,9 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
       E-Val (V-Pair u v)
 
   Act-Rec : ∀ {T U : Ty [] TLin} {v : Value [] (sucℕ n)} {u : Expr [] n} →
-      E-App (E-Val (V-Rec T U v)) u
+      E-App (E-Val (V-Rec (normalizeTy T) (normalizeTy U) v)) u
         —[ L-β ]→
-      E-App (E-Val (substValue v (V-Rec T U v))) u
+      E-App (E-Val (substValue v (V-Rec (normalizeTy T) (normalizeTy U) v))) u
 
   Act-Fork : ∀ {v : Value [] n} →
       E-App (E-Val (V-Const C-Fork)) (E-Val v)
@@ -84,37 +85,37 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
       E-Val (V-Const C-Unit)
 
   Act-New : ∀ {S : Ty [] SLin} →
-      E-TApp (E-Val (V-Const C-New)) S
+      E-TApp (E-Val (V-Const C-New)) (normalizeTy S)
         —[ L-New S ]→
       (freshPair {n = n})
 
   Act-Receive₁ : ∀ {T : Ty [] TLin} →
-      E-TApp {K = TLin} (E-Val (V-Const {n = n} C-Receive)) T
+      E-TApp {K = TLin} (E-Val (V-Const {n = n} C-Receive)) (normalizeTy T)
         —[ L-β ]→
-      E-Val (V-Receive₁ {n = n} T)
+      E-Val (V-Receive₁ {n = n} (normalizeTy T))
 
   Act-Receive₂ : ∀ {T : Ty [] TLin} {S : Ty [] SLin} →
-      E-TApp {K = SLin} (E-Val (V-Receive₁ {n = n} T)) S
+      E-TApp {K = SLin} (E-Val (V-Receive₁ {n = n} (normalizeTy T))) (normalizeTy S)
         —[ L-β ]→
-      E-Val (V-Receive₂ {n = n} T S)
+      E-Val (V-Receive₂ {n = n} (normalizeTy T) (normalizeTy S))
 
   Act-Rcv : ∀ {T : Ty [] TLin} {S : Ty [] SLin} {x : Fin n} {v : Value [] n} →
-      E-App (E-Val (V-Receive₂ T S)) (E-Val (V-Var x))
+      E-App (E-Val (V-Receive₂ (normalizeTy T) (normalizeTy S))) (E-Val (V-Var x))
         —[ L-RecvVal x v ]→
       E-Val (V-Pair v (V-Var x))
 
   Act-Send₁ : ∀ {T : Ty [] TLin} →
-      E-TApp {K = TLin} (E-Val (V-Const {n = n} C-Send)) T
+      E-TApp {K = TLin} (E-Val (V-Const {n = n} C-Send)) (normalizeTy T)
         —[ L-β ]→
-      E-Val (V-Send₁ {n = n} T)
+      E-Val (V-Send₁ {n = n} (normalizeTy T))
 
   Act-Send₂ : ∀ {T : Ty [] TLin} {S : Ty [] SLin} →
-      E-TApp {K = SLin} (E-Val (V-Send₁ {n = n} T)) S
+      E-TApp {K = SLin} (E-Val (V-Send₁ {n = n} (normalizeTy T))) (normalizeTy S)
         —[ L-β ]→
-      E-Val (V-Send₂ {n = n} T S)
+      E-Val (V-Send₂ {n = n} (normalizeTy T) (normalizeTy S))
 
   Act-Send : ∀ {T : Ty [] TLin} {S : Ty [] SLin} {x : Fin n} {v : Value [] n} →
-      E-App (E-Val (V-Send₂ T S)) (E-Val (V-Pair v (V-Var x)))
+      E-App (E-Val (V-Send₂ (normalizeTy T) (normalizeTy S))) (E-Val (V-Pair v (V-Var x)))
         —[ L-SendVal x v ]→
       E-Val (V-Var x)
 
@@ -126,19 +127,19 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
       substExpr (branches i i∈) (V-Var x)
 
   Act-Sel : ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} {x : Fin n} →
-      E-App (E-Val (V-Select₂ v i P S)) (E-Val (V-Var x))
+      E-App (E-Val (V-Select₂ v i (normalizeTy P) (normalizeTy S))) (E-Val (V-Var x))
         —[ L-SendLab x i ]→
       E-Val (V-Var x)
 
   Act-Select₁ : ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} →
-      E-TApp {K = KP} (E-Val (V-Const {n = n} (C-Select v i))) P
+      E-TApp {K = KP} (E-Val (V-Const {n = n} (C-Select v i))) (normalizeTy P)
         —[ L-β ]→
-      E-Val (V-Select₁ {n = n} v i P)
+      E-Val (V-Select₁ {n = n} v i (normalizeTy P))
 
   Act-Select₂ : ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} →
-      E-TApp {K = SLin} (E-Val (V-Select₁ {n = n} v i P)) S
+      E-TApp {K = SLin} (E-Val (V-Select₁ {n = n} v i (normalizeTy P))) (normalizeTy S)
         —[ L-β ]→
-      E-Val (V-Select₂ {n = n} v i P S)
+      E-Val (V-Select₂ {n = n} v i (normalizeTy P) (normalizeTy S))
 
   Act-Close : ∀ {x : Fin n} →
       E-App (E-Val (V-Const C-Close)) (E-Val (V-Var x))
@@ -155,7 +156,7 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
 
   Act-TAppE : ∀ {Θ K} → let k = length Θ in {e₁ : Expr [] n} {e₂ : Expr [] (k + n)} {T : Ty [] K} {ℓ : Label n Θ} →
       e₁ —[ ℓ ]→ e₂
-      → E-TApp e₁ T —[ ℓ ]→ E-TApp e₂ T
+      → E-TApp e₁ (normalizeTy T) —[ ℓ ]→ E-TApp e₂ (normalizeTy T)
 
   Act-PairL : ∀ {Θ} → let k = length Θ in {e₁ : Expr [] n} {e₂ : Expr [] (k + n)} {e₃ : Expr [] n} {ℓ : Label n Θ} →
       e₁ —[ ℓ ]→ e₂

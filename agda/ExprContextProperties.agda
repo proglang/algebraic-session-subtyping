@@ -1,9 +1,12 @@
 module ExprContextProperties where
 
-open import Data.Product using (Σ; _×_; _,_)
+open import Data.Fin using (Fin)
+open import Data.Nat using (suc)
+open import Data.Product using (Σ; _×_; _,_; ∃-syntax)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 
 open import Kinds
+open import ExprSyntax using (NfTy)
 open import ExprNormalTyping
 
 data AllUsed {Δ} : ∀ {n} → Ctx Δ n → Set where
@@ -26,6 +29,21 @@ allUsedCtx-AllUsed ∅ = AU-∅
 allUsedCtx-AllUsed (B-Lin T ▻ Γ) = AU-used {T = T} (allUsedCtx-AllUsed Γ)
 allUsedCtx-AllUsed (B-Un _ ▻ Γ) = AU-un (allUsedCtx-AllUsed Γ)
 allUsedCtx-AllUsed (B-Used _ ▻ Γ) = AU-used (allUsedCtx-AllUsed Γ)
+
+allUsedCtx-∋ᵘ :
+  ∀ {Δ n pk}
+    {Γ : Ctx Δ n}
+    {x : Fin n}
+    {T : NfTy Δ (KV pk Un)}
+  → Γ ∋ᵘ x ∶ T
+  → allUsedCtx Γ ∋ᵘ x ∶ T
+allUsedCtx-∋ᵘ hereᵘ = hereᵘ
+allUsedCtx-∋ᵘ (thereᵘˡ x∈) =
+  thereᵘ✖ (allUsedCtx-∋ᵘ x∈)
+allUsedCtx-∋ᵘ (thereᵘᵘ x∈) =
+  thereᵘᵘ (allUsedCtx-∋ᵘ x∈)
+allUsedCtx-∋ᵘ (thereᵘ✖ x∈) =
+  thereᵘ✖ (allUsedCtx-∋ᵘ x∈)
 
 -- Only linear resources must be kept disjoint. Unrestricted bindings may
 -- appear on both sides simultaneously.
@@ -69,6 +87,16 @@ data FrameCtx {Δ} : ∀ {n} → Ctx Δ n → Ctx Δ n → Ctx Δ n → Set wher
   FC-un : ∀ {n} {Γx Γv Γ₁ : Ctx Δ n} {pk : PreKind} {T : NfTy Δ (KV pk Un)}
     → FrameCtx Γx Γv Γ₁
     → FrameCtx (B-Un T ▻ Γx) (B-Un T ▻ Γv) (B-Un T ▻ Γ₁)
+
+frame-sym :
+  ∀ {Δ n} {Γ₁ Γ₂ Γ : Ctx Δ n}
+  → FrameCtx Γ₁ Γ₂ Γ
+  → FrameCtx Γ₂ Γ₁ Γ
+frame-sym FC-∅ = FC-∅
+frame-sym (FC-allused f) = FC-allused (frame-sym f)
+frame-sym (FC-live f) = FC-frame (frame-sym f)
+frame-sym (FC-frame f) = FC-live (frame-sym f)
+frame-sym (FC-un f) = FC-un (frame-sym f)
 
 mergeDisjointContext :
   ∀ {Δ n} {Γ₁ Γ₂ : Ctx Δ n}
@@ -116,6 +144,26 @@ remove-allUsedCtx (B-Lin T ▻ Γ) = RM-drop {T = T} (remove-allUsedCtx Γ)
 remove-allUsedCtx (B-Un _ ▻ Γ) = RM-un (remove-allUsedCtx Γ)
 remove-allUsedCtx (B-Used _ ▻ Γ) = RM-allused (remove-allUsedCtx Γ)
 
+strip-rm-lin :
+  ∀ {Δ n pk}
+    {T : NfTy Δ (KV pk Lin)}
+    {Γ₀ Γ₁ : Ctx Δ n}
+    {G : Ctx Δ (suc n)}
+  → RemoveCtx (T ∷ˡ Γ₀) G (B-Used T ▻ Γ₁)
+  → Σ (Ctx Δ n) λ G′ →
+      (G ≡ T ∷ˡ G′) × RemoveCtx Γ₀ G′ Γ₁
+strip-rm-lin (RM-lin r) = _ , refl , r
+
+strip-rm-un :
+  ∀ {Δ n pk}
+    {T : NfTy Δ (KV pk Un)}
+    {Γ₀ Γ₁ : Ctx Δ n}
+    {G : Ctx Δ (suc n)}
+  → RemoveCtx (T ∷ᵘ Γ₀) G (T ∷ᵘ Γ₁)
+  → Σ (Ctx Δ n) λ G′ →
+      (G ≡ T ∷ᵘ G′) × RemoveCtx Γ₀ G′ Γ₁
+strip-rm-un (RM-un r) = _ , refl , r
+
 allUsed-merge :
   ∀ {Δ n} {Γ₀ Γ₁ Γ₂ : Ctx Δ n}
   → FrameCtx Γ₀ Γ₁ Γ₂
@@ -125,9 +173,6 @@ allUsed-merge (FC-allused mc) rewrite allUsed-merge mc = refl
 allUsed-merge (FC-live mc) rewrite allUsed-merge mc = refl
 allUsed-merge (FC-frame mc) rewrite allUsed-merge mc = refl
 allUsed-merge (FC-un mc) = cong (B-Un _ ▻_) (allUsed-merge mc)
-
-rm-allUsed : ∀ {Δ n} (Γ : Ctx Δ n) → RemoveCtx Γ (allUsedCtx Γ) Γ
-rm-allUsed = remove-allUsedCtx
 
 remove-unique : ∀ {Δ}{n} {Γ G₁ G₂ Γ′ : Ctx Δ n} → RemoveCtx Γ G₁ Γ′ → RemoveCtx Γ G₂ Γ′ → G₁ ≡ G₂
 remove-unique RM-∅ RM-∅ = refl
@@ -341,3 +386,14 @@ merge-preserves-disjoint (FC-frame m) (LD-live-used dx) (LD-used-used dv) =
   LD-live-used (merge-preserves-disjoint m dx dv)
 merge-preserves-disjoint (FC-un m) (LD-un-un dx) (LD-un-un dv) =
   LD-un-un (merge-preserves-disjoint m dx dv)
+
+allFrame :
+  ∀ {Δ n}
+  → (Γ : Ctx Δ n)
+  → ∃[ Γf ] ∃[ Γl ] FrameCtx Γf Γl Γ × AllUsed Γl
+allFrame ∅ = ∅ , ∅ , FC-∅ , AU-∅
+allFrame (b ▻ Γ)
+  with allFrame Γ
+allFrame (B-Lin x ▻ Γ) | Γf , Γl , fc , au = B-Lin x ▻ Γf , B-Used x ▻ Γl , FC-frame fc , AU-used au
+allFrame (B-Un x ▻ Γ) | Γf , Γl , fc , au = B-Un x ▻ Γf , B-Un x ▻ Γl , FC-un fc , AU-un au
+allFrame (used∷ {x} Γ) | Γf , Γl , fc , au = B-Used x ▻ Γf , B-Used x ▻ Γl , FC-allused fc , AU-used au

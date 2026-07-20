@@ -72,8 +72,8 @@ import SubtypingProperties
 -- under substitution.
 import SubstitutionSubtyping
 
--- Abstract syntax of expressions and
--- processes from Section 4.
+-- Abstract syntax of expressions and values
+-- from Section 4.
 import ExprSyntax
 
 -- Renaming and substitution operations
@@ -88,9 +88,29 @@ import ExprSemantics
 -- under context extension.
 import ExprRenamingPreservation
 
--- Substitution preservation for expressions and values
--- under well-formed substitutions.
-import ExprSubstitutionPreservation
+-- Constructive type-renaming algebra for normalized constructor types
+-- and injective-renaming preservation of branch joins.
+import ExprTypeRenamingPreservationFresh
+
+-- Constructive type-substitution preservation for expression
+-- value, synthesis, and checking derivations.
+import ExprTypeSubstitutionPreservationFresh
+
+-- Complete fresh proof of expression substitution preservation
+-- using equality only up to annotations on already-used bindings.
+import ExprSubstitutionPreservationFresh
+
+-- Trusted double linear substitution derived from
+-- the fresh simultaneous-substitution theorem.
+import ExprDoubleSubstitutionPreservationFresh
+
+-- Trusted unrestricted self-substitution for recursive values,
+-- derived from the fresh simultaneous-substitution theorem.
+import ExprUnrestrictedSubstitutionPreservationFresh
+
+-- Trusted preservation for all expression head actions and
+-- their propagation through every evaluation context.
+import ExprReductionPreservationFresh
 
 -- Algorithmic subtyping on declarative normal forms,
 -- predating the separate normal-form syntax.
@@ -148,33 +168,53 @@ import AlgorithmicNFComplete
 -- under type substitution.
 import AlgorithmicNFSubstitution
 
+-- Exact preservation of normal-form joins and meets
+-- under normal-form type substitution.
+import AlgorithmicNFMergeSubstitution
+
 -- Algorithmic expression typing with normalized
 -- environments and result types.
 import ExprNormalTyping
 
--- Inversion and shape lemmas for expression typing
+-- Structural context relations for all-used, disjoint,
+-- framed, and removable resource contexts.
+import ExprContextProperties
+
+-- Shape preservation for threaded typing contexts,
+-- tracking live entries that become used.
+import ExprContextShape
+
+-- Constructive uniqueness of synthesized kinds, types, and output contexts
+-- for value, synthesis, and checking derivations.
+import ExprTypingUniquenessFresh
+
+-- Constructive inversion and shape lemmas for expression typing
 -- derivations and primitive typing forms.
 import ExprTypingInversion
 
--- Labelled reduction of full typing contexts
+-- Constructive labelled reduction of full typing contexts
 -- for expression actions.
 import ExprContextReduction
 
--- Labelled transition system for
--- processes.
-import ProcSemantics
+-- Flat configuration semantics tracking live channel entries, with direct
+-- synchronization rules for messages, branches, and closing endpoints.
+import ProcSemanticsFresh
 
--- Context reduction for process labels, extending
--- expression context reduction.
-import ProcContextReduction
+-- Flat-configuration reconstructions of the process examples, covering
+-- indexed internal steps, fresh pairs, symmetric communication, and closing.
+import ProcExamplesFresh
 
--- Preservation interfaces for term and type
--- substitution on typed expressions.
-import ExprSubstitutionTyping
+-- Compatibility module with no active declarations;
+-- operational process examples are indexed above.
+import ProcExamples
 
--- Existence of removed subcontexts corresponding
+-- Constructive existence of removed subcontexts corresponding
 -- to leftover typing contexts.
 import ExprTypingLeftover
+
+-- Constructive minimal-resource extraction for value, synthesis,
+-- and checking derivations from canonical context-removal lemmas.
+import ExprTypingStripFresh
 
 -- Frame and replay lemmas for leftover contexts
 -- used by the preservation development.
@@ -188,21 +228,25 @@ import ExprTypingStrengthening
 -- These helpers organize RemoveCtx, ReplaceAt, and all-used context arguments.
 import ExprPreservationStep2.ContextLemmas
 
--- Additional properties for the step-2 preservation setup.
--- These lemmas connect context replacement, membership, and subtyping.
-import ExprPreservationStep2.Properties
-
 -- Substitution and materialization lemmas factored out of the preservation proof.
 -- These helpers package variance-aware substitution relations and normalization bridges.
 import ExprPreservationStep2.SubstitutionLemmas
 
--- Revised preservation setup using removable frames
--- around the active context.
-import ExprPreservationStep2
+-- Materialization and substitution properties for protocol
+-- constructors used by the preservation action cases.
+import ExprPreservationStep2.MaterializeProperties
 
--- Declarative typing of processes using context
--- splitting and fully used leftovers.
-import ProcTyping
+-- Declarative typing of flat configurations, reusing shared all-used
+-- contexts and defining splitting and exact linear resource allocation.
+import ProcTypingFresh
+
+-- Terminal, communication-deadlock, and stepping predicates for flat
+-- configurations, with a proved lifting from local thread progress.
+import ProcProgressFresh
+
+-- Preservation of flat-configuration typing for internal steps and for
+-- synchronizations equipped with explicit endpoint-coherence evidence.
+import ProcReductionPreservationFresh
 
 -- Small example developments exercising
 -- the formalization.

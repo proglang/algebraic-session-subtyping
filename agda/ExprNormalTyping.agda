@@ -94,9 +94,6 @@ open import AlgorithmicNFMerge
 open Kits.Syntax Ty-Syntax hiding (Sort)
 open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)
 
-NfTy : List Kind → Kind → Set
-NfTy = NFKind
-
 ⌞_⌟ : NfTy Δ K → Ty Δ K
 ⌞_⌟ = nfKindTy
 
@@ -189,8 +186,8 @@ wkTy : ∀ {K K′} → Ty Δ K → Ty (K′ ∷ Δ) K
 wkTy {K′ = K′} T = T ⋯ weakenᵣ K′
 
 ReceiveTy : Ty Δ (KV pk Lin) → Ty Δ SLin → Ty Δ TLin
-ReceiveTy T S = LinArr
-  (SessLin (T-Msg ⊝ (T-Up T) S))
+ReceiveTy T S = T-Arrow {m = Lin}
+  (T-Msg ⊝ (T-Up T) S)
   (T-Pair T S)
 
 ReceiveTy1 : Ty Δ (KV pk Lin) → Ty Δ TLin
@@ -231,7 +228,7 @@ newConstNf =
 receiveNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ TLin
 receiveNf T S =
   linArrNf
-    (sessTyNf (msgNF ⊝ (N-Normal (N-Up T)) S))
+    (msgNF ⊝ (N-Normal (N-Up T)) S)
     (pairNf T S)
 
 receive1Nf : NfTy Δ (KV pk Lin) → NfTy Δ TLin
@@ -389,17 +386,17 @@ mutual
 
     TV-Abs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n}
         {pk₁ pk₂ m₂}
-        {T : Ty Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
-      → (T ∷ⁿˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used (normalizeTy T) ▻ Γ₂)
-      → Γ₁ ⊢ᵥ V-Abs T e ⇒ N-Arrow {m = Lin} (normalizeTy T) U ⊣ Γ₂
+        {T : NfTy Δ (KV pk₁ Lin)} {U : NfTy Δ (KV pk₂ m₂)} {e : Expr Δ (suc n)}
+      → (T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used T ▻ Γ₂)
+      → Γ₁ ⊢ᵥ V-Abs T e ⇒ N-Arrow {m = Lin} T U ⊣ Γ₂
 
     TV-Rec : ∀ {n} {Γ₁ : Ctx Δ n}
         {pk₁ pk₂ m₁ m₂}
-        {T : Ty Δ (KV pk₁ m₁)} {U : Ty Δ (KV pk₂ m₂)} {v : Value Δ (suc n)}
-      → (N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-          ⊢ E-Val v ⇐ N-Arrow {m = Un} (normalizeTy T) (normalizeTy U)
-          ⊣ (N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-      → Γ₁ ⊢ᵥ V-Rec T U v ⇒ N-Arrow {m = Un} (normalizeTy T) (normalizeTy U) ⊣ Γ₁
+        {T : NfTy Δ (KV pk₁ m₁)} {U : NfTy Δ (KV pk₂ m₂)} {v : Value Δ (suc n)}
+      → (N-Arrow {m = Un} T U ∷ᵘ Γ₁)
+          ⊢ E-Val v ⇐ N-Arrow {m = Un} T U
+          ⊣ (N-Arrow {m = Un} T U ∷ᵘ Γ₁)
+      → Γ₁ ⊢ᵥ V-Rec T U v ⇒ N-Arrow {m = Un} T U ⊣ Γ₁
 
     TV-TAbs : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K m}
         {v : Value (K ∷ Δ) n} {T : NfTy (K ∷ Δ) (KV KT m)}
@@ -414,22 +411,22 @@ mutual
       → Γ₁ ⊢ᵥ V-Pair v₁ v₂ ⇒ pairNf T U ⊣ Γ₃
 
     TV-Receive₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
-      → Γ₁ ⊢ᵥ V-Receive₁ ⌞ T ⌟ ⇒ receive1Nf T ⊣ Γ₁
+      → Γ₁ ⊢ᵥ V-Receive₁ T ⇒ receive1Nf T ⊣ Γ₁
 
     TV-Receive₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)} {S : NfTy Δ SLin}
-      → Γ₁ ⊢ᵥ V-Receive₂ ⌞ T ⌟ ⌞ S ⌟ ⇒ receiveNf T S ⊣ Γ₁
+      → Γ₁ ⊢ᵥ V-Receive₂ T S ⇒ receiveNf T S ⊣ Γ₁
 
     TV-Send₁ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)}
-      → Γ₁ ⊢ᵥ V-Send₁ ⌞ T ⌟ ⇒ send1Nf T ⊣ Γ₁
+      → Γ₁ ⊢ᵥ V-Send₁ T ⇒ send1Nf T ⊣ Γ₁
 
     TV-Send₂ : ∀ {n} {Γ₁ : Ctx Δ n} {pk} {T : NfTy Δ (KV pk Lin)} {S : NfTy Δ SLin}
-      → Γ₁ ⊢ᵥ V-Send₂ ⌞ T ⌟ ⌞ S ⌟ ⇒ sendNf T S ⊣ Γ₁
+      → Γ₁ ⊢ᵥ V-Send₂ T S ⇒ sendNf T S ⊣ Γ₁
 
     TV-Select₁ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : NfTy Δ KP}
-      → Γ₁ ⊢ᵥ V-Select₁ v i ⌞ P ⌟ ⇒ select1Nf v i P ⊣ Γ₁
+      → Γ₁ ⊢ᵥ V-Select₁ v i P ⇒ select1Nf v i P ⊣ Γ₁
 
     TV-Select₂ : ∀ {n} {Γ₁ : Ctx Δ n} {k} {v : Variance} {i : Fin k} {P : NfTy Δ KP} {S : NfTy Δ SLin}
-      → Γ₁ ⊢ᵥ V-Select₂ v i ⌞ P ⌟ ⌞ S ⌟ ⇒ selectNf v i P S ⊣ Γ₁
+      → Γ₁ ⊢ᵥ V-Select₂ v i P S ⇒ selectNf v i P S ⊣ Γ₁
 
   data _⊢_⇒_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Expr Δ n → ∀ {pk m} → NfTy Δ (KV pk m) → Ctx Δ n → Set where
     T-Val : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {v : Value Δ n} {pk m} {T : NfTy Δ (KV pk m)}
@@ -481,9 +478,9 @@ mutual
       → Γ₁ ⊢ E-Match e ne branches ⇒ U ⊣ Γ₃
 
     T-TApp : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {K m}
-        {e : Expr Δ n} {T : NfTy (K ∷ Δ) (KV KT m)} {U : Ty Δ K}
+        {e : Expr Δ n} {T : NfTy (K ∷ Δ) (KV KT m)} {U : NfTy Δ K}
       → Γ₁ ⊢ e ⇒ polyNf T ⊣ Γ₂
-      → Γ₁ ⊢ E-TApp e U ⇒ substNFTy T (normalizeTy U) ⊣ Γ₂
+      → Γ₁ ⊢ E-TApp e U ⇒ substNFTy T U ⊣ Γ₂
 
   data _⊢_⇐_⊣_ {Δ} : ∀ {n} → (Γ₁ : Ctx Δ n) → Expr Δ n → ∀ {pk m} → NfTy Δ (KV pk m) → Ctx Δ n → Set where
     T-Check : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {e : Expr Δ n} {pk m}
@@ -605,7 +602,9 @@ pairNf-injective :
 pairNf-injective refl = refl , refl
 
 linArrNf-injective :
-  ∀ {Δ} {T₁ T₂ U₁ U₂ : NfTy Δ TLin}
+  ∀ {Δ pk₁ pk₂ m₁ m₂}
+    {T₁ T₂ : NfTy Δ (KV pk₁ m₁)}
+    {U₁ U₂ : NfTy Δ (KV pk₂ m₂)}
   → linArrNf T₁ U₁ ≡ linArrNf T₂ U₂
   → (T₁ ≡ T₂) × (U₁ ≡ U₂)
 linArrNf-injective refl = refl , refl

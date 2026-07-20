@@ -3,7 +3,6 @@ module ExprPreservationStep2.ContextLemmas where
 open import Data.Fin using (Fin)
 open import Data.List using ([])
 open import Data.Product using (Σ; _,_)
-open import Data.Empty using (⊥)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym)
 
 import Duality
@@ -11,13 +10,11 @@ open import Kinds
 open import Types using (Ty)
 open import NormalTypes using (N-Sub; N-End)
 open import ExprNormalTyping using
-  ( NfTy
-  ; normalizeTy
+  ( normalizeTy
   ; normalTyOf
   ; EndLin
   ; Ctx
   ; B-Lin
-  ; B-Un
   ; B-Used
   ; ∅
   ; _▻_
@@ -41,7 +38,7 @@ open import ExprNormalTyping using
   ; used∷
   )
 open import AlgorithmicNFSubtyping using (_<:ₜ_; <:ₜ-sub; <:ₜ-end)
-open import ExprSyntax using (Value)
+open import ExprSyntax using (NfTy; Value)
 open import ExprSemantics
 open import ExprContextReduction using
   ( RemoveCtx
@@ -52,10 +49,6 @@ open import ExprContextReduction using
   ; RM-un
   ; ReplaceAt
   ; Extract
-  ; AllUsed
-  ; AU-∅
-  ; AU-used
-  ; AU-un
   ; FrameCtx
   ; FC-∅
   ; FC-allused
@@ -75,25 +68,6 @@ open import ExprContextReduction using
   ; Ex-Close
   )
 import ExprContextReduction
-
-usedCtx : ∀ {n} → Ctx [] n → Ctx [] n
-usedCtx ∅ = ∅
-usedCtx (B-Lin T ▻ Γ) = B-Used T ▻ usedCtx Γ
-usedCtx (B-Un T ▻ Γ) = B-Un T ▻ usedCtx Γ
-usedCtx (B-Used T ▻ Γ) = B-Used T ▻ usedCtx Γ
-
-remove-usedCtx : ∀ {n} (Γ : Ctx [] n) → RemoveCtx Γ (allUsedCtx Γ) Γ
-remove-usedCtx ∅ = RM-∅
-remove-usedCtx (B-Lin _ ▻ Γ) = RM-drop (remove-usedCtx Γ)
-remove-usedCtx (B-Un _ ▻ Γ) = RM-un (remove-usedCtx Γ)
-remove-usedCtx (B-Used _ ▻ Γ) = RM-allused (remove-usedCtx Γ)
-
-usedCtx-allUsed :
-  ∀ {n} (Γ : Ctx [] n) → AllUsed (usedCtx Γ)
-usedCtx-allUsed ∅ = AU-∅
-usedCtx-allUsed (B-Lin _ ▻ Γ) = AU-used (usedCtx-allUsed Γ)
-usedCtx-allUsed (B-Un _ ▻ Γ) = AU-un (usedCtx-allUsed Γ)
-usedCtx-allUsed (B-Used _ ▻ Γ) = AU-used (usedCtx-allUsed Γ)
 
 take-replace :
   ∀ {n pk}
@@ -235,18 +209,6 @@ remove-membership-un (RM-drop r) (thereᵘˡ x∈) = thereᵘˡ (remove-membersh
 remove-membership-un (RM-lin r) (thereᵘ✖ x∈) = thereᵘˡ (remove-membership-un r x∈)
 remove-membership-un (RM-un r) (thereᵘᵘ x∈) = thereᵘᵘ (remove-membership-un r x∈)
 remove-membership-un (RM-allused r) (thereᵘ✖ x∈) = thereᵘ✖ (remove-membership-un r x∈)
-
-lin-un-disjoint :
-  ∀ {n pk₁ pk₂}
-    {Γ : Ctx [] n}
-    {x : Fin n} {T : NfTy [] (KV pk₁ Lin)} {U : NfTy [] (KV pk₂ Un)}
-  → Γ ∋ˡ x ∶ T
-  → Γ ∋ᵘ x ∶ U
-  → ⊥
-lin-un-disjoint hereˡ ()
-lin-un-disjoint (thereˡˡ x∈) (thereᵘˡ x∈′) = lin-un-disjoint x∈ x∈′
-lin-un-disjoint (thereˡᵘ x∈) (thereᵘᵘ x∈′) = lin-un-disjoint x∈ x∈′
-lin-un-disjoint (thereˡ✖ x∈) (thereᵘ✖ x∈′) = lin-un-disjoint x∈ x∈′
 
 extract-membership :
   ∀ {n pk}

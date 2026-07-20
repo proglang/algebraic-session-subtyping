@@ -11,7 +11,7 @@ open import Duality
 open import Types
 open import NormalTypes using (N-Up; N-Normal)
 open import NormalTypesSubstitution using (msgNF)
-open import ExprSyntax using (Value; E-Val)
+open import ExprSyntax using (NfTy; Value; E-Val)
 open import ExprSemantics using (Label; L-β; L-Fork; L-New; L-RecvVal; L-RecvLab; L-SendVal; L-SendLab; L-Close)
 open import ExprNormalTyping
 open import ExprContextProperties public
@@ -41,14 +41,6 @@ replace-at (_ ▻ Γ) zero b = (b ▻ Γ) , R-here
 replace-at (_ ▻ Γ) (suc x) b
   with replace-at Γ x b
 ... | Γ′ , rm = _ ▻ Γ′ , R-there rm
-
-postulate
-  used-head-eq :
-    ∀ {Δ n pk₁ pk₂}
-      {T₁ : NfTy Δ (KV pk₁ Lin)}
-      {T₂ : NfTy Δ (KV pk₂ Lin)}
-      {Γ : Ctx Δ n}
-    → (B-Used T₁ ▻ Γ) ≡ (B-Used T₂ ▻ Γ)
 
 replace-frames-disjoint :
   ∀ {Δ n pk}

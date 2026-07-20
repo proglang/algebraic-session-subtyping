@@ -63,9 +63,9 @@ open import TypesProtocolConstructors using
   ; joinUsage
   ; composeUsage
   )
+open import ExprSyntax using (NfTy)
 open import ExprNormalTyping using
-  ( NfTy
-  ; ⌞_⌟
+  ( ⌞_⌟
   ; normalizeTy
   ; materializeListNf
   )
@@ -76,7 +76,11 @@ open import NormalTypesSubstitution using
 open import AlgorithmicNFSubstitution using
   ( subst-preserves-<:ₜ
   )
-open import SubstitutionSubtyping using (subst-preserves-≡c; subst-preserves-<<:)
+open import SubstitutionSubtyping using
+  ( subst-preserves-≡c
+  ; subst-preserves-<<:
+  ; t-dual-preserves-≡c
+  )
 
 open Kits.Syntax Types.Ty-Syntax hiding (Sort)
 open Traversal Types.Ty-Traversal
@@ -158,32 +162,6 @@ lift-≈ᵤ rel K′ (here refl) = Types.≡c-refl
 lift-≈ᵤ {p = p} rel K′ (there x) =
   weaken-SubstRelUnused {x = x} {p = p} (rel K′ x)
 
-t-dual-preserves-≡c :
-  ∀ {Δ m} {T U : Ty Δ (KV KS m)}
-  → T Types.≡c U
-  → Types.t-dual Duality.D-S T Types.≡c Types.t-dual Duality.D-S U
-t-dual-preserves-≡c Types.≡c-refl = Types.≡c-refl
-t-dual-preserves-≡c (Types.≡c-symm eq) =
-  Types.≡c-symm (t-dual-preserves-≡c eq)
-t-dual-preserves-≡c (Types.≡c-trns eq₁ eq₂) =
-  Types.≡c-trns (t-dual-preserves-≡c eq₁) (t-dual-preserves-≡c eq₂)
-t-dual-preserves-≡c (Types.≡c-sub (≤k-step ≤p-refl x) eq) =
-  Types.≡c-sub (≤k-step ≤p-refl x) (t-dual-preserves-≡c eq)
-t-dual-preserves-≡c
-  {T = Types.T-Dual Duality.D-S (Types.T-Sub (≤k-step ≤p-refl x) T)}
-  Types.≡c-sub-dual = Types.≡c-refl
-t-dual-preserves-≡c
-  {T = Types.T-Dual Duality.D-S (Types.T-Dual Duality.D-S U)}
-  (Types.≡c-dual-dual Duality.D-S) =
-  Types.dual-tinv U
-t-dual-preserves-≡c Types.≡c-dual-end = Types.≡c-refl
-t-dual-preserves-≡c {T = Types.T-Dual Duality.D-S (Types.T-Msg p T S)} Types.≡c-dual-msg
-  rewrite Duality.invert-involution {p} =
-    Types.≡c-msg Types.≡c-refl Types.≡c-refl
-t-dual-preserves-≡c {T = Types.T-Msg p T S} (Types.≡c-msg-minus {p = p}) =
-  Types.≡c-msg-minus {p = Duality.invert p}
-t-dual-preserves-≡c (Types.≡c-msg eqT eqS) =
-  Types.≡c-msg eqT (t-dual-preserves-≡c eqS)
 subst-preserves-≡c-pointwise :
   ∀ {Δ₁ Δ₂ K} {ϕ ψ : Δ₁ →ₛ Δ₂} (T : Ty Δ₁ K)
   → ϕ ≈ₛ ψ

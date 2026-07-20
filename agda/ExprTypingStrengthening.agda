@@ -9,6 +9,7 @@ open import Subtyping
 open import TypesProtocolConstructors
 import NormalTypes as NT
 open import AlgorithmicNFMerge using (joinₜ)
+open import AlgorithmicNFLubGlb using (lub-joinₜ)
 open import AlgorithmicNFSubtyping using
   ( _<:ₜ_
   ; _<:ₚ′_
@@ -35,6 +36,7 @@ open import AlgorithmicNFSubtyping using
 open import AlgorithmicNFSubstitution using (subst-preserves-<:ₜ)
 open import NormalTypesSubstitution using (substNFTy)
 open import NormalTypesRenamings using (renNFTy; renNFProto′; renNFProto; wkNFTy; renNFProto′-sound; renNFProto-sound)
+open import Util using (just-injective)
 
 open import Data.Maybe using (Maybe; just; nothing)
 open import Data.List using (List; []; _∷_)
@@ -44,6 +46,7 @@ open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 open import Data.Empty using (⊥; ⊥-elim)
 import Data.Fin.Subset as Subset
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂; ∃-syntax)
+open import Data.Sum using (inj₁; inj₂)
 open import Relation.Nullary using (¬_; Dec; yes; no; map′)
 
 import Relation.Binary.PropositionalEquality as Eq
@@ -51,8 +54,23 @@ open Eq using (_≡_; _≢_; refl; sym; trans; cong; cong₂; cong-app; subst; i
 
 open import ExprNormalTyping
 open import ExprSyntax
+open import ExprContextShape using
+  ( _~Ctx_
+  ; ∅~∅
+  ; Lin~Lin
+  ; Un~Un
+  ; Lin~Used
+  ; Used~Used
+  ; drop-lin-used
+  ; synth-preserves-~Ctx
+  )
 open import ExprContextReduction using (RM-lin)
-open import ExprTypingInversion using (tv-abs-inversion)
+open import ExprTypingInversion using
+  ( tv-abs-inversion
+  ; covers-refl
+  ; materializeListNf-sub-used-input
+  ; materializeListNf-sub-unused-input
+  )
 open import ExprTypingLeftover using (leftover-synth)
 
 open Kits.Syntax Ty-Syntax hiding (Sort)
@@ -411,16 +429,16 @@ take-no-id take = take-not-refl take refl
 strengthen-value-rec :
   ∀ {Δ n pk₁ m₁ pk₂ m₂}
     {Γ₁ Γ₂ : Ctx Δ n}
-    {T : Ty Δ (KV pk₁ m₁)}
-    {U : Ty Δ (KV pk₂ m₂)}
+    {T : NfTy Δ (KV pk₁ m₁)}
+    {U : NfTy Δ (KV pk₂ m₂)}
     {v : Value Δ (suc n)}
   → Γ₁ <:Γ Γ₂
-  → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₂)
-       ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-       ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₂)
-  → (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
-       ⊢ E-Val v ⇐ unArrNf (normalizeTy T) (normalizeTy U)
-       ⊣ (unArrNf (normalizeTy T) (normalizeTy U) ∷ᵘ Γ₁)
+  → (unArrNf T U ∷ᵘ Γ₂)
+       ⊢ E-Val v ⇐ unArrNf T U
+       ⊣ (unArrNf T U ∷ᵘ Γ₂)
+  → (unArrNf T U ∷ᵘ Γ₁)
+       ⊢ E-Val v ⇐ unArrNf T U
+       ⊣ (unArrNf T U ∷ᵘ Γ₁)
 strengthen-value-rec rel (T-Check (T-Val (TV-Const ())) sub)
 strengthen-value-rec rel (T-Check (T-Val (TV-Var-Un x∈)) sub)
   with strengthen-∋ᵘ (<:-un rel) x∈
@@ -756,59 +774,254 @@ match-input-subtype-inversion
     (<:ₜ-msg {p = ⊝} (<:ₚ′-proto ss′⊆ss P′<:P) S′<:S) =
   ss′ , P′ , S′ , refl , ss′⊆ss , P′<:P , S′<:S
 
-postulate
-  match-output-subtype :
-    ∀ {Δ k}
-      {ss : Subset.Subset (suc k)} {v : Variance}
-      {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
-      (i : Fin (suc k)) (i∈ : i Subset.∈ ss)
-    → P′ <<:ₚ[ v ] P
-    → S′ <:ₜ S
-    → MatchBranchOutput ss v P′ S′ i i∈ <:ₜ MatchBranchOutput ss v P S i i∈
+match-output-subtype :
+  ∀ {Δ k}
+    {ss : Subset.Subset (suc k)} {v : Variance}
+    {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
+    (i : Fin (suc k)) (i∈ : i Subset.∈ ss)
+  → P′ <<:ₚ[ v ] P
+  → S′ <:ₜ S
+  → MatchBranchOutput ss v P′ S′ i i∈ <:ₜ MatchBranchOutput ss v P S i i∈
+match-output-subtype {v = v} i i∈ psub ssub
+  with ProtocolConstructors _ v i
+... | Ts , inj₁ used-v =
+  materializeListNf-sub-used-input
+    Ts
+    used-v
+    psub
+    covers-refl
+    ssub
+... | Ts , inj₂ unused-v =
+  materializeListNf-sub-unused-input Ts unused-v ssub
 
-postulate
-  cohere-strengthened-branches :
-    ∀ {Δ n k pk m}
-      {Γmid′ Γmid Γ₃ : Ctx Δ n}
-      {ssbranches : Subset.Subset (suc k)} {v : Variance}
-      {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
-      {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
-      {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
-    → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
-         Σ (NfTy Δ (KV pk m)) λ V′i →
-           Σ (Ctx Δ n) λ Γ₃i →
-             ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
-                ⊢ branches i i∈ ⇒ V′i ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃i)
-             × (V′i <:ₜ V i i∈)
-             × (Γ₃i <:Γ Γ₃))
-    → Σ (Ctx Δ n) λ Γ₃′ →
-        Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)) λ V′ →
-          (((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
-              (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
-                ⊢ branches i i∈ ⇒ V′ i i∈ ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′))
-          × ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V′ i i∈ <:ₜ V i i∈)
-          × (Γ₃′ <:Γ Γ₃)
+coherent-strengthened-output :
+  ∀ {Δ n}
+    {Γin Γout₁ Γout₂ Γref : Ctx Δ n}
+  → Γin ~Ctx Γout₁
+  → Γin ~Ctx Γout₂
+  → Γout₁ <:Γ Γref
+  → Γout₂ <:Γ Γref
+  → Γout₁ ≡ Γout₂
+coherent-strengthened-output ∅~∅ ∅~∅ <:-[] <:-[] = refl
+coherent-strengthened-output
+    (Lin~Lin s₁) (Lin~Lin s₂)
+    (<:-lin r₁) (<:-lin r₂) =
+  cong (B-Lin _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Lin s₁) (Lin~Lin s₂)
+    (<:-lin r₁) (<:-sub-lin _ r₂) =
+  cong (B-Lin _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Lin s₁) (Lin~Lin s₂)
+    (<:-sub-lin _ r₁) (<:-lin r₂) =
+  cong (B-Lin _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Lin s₁) (Lin~Lin s₂)
+    (<:-sub-lin _ r₁) (<:-sub-lin _ r₂) =
+  cong (B-Lin _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Used s₁) (Lin~Used s₂)
+    (<:-used r₁) (<:-used r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Used s₁) (Lin~Used s₂)
+    (<:-used r₁) (<:-sub-used _ r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Used s₁) (Lin~Used s₂)
+    (<:-sub-used _ r₁) (<:-used r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Lin~Used s₁) (Lin~Used s₂)
+    (<:-sub-used _ r₁) (<:-sub-used _ r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Un~Un s₁) (Un~Un s₂)
+    (<:-un r₁) (<:-un r₂) =
+  cong (B-Un _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Un~Un s₁) (Un~Un s₂)
+    (<:-un r₁) (<:-sub-unr _ r₂) =
+  cong (B-Un _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Un~Un s₁) (Un~Un s₂)
+    (<:-sub-unr _ r₁) (<:-un r₂) =
+  cong (B-Un _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Un~Un s₁) (Un~Un s₂)
+    (<:-sub-unr _ r₁) (<:-sub-unr _ r₂) =
+  cong (B-Un _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Used~Used s₁) (Used~Used s₂)
+    (<:-used r₁) (<:-used r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Used~Used s₁) (Used~Used s₂)
+    (<:-used r₁) (<:-sub-used _ r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Used~Used s₁) (Used~Used s₂)
+    (<:-sub-used _ r₁) (<:-used r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
+coherent-strengthened-output
+    (Used~Used s₁) (Used~Used s₂)
+    (<:-sub-used _ r₁) (<:-sub-used _ r₂) =
+  cong (B-Used _ ▻_) (coherent-strengthened-output s₁ s₂ r₁ r₂)
 
-postulate
-  branchjoin⁺-monotone :
-    ∀ {Δ k pk m}
-      {ss : Subset.Subset k}
-      {V V′ : (i : Fin k) → i Subset.∈ ss → NfTy Δ (KV pk m)}
-      {U : NfTy Δ (KV pk m)}
-      {sub : (i : Fin k) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
-    → BranchJoin⁺ ss V ≡ just (U , sub)
-    → ((i : Fin k) → (i∈ : i Subset.∈ ss) → V′ i i∈ <:ₜ V i i∈)
-    → Σ (NfTy Δ (KV pk m)) λ U′ →
-        Σ ((i : Fin k) → (i∈ : i Subset.∈ ss) → V′ i i∈ <:ₜ U′) λ sub′ →
-          (BranchJoin⁺ ss V′ ≡ just (U′ , sub′))
-          × (U′ <:ₜ U)
+cohere-strengthened-branches :
+  ∀ {Δ n k pk m}
+    {Γmid′ Γmid Γ₃ : Ctx Δ n}
+    {ssbranches : Subset.Subset (suc k)} {v : Variance}
+    {P P′ : NfTy Δ KP} {S S′ : NfTy Δ SLin}
+    {branches : (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr Δ (suc n)}
+    {V : (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)}
+  → Subset.Nonempty ssbranches
+  → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+       Σ (NfTy Δ (KV pk m)) λ V′i →
+         Σ (Ctx Δ n) λ Γ₃i →
+           ((MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
+              ⊢ branches i i∈ ⇒ V′i ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃i)
+           × (V′i <:ₜ V i i∈)
+           × (Γ₃i <:Γ Γ₃))
+  → Σ (Ctx Δ n) λ Γ₃′ →
+      Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)) λ V′ →
+        (((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+            (MatchBranchOutput ssbranches v P′ S′ i i∈ ∷ˡ Γmid′)
+              ⊢ branches i i∈ ⇒ V′ i i∈ ⊣ used∷ {T = MatchBranchOutput ssbranches v P′ S′ i i∈} Γ₃′))
+        × ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → V′ i i∈ <:ₜ V i i∈)
+        × (Γ₃′ <:Γ Γ₃)
+cohere-strengthened-branches
+    {Γmid′ = Γmid′}
+    {ssbranches = ssbranches}
+    ne
+    strengthened =
+  Γ₃₀ ,
+  (λ i i∈ → proj₁ (strengthened i i∈)) ,
+  branches′ ,
+  (λ i i∈ →
+    proj₁ (proj₂ (proj₂ (proj₂ (strengthened i i∈))))) ,
+  rel₀
+  where
+  i₀ : Fin _
+  i₀ = proj₁ ne
+
+  i₀∈ : i₀ Subset.∈ ssbranches
+  i₀∈ = proj₂ ne
+
+  V₀′ : NfTy _ _
+  V₀′ = proj₁ (strengthened i₀ i₀∈)
+
+  Γ₃₀ : Ctx _ _
+  Γ₃₀ = proj₁ (proj₂ (strengthened i₀ i₀∈))
+
+  d₀ :
+    (MatchBranchOutput ssbranches _ _ _ i₀ i₀∈ ∷ˡ Γmid′)
+      ⊢ _ ⇒ V₀′
+      ⊣ used∷ {T = MatchBranchOutput ssbranches _ _ _ i₀ i₀∈} Γ₃₀
+  d₀ = proj₁ (proj₂ (proj₂ (strengthened i₀ i₀∈)))
+
+  rel₀ : Γ₃₀ <:Γ _
+  rel₀ = proj₂ (proj₂ (proj₂ (proj₂ (strengthened i₀ i₀∈))))
+
+  branches′ :
+    (i : Fin _)
+    → (i∈ : i Subset.∈ ssbranches)
+    → (MatchBranchOutput ssbranches _ _ _ i i∈ ∷ˡ Γmid′)
+        ⊢ _
+          ⇒ proj₁ (strengthened i i∈)
+          ⊣ used∷ {T = MatchBranchOutput ssbranches _ _ _ i i∈} Γ₃₀
+  branches′ i i∈
+    with strengthened i i∈
+  ... | V′i , Γ₃i , di , subᵢ , relᵢ
+    with coherent-strengthened-output
+           (drop-lin-used (synth-preserves-~Ctx di))
+           (drop-lin-used (synth-preserves-~Ctx d₀))
+           relᵢ
+           rel₀
+  ... | refl = di
+
+branchjoin⁺-monotone :
+  ∀ {Δ k pk m}
+    {ss : Subset.Subset k}
+    {V V′ : (i : Fin k) → i Subset.∈ ss → NfTy Δ (KV pk m)}
+    {U : NfTy Δ (KV pk m)}
+    {sub : (i : Fin k) → (i∈ : i Subset.∈ ss) → V i i∈ <:ₜ U}
+  → BranchJoin⁺ ss V ≡ just (U , sub)
+  → ((i : Fin k) → (i∈ : i Subset.∈ ss) → V′ i i∈ <:ₜ V i i∈)
+  → Σ (NfTy Δ (KV pk m)) λ U′ →
+      Σ ((i : Fin k) → (i∈ : i Subset.∈ ss) → V′ i i∈ <:ₜ U′) λ sub′ →
+        (BranchJoin⁺ ss V′ ≡ just (U′ , sub′))
+        × (U′ <:ₜ U)
+branchjoin⁺-monotone {ss = []} ()
+branchjoin⁺-monotone
+    {ss = Subset.outside ∷ ss}
+    {V = V}
+    {V′ = V′}
+    j
+    pointwise
+  with BranchJoin⁺ ss (λ i i∈ → V (fsuc i) (there i∈))
+     | inspect (BranchJoin⁺ ss) (λ i i∈ → V (fsuc i) (there i∈))
+... | nothing | Eq.[ eq ] = ⊥-elim (nothing≢just j)
+  where
+  nothing≢just : ∀ {A : Set} {x : A} → nothing ≢ just x
+  nothing≢just ()
+... | just (N , subN) | Eq.[ eq ]
+  with branchjoin⁺-monotone
+         {ss = ss}
+         {V = λ i i∈ → V (fsuc i) (there i∈)}
+         {V′ = λ i i∈ → V′ (fsuc i) (there i∈)}
+         eq
+         (λ i i∈ → pointwise (fsuc i) (there i∈))
+... | N′ , subN′ , joinN′ , N′<:N
+  with cong proj₁ (just-injective j)
+... | refl
+  rewrite joinN′ =
+  N′ , _ , refl , N′<:N
+branchjoin⁺-monotone
+    {ss = Subset.inside ∷ ss}
+    {V = V}
+    {V′ = V′}
+    j
+    pointwise
+  with BranchJoin⁺ ss (λ i i∈ → V (fsuc i) (there i∈))
+     | inspect (BranchJoin⁺ ss) (λ i i∈ → V (fsuc i) (there i∈))
+... | nothing | Eq.[ eq ] = ⊥-elim (nothing≢just j)
+  where
+  nothing≢just : ∀ {A : Set} {x : A} → nothing ≢ just x
+  nothing≢just ()
+... | just (N , subN) | Eq.[ eq ]
+  with joinₜ (V fzero here) N
+     | inspect (joinₜ (V fzero here)) N
+... | no ¬join | Eq.[ eqJoin ] = ⊥-elim (nothing≢just j)
+  where
+  nothing≢just : ∀ {A : Set} {x : A} → nothing ≢ just x
+  nothing≢just ()
+... | yes (J , V₀<:J , N<:J) | Eq.[ eqJoin ]
+  with branchjoin⁺-monotone
+         {ss = ss}
+         {V = λ i i∈ → V (fsuc i) (there i∈)}
+         {V′ = λ i i∈ → V′ (fsuc i) (there i∈)}
+         eq
+         (λ i i∈ → pointwise (fsuc i) (there i∈))
+... | N′ , subN′ , joinN′ , N′<:N
+  with lub-joinₜ
+         (V′ fzero here)
+         N′
+         J
+         (<:ₜ-trans (pointwise fzero here) V₀<:J)
+         (<:ₜ-trans N′<:N N<:J)
+... | J′ , V′₀<:J′ , N′<:J′ , joinJ′ , J′<:J
+  with cong proj₁ (just-injective j)
+... | refl
+  rewrite joinN′ | joinJ′ =
+  J′ , _ , refl , J′<:J
 
 mutual
 
   strengthen-value-abs :
     ∀ {Δ n pk₁}
       {Γ₁ Γ₂ Γ₃ : Ctx Δ n}
-      {T : Ty Δ (KV pk₁ Lin)} {e : Expr Δ (suc n)}
+      {T : NfTy Δ (KV pk₁ Lin)} {e : Expr Δ (suc n)}
       {W : NfTy Δ (KV KT Lin)}
     → Γ₁ <:Γ Γ₂
     → Γ₂ ⊢ᵥ V-Abs T e ⇒ W ⊣ Γ₃
@@ -822,33 +1035,33 @@ mutual
     with tv-abs-inversion d
   ... | pk₂ , m₂ , U , eqW , dBody =
     let U′ , Γbody′ , d′ , U′<:U , relBody =
-          strengthen-synth (<:-sub-lin (<:ₜ-refl (normalizeTy T)) rel) dBody in
+          strengthen-synth (<:-sub-lin (<:ₜ-refl T) rel) dBody in
     let Tused , Γ₂′ , eqBody , rel₂ = used-tail-<:Γ relBody in
-    let eqHead : normalizeTy T ≡ Tused
+    let eqHead : T ≡ Tused
         eqHead =
           lin-used-head-rigid
             (subst
-              (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ)
+              (λ Γ → (T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ)
               eqBody
               d′) in
     let eqBody′ :
-          Γbody′ ≡ used∷ {T = normalizeTy T} Γ₂′
+          Γbody′ ≡ used∷ {T = T} Γ₂′
         eqBody′ =
           trans
             eqBody
             (cong (λ X → used∷ {T = X} Γ₂′) (sym eqHead)) in
     let d″ :
-          (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ used∷ {T = normalizeTy T} Γ₂′
-        d″ = subst (λ Γ → (normalizeTy T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′ in
-    NT.N-Arrow {m = Lin} (normalizeTy T) U′ , Γ₂′ ,
+          (T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ used∷ {T = T} Γ₂′
+        d″ = subst (λ Γ → (T ∷ˡ Γ₁) ⊢ e ⇒ U′ ⊣ Γ) eqBody′ d′ in
+    NT.N-Arrow {m = Lin} T U′ , Γ₂′ ,
     TV-Abs {U = U′} d″ ,
     subst
       (λ X →
-        normalTyOf (NT.N-Arrow {m = Lin} (normalizeTy T) U′)
+        normalTyOf (NT.N-Arrow {m = Lin} T U′)
           <:ₜ normalTyOf X)
       (sym eqW)
       (<:ₜ-arrow
-        (<:ₜ-refl (normalizeTy T))
+        (<:ₜ-refl T)
         U′<:U) ,
     rel₂
 
@@ -892,9 +1105,9 @@ mutual
   strengthen-value rel (TV-Var-Un x∈) = strengthen-var-un rel x∈
   strengthen-value rel d@(TV-Abs _) = strengthen-value-abs rel d
   strengthen-value {Γ₁ = Γ₁} rel (TV-Rec {T = T} {U = U} d) =
-    unArrNf (normalizeTy T) (normalizeTy U) , Γ₁ ,
+    unArrNf T U , Γ₁ ,
     TV-Rec (strengthen-value-rec {T = T} {U = U} rel d) ,
-    <:ₜ-refl (unArrNf (normalizeTy T) (normalizeTy U)) ,
+    <:ₜ-refl (unArrNf T U) ,
     rel
   strengthen-value rel (TV-TAbs {K = K} {T = T} d) =
     let T′ , Γ₃′ , d′ , T′<:T , rel′ = strengthen-value-tabs rel d in
@@ -949,6 +1162,7 @@ mutual
   strengthen-synth-match
       {Γmid = Γmid} {Γ₃ = Γ₃}
       {ss = ss} {ssbranches = ssbranches} {incl = incl}
+      {ne = ne}
       {v = v} {P = P} {S = S} {U = U}
       {branches = branches} {V = V} {sub = sub}
       rel d bs j
@@ -962,6 +1176,7 @@ mutual
            {ssbranches = ssbranches} {v = v}
            {P = P} {P′ = P′} {S = S} {S′ = S′}
            {branches = branches} {V = V}
+           ne
            (λ i i∈ →
              let V′i , Γout′ , d′ , V′i<:V , relout =
                    strengthen-synth
@@ -1075,7 +1290,7 @@ mutual
   strengthen-synth {Γ₁ = Γ₁} rel (T-TApp {K = K} {T = T} {U = U} d) =
     let P′ , Γ₂′ , d′ , subP , rel₂ = strengthen-synth rel d in
     let T′ , eqPoly , T′<:T = poly-subtype-inversion {K = K} {X = P′} {T = T} subP in
-    substNFTy T′ (normalizeTy U) , Γ₂′ ,
+    substNFTy T′ U , Γ₂′ ,
     T-TApp (subst (λ X → Γ₁ ⊢ _ ⇒ X ⊣ Γ₂′) eqPoly d′) ,
     subst-preserves-<:ₜ T′<:T ,
     rel₂
@@ -1162,6 +1377,7 @@ strengthen-match-branches :
   → P′ <<:ₚ[ v ] P
   → S′ <:ₜ S
   → Γmid′ <:Γ Γmid
+  → Subset.Nonempty ssbranches
   → ((i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) → (MatchBranchOutput ssbranches v P S i i∈ ∷ˡ Γmid) ⊢ branches i i∈ ⇒ V i i∈ ⊣ used∷ Γ₃)
   → Σ (Ctx Δ n) λ Γ₃′ →
       Σ ((i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy Δ (KV pk m)) λ V′ →
@@ -1173,12 +1389,13 @@ strengthen-match-branches
   {ssbranches = ssbranches} {v = v}
   {P = P} {P′ = P′} {S = S} {S′ = S′}
   {branches = branches} {V = V}
-  P′<:P S′<:S relmid bs =
+  P′<:P S′<:S relmid ne bs =
   cohere-strengthened-branches
     {Γmid′ = Γmid′} {Γmid = Γmid} {Γ₃ = Γ₃}
     {ssbranches = ssbranches} {v = v}
     {P = P} {P′ = P′} {S = S} {S′ = S′}
     {branches = branches} {V = V}
+    ne
     (λ i i∈ →
       strengthen-match-branch
         {Γmid′ = Γmid′} {Γmid = Γmid} {Γ₃ = Γ₃}

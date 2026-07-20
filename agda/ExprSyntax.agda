@@ -8,6 +8,10 @@ import Data.Fin.Subset as Subset
 
 open import Kinds
 open import Types
+open import NormalTypesSubstitution using (NFKind)
+
+NfTy : List Kind → Kind → Set
+NfTy = NFKind
 
 TyArg : List Kind → Set
 TyArg Δ = Σ Kind (Ty Δ)
@@ -26,27 +30,22 @@ mutual
   data Value (Δ : List Kind) (n : ℕ) : Set where
     V-Const    : Const → Value Δ n
     V-Var      : Fin n → Value Δ n
-    V-Abs      : Ty Δ (KV pk m) → Expr Δ (suc n) → Value Δ n
-    V-Rec      : Ty Δ (KV pk₁ m₁) → Ty Δ (KV pk₂ m₂) → Value Δ (suc n) → Value Δ n
+    V-Abs      : NfTy Δ (KV pk m) → Expr Δ (suc n) → Value Δ n
+    V-Rec      : NfTy Δ (KV pk₁ m₁) → NfTy Δ (KV pk₂ m₂) → Value Δ (suc n) → Value Δ n
     V-TAbs     : (K : Kind) → Value (K ∷ Δ) n → Value Δ n
     V-Pair     : Value Δ n → Value Δ n → Value Δ n
-    V-Receive₁ : Ty Δ (KV pk Lin) → Value Δ n
-    V-Receive₂ : Ty Δ (KV pk Lin) → Ty Δ SLin → Value Δ n
-    V-Send₁    : Ty Δ (KV pk Lin) → Value Δ n
-    V-Send₂    : Ty Δ (KV pk Lin) → Ty Δ SLin → Value Δ n
-    V-Select₁  : ∀ {k} → Variance → Fin k → Ty Δ KP → Value Δ n
-    V-Select₂  : ∀ {k} → Variance → Fin k → Ty Δ KP → Ty Δ SLin → Value Δ n
+    V-Receive₁ : NfTy Δ (KV pk Lin) → Value Δ n
+    V-Receive₂ : NfTy Δ (KV pk Lin) → NfTy Δ SLin → Value Δ n
+    V-Send₁    : NfTy Δ (KV pk Lin) → Value Δ n
+    V-Send₂    : NfTy Δ (KV pk Lin) → NfTy Δ SLin → Value Δ n
+    V-Select₁  : ∀ {k} → Variance → Fin k → NfTy Δ KP → Value Δ n
+    V-Select₂  : ∀ {k} → Variance → Fin k → NfTy Δ KP → NfTy Δ SLin → Value Δ n
 
   data Expr (Δ : List Kind) (n : ℕ) : Set where
     E-Val     : Value Δ n → Expr Δ n
     E-App     : Expr Δ n → Expr Δ n → Expr Δ n
-    E-TApp    : Expr Δ n → Ty Δ K → Expr Δ n
+    E-TApp    : Expr Δ n → NfTy Δ K → Expr Δ n
     E-LetUnit : Expr Δ n → Expr Δ n → Expr Δ n
     E-Pair    : Expr Δ n → Expr Δ n → Expr Δ n
     E-LetPair : Expr Δ n → Expr Δ (suc (suc n)) → Expr Δ n
     E-Match   : ∀ {k} {ss : Subset.Subset k} → Expr Δ n → Subset.Nonempty ss → ((i : Fin k) → i Subset.∈ ss → Expr Δ (suc n)) → Expr Δ n
-
-data Process (Δ : List Kind) (n : ℕ) : Set where
-  P-Exp : Expr Δ n → Process Δ n
-  P-Par : Process Δ n → Process Δ n → Process Δ n
-  P-New : Process Δ (suc (suc n)) → Process Δ n
