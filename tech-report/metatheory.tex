@@ -6,9 +6,9 @@
 
 \input{fig-proc-formation}
 
-We complete section with the main results of our language.
+We complete the section with the main results of our language.
 %
-Towards this end we need to talk about context and process typing.
+Towards this end we need to talk about context and configuration typing.
 %
 Type formation (\cref{fig:type-formation}) is lifted pointwise to contexts in 
 judgement $\isCtx{\Gamma}{\kind}$.
@@ -27,20 +27,34 @@ judgement $\isCtx{\Gamma}{\kind}$.
 %      {\isCtx{\Gamma, \ebind{x}{T}}{\kind}}
 % \end{mathpar}
 %
-The rules for typing processes are in
-\cref{fig:proc-formation}. The rule for threads requires the expression
-$\termc e$ to consume all resources given in context $\Gamma$. Rule P-Par splits
-the context in two parts and gives each to one of the parallel processes. The
-rule is not algorithmic but we plan to type check expressions only; processes
-are a runtime artefact. Rule P-New guesses a type $\typec T$ for channel end
-$\termc x$, then channel end $\termc y$ gets the type $\TDual T$, both in normal
-form. Again, this rule is not algorithmic and need not be.
+The rules for typing process configurations are in
+\cref{fig:proc-formation}.  A configuration context records named channel
+endpoints.  A variable occurring in a live channel pair has an available
+linear session type; an endpoint of a closed channel may retain that type
+behind a used marker $\bullet$.  Thus
+$\operator{LiveCtx}(L;\Gamma)$ states that the available variables in $\Gamma$
+are exactly the endpoints occurring in the pairs of $L$.
 %
-The labelled transitions convey behaviour in their labels. Because we use an
-algorithmic typing system with leftovers, we require a labelled transition
-system for typing contexts to account for the impact of the behaviour of labels
-in the contexts. The statement of preservation relies on the labelled transition
-system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx}).
+The thread-multiset judgment selects an expression $e$ from a decomposition
+$\{e\}\uplus E$ and splits every available linear entry between that expression
+and the remainder $E$.  An entry assigned to one side is marked used on the
+other, whereas an already used entry remains used on both.  The selected
+expression must check against $\TUnit$ and leave all its assigned resources
+used.  The empty multiset may retain only used entries.  Consequently every
+live endpoint is owned and consumed by exactly one thread.  The mechanization
+also defines the irrelevant unrestricted case of splitting; configuration
+contexts themselves contain only session entries.
+
+Expression preservation still uses the labelled context transition from
+\cref{sec:proofs} (\cref{fig:lts-ctx}).  At the configuration level the updated
+context is instead constructed together with the target typing derivation.
+A raw synchronization step records live peer endpoints, but not the coherence
+of their session types.  We write $\operator{redTyped}(\mathcal D,s)$ when a
+step $s$ is compatible with a source typing derivation $\mathcal D$; this
+condition is immediate for beta reduction, fork, and allocation, and supplies
+the endpoint and context-effect compatibility for the three synchronization
+rules.  This is the paper-level presentation of the mechanized
+\textsf{ReductionTyping} judgment.
 
 % \hl{[\text{MW}]:} Because our type system incorporates subtyping and pointwise joins for contexts, 
 % type preservation for synthesis no longer guarantees strict type equivalence. 
@@ -64,56 +78,53 @@ system for contexts, defined in \cref{sec:proofs} (\cref{fig:lts-ctx}).
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
     $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
     $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3}$.
-  \item\label{it:pres-proc} If $\trans{p_1}{\pi}{p_2}$ and
-    $\isProc[\Gamma_1,\Gamma_2]{p_1}$ and $\transCtx{\Gamma_2}{\pi}{\Gamma_2'}$
-    and $\isCtx[\Empty]{\Gamma_1,\Gamma_2}{\kindt}$,
-    then $\isProc[\Gamma_1,\Gamma'_2]{p_2}$.
+  \item\label{it:pres-proc} If $\mathcal D$ derives
+    $\isProc[\Gamma]K$, where $s=\trans K\pi{K'}$, and
+    $\operator{redTyped}(\mathcal D,s)$, then there exists a context
+    $\Gamma'$ such that $\isProc[\Gamma']{K'}$.
   \end{enumerate}
 \end{theorem}
 
 %\paragraph{Progress}
 
-To the below set of labels we call the \emph{progress set} for $\termc x,\termc y$:
-%
-\begin{equation*}
-\{
-% processes
-\tau,\,
-(\parl{\receivel xv}{\sendl yv}),\,
-(\parl{\receivel xC}{\sendl yC}),\,
-(\parl{\closel x}{\openl y}),\,
-(\parl{\receivel xa}{\scopel abya}),\,
-(\parl{\receivel xb}{\scopel abyb})
-\}  
-\end{equation*}
+For progress, expression actions are divided according to whether they need a
+second thread.  An expression is \emph{runnable} if it can take a $\beta$,
+fork, or allocation step.  It is \emph{communication-blocked} if it has a
+value-receive, value-send, selector-receive, selector-send, or close transition;
+such an expression is not stuck locally, but its transition needs a matching
+thread.  We write $\operator{RunnableAt}(K)$ when some thread is
+runnable and $\operator{Sync}(K)$ when two distinct thread occurrences satisfy
+the premises of Act-Msg, Act-Bra, or Act-Wait.
 
-\emph{Completed processes} are of the form
-$\termc{\expp\unitk \PAR \dots \PAR \expp\unitk}$.
+A configuration is \emph{terminal} if every thread is a value.  A
+\emph{global deadlock} is positive evidence consisting of all four properties
+below:
 %
-A process is a \emph{deadlock} if, for all its subterms of the form $\newp xyp$
-and all transitions $\trans{p}{\pi}{p'}$, we have $\pi$ not in the progress set
-for channel $\termc x,\termc y$.
+\begin{enumerate}
+\item every thread is either a value or communication-blocked;
+\item at least one thread is communication-blocked;
+\item $\operator{RunnableAt}(K)$ does not hold; and
+\item $\operator{Sync}(K)$ does not hold.
+\end{enumerate}
 %
-To identify a deadlocked process we find all its $\nu$ subterms, and for each
-subterm we find all its transitions. Then, if all transitions fall outside the
-progress set, the process is deadlocked.
-%
-When the kind context $\Delta$ is apparent from the context, we write
-$\Gamma^{\kinds}$ to denote a typing context composed solely of session types,
-that is, such that $\ebind xT\in\Gamma$ implies $\typeAgainst T \kinds$.
+The last two clauses exclude every source of a configuration transition, so a
+global deadlock cannot step.  This definition replaces the former search over
+syntactic restrictions and their progress sets, which are absent from flat
+configurations.
 
-\begin{theorem}[Progress possibly leading to deadlock]\
+The mechanization proves the global lifting below.  The local expression
+progress result and the finite decision procedures are explicit hypotheses;
+their full statements are recorded in the mechanization.
+
+\begin{theorem}[Configuration progress]\
   \label{thm:progress}
-  \begin{enumerate}
-  \item\label{item:prog-exps} If
-    $\expSynth{\Gamma_1^{\kinds}}{e_1}{T}{\Gamma_2}$, then either $\termc{e_1}$
-    is a value or $\trans{e_1}{\lambda}{e_2}$.
-  \item  If $\expAgainst{\Gamma_1^{\kinds}}{e_1}{T}{\Gamma_2}$, then either $\termc{e_1}$
-    is a value or $\trans{e_1}{\lambda}{e_2}$.
-  \item\label{item:prog-procs} If $\isProc[\Gamma^\kinds]{p_1}$, then
-    $\termc{p_1}$ is completed, $\trans{p_1}{\pi}{p_2}$, or $\termc{p_1}$ is
-    a deadlock.
-  \end{enumerate}
+  Assume local expression progress: every expression that checks against
+  $\TUnit$ in a session-only context is a value, runnable, or
+  communication-blocked.  Also assume that
+  $\operator{RunnableAt}(K)$ and $\operator{Sync}(K)$ are decidable.  If
+  $\isProc[\Gamma]K$, then either $\termc K$ is terminal, it is a global
+  deadlock, or there exist $\pi$ and $\termc{K'}$ such that
+  $\trans K\pi{K'}$.
 \end{theorem}
 %
 

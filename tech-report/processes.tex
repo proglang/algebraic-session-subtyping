@@ -1,14 +1,14 @@
 \section{Expressions and Processes}
 \label{sec:processes}
 
-This section introduces the notions of expressions and processes, algorithmic
-typing for expressions, and operational semantics for expressions and processes
-based on labelled transition relations.
+This section introduces the notions of expressions and process configurations,
+algorithmic typing for expressions, and operational semantics for expressions
+and configurations based on labelled transition relations.
 %
 % \paragraph*{Syntax}
 %
 The syntax of constants $\termc c$, values $\termc v$, expressions
-$\termc e$ and processes $\termc p$ is defined by the
+$\termc e$, and process configurations $\termc K$ is defined by the
 grammar below.
 %
 \begin{align*}
@@ -45,9 +45,11 @@ grammar below.
       \grmor
   \\& \matchwithe eCxeiI
   \\
-  \termc p \grmeq & \expp e 
-  \grmor \parp{p}{p}
-  \grmor \newp{x}{y}{p} 
+  \termc E \grmeq &
+  \termc{\{e_1,\ldots,e_m\}}
+  \\
+  \termc K \grmeq &
+  \termc{(E,L)}
 \end{align*}
 
 All constructors are standard either in linear functional languages or in
@@ -64,10 +66,16 @@ channel indicated by selector name $\constr$. The
 operator to offer a choice on some channel cannot be captured by a type in our
 type language, hence we have made it an expression ($\matchwithe eCxeiI$).
 %
-At the level of processes, we have expressions as threads $\expp e$,
-parallel composition $\termc{p_1 \PAR p_2}$, and 
-introduction of a channel by declaring its
-two ends $\termc x, \termc y$: $\newp xyp$.
+At the level of processes, a configuration $\termc{K=(E,L)}$ consists of a
+finite multiset $E$ of expressions and a finite set $L$ of live channels.  Each
+element
+$\{x,y\}\in L$ is an unordered pair of distinct variables naming the two ends
+of one channel.  The expressions are closed with respect to type variables and
+may share the channel-end variables recorded by $L$.  The multiset $E$ is the
+pool of parallel threads; multiplicity distinguishes separate occurrences of
+the same expression, while order is immaterial.  Closing a channel removes its
+pair from $L$, while allocation adds a pair of fresh variables.  This flat
+representation avoids structural congruence and scope-extrusion rules.
 
 % \paragraph{Typing}
 
@@ -213,8 +221,8 @@ checking must be invoked with $\typec T$ in normal form.
 %
 % \paragraph*{Operational semantics}
 
-The operational semantics for expressions and processes is defined via a 
-transition relation labelled by the below actions.
+The operational semantics for expressions and process configurations is
+defined via transition relations labelled by the actions below.
 %
 \begin{align*}
   \sigma &\grmeq \receivel xv
@@ -222,32 +230,32 @@ transition relation labelled by the below actions.
        \grmor \receivel xC
 	   \grmor \sendl xC
        \grmor \closel x
-	   \grmor \openl x
        && \text{labels for session operations}
   \\
   \lambda &\grmeq \sigma
        \grmor \beta
        \grmor \forkl v
-	   \grmor \newl xxT
+	   \grmor \newl xyT
        && \text{labels for expressions}
   \\
-  \pi &\grmeq \sigma 
-  \grmor \tau
-  \grmor \scopel xxxx
-  \grmor (\parl \pi \pi)
+  \pi &\grmeq \tau
+  \grmor \newl xyT
        && \text{labels for processes}
 \end{align*}
 %
-The $\sigma$ labels capture the six operations on sessions: $\receivek$,
-$\sendk$, $\matchk$, $\selectk$, $\waitk$ and $\terminatek$.
+The $\sigma$ labels capture value and selector communication and the
+close-style action on a session endpoint.  The mechanization uses one close
+label for both ends of a closing synchronization.
 %
-Labels $\lambda$ are for expressions: $\beta$ is for internal actions and the
-remaining two for $\forkk$ and $\newk$.
+Labels $\lambda$ are for expressions: $\beta$ is for internal actions,
+$\forkl v$ records a forked value, and $\newl xyT$ records the type and the two
+fresh endpoint names of an allocated channel.
 %
-Labels $\pi$ are for processes: $\tau$ is for silent actions (the counterpart of
-$\beta$ for expressions), $\scopel abxa$ or $\scopel abxb$ is for opening the
-scope of a $\termc{(\nu ab)}$ binding, and $\pi\PAR\pi$ for parallel
-composition.
+Process labels retain only the information visible at the configuration
+level: $\tau$ is an internal step and $\newl xyT$ announces allocation of the
+fresh channel $\{x,y\}$.  Session actions do not escape as process labels; they
+either synchronize two distinct threads or leave the thread waiting for a
+partner.
 
 \input{fig-label-exps-abbrev}
 
@@ -256,10 +264,11 @@ expressions is defined by the rules in \cref{fig:lts-exps-abbrev}
 (\cref{sec:appendix-exps-procs}, \cref{fig:lts-exps}, contains the whole set).
 %
 We group under label $\beta$ the common reduction rules of the polymorphic
-lambda calculus. Rules Act-Fork and Act-New record in the label the value forked
-and the names and types of the channel ends created. These two transitions will
-then be handled at the process level. Then we have the six transitions for the
-common session operations.
+lambda calculus.  Rules Act-Fork and Act-New record, respectively, the value
+forked and the type and endpoint names of the freshly allocated channel.
+These transitions are then handled at the configuration level.  The remaining
+observable labels cover value communication, selector communication, and
+closing.
 % These are now in appendix
 % Lastly we have the call-by-value structural rules.
 % For example, rule Act-AppL reduces the left hand side of an application, whereas
@@ -267,41 +276,29 @@ common session operations.
 
 \input{fig-label-procs}
 
-The labelled transition system for processes is defined by the rules in
-\cref{fig:lts-procs}. The rules are adapted from
-\citet{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996} which in
-turn are inspired by \citet{DBLP:journals/corr/abs-2106-11818}. The first four
-rules convert expression transitions into process transitions: the session
-transitions $\sigma$ are passed directly from expressions to processes (rule
-Act-Session). The next three rules all yield silent ($\tau$) transitions:
-Act-Fork launchs a new thread and Act-New creates a new channel. Rules Act-JoinL
-and Act-JoinR account for the commutative nature of parallel composition. Rules
-Act-ParL, Act-ParR and Act-Res allow transitions underneath parallel composition
-and scope restriction. The rules for opening and closing a scope (left and right
-versions) are adapted to the double binder scheme from the labelled transitions
-systems for the $\pi$-calculus~\cite{DBLP:journals/iandc/MilnerPW92b}. These
-rules are required for we work with free output, unlike the above cited
-works~\cite{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996,DBLP:journals/corr/abs-2106-11818}
-that work with bound output.
+The labelled transition system for configurations is defined by the rules in
+\cref{fig:lts-procs}.  Multiset union is written $\uplus$.  A source of the
+form $(\{e\}\uplus E,L)$ distinguishes one occurrence of $e$ and leaves the
+remainder $E$ unchanged; similarly, $(\{e_1,e_2\}\uplus E,L)$ distinguishes
+two thread occurrences.  Thus the rules require neither thread positions nor
+an explicit premise that the two occurrences are distinct.  The notation
+$x\notin K$ means that $x$ occurs neither in an expression of $K$ nor in a pair
+in its set of live channels.
 
-
-Reduction underneath a prefix (rule Act-Res) can only occur if the channels ends
-$\termc x$ and $\termc y$ (two bound variables) do not capture the free
-variables in the label. For this purpose, we define the free variables of a
-process label $\pi$ as follows.
-%
-\begin{align*}
-  % sigma labels
-  \FVL {\receivel xv} = \FVL {\sendl xv} = \{x\} \cup \FVE v
-  \qquad
-  \FVL {\receivel xC} = \FVL {\sendl xC} = \FVL {\closel x} = \FVL {\openl x} = \{x\}
-  \\
-  \FVL \tau = \emptyset
-  \qquad
-  \FVL {\scopel wxyz} = \{y,z\} \setminus \{w,x\}
-  \qquad
-  \FVL {\parl \pi {\pi'}} = \FVL \pi \cup \FVL {\pi'}
-\end{align*}
+Rules Act-Beta and Act-Fork lift independent expression transitions for an
+arbitrary thread; the latter adds the application $\appe v\unitk$ as a
+new thread.  Rule Act-New chooses distinct names $x$ and $y$ that are fresh for
+the entire source configuration, exposes them in the allocation label, and
+adds $\{x,y\}$ to the set of live channels.  The remaining rules synchronize
+two thread occurrences whose endpoints form a pair in $L$.  They replace both
+occurrences in the multiset, and Act-Wait additionally removes the synchronized
+pair from $L$.  Their synchronization discipline follows prior labelled
+semantics for linear functional languages with sessions
+\cite{DBLP:conf/concur/0001KDLM21,DBLP:journals/corr/abs-2105-08996,DBLP:journals/corr/abs-2106-11818}.
+In the flat presentation, parallel composition, restriction, scope opening,
+and their associated structural rules are absorbed by multiset decomposition
+and the explicit set of live channels.  The mechanization gives the full formal
+details of a concrete representation and its permutation invariance.
 
 
 %%% Local Variables:

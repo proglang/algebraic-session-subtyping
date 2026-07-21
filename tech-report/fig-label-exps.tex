@@ -27,7 +27,7 @@
 	
 	\inferrule[Act-Wait]{}{\trans{\waite{x}}{\closel x}\unitk}
 
-	\inferrule[Act-Term]{}{\trans{\closee{x}}{\openl x}{\unitk}}
+	\inferrule[Act-Term]{}{\trans{\closee{x}}{\closel x}{\unitk}}
 
 	\inferrule[Act-AppL]{\trans{e_1}{\lambda}{e_2}}
 	{\trans{\appe{e_1}{e_3}}{\lambda}{\appe{e_2}{e_3}}}

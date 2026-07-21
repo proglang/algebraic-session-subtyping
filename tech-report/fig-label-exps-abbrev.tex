@@ -27,7 +27,7 @@
 	
 	\inferrule[Act-Wait]{}{\trans{\waite{x}}{\closel x}\unitk}
 
-	\inferrule[Act-Term]{}{\trans{\closee{x}}{\openl x}{\unitk}}
+	\inferrule[Act-Term]{}{\trans{\closee{x}}{\closel x}{\unitk}}
   \end{mathpar}
   \caption{Labelled transition system for expressions (selected rules). The full version, including
   call-by-value structural rules, is presented in \cref{sec:appendix-exps-procs}, \cref{fig:lts-exps}}

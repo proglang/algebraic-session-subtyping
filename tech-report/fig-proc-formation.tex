@@ -1,19 +1,60 @@
 \begin{figure}[t!]
-  \declrel{Typing rules for processes}{$\isProc p$}
+  \declrel{Liveness/context agreement}
+    {$\operator{LiveCtx}(L;\Gamma)$}
+  \begin{equation*}
+    \operator{LiveCtx}(L;\Gamma)
+    \quad\Longleftrightarrow\quad
+    \operator{ends}(L)=\operator{available}(\Gamma),
+    \qquad
+    \operator{ends}(L)=\{x\mid\exists y.\ \{x,y\}\in L\}.
+  \end{equation*}
+
+  \declrel{Splitting a configuration context}
+    {$\Gamma\leadsto\Gamma_1\mid\Gamma_2$}
   \begin{mathpar}
-    \infrule{P-Exp}
-    {\expAgainst[\Empty]{\Gamma} e {\TUnit} {\Empty}}
-    {\isProc{\expp{e}}}
+    \axiom{S-Empty}
+    {\Empty\leadsto\Empty\mid\Empty}
 
-    \infrule{P-Par}
-    {\isProc[\Gamma_1]{p_1} \and \isProc[\Gamma_2]{p_2} }
-    {\isProc[\Gamma_1,\Gamma_2]{\parp{p_1}{p_2}} }
+    \infrule{S-LinL}
+    {\Gamma\leadsto\Gamma_1\mid\Gamma_2}
+    {\Gamma,\ebind xS\leadsto
+       \Gamma_1,\ebind xS\mid\Gamma_2,\ebind{x}{\bullet S}}
 
-    \infrule{P-New}
-    {\typeAgainst[\Empty]{T}{\kinds} \\ \isProc[\Gamma, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p}}
-    {\isProc{\newp{x}{y}{p}} }
+    \infrule{S-LinR}
+    {\Gamma\leadsto\Gamma_1\mid\Gamma_2}
+    {\Gamma,\ebind xS\leadsto
+       \Gamma_1,\ebind{x}{\bullet S}\mid\Gamma_2,\ebind xS}
+
+    \infrule{S-Used}
+    {\Gamma\leadsto\Gamma_1\mid\Gamma_2}
+    {\Gamma,\ebind{x}{\bullet S}\leadsto
+       \Gamma_1,\ebind{x}{\bullet S}\mid\Gamma_2,\ebind{x}{\bullet S}}
   \end{mathpar}
-  \caption{Typing rules for processes}
+
+  \declrel{Typing a thread multiset}{$\Gamma\vdash_{\mathsf{th}}E$}
+  \begin{mathpar}
+    \infrule{TM-Empty}
+    {\operator{AllUsed}(\Gamma)}
+    {\Gamma\vdash_{\mathsf{th}}\emptyset}
+
+    \infrule{TM-Thread}
+    {\Gamma\leadsto\Gamma_e\mid\Gamma_r \\
+     \expAgainst[\Empty]{\Gamma_e}{e}{\TUnit}{\Gamma_e'} \\
+     \operator{AllUsed}(\Gamma_e') \and
+     \Gamma_r\vdash_{\mathsf{th}}E}
+    {\Gamma\vdash_{\mathsf{th}}\{e\}\uplus E}
+  \end{mathpar}
+
+  \declrel{Typing a process configuration}{$\isProc K$}
+  \begin{mathpar}
+    \infrule{T-Conf}
+    {\operator{LiveCtx}(L;\Gamma) \and
+     \Gamma\vdash_{\mathsf{th}}E}
+    {\isProc[\Gamma]{(E,L)}}
+  \end{mathpar}
+  \caption{Typing rules for process configurations.  The function
+    $\operator{available}$ returns the variables with unmarked linear bindings;
+    a bullet marks a binding that retains its type but is no longer available.}
   \label{fig:proc-formation}
 \end{figure}
 
