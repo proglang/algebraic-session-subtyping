@@ -200,6 +200,10 @@ import ExprContextReduction
 -- synchronization rules for messages, branches, and closing endpoints.
 import ProcSemanticsFresh
 
+-- Equivariance of flat-configuration reduction and process typing under
+-- standard-library list permutations, with matching target configurations.
+import ProcSemanticsPermutationFresh
+
 -- Flat-configuration reconstructions of the process examples, covering
 -- indexed internal steps, fresh pairs, symmetric communication, and closing.
 import ProcExamplesFresh

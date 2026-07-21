@@ -29,21 +29,19 @@ judgement $\isCtx{\Gamma}{\kind}$.
 %
 The rules for typing process configurations are in
 \cref{fig:proc-formation}.  A configuration context records named channel
-endpoints.  A variable occurring in a live channel pair has an available
-linear session type; an endpoint of a closed channel may retain that type
-behind a used marker $\bullet$.  Thus
-$\operator{LiveCtx}(L;\Gamma)$ states that the available variables in $\Gamma$
-are exactly the endpoints occurring in the pairs of $L$.
+endpoints and their linear session types.  Thus
+$\operator{LiveCtx}(L;\Gamma)$ states that the domain of $\Gamma$ is exactly
+the set of endpoints occurring in the pairs of $L$.  Endpoints of closed
+channels do not occur in the context.
 %
 The thread-multiset judgment selects an expression $e$ from a decomposition
-$\{e\}\uplus E$ and splits every available linear entry between that expression
-and the remainder $E$.  An entry assigned to one side is marked used on the
-other, whereas an already used entry remains used on both.  The selected
-expression must check against $\TUnit$ and leave all its assigned resources
-used.  The empty multiset may retain only used entries.  Consequently every
-live endpoint is owned and consumed by exactly one thread.  The mechanization
-also defines the irrelevant unrestricted case of splitting; configuration
-contexts themselves contain only session entries.
+$\{e\}\uplus E$ and partitions the context as
+$\Gamma=\Gamma_e+\Gamma_r$.  Context addition is disjoint, so each binding is
+assigned either to $e$ or to the remainder $E$.  The selected expression must
+check against $\TUnit$ and consume its entire context, leaving the empty
+context.  Correspondingly, the empty thread multiset is typable only under the
+empty context.  Consequently every live endpoint is owned and consumed by
+exactly one thread.
 
 Expression preservation still uses the labelled context transition from
 \cref{sec:proofs} (\cref{fig:lts-ctx}).  At the configuration level the updated
@@ -108,9 +106,7 @@ below:
 \end{enumerate}
 %
 The last two clauses exclude every source of a configuration transition, so a
-global deadlock cannot step.  This definition replaces the former search over
-syntactic restrictions and their progress sets, which are absent from flat
-configurations.
+global deadlock cannot step.
 
 The mechanization proves the global lifting below.  The local expression
 progress result and the finite decision procedures are explicit hypotheses;
