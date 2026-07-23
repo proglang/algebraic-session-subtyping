@@ -184,7 +184,7 @@ message-target-forward = record
 message-forward :
   message-source-forward —conf[ C-τ ]→ message-target-forward
 message-forward =
-  PS.Act-Msg {i≠j = zero≠one}
+  PS.Act-Msg left₂ right₂ zero≠one
     PS.here-fwd
     left-live₂
     right-live₂
@@ -208,7 +208,7 @@ message-target-backward = record
 message-backward :
   message-source-backward —conf[ C-τ ]→ message-target-backward
 message-backward =
-  PS.Act-Msg {i≠j = zero≠one}
+  PS.Act-Msg left₂ right₂ zero≠one
     PS.here-bwd
     right-live₂
     left-live₂
@@ -251,7 +251,7 @@ message-target-deep = record
 
 message-deep : message-source-deep —conf[ C-τ ]→ message-target-deep
 message-deep =
-  PS.Act-Msg {i≠j = zero≠one}
+  PS.Act-Msg left₂ right₂ zero≠one
     (PS.there PS.here-fwd)
     deep-left-live
     deep-right-live
@@ -309,7 +309,7 @@ branch-target-forward = record
 
 branch-forward : branch-source-forward —conf[ C-τ ]→ branch-target-forward
 branch-forward =
-  PS.Act-Bra {i≠j = zero≠one}
+  PS.Act-Bra left₂ right₂ zero≠one
     PS.here-fwd
     left-live₂
     right-live₂
@@ -341,7 +341,7 @@ branch-target-backward = record
 branch-backward :
   branch-source-backward —conf[ C-τ ]→ branch-target-backward
 branch-backward =
-  PS.Act-Bra {i≠j = zero≠one}
+  PS.Act-Bra left₂ right₂ zero≠one
     PS.here-bwd
     right-live₂
     left-live₂
@@ -375,7 +375,7 @@ wait-target = record
 
 wait-forward : wait-source —conf[ C-τ ]→ wait-target
 wait-forward =
-  PS.Act-Wait {i≠j = zero≠one}
+  PS.Act-Wait left₂ right₂ zero≠one
     PS.here-fwd
     left-live₂
     right-live₂
@@ -390,7 +390,7 @@ wait-source-backward = record
 
 wait-backward : wait-source-backward —conf[ C-τ ]→ wait-target
 wait-backward =
-  PS.Act-Wait {i≠j = zero≠one}
+  PS.Act-Wait left₂ right₂ zero≠one
     PS.here-bwd
     right-live₂
     left-live₂

@@ -108,8 +108,12 @@ import ExprDoubleSubstitutionPreservationFresh
 -- derived from the fresh simultaneous-substitution theorem.
 import ExprUnrestrictedSubstitutionPreservationFresh
 
+-- Constructive receive/send action-resource extraction through all
+-- observable evaluation contexts, including linear send payloads.
+import ExprActionResourcesFresh
+
 -- Trusted preservation for all expression head actions and
--- their propagation through every evaluation context.
+-- their propagation using action-specific resource evidence.
 import ExprReductionPreservationFresh
 
 -- Algorithmic subtyping on declarative normal forms,
@@ -176,6 +180,10 @@ import AlgorithmicNFMergeSubstitution
 -- result types, and primitives over raw session endpoints.
 import ExprNormalTyping
 
+-- Normalization bridges and communication-head laws for dual session
+-- endpoint types; general dual involution lives with normal substitution.
+import SessionTypeDuality
+
 -- Structural context relations for all-used, disjoint,
 -- framed, and removable resource contexts.
 import ExprContextProperties
@@ -197,7 +205,7 @@ import ExprTypingInversion
 import ExprContextReduction
 
 -- Flat configuration semantics tracking live channel entries, with direct
--- synchronization rules for messages, branches, and closing endpoints.
+-- synchronization between distinct threads on live paired endpoints.
 import ProcSemanticsFresh
 
 -- Equivariance of flat-configuration reduction and process typing under
@@ -240,8 +248,8 @@ import ExprPreservationStep2.SubstitutionLemmas
 -- constructors used by the preservation action cases.
 import ExprPreservationStep2.MaterializeProperties
 
--- Declarative typing of flat configurations, reusing shared all-used
--- contexts and defining splitting and exact linear resource allocation.
+-- Declarative typing of flat configurations with live/dead consistency,
+-- dual fresh-pair coherence, and exact linear resource allocation.
 import ProcTypingFresh
 
 -- Shared local/global progress predicates, session-only contexts,
@@ -260,8 +268,8 @@ import ProcProgressFreshDecidable
 -- configurations, with an assumption-free global progress theorem.
 import ProcProgressFresh
 
--- Preservation of flat-configuration typing for internal steps and for
--- synchronizations equipped with explicit endpoint-coherence evidence.
+-- Unconditional preservation of flat-configuration typing, using constructive
+-- action resources, target splits, and live/paired invariant transports.
 import ProcReductionPreservationFresh
 
 -- Small example developments exercising

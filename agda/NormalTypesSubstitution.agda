@@ -93,6 +93,29 @@ dualNFKind-sound :
 dualNFKind-sound {K = KV pk m} d N =
   nfTyTy-fromNormalTy (Types.nf-normal-type ⊝ (const d) (nfTyTy N))
 
+dualNFKind-involutive :
+  (S : NFTy Δ SLin)
+  → dualNFKind D-S (dualNFKind D-S S) ≡ S
+dualNFKind-involutive S =
+  nfTyTy-injective
+    (trans
+      (dualNFKind-sound D-S (dualNFKind D-S S))
+      (trans
+        (cong
+          (λ U → Types.nf ⊕ d?⊥ (Types.T-Dual D-S U))
+          (dualNFKind-sound D-S S))
+        (trans
+          (Types.nf-complete-
+            (λ _ → D-S)
+            (Types.nf-sound+ {f = d?⊥}
+              (Types.T-Dual D-S (nfTyTy S))))
+          (trans
+            (Types.nf-⊕-ignores
+              {T = nfTyTy S}
+              (λ _ → D-S)
+              d?⊥)
+            (nfKind-idempotent S)))))
+
 NFSub : List Kind → List Kind → Set
 NFSub Δ₁ Δ₂ = ∀ K → K ∈ Δ₁ → NFKind Δ₂ K
 

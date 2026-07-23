@@ -45,6 +45,7 @@ open import ProcTypingFresh using
   ; S-Un
   ; S-Used
   ; LiveCtx
+  ; PairedCtx
   ; ThreadsTyped
   ; TT-[]
   ; TT-∷
@@ -427,9 +428,10 @@ typing-resp-≈ᶜ :
   → C ≈ᶜ D
   → Γ ⊢conf C
   → Γ ⊢conf D
-typing-resp-≈ᶜ (conf-perm p live-eq) (T-Conf live-ok threads) =
+typing-resp-≈ᶜ (conf-perm p live-eq) (T-Conf live-ok paired threads) =
   T-Conf
     (subst (λ ss → LiveCtx ss _) live-eq live-ok)
+    paired
     (threads-resp-↭ p threads)
 
 step-source-subst :
@@ -473,8 +475,8 @@ step-resp-≈ᶜ (conf-perm p live-eq)
     (map-updateAt-permute (renameExpr (shiftRen 2)) p i e′)
     (cong (λ ss → Subset.inside ∷ᵥ Subset.inside ∷ᵥ ss) live-eq)
 step-resp-≈ᶜ (conf-perm p live-eq)
-    (Act-Msg {e₁ = e₁} {e₂ = e₂} {i = i} {j = j} {i≠j = i≢j}
-      {x = x} {y = y} fresh x-live y-live step₁ step₂) =
+    (Act-Msg {e₁ = e₁} {e₂ = e₂} {x = x} {y = y}
+      i j i≢j fresh x-live y-live step₁ step₂) =
   let
     i≢j′ = permuteIndex-≢ p i≢j
     x-live′ = subst (λ ss → x Subset.∈ ss) live-eq x-live
@@ -483,11 +485,12 @@ step-resp-≈ᶜ (conf-perm p live-eq)
     step₂′ = step-source-subst (lookup-permute p j) step₂
   in
   _ ,
-  Act-Msg {i≠j = i≢j′} fresh x-live′ y-live′ step₁′ step₂′ ,
+  Act-Msg (permuteIndex p i) (permuteIndex p j) i≢j′
+    fresh x-live′ y-live′ step₁′ step₂′ ,
   conf-perm (doubleUpdateAt-permute p i j i≢j e₁ e₂) live-eq
 step-resp-≈ᶜ (conf-perm p live-eq)
-    (Act-Bra {e₁ = e₁} {e₂ = e₂} {i = i} {j = j} {i≠j = i≢j}
-      {x = x} {y = y} fresh x-live y-live step₁ step₂) =
+    (Act-Bra {e₁ = e₁} {e₂ = e₂} {x = x} {y = y}
+      i j i≢j fresh x-live y-live step₁ step₂) =
   let
     i≢j′ = permuteIndex-≢ p i≢j
     x-live′ = subst (λ ss → x Subset.∈ ss) live-eq x-live
@@ -496,11 +499,12 @@ step-resp-≈ᶜ (conf-perm p live-eq)
     step₂′ = step-source-subst (lookup-permute p j) step₂
   in
   _ ,
-  Act-Bra {i≠j = i≢j′} fresh x-live′ y-live′ step₁′ step₂′ ,
+  Act-Bra (permuteIndex p i) (permuteIndex p j) i≢j′
+    fresh x-live′ y-live′ step₁′ step₂′ ,
   conf-perm (doubleUpdateAt-permute p i j i≢j e₁ e₂) live-eq
 step-resp-≈ᶜ (conf-perm p live-eq)
-    (Act-Wait {e₁ = e₁} {e₂ = e₂} {i = i} {j = j} {i≠j = i≢j}
-      {x = x} {y = y} fresh x-live y-live step₁ step₂) =
+    (Act-Wait {e₁ = e₁} {e₂ = e₂} {x = x} {y = y}
+      i j i≢j fresh x-live y-live step₁ step₂) =
   let
     i≢j′ = permuteIndex-≢ p i≢j
     x-live′ = subst (λ ss → x Subset.∈ ss) live-eq x-live
@@ -509,7 +513,8 @@ step-resp-≈ᶜ (conf-perm p live-eq)
     step₂′ = step-source-subst (lookup-permute p j) step₂
   in
   _ ,
-  Act-Wait {i≠j = i≢j′} fresh x-live′ y-live′ step₁′ step₂′ ,
+  Act-Wait (permuteIndex p i) (permuteIndex p j) i≢j′
+    fresh x-live′ y-live′ step₁′ step₂′ ,
   conf-perm
     (doubleUpdateAt-permute p i j i≢j e₁ e₂)
     (cong (λ ss → (ss Subset.- x) Subset.- y) live-eq)

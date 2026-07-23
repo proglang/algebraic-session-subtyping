@@ -88,6 +88,7 @@ protocol-related declarations interpreted relative to the accepted
 - `ProcSemanticsFresh`
 - `ProcExamples`
 - `ProcExamplesFresh`
+- `ExprActionResourcesFresh`
 - `ProcReductionPreservationFresh`
 - `ExprTypingStripFresh`
 - `ExprPreservationStep2.ContextLemmas`
@@ -440,12 +441,13 @@ raw `recvChanNf T S` required by `Label-RecvVal`, `Ctx-Rcv`, and
 The `S-Send` case is also constructive.  Its input convention is uniform:
 `sendNf`, `Label-SendVal`, `Ctx-Send`, and `Ex-SendVal` all use the raw
 `sendChanNf T S : SLin`.  Both `sendNf` and the replacement performed by
-`Ctx-Send` produce `sessTyNf S`.
+`Ctx-Send` produce the raw continuation `S`.  The label and context
+relations permit a synthesized payload subtype of the message payload type.
 
 The proof removes the label input, replays its payload derivation in the
 source context, and uses `ExprTypingUniquenessFresh.value-output-unique` to
 align that result with the payload-first source pair derivation.  It then
-inverts `sendChanNf` subtyping, advances the channel to `sessTyNf S`, builds
+inverts `sendChanNf` subtyping, advances the channel to `S`, builds
 the context and frame reductions, and types the reduct variable.  The changed
 used annotation is accounted for by `_≈ᵘ_`.
 
@@ -459,7 +461,8 @@ subtyping proof from the branch join.
 The `S-Sel` case extracts the label channel into the source context, uses
 `linear-membership-type` to align it with the expression argument, advances
 it to `selectOutNf`, and derives result subtyping with
-`select-app-subtype`.  The `S-Close` case uses `end-subtype-invert`,
+`select-set-app-subtype` for the selector's actual protocol subset.  The
+`S-Close` case uses `end-subtype-invert`,
 `take-replace`, and the corresponding all-used-context lemmas to consume the
 endpoint and type the unit reduct.  The selected and closed endpoints have
 kind `SLin`, matching `ProcTypingFresh.LiveCtx`.  Both cases are
@@ -485,8 +488,11 @@ were already used to differ.
 
 The fresh expression theorem covers every constructor of the expression
 reduction relation: all internal `L-β` heads, all direct observable heads, and
-all eight evaluation-context transitions.  Its statement has no support
-predicate: every expression reduction proof is accepted directly.
+all eight evaluation-context transitions.  Resource evidence is
+action-specific.  Ordinary actions retain the linear-disjointness premise,
+while `L-SendVal` uses the exact `SendValueResources` decomposition inferred
+from the source typing derivation and transition.  This admits linear
+payloads without asserting that the sender is disjoint from its own payload.
 At the configuration layer, `ProcReductionPreservationFresh` proves:
 
 - permutation invariance of declarative `ThreadsTyped` pools and the
@@ -495,19 +501,43 @@ At the configuration layer, `ProcReductionPreservationFresh` proves:
 - reconstruction of the forked application typing from arrow-subtyping
   inversion, and weakening/used-slot framing of every passive thread under
   `Act-New`;
-- preservation for `Act-Msg`, `Act-Bra`, and `Act-Wait` when the reduction is
-  equipped with `BinaryCompatibility`/`ReductionTyping` evidence.
+- preservation of the new `PairedCtx` invariant by `Act-New`, using the
+  trusted normalization bridge `SessionTypeDuality.normalize-dual`;
+- normalized session duality involution,
+  `NormalTypesSubstitution.dualNFKind-involutive`;
+- `paired-live-endpoints`, which derives the two dual typed memberships for
+  either orientation of any live `FinFreshPair`;
+- constructive receive/send action-resource extraction in
+  `ExprActionResourcesFresh`, including channel-first reordering of a send
+  and payload subtyping through every evaluation context;
+- `target-split-reconstruction`, which transfers the payload fragment from
+  the sender allocation to the receiver allocation and reconstructs both
+  nested target splits after the two continuation-endpoint replacements; it
+  also returns those sequential global `ReplaceAt` witnesses;
+- `live-replace-pair-live` and `live-replace-pair-dead`, which respectively
+  preserve the live set across endpoint advancement and remove both endpoints
+  from it during closing;
+- `paired-replace-pair-live` and `paired-replace-pair-dead`, which preserve
+  `PairedCtx` across either orientation of a live or closed `FinFreshPair`;
+- unconditional preservation for `Act-Msg`, `Act-Bra`, and `Act-Wait`;
+- the public `configuration-reduction-preserves-typing` theorem for every
+  constructor of `ProcSemanticsFresh`, requiring only a source configuration
+  typing derivation and the reduction derivation.
 
-The synchronization premise is essential with the current typing judgment.
-`ProcTypingFresh.LiveCtx` relates liveness bits to linear/used session slots,
-but does not require the two ends selected by `FinFreshPair` to carry dual or
-otherwise communication-compatible types.  Consequently a sender can be
-typed for a payload type unrelated to the receiver's expected payload type;
-after the raw operational synchronization, the receiver continuation need
-not type-check.  `BinaryCompatibility` isolates exactly the missing
-label-typing, extraction, and target-context assembly facts.  It contains no
-target expression derivations: those are produced by the trusted expression
-reduction theorem.
+Endpoint compatibility is no longer missing from configuration typing:
+`ProcTypingFresh.PairedCtx` relates every allocated pair by normalized
+duality, and `SessionTypeDuality` proves the receive/send head equations used
+to expose compatible payload and continuation components.
+
+The invalid sender-side whole-context disjointness premise is absent.
+`Act-Msg` instead uses `SendValueResources` to transfer exactly the payload
+fragment to the receiver before reconstructing the two target splits.
+`Act-Bra` extracts a `SendLabelResources` witness whose protocol subset may
+contain labels other than the chosen label, then derives dual continuation
+types from `PairedCtx`.  `Act-Wait` reconstructs both used endpoint slots.
+Each case feeds the resulting endpoint replacements to the proved `LiveCtx`
+and `PairedCtx` transports.  The former `BinaryCompatibility` and
+`ReductionTyping` wrappers have therefore been removed.
 
 ## Verification status
 
@@ -522,11 +552,14 @@ agda -i . ExprTypeSubstitutionPreservationFresh.agda
 agda -i . ExprSubstitutionPreservationFresh.agda
 agda -i . ExprDoubleSubstitutionPreservationFresh.agda
 agda -i . ExprUnrestrictedSubstitutionPreservationFresh.agda
+agda -i . SessionTypeDuality.agda
+agda -i . ExprActionResourcesFresh.agda
 agda -i . ExprReductionPreservationFresh.agda
 agda -i . ProcExamplesFresh.agda
 agda -i . ProcLocalProgressFresh.agda
 agda -i . ProcProgressFreshDecidable.agda
 agda -i . ProcProgressFresh.agda
+agda -i . ProcSemanticsPermutationFresh.agda
 agda -i . ProcReductionPreservationFresh.agda
 agda -i . README.agda
 ```

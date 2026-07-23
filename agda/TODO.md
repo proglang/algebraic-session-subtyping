@@ -67,3 +67,18 @@ Run the project verification command from the Agda project root:
       - The inversion, renaming, substitution, context-reduction, and
         preservation proofs use the same convention as
         `ProcTypingFresh.LiveCtx`.
+
+- [x] typed-synchronization-preservation:
+      Eliminate `BinaryCompatibility` after the dual-pair invariant.
+
+      Specifically:
+      - [x] replace the sender-side `LinearDisjoint Γ₀ Γv` premise in expression
+        preservation, because `Γv` is the payload fragment of `Γ₀` and may
+        contain live linear resources;
+      - [x] use the constructive `SendValueResources` decomposition instead;
+      - [x] reconstruct the target `Split` tree from the two expression
+        results;
+      - [x] prove transports for `LiveCtx` and `PairedCtx` across live
+        endpoint advances and live-to-dead closing updates;
+      - [x] instantiate the transports in message, branch, and wait, then
+        remove `BinaryCompatibility` and `ReductionTyping`.

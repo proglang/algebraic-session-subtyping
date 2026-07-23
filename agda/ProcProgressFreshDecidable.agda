@@ -2267,25 +2267,28 @@ synchronization-at-possible :
   → SynchronizationAt C receiver sender
   → SynchronizationPossible C
 synchronization-at-possible
+    {receiver = receiver} {sender = sender}
     (sync-at-message receiver≠sender x
       (message-endpoint pair x-live y-live
         (accepts _ receive))
       send) =
-  sync-message {i≠j = receiver≠sender}
+  sync-message receiver sender receiver≠sender
     pair x-live y-live receive send
 synchronization-at-possible
+    {receiver = receiver} {sender = sender}
     (sync-at-branch receiver≠sender x
       (branch-endpoint pair x-live y-live
         (accepts _ receive))
       send) =
-  sync-branch {i≠j = receiver≠sender}
+  sync-branch receiver sender receiver≠sender
     pair x-live y-live receive send
 synchronization-at-possible
+    {receiver = receiver} {sender = sender}
     (sync-at-close receiver≠sender x
       (close-endpoint pair x-live y-live
         (accepts _ close))
       close′) =
-  sync-close {i≠j = receiver≠sender}
+  sync-close receiver sender receiver≠sender
     pair x-live y-live close close′
 
 possible-at-some-pair :
@@ -2295,8 +2298,7 @@ possible-at-some-pair :
       Σ (Fin ∣ C ∣) λ sender →
         SynchronizationAt C receiver sender
 possible-at-some-pair
-    (sync-message {i = receiver} {j = sender}
-      {i≠j = receiver≠sender} {x = x}
+    (sync-message {x = x} receiver sender receiver≠sender
       pair x-live y-live receive send) =
   receiver , sender ,
     sync-at-message receiver≠sender x
@@ -2304,8 +2306,7 @@ possible-at-some-pair
         (accepts _ receive))
       send
 possible-at-some-pair
-    (sync-branch {i = receiver} {j = sender}
-      {i≠j = receiver≠sender} {x = x}
+    (sync-branch {x = x} receiver sender receiver≠sender
       pair x-live y-live receive send) =
   receiver , sender ,
     sync-at-branch receiver≠sender x
@@ -2313,8 +2314,7 @@ possible-at-some-pair
         (accepts _ receive))
       send
 possible-at-some-pair
-    (sync-close {i = receiver} {j = sender}
-      {i≠j = receiver≠sender} {x = x}
+    (sync-close {x = x} receiver sender receiver≠sender
       pair x-live y-live close close′) =
   receiver , sender ,
     sync-at-close receiver≠sender x

@@ -14,6 +14,7 @@ open import NormalTypesSubstitution using (msgNF)
 open import ExprSyntax using (NfTy; Value; E-Val)
 open import ExprSemantics using (Label; L-β; L-Fork; L-New; L-RecvVal; L-RecvLab; L-SendVal; L-SendLab; L-Close)
 open import ExprNormalTyping
+open import AlgorithmicNFSubtyping using (_<:ₜ_)
 open import ExprContextProperties public
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Function using (const)
@@ -138,6 +139,15 @@ dualSessNf S = normalizeTy (SessLin (T-Dual D-S ⌞ S ⌟))
 selectInNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] SLin
 selectInNf = selectInTyNf
 
+selectSetInNf :
+  ∀ {k}
+  → Subset.Subset k
+  → Variance
+  → NfTy [] KP
+  → NfTy [] SLin
+  → NfTy [] SLin
+selectSetInNf = selectSetInTyNf
+
 selectOutNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] SLin
 selectOutNf = selectOutTyNf
 
@@ -157,9 +167,12 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γ₀ —ctx[ L-Fork v ]→ Γ₁
 
   Ctx-Rcv : ∀ {n} {Γ₀ Γv-in Γv-used Γv-out Γx Γ₁ : Ctx [] n}
-      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {x : Fin n} {pk}
+      {T : NfTy [] (KV pk Lin)}
+      {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
-    → Γv-in ⊢ᵥ v ⇒ T ⊣ Γv-used
+    → Γv-in ⊢ᵥ v ⇒ U ⊣ Γv-used
+    → normalTyOf U <:ₜ normalTyOf T
     → AllUsed Γv-used
     → LinearDisjoint Γ₀ Γv-in
     → Γ₀ ∋ˡ x ∶ recvChanNf T S
@@ -169,13 +182,16 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γ₀ —ctx[ L-RecvVal x v ]→ Γ₁
 
   Ctx-Send : ∀ {n} {Γ₀ Γx Γv Γv′ Γ₁ : Ctx [] n}
-      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {x : Fin n} {pk}
+      {T : NfTy [] (KV pk Lin)}
+      {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
     → RemoveCtx Γ₀ Γv Γx
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+    → Γv ⊢ᵥ v ⇒ U ⊣ Γv′
+    → normalTyOf U <:ₜ normalTyOf T
     → AllUsed Γv′
     → Γx ∋ˡ x ∶ sendChanNf T S
-    → ReplaceAt Γx x (B-Lin (sessTyNf S)) Γ₁
+    → ReplaceAt Γx x (B-Lin S) Γ₁
     → Γ₀ —ctx[ L-SendVal x v ]→ Γ₁
 
   Ctx-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
@@ -192,9 +208,11 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → ReplaceAt Γ₀ x (B-Lin (MatchBranchOutput ssout v P S i i∈)) Γ₁
     → Γ₀ —ctx[ L-RecvLab x i ]→ Γ₁
 
-  Ctx-Select : ∀ {n k} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+  Ctx-Select : ∀ {n k} {ss : Subset.Subset k}
+      {Γ₀ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
-    → Γ₀ ∋ˡ x ∶ selectInNf v i P S
+    → i Subset.∈ ss
+    → Γ₀ ∋ˡ x ∶ selectSetInNf ss v P S
     → ReplaceAt Γ₀ x (B-Lin (selectOutNf v i P S)) Γ₁
     → Γ₀ —ctx[ L-SendLab x i ]→ Γ₁
 
@@ -219,7 +237,7 @@ data _—frm[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
 
   Frm-Send : ∀ {n} {Γ₀ Γ₁ : Ctx [] n}
       {x : Fin n} {S : NfTy [] SLin} {v : Value [] n}
-    → ReplaceAt Γ₀ x (B-Used (sessTyNf S)) Γ₁
+    → ReplaceAt Γ₀ x (B-Used S) Γ₁
     → Γ₀ —frm[ L-SendVal x v ]→ Γ₁
 
   Frm-Close : ∀ {n} {Γ₀ Γ₁ : Ctx [] n} {x : Fin n}
@@ -259,11 +277,14 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
   Label-RecvVal :
     ∀ {n} {x : Fin n}
       {Γin Γin′ Γv Γv′ : Ctx [] n}
-      {pk} {T : NfTy [] (KV pk Lin)}
+      {pk}
+      {T : NfTy [] (KV pk Lin)}
+      {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
     → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
     → AllUsed Γin′
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
+    → Γv ⊢ᵥ v ⇒ U ⊣ Γv′
+    → normalTyOf U <:ₜ normalTyOf T
     → AllUsed Γv′
     → LinearDisjoint Γin Γv
     → L-RecvVal x v ⦂ Γin ⇒ Γv
@@ -276,17 +297,22 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
   Label-SendVal :
     ∀ {n} {x : Fin n}
       {Γin Γv Γin′ : Ctx [] n}
-      {pk} {T : NfTy [] (KV pk Lin)}
+      {pk}
+      {T : NfTy [] (KV pk Lin)}
+      {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γin′
+    → Γv ⊢ᵥ v ⇒ U ⊣ Γin′
+    → normalTyOf U <:ₜ normalTyOf T
     → AllUsed Γin′
     → L-SendVal x v ⦂ Γin ⇒ Γv
 
   Label-SendLab :
-    ∀ {n k} {x : Fin n} {Γin Γin′ : Ctx [] n} {i : Fin k}
+    ∀ {n k} {ss : Subset.Subset k}
+      {x : Fin n} {Γin Γin′ : Ctx [] n} {i : Fin k}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin} 
-    → Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′
+    → (i∈ : i Subset.∈ ss)
+    → Γin ⊢ˡ x ∶ selectSetInNf ss v P S ⊣ Γin′
     → AllUsed Γin′
     → L-SendLab x i ⦂ Γin ⇒ Γin′
 
@@ -382,7 +408,9 @@ data Compatible :
 
   Compat-RecvVal :
     ∀ {n} {Γ₀ Γv Γv-out Γv′ Γx Γ₁ Γin Γin′ : Ctx [] n}
-      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {x : Fin n} {pk}
+      {T : NfTy [] (KV pk Lin)}
+      {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
       {ld : LinearDisjoint Γ₀ Γv}
       {x∈ : Γ₀ ∋ˡ x ∶ recvChanNf T S}
@@ -391,24 +419,30 @@ data Compatible :
       {merge : FrameCtx Γx Γv-out Γ₁}
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
-      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+      {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γv′}
+      {sub : normalTyOf U <:ₜ normalTyOf T}
       {au : AllUsed Γv′}
       {ldin : LinearDisjoint Γin Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvVal x v}
-        (Ctx-Rcv dv au ld x∈ rep repused merge) (Label-RecvVal take auin dv au ldin)
+        (Ctx-Rcv dv sub au ld x∈ rep repused merge)
+        (Label-RecvVal take auin dv sub au ldin)
 
   Compat-SendVal :
     ∀ {n} {Γ₀ Γin Γx Γv Γv′ Γ₁ : Ctx [] n}
-      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {x : Fin n} {pk}
+      {T : NfTy [] (KV pk Lin)}
+      {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
       {rm : RemoveCtx Γ₀ Γv Γx}
-      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+      {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γv′}
+      {sub : normalTyOf U <:ₜ normalTyOf T}
       {auv : AllUsed Γv′}
       {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
-      {rep : ReplaceAt Γx x (B-Lin (sessTyNf S)) Γ₁}
+      {rep : ReplaceAt Γx x (B-Lin S) Γ₁}
       {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendVal x v}
-        (Ctx-Send rm dv auv x∈ rep) (Label-SendVal take dv auv)
+        (Ctx-Send rm dv sub auv x∈ rep)
+        (Label-SendVal take dv sub auv)
 
   Compat-Close :
     ∀ {n} {Γ₀ Γin Γ₁ : Ctx [] n} {x : Fin n}
@@ -434,16 +468,18 @@ data Compatible :
         (Label-RecvLab auin au)
 
   Compat-Select :
-    ∀ {n k} {Γ₀ Γin Γin′ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
+    ∀ {n k} {ss : Subset.Subset k}
+      {Γ₀ Γin Γin′ Γ₁ : Ctx [] n} {x : Fin n} {i : Fin k}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
-      {x∈ : Γ₀ ∋ˡ x ∶ selectInNf v i P S}
+      {i∈ : i Subset.∈ ss}
+      {x∈ : Γ₀ ∋ˡ x ∶ selectSetInNf ss v P S}
       {rep : ReplaceAt Γ₀ x (B-Lin (selectOutNf v i P S)) Γ₁}
-      {take : Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′}
+      {take : Γin ⊢ˡ x ∶ selectSetInNf ss v P S ⊣ Γin′}
       {au : AllUsed Γin′}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-SendLab x i}
-        (Ctx-Select {v = v} {P = P} {S = S} x∈ rep)
+        (Ctx-Select {v = v} {P = P} {S = S} i∈ x∈ rep)
         {Γin = Γin} {Γv = Γin′}
-        (Label-SendLab {v = v} {P = P} {S = S} take au)
+        (Label-SendLab {v = v} {P = P} {S = S} i∈ take au)
 
 data InputCompatible :
   ∀ {n Θ}
@@ -473,15 +509,16 @@ data InputCompatible :
   IC-RecvVal :
     ∀ {n} {Γ₀ Γin Γr Γv : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
+      {pk} {T U : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
       {Γin′ Γv′ : Ctx [] n}
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
-      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
+      {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γv′}
+      {sub : normalTyOf U <:ₜ normalTyOf T}
       {auv : AllUsed Γv′}
       {ld : LinearDisjoint Γin Γv}
     → RemoveCtx Γ₀ Γin Γr
-    → InputCompatible Γ₀ (Label-RecvVal take auin dv auv ld)
+    → InputCompatible Γ₀ (Label-RecvVal take auin dv sub auv ld)
 
   IC-RecvLab :
     ∀ {n k} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n} {i : Fin k}
@@ -492,21 +529,25 @@ data InputCompatible :
   IC-SendVal :
     ∀ {n} {Γ₀ Γin Γr Γv : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
+      {pk} {T U : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
       {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
-      {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γr}
+      {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γr}
+      {sub : normalTyOf U <:ₜ normalTyOf T}
       {auv : AllUsed Γr}
     → RemoveCtx Γ₀ Γin Γr
-    → InputCompatible Γ₀ {ℓ = L-SendVal x v} (Label-SendVal take dv auv)
+    → InputCompatible Γ₀ {ℓ = L-SendVal x v}
+        (Label-SendVal take dv sub auv)
 
   IC-SendLab :
-    ∀ {n k} {Γ₀ Γin Γr Γin′ : Ctx [] n} {x : Fin n} {i : Fin k}
+    ∀ {n k} {ss : Subset.Subset k}
+      {Γ₀ Γin Γr Γin′ : Ctx [] n} {x : Fin n} {i : Fin k}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
-      {take : Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′}
+      {i∈ : i Subset.∈ ss}
+      {take : Γin ⊢ˡ x ∶ selectSetInNf ss v P S ⊣ Γin′}
       {au : AllUsed Γin′}
     → RemoveCtx Γ₀ Γin Γr
     → InputCompatible Γ₀ {Γin = Γin} {Γv = Γin′} {ℓ = L-SendLab x i}
-        (Label-SendLab {v = v} {P = P} {S = S} take au)
+        (Label-SendLab {v = v} {P = P} {S = S} i∈ take au)
 
   IC-Close :
     ∀ {n} {Γ₀ Γin : Ctx [] n} {Γv : Ctx [] n} {x : Fin n}
@@ -547,20 +588,22 @@ data Extract : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] n → Set where
     ∀ {n}
       {Γ₀ Γin Γr Γv Γin′ : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
+      {pk} {T U : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
     → RemoveCtx Γ₀ Γin Γr
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
-    → Γv ⊢ᵥ v ⇒ T ⊣ Γin′
+    → Γv ⊢ᵥ v ⇒ U ⊣ Γin′
+    → normalTyOf U <:ₜ normalTyOf T
     → AllUsed Γin′
     → Extract Γ₀ (L-SendVal x v) Γin
 
   Ex-SendLab :
-    ∀ {n k}
+    ∀ {n k} {ss : Subset.Subset k}
       {Γ₀ Γin Γr Γin′ : Ctx [] n}
       {x : Fin n} {i : Fin k}
       {v : Variance} {P : NfTy [] KP} {S : NfTy [] SLin}
     → RemoveCtx Γ₀ Γin Γr
-    → Γin ⊢ˡ x ∶ selectInNf v i P S ⊣ Γin′
+    → (i∈ : i Subset.∈ ss)
+    → Γin ⊢ˡ x ∶ selectSetInNf ss v P S ⊣ Γin′
     → Extract Γ₀ (L-SendLab x i) Γin
 
   Ex-Close :
@@ -580,8 +623,8 @@ extract-remove Ex-Fork = _ , remove-allUsedCtx _
 extract-remove Ex-New = _ , remove-allUsedCtx _
 extract-remove (Ex-RecvVal rm _ _) = _ , rm
 extract-remove Ex-RecvLab = _ , remove-allUsedCtx _
-extract-remove (Ex-SendVal rm _ _ _) = _ , rm
-extract-remove (Ex-SendLab rm _) = _ , rm
+extract-remove (Ex-SendVal rm _ _ _ _) = _ , rm
+extract-remove (Ex-SendLab rm _ _) = _ , rm
 extract-remove Ex-Close = _ , remove-allUsedCtx _
 
 extract-disjoint-active :
@@ -614,7 +657,10 @@ ctx-step-preserves-disjoint {Γf = Γf} Ctx-New (Label-New {S = S} au-in au-v) (
   ((B-Used (normalizeTy S)) ▻ (B-Used (normalizeTy (T-Dual D-S S)) ▻ Γf)) , Frm-New , LD-live-used (LD-live-used ld0)
 ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Fork rmv ⊢v au-v′) (Label-Fork au-in au-v) (Compat-Fork x) ld0 ldv =
   Γf , Frm-Fork , (remove-preserves-disjoint rmv ld0)
-ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Rcv {x = x} {S = S} ⊢v au-vrest ld0v1 x∈ replin rep-v mcxv) (Label-RecvVal ⊢x au-in ⊢v' au-v'rest ld-in-v) Compat-RecvVal ld0 ldv
+ctx-step-preserves-disjoint {Γf = Γf}
+    (Ctx-Rcv {x = x} {S = S} ⊢v sub au-vrest ld0v1 x∈ replin rep-v mcxv)
+    (Label-RecvVal ⊢x au-in ⊢v' sub′ au-v'rest ld-in-v)
+    Compat-RecvVal ld0 ldv
   with replace-at Γf x (B-Used S)
 ... | Γf′ , repused
   with replace-frames-disjoint ld0 replin repused
@@ -622,8 +668,11 @@ ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Rcv {x = x} {S = S} ⊢v au-vrest l
   with replace-frames-used ldv rep-v repused
 ... | ld-vout-f' =
   Γf′ , Frm-Rcv repused ,  merge-preserves-disjoint mcxv ldxf ld-vout-f'
-ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Send {x = x} {S = S} remv ⊢v au-vrest x∈ rep-x) (Label-SendVal ⊢x ⊢v' au-v'rest) Compat-SendVal ld0 ldv
-  with replace-at Γf x (B-Used (sessTyNf S))
+ctx-step-preserves-disjoint {Γf = Γf}
+    (Ctx-Send {x = x} {S = S} remv ⊢v sub au-vrest x∈ rep-x)
+    (Label-SendVal ⊢x ⊢v' sub′ au-v'rest)
+    Compat-SendVal ld0 ldv
+  with replace-at Γf x (B-Used S)
 ... | Γf′ , repused
   with remove-preserves-disjoint remv ld0
 ... | ldxf = Γf′ , (Frm-Send repused) , replace-frames-disjoint ldxf rep-x repused
@@ -633,6 +682,9 @@ ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Close {Γ₁ = Γ₁} {x = x} x∈ 
 ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Match {ssout = ssout} {x = x} {v = v} {P} {S} i∈ x∈ replin) (Label-RecvLab au-in au-v) (Compat-Match refl) ld0 ldv
   with replace-at Γf x (B-Used (MatchBranchOutput ssout v P S _ i∈))
 ... | Γf′ , repframe = Γf′ , Frm-Match i∈ repframe , replace-frames-disjoint ld0 replin repframe
-ctx-step-preserves-disjoint {Γf = Γf} (Ctx-Select {x = x} {i} {v = v} {P} {S} x∈ rep-lin) (Label-SendLab ⊢x au-v) Compat-Select ld0 ldv
+ctx-step-preserves-disjoint {Γf = Γf}
+    (Ctx-Select {x = x} {i} {v = v} {P} {S} i∈ x∈ rep-lin)
+    (Label-SendLab .i∈ ⊢x au-v)
+    Compat-Select ld0 ldv
   with replace-at Γf x (B-Used (selectOutNf v i P S))
 ... | Γf′ , repframe = Γf′ , Frm-Select repframe , replace-frames-disjoint ld0 rep-lin repframe

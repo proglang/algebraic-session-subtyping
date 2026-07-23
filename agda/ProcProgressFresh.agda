@@ -73,14 +73,14 @@ runnable-at-steps (runnable-at i (run-new step)) =
 synchronization-steps :
   ∀ {n} {C : Conf n} → SynchronizationPossible C → CanStep C
 synchronization-steps
-    (sync-message {i≠j = i≠j} pair x-live y-live receive send) =
-  can-step (PS.Act-Msg {i≠j = i≠j} pair x-live y-live receive send)
+    (sync-message i j i≠j pair x-live y-live receive send) =
+  can-step (PS.Act-Msg i j i≠j pair x-live y-live receive send)
 synchronization-steps
-    (sync-branch {i≠j = i≠j} pair x-live y-live receive send) =
-  can-step (PS.Act-Bra {i≠j = i≠j} pair x-live y-live receive send)
+    (sync-branch i j i≠j pair x-live y-live receive send) =
+  can-step (PS.Act-Bra i j i≠j pair x-live y-live receive send)
 synchronization-steps
-    (sync-close {i≠j = i≠j} pair x-live y-live close₁ close₂) =
-  can-step (PS.Act-Wait {i≠j = i≠j} pair x-live y-live close₁ close₂)
+    (sync-close i j i≠j pair x-live y-live close₁ close₂) =
+  can-step (PS.Act-Wait i j i≠j pair x-live y-live close₁ close₂)
 
 step-source : ∀ {n} {C : Conf n}
   → CanStep C
@@ -93,16 +93,16 @@ step-source (can-step (PS.Act-New {i = i} step)) =
   inj₁ (runnable-at i (run-new step))
 step-source
     (can-step
-      (PS.Act-Msg {i≠j = i≠j} pair x-live y-live receive send)) =
-  inj₂ (sync-message {i≠j = i≠j} pair x-live y-live receive send)
+      (PS.Act-Msg i j i≠j pair x-live y-live receive send)) =
+  inj₂ (sync-message i j i≠j pair x-live y-live receive send)
 step-source
     (can-step
-      (PS.Act-Bra {i≠j = i≠j} pair x-live y-live receive send)) =
-  inj₂ (sync-branch {i≠j = i≠j} pair x-live y-live receive send)
+      (PS.Act-Bra i j i≠j pair x-live y-live receive send)) =
+  inj₂ (sync-branch i j i≠j pair x-live y-live receive send)
 step-source
     (can-step
-      (PS.Act-Wait {i≠j = i≠j} pair x-live y-live close₁ close₂)) =
-  inj₂ (sync-close {i≠j = i≠j} pair x-live y-live close₁ close₂)
+      (PS.Act-Wait i j i≠j pair x-live y-live close₁ close₂)) =
+  inj₂ (sync-close i j i≠j pair x-live y-live close₁ close₂)
 
 deadlock-cannot-step : ∀ {n} {C : Conf n}
   → GlobalDeadlock C
@@ -195,7 +195,7 @@ configuration-progress-from : ∀ {n} {Γ : Ctx [] n} {C : Conf n}
   → Dec (SynchronizationPossible C)
   → Progress C
 configuration-progress-from
-    local (T-Conf live-ctx threads) runnable? sync? =
+    local (T-Conf live-ctx paired threads) runnable? sync? =
   list-progress-conf
     (classify-list
       (threads-progress local (live-context-is-session live-ctx) threads))

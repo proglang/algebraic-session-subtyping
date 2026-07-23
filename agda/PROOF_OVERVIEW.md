@@ -146,21 +146,23 @@ support lemmas import it there.
 | `ExprPreservationStep2.ContextLemmas` | Removal, replacement, membership, and all-used helper lemmas. | Defined/proved under imported assumptions. |
 | `ExprPreservationStep2.SubstitutionLemmas` | Variance-aware substitution and normalization bridges used in session action cases. | Defined/proved under imported assumptions. |
 | `ExprPreservationStep2.MaterializeProperties` | Materialization/substitution equalities for protocol constructors and selected branches. | Defined/proved under `ProtocolConstructors` and substitution assumptions. |
-| `ExprReductionPreservationFresh` | Expression reduction preservation with actual reduct types and leftovers related up to annotations on used bindings. | Constructively covers every expression reduction constructor relative only to the accepted foundations. |
+| `SessionTypeDuality` | Normalization bridge for source-level duality and duality laws for communication normal forms. | Contains no postulates or holes. It proves that duality exchanges receive/send heads and match/select branch heads, together with the required head injectivity results. The general normalized-duality involution theorem lives in `NormalTypesSubstitution`. |
+| `ExprActionResourcesFresh` | Derivation-indexed resource descriptions for receive-value, send-value, and send-label actions. | Contains no postulates or holes. It extracts receive resources, channel-first/payload-second `SendValueResources` including payload subtyping, and the selected protocol set for send-label actions through every observable evaluation context. |
+| `ExprReductionPreservationFresh` | Expression reduction preservation with actual reduct types and leftovers related up to annotations on used bindings. | Constructively covers every expression reduction constructor relative only to the accepted foundations. Ordinary actions use linear-disjointness evidence; send actions use the exact `SendValueResources` inferred from the source typing and transition. |
 
 ## Process layer
 
 | Module | Main contents | Status and dependencies |
 |---|---|---|
-| `ProcSemanticsFresh` | Flat configuration semantics over a list of expressions sharing one channel namespace and a finite set of live channel entries. | Contains no postulates. `Act-New` shifts existing liveness and inserts the new endpoint pair; message, branch, and wait synchronization require live endpoints. `Act-Wait` removes the closed endpoints from `live` while retaining their slots in the flat namespace. |
+| `ProcSemanticsFresh` | Flat configuration semantics over a list of expressions sharing one channel namespace and a finite set of live channel entries. | Contains no postulates. `Act-New` shifts existing liveness and inserts the new endpoint pair; message, branch, and wait synchronization require two distinct thread positions and live paired endpoints. `Act-Wait` removes the closed endpoints from `live` while retaining their slots in the flat namespace. |
 | `ProcExamplesFresh` | Flat-configuration operational examples. | Contains no postulates. It demonstrates beta at either list position, fork, fresh-pair activation, both endpoint orientations, a pair below two older slots, branch synchronization, and closing with liveness removal. |
 | `ProcExamples` | Empty compatibility module. | Operational examples live in `ProcExamplesFresh`. |
-| `ProcTypingFresh` | Declarative typing for flat configurations from `ProcSemanticsFresh`. | Contains no postulates. It reexports the canonical `ExprContextProperties.AllUsed` and defines the process-specific `Split`; `LiveCtx` equates live slots with available raw `SLin` bindings and dead slots with used bindings. The receive, select, and close primitive inputs use the same endpoint kind. `ThreadsTyped` splits live resources across the expression list and requires each assigned resource to be consumed exactly once. |
+| `ProcTypingFresh` | Declarative typing for flat configurations from `ProcSemanticsFresh`. | Contains no postulates. It reexports the canonical `ExprContextProperties.AllUsed` and defines the process-specific `Split`; `LiveCtx` equates live slots with available raw `SLin` bindings and dead slots with used bindings. `PairedCtx` additionally requires entry 1 of every allocated pair to be the normalized dual of entry 0, independently of whether the entries are live or dead. `paired-live-endpoints` turns a live `FinFreshPair` into typed, dual endpoint memberships. `ThreadsTyped` splits live resources across the expression list and requires each assigned resource to be consumed exactly once. |
 | `ProcProgressFreshDefinitions` | Shared local and global progress predicates, session-only contexts, and theorem signatures. | Contains no postulates or holes. `LocalProgress` classifies expressions as values, independently runnable, or blocked on communication; `Progress` classifies configurations as terminal, globally deadlocked, or able to step. |
 | `ProcLocalProgressFresh` | Canonical forms and local expression progress in session-only run-time contexts. | Contains no postulates or holes. `local-progress` proves `LocalProgressTheorem`; the proof follows the typing derivation and uses session-context canonical forms to expose channel variables and communication heads. |
 | `ProcProgressFreshDecidable` | Decisions for independent actions and synchronization. | Contains no postulates or holes. `runnable-at?` structurally decides independent beta/fork/new actions. `synchronization-possible?` performs finite searches over threads and endpoints, checking distinct threads, live fresh-pair endpoints, and matching message, branch, or close actions. |
 | `ProcProgressFresh` | Global progress for flat configurations. | Contains no postulates or holes. `GlobalDeadlock` positively classifies all threads, requires at least one communication-blocked thread, and excludes both independent and synchronizing actions; `deadlock-cannot-step` proves that it is genuinely stuck. `configuration-progress` combines the local theorem and both decisions into the assumption-free terminal/deadlock/step trichotomy. |
-| `ProcReductionPreservationFresh` | Configuration subject reduction built on `ExprReductionPreservationFresh`. | Contains no postulates or holes. Beta, fork, and new preserve typing unconditionally and at arbitrary list positions. Message, branch, and wait preserve typing under `BinaryCompatibility`, which supplies the endpoint/session coherence absent from `LiveCtx`; `ReductionTyping` distinguishes those typed synchronization steps from raw operational steps. The conclusion returns the actual target context and a fresh configuration-typing derivation. |
+| `ProcReductionPreservationFresh` | Configuration subject reduction built on `ExprReductionPreservationFresh`. | Contains no postulates or holes and proves preservation for every configuration reduction without an auxiliary compatibility premise. Message synchronization uses derivation-indexed send resources to transfer the payload and reconstruct both target splits; branch synchronization extracts the selector's actual protocol set; wait synchronization closes both slots. The `live-replace-*` and `paired-replace-pair-*` lemmas transport the global invariants across all three endpoint updates. |
 
 ## Examples and maintained index
 
@@ -332,8 +334,8 @@ match, select, and close.  The receive proof is constructive after aligning
   to its continuation, merges and replays the payload typing context, and
   types the reduct pair.
 
-The send input uses the raw `sendChanNf` kind.  Its result uses `sessTyNf S`
-consistently in both expression typing and context reduction.  The
+The send input and result use raw `SLin` normal forms: `sendChanNf T S`
+advances to `S` in both expression typing and context reduction.  The
 constructive send proof uses fresh typing uniqueness to align
 the payload-first expression derivation with the channel-first label
 derivation, then advances and returns the endpoint.
@@ -345,7 +347,8 @@ theorem.  Exact preservation of the consumed binder annotation is exposed by
 `retag-synth-input-lin-used`; the branch-join witness supplies the result
 subtyping proof.  Select preservation extracts the label channel, identifies
 its source type by linear-membership uniqueness, advances it with
-`selectOutNf`, and uses `select-app-subtype`.  Close preservation uses
+`selectOutNf`, and uses `select-set-app-subtype` for the selector's actual
+protocol subset.  Close preservation uses
 `end-subtype-invert` and the constructive `take-replace` lemma.
 
 The same theorem propagates arbitrary observable actions through `Act-AppL`,
@@ -360,7 +363,6 @@ covered; process preservation is a separate theorem.
 
 ## Future investigation
 
-- Decide whether endpoint compatibility should become an invariant of
-  configuration typing.  Doing so could internalize `BinaryCompatibility`
-  and yield unconditional preservation for message, branch, and wait
-  synchronization.
+Configuration subject reduction is complete.  The remaining proof-engineering
+work is the general code cleanup recorded in `TODO.md`; it is not an open
+preservation obligation.

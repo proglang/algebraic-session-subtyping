@@ -195,9 +195,9 @@ ReceiveTy1 T = T-Poly SLin
   (ReceiveTy (wkTy {K′ = SLin} T) (T-Var (here refl)))
 
 SendTy : Ty Δ (KV pk Lin) → Ty Δ SLin → Ty Δ TLin
-SendTy T S = LinArr
+SendTy T S = T-Arrow {m = Lin}
   (T-Pair T (T-Msg ⊕ (T-Up T) S))
-  (SessLin S)
+  S
 
 SendTy1 : Ty Δ (KV pk Lin) → Ty Δ TLin
 SendTy1 T = T-Poly SLin
@@ -240,14 +240,14 @@ receiveConstNf : NfTy Δ TLin
 receiveConstNf =
   polyNf {K = TLin} (receive1Nf (N-Var (NV-Var (here refl))))
 
-sendResultNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ TLin
-sendResultNf T S = sessTyNf S
+sendResultNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ SLin
+sendResultNf T S = S
 
 sendNf : NfTy Δ (KV pk Lin) → NfTy Δ SLin → NfTy Δ TLin
 sendNf T S =
   linArrNf
     (pairNf T (msgNF ⊕ (N-Normal (N-Up T)) S))
-    (sessTyNf S)
+    S
 
 send1Nf : NfTy Δ (KV pk Lin) → NfTy Δ TLin
 send1Nf {Δ = Δ} T =
@@ -269,9 +269,19 @@ materializeNf (Ts , _) p P S = materializeListNf Ts p P S
 materialize-atNf : ∀ {c v} → (Fin c → ConstructorSignature v) → Fin c → Polarity → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
 materialize-atNf cs i p P S = materializeNf (cs i) p P S
 
+selectSetInTyNf :
+  ∀ {c}
+  → Subset.Subset c
+  → Variance
+  → NfTy Δ KP
+  → NfTy Δ SLin
+  → NfTy Δ SLin
+selectSetInTyNf ss v P S =
+  msgNF ⊕ (N-Normal (N-ProtoP ss v P)) S
+
 selectInTyNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
 selectInTyNf v i P S =
-  msgNF ⊕ (N-Normal (N-ProtoP (Subset.⁅ i ⁆) v P)) S
+  selectSetInTyNf (Subset.⁅ i ⁆) v P S
 
 selectOutTyNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
 selectOutTyNf {c} v i P S =

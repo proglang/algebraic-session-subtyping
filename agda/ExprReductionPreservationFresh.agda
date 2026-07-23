@@ -4,6 +4,7 @@ open import Data.Fin using (Fin) renaming (zero to fzero; suc to fsuc)
 import Data.Fin.Subset as Subset
 open import Data.List using (List; []; _∷_; length)
 open import Data.List.Relation.Unary.Any using (here)
+open import Data.Maybe using (just)
 open import Data.Nat using (ℕ; suc; _+_)
 open import Data.Product using (Σ; _×_; _,_; proj₁; proj₂)
 open import Relation.Binary.PropositionalEquality using
@@ -28,6 +29,7 @@ open import NormalTypesSubstitution using
   ; singleNFSub
   ; substNFTy
   )
+open import SessionTypeDuality using (normalize-dual)
 open import AlgorithmicNFSubtyping using
   ( _<:ₜ_
   ; <:ₜ-refl
@@ -271,6 +273,7 @@ open import ExprContextProperties using
   ; FC-un
   ; mergeDisjointContext
   ; mergeRemoveContext
+  ; merge-disjoint
   ; remove-allused-disjoint
   ; remove-linear
   ; remove-preserves-remove
@@ -299,7 +302,6 @@ open import ExprContextReduction using
   ; extendUsed
   ; recvChanNf
   ; sendChanNf
-  ; selectInNf
   ; selectOutNf
   ; Ctx-β
   ; Ctx-New
@@ -351,7 +353,7 @@ open import ExprTypingInversion using
   ( recvChan-subtype
   ; sendChan-subtype
   ; match-branch-subtype
-  ; select-app-subtype
+  ; select-set-app-subtype
   )
 open import ExprTypingUniquenessFresh using
   ( take-membership-fresh
@@ -359,6 +361,13 @@ open import ExprTypingUniquenessFresh using
   ; value-output-unique
   )
 open import ExprTypingStripFresh using (strip-value)
+open import ExprTypingLeftover using (leftover-take)
+open import ExprActionResourcesFresh using
+  ( SendValueResources
+  ; send-value-resources
+  ; send-value-resources-synth
+  ; send-value-resources-check
+  )
 open import ExprRenamingPreservation using
   ( liftRen
   ; insertAt
@@ -414,15 +423,15 @@ ctx-effect :
 ctx-effect Ctx-β = Effect-id
 ctx-effect Ctx-New = Effect-new
 ctx-effect (Ctx-Fork _ _ _) = Effect-id
-ctx-effect (Ctx-Rcv {x = x} {S = S} _ _ _ _ _ _ _) =
+ctx-effect (Ctx-Rcv {x = x} {S = S} _ _ _ _ _ _ _ _) =
   Effect-replace x (B-Used S)
-ctx-effect (Ctx-Send {x = x} {S = S} _ _ _ _ _) =
-  Effect-replace x (B-Used (sessTyNf S))
+ctx-effect (Ctx-Send {x = x} {S = S} _ _ _ _ _ _) =
+  Effect-replace x (B-Used S)
 ctx-effect (Ctx-Close {x = x} _ _) =
   Effect-replace x (B-Used endConstNf)
 ctx-effect (Ctx-Match {x = x} _ _ rep) =
   Effect-replace x (mark-linear-used (replacement-binding rep))
-ctx-effect (Ctx-Select {x = x} _ rep) =
+ctx-effect (Ctx-Select {x = x} _ _ rep) =
   Effect-replace x (mark-linear-used (replacement-binding rep))
 
 frm-effect :
@@ -436,7 +445,7 @@ frm-effect Frm-Fork = Effect-id
 frm-effect (Frm-Rcv {x = x} {S = S} _) =
   Effect-replace x (B-Used S)
 frm-effect (Frm-Send {x = x} {S = S} _) =
-  Effect-replace x (B-Used (sessTyNf S))
+  Effect-replace x (B-Used S)
 frm-effect (Frm-Close {x = x} _) =
   Effect-replace x (B-Used endConstNf)
 frm-effect (Frm-Match {x = x} _ rep) =
@@ -468,8 +477,8 @@ ctx-step-preserves-disjoint-aligned
   Γf , Frm-Fork , remove-preserves-disjoint rm ld₀ , refl
 ctx-step-preserves-disjoint-aligned
     {Γf = Γf}
-    (Ctx-Rcv {x = x} {S = S} dv au ldv x∈ rep repv merge)
-    (Label-RecvVal take autake dv′ au′ ldin)
+    (Ctx-Rcv {x = x} {S = S} dv sub au ldv x∈ rep repv merge)
+    (Label-RecvVal take autake dv′ sub′ au′ ldin)
     Compat-RecvVal ld₀ ldlabel
   with replace-at Γf x (B-Used S)
 ... | Γf′ , repf
@@ -480,10 +489,10 @@ ctx-step-preserves-disjoint-aligned
   Γf′ , Frm-Rcv repf , merge-preserves-disjoint merge ldxf ldvf , refl
 ctx-step-preserves-disjoint-aligned
     {Γf = Γf}
-    (Ctx-Send {x = x} {S = S} rm dv au x∈ rep)
-    (Label-SendVal take dv′ au′)
+    (Ctx-Send {x = x} {S = S} rm dv sub au x∈ rep)
+    (Label-SendVal take dv′ sub′ au′)
     Compat-SendVal ld₀ _
-  with replace-at Γf x (B-Used (sessTyNf S))
+  with replace-at Γf x (B-Used S)
 ... | Γf′ , repf =
   Γf′ , Frm-Send repf ,
   replace-frames-disjoint (remove-preserves-disjoint rm ld₀) rep repf ,
@@ -505,8 +514,8 @@ ctx-step-preserves-disjoint-aligned
   replace-frames-disjoint ld₀ rep repf , refl
 ctx-step-preserves-disjoint-aligned
     {Γf = Γf}
-    (Ctx-Select {x = x} x∈ rep)
-    (Label-SendLab _ _) Compat-Select ld₀ _
+    (Ctx-Select {x = x} i∈ x∈ rep)
+    (Label-SendLab .i∈ _ _) Compat-Select ld₀ _
   with replace-at Γf x (mark-linear-used (replacement-binding rep))
 ... | Γf′ , repf =
   Γf′ , Frm-Select repf ,
@@ -1171,10 +1180,10 @@ weaken-label-value :
 weaken-label-value (Label-β _ _) d = weaken-zero-preserves-value d
 weaken-label-value (Label-Fork _ _) d = weaken-zero-preserves-value d
 weaken-label-value (Label-New {S = S} _ _) d = new-weaken-value-at 0 S d
-weaken-label-value (Label-RecvVal _ _ _ _ _) d = weaken-zero-preserves-value d
+weaken-label-value (Label-RecvVal _ _ _ _ _ _) d = weaken-zero-preserves-value d
 weaken-label-value (Label-RecvLab _ _) d = weaken-zero-preserves-value d
-weaken-label-value (Label-SendVal _ _ _) d = weaken-zero-preserves-value d
-weaken-label-value (Label-SendLab _ _) d = weaken-zero-preserves-value d
+weaken-label-value (Label-SendVal _ _ _ _) d = weaken-zero-preserves-value d
+weaken-label-value (Label-SendLab _ _ _) d = weaken-zero-preserves-value d
 weaken-label-value (Label-Close _ _) d = weaken-zero-preserves-value d
 
 weaken-label-synth :
@@ -1191,10 +1200,10 @@ weaken-label-synth :
 weaken-label-synth (Label-β _ _) d = weaken-zero-preserves-synth d
 weaken-label-synth (Label-Fork _ _) d = weaken-zero-preserves-synth d
 weaken-label-synth (Label-New {S = S} _ _) d = new-weaken-synth-at 0 S d
-weaken-label-synth (Label-RecvVal _ _ _ _ _) d = weaken-zero-preserves-synth d
+weaken-label-synth (Label-RecvVal _ _ _ _ _ _) d = weaken-zero-preserves-synth d
 weaken-label-synth (Label-RecvLab _ _) d = weaken-zero-preserves-synth d
-weaken-label-synth (Label-SendVal _ _ _) d = weaken-zero-preserves-synth d
-weaken-label-synth (Label-SendLab _ _) d = weaken-zero-preserves-synth d
+weaken-label-synth (Label-SendVal _ _ _ _) d = weaken-zero-preserves-synth d
+weaken-label-synth (Label-SendLab _ _ _) d = weaken-zero-preserves-synth d
 weaken-label-synth (Label-Close _ _) d = weaken-zero-preserves-synth d
 
 weaken-label-check :
@@ -1211,10 +1220,10 @@ weaken-label-check :
 weaken-label-check (Label-β _ _) d = weaken-zero-preserves-check d
 weaken-label-check (Label-Fork _ _) d = weaken-zero-preserves-check d
 weaken-label-check (Label-New {S = S} _ _) d = new-weaken-check-at 0 S d
-weaken-label-check (Label-RecvVal _ _ _ _ _) d = weaken-zero-preserves-check d
+weaken-label-check (Label-RecvVal _ _ _ _ _ _) d = weaken-zero-preserves-check d
 weaken-label-check (Label-RecvLab _ _) d = weaken-zero-preserves-check d
-weaken-label-check (Label-SendVal _ _ _) d = weaken-zero-preserves-check d
-weaken-label-check (Label-SendLab _ _) d = weaken-zero-preserves-check d
+weaken-label-check (Label-SendVal _ _ _ _) d = weaken-zero-preserves-check d
+weaken-label-check (Label-SendLab _ _ _) d = weaken-zero-preserves-check d
 weaken-label-check (Label-Close _ _) d = weaken-zero-preserves-check d
 
 weaken-label-synth1 :
@@ -1233,10 +1242,10 @@ weaken-label-synth1 :
 weaken-label-synth1 (Label-β _ _) d = weaken-zero-preserves-synth1 d
 weaken-label-synth1 (Label-Fork _ _) d = weaken-zero-preserves-synth1 d
 weaken-label-synth1 (Label-New {S = S} _ _) d = new-weaken-synth-at 1 S d
-weaken-label-synth1 (Label-RecvVal _ _ _ _ _) d = weaken-zero-preserves-synth1 d
+weaken-label-synth1 (Label-RecvVal _ _ _ _ _ _) d = weaken-zero-preserves-synth1 d
 weaken-label-synth1 (Label-RecvLab _ _) d = weaken-zero-preserves-synth1 d
-weaken-label-synth1 (Label-SendVal _ _ _) d = weaken-zero-preserves-synth1 d
-weaken-label-synth1 (Label-SendLab _ _) d = weaken-zero-preserves-synth1 d
+weaken-label-synth1 (Label-SendVal _ _ _ _) d = weaken-zero-preserves-synth1 d
+weaken-label-synth1 (Label-SendLab _ _ _) d = weaken-zero-preserves-synth1 d
 weaken-label-synth1 (Label-Close _ _) d = weaken-zero-preserves-synth1 d
 
 weaken-label-synth2 :
@@ -1256,10 +1265,10 @@ weaken-label-synth2 :
 weaken-label-synth2 (Label-β _ _) d = weaken-zero-preserves-synth2 d
 weaken-label-synth2 (Label-Fork _ _) d = weaken-zero-preserves-synth2 d
 weaken-label-synth2 (Label-New {S = S} _ _) d = new-weaken-synth-at 2 S d
-weaken-label-synth2 (Label-RecvVal _ _ _ _ _) d = weaken-zero-preserves-synth2 d
+weaken-label-synth2 (Label-RecvVal _ _ _ _ _ _) d = weaken-zero-preserves-synth2 d
 weaken-label-synth2 (Label-RecvLab _ _) d = weaken-zero-preserves-synth2 d
-weaken-label-synth2 (Label-SendVal _ _ _) d = weaken-zero-preserves-synth2 d
-weaken-label-synth2 (Label-SendLab _ _) d = weaken-zero-preserves-synth2 d
+weaken-label-synth2 (Label-SendVal _ _ _ _) d = weaken-zero-preserves-synth2 d
+weaken-label-synth2 (Label-SendLab _ _ _) d = weaken-zero-preserves-synth2 d
 weaken-label-synth2 (Label-Close _ _) d = weaken-zero-preserves-synth2 d
 
 frame-update-value-aligned :
@@ -1286,7 +1295,7 @@ frame-update-value-aligned
     (Ctx-New {S = S}) Frm-New refl _ dv au =
   _ , Frm-New , AU-used (AU-used au) , new-weaken-value-at 0 S dv
 frame-update-value-aligned
-    (Ctx-Rcv {x = x} dvₚ auₚ ldₚ x∈ repₐ repₚ merge)
+    (Ctx-Rcv {x = x} dvₚ subₚ auₚ ldₚ x∈ repₐ repₚ merge)
     (Frm-Rcv rep) _ ld dv au
   with replace-used-retagged x∈ ld rep (value-preserves-~Ctx dv)
 ... | Γstep′ , rep′ , tr =
@@ -1294,7 +1303,7 @@ frame-update-value-aligned
   allUsed-resp-≈ᵘ (retagged-output tr) au ,
   weaken-zero-preserves-value (retag-value dv tr)
 frame-update-value-aligned
-    (Ctx-Send {x = x} rm dvₚ auₚ x∈ repₐ)
+    (Ctx-Send {x = x} rm dvₚ subₚ auₚ x∈ repₐ)
     (Frm-Send rep) _ ld dv au
   with replace-used-retagged
          (remove-membership rm x∈) ld rep (value-preserves-~Ctx dv)
@@ -1319,7 +1328,7 @@ frame-update-value-aligned
   allUsed-resp-≈ᵘ (retagged-output tr) au ,
   weaken-zero-preserves-value (retag-value dv tr)
 frame-update-value-aligned
-    (Ctx-Select {x = x} x∈ repₐ)
+    (Ctx-Select {x = x} i∈ x∈ repₐ)
     (Frm-Select rep) _ ld dv au
   with replace-used-retagged x∈ ld rep (value-preserves-~Ctx dv)
 ... | Γstep′ , rep′ , tr =
@@ -1588,7 +1597,7 @@ send-extract-disjoint :
   → Γ₂ ∋ˡ x ∶ U
   → LinearDisjoint G Γin
 send-extract-disjoint r disj
-    (Label-SendVal take dv au) (Ex-SendVal rin _ _ _) x∈ =
+    (Label-SendVal take dv sub au) (Ex-SendVal rin _ _ _ _) x∈ =
   send-input-disjoint-core
     r rin take x∈ (remove-removed-disjoint r disj)
 
@@ -1672,8 +1681,8 @@ mutual
         Σ (NfTy [] (KV pk′ Lin)) λ U → Γ₂ ∋ˡ x ∶ U
 
   send-live-synth-removed r
-      (T-App (T-Val vr) (T-Check (T-Val vv) sub))
-      Act-Send ex@(Ex-SendVal rin take dv au)
+      (T-App (T-Val vr) (T-Check (T-Val vv) pairSub))
+      Act-Send ex@(Ex-SendVal rin take dv payloadSub au)
     with extract-membership rin (take-membership-fresh take)
   ... | x∈₀
     with strip-value vr
@@ -1739,7 +1748,7 @@ mutual
 
   select-live-synth-removed r
       (T-App (T-Val vr) (T-Check (T-Val vv) sub))
-      Act-Sel (Ex-SendLab rin take)
+      Act-Sel (Ex-SendLab rin i∈ take)
     with extract-membership rin (take-membership-fresh take)
   ... | x∈₀
     with strip-value vr
@@ -1812,13 +1821,13 @@ right-check-extract-disjoint r d step lbl Ex-Close disj =
 right-check-extract-disjoint r d step lbl ex@(Ex-RecvVal _ _ _) disj
   with recv-live-check-removed r d step ex
 ... | K , U , x∈ = recv-extract-disjoint r ex x∈
-right-check-extract-disjoint r d step lbl@(Label-SendVal _ _ _)
-    ex@(Ex-SendVal _ _ _ _) disj
+right-check-extract-disjoint r d step lbl@(Label-SendVal _ _ _ _)
+    ex@(Ex-SendVal _ _ _ _ _) disj
   with send-live-check-removed r d step ex
 ... | K , U , x∈ = send-extract-disjoint r disj lbl ex x∈
 right-check-extract-disjoint r d step
-    (Label-SendLab {v = v} {P = P} {S = S} take au)
-    ex@(Ex-SendLab rin _) disj
+    (Label-SendLab {v = v} {P = P} {S = S} i∈ take au)
+    ex@(Ex-SendLab rin _ _) disj
   with select-live-check-removed r d step ex
 ... | K , U , x∈ = recv-input-disjoint-core r rin take au x∈
 
@@ -1846,13 +1855,13 @@ right-synth-extract-disjoint r d step lbl Ex-Close disj =
 right-synth-extract-disjoint r d step lbl ex@(Ex-RecvVal _ _ _) disj
   with recv-live-synth-removed r d step ex
 ... | K , U , x∈ = recv-extract-disjoint r ex x∈
-right-synth-extract-disjoint r d step lbl@(Label-SendVal _ _ _)
-    ex@(Ex-SendVal _ _ _ _) disj
+right-synth-extract-disjoint r d step lbl@(Label-SendVal _ _ _ _)
+    ex@(Ex-SendVal _ _ _ _ _) disj
   with send-live-synth-removed r d step ex
 ... | K , U , x∈ = send-extract-disjoint r disj lbl ex x∈
 right-synth-extract-disjoint r d step
-    (Label-SendLab {v = v} {P = P} {S = S} take au)
-    ex@(Ex-SendLab rin _) disj
+    (Label-SendLab {v = v} {P = P} {S = S} i∈ take au)
+    ex@(Ex-SendLab rin _ _) disj
   with select-live-synth-removed r d step ex
 ... | K , U , x∈ = recv-input-disjoint-core r rin take au x∈
 
@@ -1876,12 +1885,12 @@ remove-extract-fresh r ld (Ex-RecvVal rin take au)
 remove-extract-fresh {Γ₂ = Γ₂} r ld Ex-RecvLab =
   subst (λ X → Extract Γ₂ (L-RecvLab _ _) X)
     (sym (allUsedCtx-remove r)) Ex-RecvLab
-remove-extract-fresh r ld (Ex-SendVal rin take dv au)
+remove-extract-fresh r ld (Ex-SendVal rin take dv sub au)
   with remove-preserves-remove r rin ld
-... | Γr′ , rin′ = Ex-SendVal rin′ take dv au
-remove-extract-fresh r ld (Ex-SendLab rin take)
+... | Γr′ , rin′ = Ex-SendVal rin′ take dv sub au
+remove-extract-fresh r ld (Ex-SendLab rin i∈ take)
   with remove-preserves-remove r rin ld
-... | Γr′ , rin′ = Ex-SendLab rin′ take
+... | Γr′ , rin′ = Ex-SendLab rin′ i∈ take
 remove-extract-fresh {Γ₂ = Γ₂} r ld Ex-Close =
   subst (λ X → Extract Γ₂ (L-Close _) X)
     (sym (allUsedCtx-remove r)) Ex-Close
@@ -2431,24 +2440,6 @@ beta-reduction-preserves-check :
   → CheckResult Γ₁ e₂ T Γ₂
 beta-reduction-preserves-check = beta-preserves-check
 
-new-dual-substitution :
-  (S : Ty [] SLin)
-  → normalizeTy (T-Dual Duality.D-S S)
-      ≡ dualNFKind Duality.D-S (normalizeTy S)
-new-dual-substitution S =
-  trans
-    (from-nt-idem S)
-    (sym
-      (cong
-        (λ U →
-          fromNormalTy
-            (Types.nf-normal-type
-              Duality.⊝
-              (λ _ → Duality.D-S)
-              U))
-        (nfTyTy-fromNormalTy
-          (Types.nf-normal-type Duality.⊕ Duality.d?⊥ S))))
-
 -- `Act-Match` has an arbitrary substituted expression as its reduct.  That
 -- makes its result index overlap syntactically with every other reduction
 -- constructor.  This small private tag gives Agda's coverage checker an
@@ -2543,6 +2534,126 @@ record ReductionCheckResult
     check : Γ₁ ⊢ e₂ ⇐ T ⊣ Γout
     leftover : Γout ≈ᵘ extendUsed Θ Γ₂
 
+-- The old preservation interface required `LinearDisjoint Γ₀ Γv` for every
+-- action.  That statement is appropriate for an incoming payload, but false
+-- for a send: `Γv` is the intermediate context in which the (possibly
+-- linear) outgoing payload is still live.  The send-specific constructor
+-- instead records the complete channel-and-payload resource fragment.
+
+record SendInterface
+    {n : ℕ}
+    {Γ₀ : Ctx [] n}
+    {x : Fin n}
+    {v : Value [] n}
+    (resources : SendValueResources Γ₀ x v) : Set where
+  field
+    Γin Γv : Ctx [] n
+    label : L-SendVal x v ⦂ Γin ⇒ Γv
+    extract : Extract Γ₀ (L-SendVal x v) Γin
+
+send-interface :
+  ∀ {n} {Γ₀ : Ctx [] n} {x : Fin n} {v : Value [] n}
+  → (resources : SendValueResources Γ₀ x v)
+  → SendInterface resources
+send-interface
+    (send-value-resources removed take payload sub used) =
+  record
+    { label = Label-SendVal take payload sub used
+    ; extract = Ex-SendVal removed take payload sub used
+    }
+
+data ActionResources
+    {n}
+  : ∀ {Θ pk m}
+      {Γ₀ Γ₂ : Ctx [] n}
+      {e₁ : Expr [] n}
+      {e₂ : Expr [] (length Θ + n)}
+      {T : NfTy [] (KV pk m)}
+      {ℓ : Label n Θ}
+    → (source : Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂)
+    → (step : e₁ —[ ℓ ]→ e₂)
+    → ∀ {Γin Γv : Ctx [] n}
+    → (lbl : ℓ ⦂ Γin ⇒ Γv)
+    → Extract Γ₀ ℓ Γin
+    → Set where
+
+  resources-disjoint :
+    ∀ {Θ pk m}
+      {Γ₀ Γ₂ Γin Γv : Ctx [] n}
+      {e₁ : Expr [] n}
+      {e₂ : Expr [] (length Θ + n)}
+      {T : NfTy [] (KV pk m)}
+      {ℓ : Label n Θ}
+      {source : Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂}
+      {step : e₁ —[ ℓ ]→ e₂}
+      {label : ℓ ⦂ Γin ⇒ Γv}
+      {extract : Extract Γ₀ ℓ Γin}
+    →
+    LinearDisjoint Γ₀ Γv
+    → ActionResources source step label extract
+
+  resources-send :
+    ∀ {pk m}
+      {Γ₀ Γ₂ : Ctx [] n}
+      {e₁ e₂ : Expr [] n}
+      {T : NfTy [] (KV pk m)}
+      {x : Fin n} {v : Value [] n}
+      {source : Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂}
+      {step : e₁ —[ L-SendVal x v ]→ e₂}
+      (resources : SendValueResources Γ₀ x v)
+    → resources ≡ send-value-resources-synth source step
+    → ActionResources
+        source step
+        (SendInterface.label (send-interface resources))
+        (SendInterface.extract (send-interface resources))
+
+data CheckActionResources
+    {n}
+  : ∀ {Θ pk m}
+      {Γ₀ Γ₂ : Ctx [] n}
+      {e₁ : Expr [] n}
+      {e₂ : Expr [] (length Θ + n)}
+      {T : NfTy [] (KV pk m)}
+      {ℓ : Label n Θ}
+    → (typing : Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂)
+    → (step : e₁ —[ ℓ ]→ e₂)
+    → ∀ {Γin Γv : Ctx [] n}
+    → (lbl : ℓ ⦂ Γin ⇒ Γv)
+    → Extract Γ₀ ℓ Γin
+    → Set where
+
+  check-resources :
+    ∀ {Θ pk m}
+      {Γ₀ Γ₂ Γin Γv : Ctx [] n}
+      {e₁ : Expr [] n}
+      {e₂ : Expr [] (length Θ + n)}
+      {T U : NfTy [] (KV pk m)}
+      {ℓ : Label n Θ}
+      {source : Γ₀ ⊢ e₁ ⇒ U ⊣ Γ₂}
+      {sub : normalTyOf U <:ₜ normalTyOf T}
+      {step : e₁ —[ ℓ ]→ e₂}
+      {lbl : ℓ ⦂ Γin ⇒ Γv}
+      {ex : Extract Γ₀ ℓ Γin}
+    → ActionResources source step lbl ex
+    → CheckActionResources (T-Check source sub) step lbl ex
+
+check-disjoint-resources :
+  ∀ {n Θ pk m}
+    {Γ₀ Γ₂ Γin Γv : Ctx [] n}
+    {e₁ : Expr [] n}
+    {e₂ : Expr [] (length Θ + n)}
+    {T : NfTy [] (KV pk m)}
+    {ℓ : Label n Θ}
+    (typing : Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂)
+    (step : e₁ —[ ℓ ]→ e₂)
+    (lbl : ℓ ⦂ Γin ⇒ Γv)
+    (ex : Extract Γ₀ ℓ Γin)
+  → LinearDisjoint Γ₀ Γv
+  → CheckActionResources typing step lbl ex
+check-disjoint-resources
+    (T-Check source sub) step lbl ex disjoint =
+  check-resources (resources-disjoint disjoint)
+
 beta-reduction-result :
   ∀ {n pk m}
     {Γ₀ Γ₂ Γin Γv : Ctx [] n}
@@ -2582,6 +2693,163 @@ beta-reduction-result {Γ₀ = Γ₀}
     ; leftover = out≈
     }
 
+appL-action-resources :
+  ∀ {n Θ pkA mA pkU mU mf}
+    {Γ₀ Γmid Γout Γin Γv : Ctx [] n}
+    {function argument : Expr [] n}
+    {function′ : Expr [] (length Θ + n)}
+    {A : NfTy [] (KV pkA mA)}
+    {U : NfTy [] (KV pkU mU)}
+    {ℓ : Label n Θ}
+    {function-typing :
+      Γ₀ ⊢ function ⇒ NormalTypes.N-Arrow {m = mf} A U ⊣ Γmid}
+    {argument-typing : Γmid ⊢ argument ⇐ A ⊣ Γout}
+    {step : function —[ ℓ ]→ function′}
+    {lbl : ℓ ⦂ Γin ⇒ Γv}
+    {ex : Extract Γ₀ ℓ Γin}
+  → ActionResources
+      (T-App function-typing argument-typing)
+      (Act-AppL step) lbl ex
+  → ActionResources function-typing step lbl ex
+appL-action-resources (resources-disjoint disj) =
+  resources-disjoint disj
+appL-action-resources (resources-send resources refl) =
+  resources-send resources refl
+
+tApp-action-resources :
+  ∀ {n Θ K m}
+    {Γ₀ Γout Γin Γv : Ctx [] n}
+    {source : Expr [] n}
+    {source′ : Expr [] (length Θ + n)}
+    {body : NfTy (K ∷ []) (KV KT m)}
+    {argument : NfTy [] K}
+    {source-typing : Γ₀ ⊢ source ⇒ polyNf body ⊣ Γout}
+    {ℓ : Label n Θ}
+    {step : source —[ ℓ ]→ source′}
+    {lbl : ℓ ⦂ Γin ⇒ Γv}
+    {ex : Extract Γ₀ ℓ Γin}
+  → ActionResources
+      (T-TApp {T = body} source-typing)
+      (Act-TAppE {T = argument} step) lbl ex
+  → ActionResources source-typing step lbl ex
+tApp-action-resources (resources-disjoint disj) =
+  resources-disjoint disj
+tApp-action-resources (resources-send resources refl) =
+  resources-send resources refl
+
+pairL-action-resources :
+  ∀ {n Θ pk₁ pk₂ m}
+    {Γ₀ Γmid Γout Γin Γv : Ctx [] n}
+    {left right : Expr [] n}
+    {left′ : Expr [] (length Θ + n)}
+    {T : NfTy [] (KV pk₁ m)}
+    {U : NfTy [] (KV pk₂ m)}
+    {left-typing : Γ₀ ⊢ left ⇒ T ⊣ Γmid}
+    {right-typing : Γmid ⊢ right ⇒ U ⊣ Γout}
+    {ℓ : Label n Θ}
+    {step : left —[ ℓ ]→ left′}
+    {lbl : ℓ ⦂ Γin ⇒ Γv}
+    {ex : Extract Γ₀ ℓ Γin}
+  → ActionResources
+      (T-Pair left-typing right-typing)
+      (Act-PairL step) lbl ex
+  → ActionResources left-typing step lbl ex
+pairL-action-resources (resources-disjoint disj) =
+  resources-disjoint disj
+pairL-action-resources (resources-send resources refl) =
+  resources-send resources refl
+
+letUnit-action-resources :
+  ∀ {n Θ pk m}
+    {Γ₀ Γmid Γout Γin Γv : Ctx [] n}
+    {source body : Expr [] n}
+    {source′ : Expr [] (length Θ + n)}
+    {U : NfTy [] (KV KT Lin)}
+    {T : NfTy [] (KV pk m)}
+    {source-synth : Γ₀ ⊢ source ⇒ U ⊣ Γmid}
+    {source-sub : normalTyOf U <:ₜ normalTyOf unitConstNf}
+    {body-typing : Γmid ⊢ body ⇒ T ⊣ Γout}
+    {ℓ : Label n Θ}
+    {step : source —[ ℓ ]→ source′}
+    {lbl : ℓ ⦂ Γin ⇒ Γv}
+    {ex : Extract Γ₀ ℓ Γin}
+  → ActionResources
+      (T-LetUnit (T-Check source-synth source-sub) body-typing)
+      (Act-LetUnitE step) lbl ex
+  → ActionResources source-synth step lbl ex
+letUnit-action-resources (resources-disjoint disj) =
+  resources-disjoint disj
+letUnit-action-resources (resources-send resources refl) =
+  resources-send resources refl
+
+letPair-action-resources :
+  ∀ {n Θ pk₁ pk₂ pk m}
+    {Γ₀ Γmid Γout Γin Γv : Ctx [] n}
+    {source : Expr [] n}
+    {source′ : Expr [] (length Θ + n)}
+    {body : Expr [] (suc (suc n))}
+    {T : NfTy [] (KV pk₁ Lin)}
+    {U : NfTy [] (KV pk₂ Lin)}
+    {V : NfTy [] (KV pk m)}
+    {source-typing : Γ₀ ⊢ source ⇒ pairNf T U ⊣ Γmid}
+    {body-typing :
+      (T ∷ˡ (U ∷ˡ Γmid)) ⊢ body ⇒ V
+        ⊣ (B-Used T ▻ (B-Used U ▻ Γout))}
+    {ℓ : Label n Θ}
+    {step : source —[ ℓ ]→ source′}
+    {lbl : ℓ ⦂ Γin ⇒ Γv}
+    {ex : Extract Γ₀ ℓ Γin}
+  → ActionResources
+      (T-LetPair source-typing body-typing)
+      (Act-LetPairE step) lbl ex
+  → ActionResources source-typing step lbl ex
+letPair-action-resources (resources-disjoint disj) =
+  resources-disjoint disj
+letPair-action-resources (resources-send resources refl) =
+  resources-send resources refl
+
+match-action-resources :
+  ∀ {n Θ k pk m}
+    {Γ₀ Γmid Γout Γin Γv : Ctx [] n}
+    {source : Expr [] n}
+    {source′ : Expr [] (length Θ + n)}
+    {ss ssbranches : Subset.Subset (suc k)}
+    {incl : ss Subset.⊆ ssbranches}
+    {ne : Subset.Nonempty ssbranches}
+    {variance : Variance}
+    {P : NfTy [] KP}
+    {S : NfTy [] SLin}
+    {U : NfTy [] (KV pk m)}
+    {branches :
+      (i : Fin (suc k)) → i Subset.∈ ssbranches → Expr [] (suc n)}
+    {V :
+      (i : Fin (suc k)) → i Subset.∈ ssbranches → NfTy [] (KV pk m)}
+    {sub :
+      (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+        V i i∈ <:ₜ U}
+    {source-typing :
+      Γ₀ ⊢ source ⇒ MatchBranchInput ss variance P S ⊣ Γmid}
+    {branches-typing :
+      (i : Fin (suc k)) → (i∈ : i Subset.∈ ssbranches) →
+        (MatchBranchOutput ssbranches variance P S i i∈ ∷ˡ Γmid)
+          ⊢ branches i i∈ ⇒ V i i∈
+          ⊣ (B-Used
+              (MatchBranchOutput ssbranches variance P S i i∈) ▻ Γout)}
+    {join : BranchJoin⁺ ssbranches V ≡ just (U , sub)}
+    {ℓ : Label n Θ}
+    {step : source —[ ℓ ]→ source′}
+    {lbl : ℓ ⦂ Γin ⇒ Γv}
+    {ex : Extract Γ₀ ℓ Γin}
+  → ActionResources
+      (T-Match {incl = incl} {ne = ne}
+        source-typing branches-typing join)
+      (Act-MatchE step) lbl ex
+  → ActionResources source-typing step lbl ex
+match-action-resources (resources-disjoint disj) =
+  resources-disjoint disj
+match-action-resources (resources-send resources refl) =
+  resources-send resources refl
+
 reduction-preserves-synth-by-tag :
   ∀ {n Θ pk m}
     {Γ₀ Γ₂ Γin Γv : Ctx [] n}
@@ -2590,34 +2858,46 @@ reduction-preserves-synth-by-tag :
   → (tag : DirectMatchTag)
   → (step : e₁ —[ ℓ ]→ e₂)
   → tag ≡ direct-match-tag step
-  → Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂
+  → (source : Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂)
   → (lbl : ℓ ⦂ Γin ⇒ Γv)
-  → Extract Γ₀ ℓ Γin
-  → LinearDisjoint Γ₀ Γv
+  → (ex : Extract Γ₀ ℓ Γin)
+  → ActionResources source step lbl ex
   → ReductionSynthResult Γin Γv lbl Γ₀ Γ₂ e₂ T
-reduction-preserves-synth-by-tag other-step step@Act-App refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-App refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-TApp refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-TApp refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-LetPair refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-LetPair refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-LetUnit refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-LetUnit refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-PairV refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-PairV refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Rec refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Rec refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Receive₁ refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Receive₁ refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Receive₂ refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Receive₂ refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Send₁ refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Send₁ refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Send₂ refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Send₂ refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Select₁ refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Select₁ refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
-reduction-preserves-synth-by-tag other-step step@Act-Select₂ refl source lbl ex disj =
+reduction-preserves-synth-by-tag other-step step@Act-Select₂ refl source lbl ex
+    (resources-disjoint disj) =
   beta-reduction-result step source lbl ex disj
 reduction-preserves-synth-by-tag
     {Θ = Θ} {Γ₀ = Γ₀} {Γ₂ = Γ₃}
@@ -2625,9 +2905,10 @@ reduction-preserves-synth-by-tag
     (Act-AppL {e₂ = e₂} {e₃ = e₃} step)
     refl
     (T-App {Γ₂ = Γ₂} {T = A} {U = V} function argument)
-    lbl ex disj
+    lbl ex resources
   with reduction-preserves-synth-by-tag
-         (direct-match-tag step) step refl function lbl ex disj
+         (direct-match-tag step) step refl function lbl ex
+         (appL-action-resources resources)
 ... | ps
   with arrow-subtype-inversion
          (ReductionSynthResult.subtype ps)
@@ -2669,9 +2950,10 @@ reduction-preserves-synth-by-tag
     (Act-TAppE {e₂ = e₂} {T = Uarg} step)
     refl
     (T-TApp {T = Tpoly} function)
-    lbl ex disj
+    lbl ex resources
   with reduction-preserves-synth-by-tag
-         (direct-match-tag step) step refl function lbl ex disj
+         (direct-match-tag step) step refl function lbl ex
+         (tApp-action-resources resources)
 ... | ps
   with poly-subtype-inversion
          (ReductionSynthResult.subtype ps)
@@ -2708,9 +2990,10 @@ reduction-preserves-synth-by-tag
     (Act-PairL {e₂ = e₂} {e₃ = e₃} step)
     refl
     (T-Pair {Γ₂ = Γ₂} {T = T} {U = U} left right)
-    lbl ex disj
+    lbl ex resources
   with reduction-preserves-synth-by-tag
-         (direct-match-tag step) step refl left lbl ex disj
+         (direct-match-tag step) step refl left lbl ex
+         (pairL-action-resources resources)
 ... | ps
   with retag-synth-input
          (weaken-label-synth lbl right)
@@ -2745,7 +3028,7 @@ reduction-preserves-synth-by-tag
     (T-App {T = A} {U = V}
       (T-Val dv)
       argument@(T-Check argumentSynth argumentSub))
-    lbl ex disj
+    lbl ex (resources-disjoint disj)
   with strip-value dv
 ... | G , G′ , r , dv′ , au
   with right-check-extract-disjoint r argument step lbl ex disj
@@ -2757,7 +3040,7 @@ reduction-preserves-synth-by-tag
          argumentSynth
          lbl
          (remove-extract-fresh r ldex ex)
-         (remove-disjoint r disj)
+         (resources-disjoint (remove-disjoint r disj))
 ... | ps
   with ctx-step-preserves-disjoint-aligned
          (ReductionSynthResult.ctx-step ps)
@@ -2840,12 +3123,122 @@ reduction-preserves-synth-by-tag
     ; leftover = ReductionSynthResult.leftover ps
     }
 reduction-preserves-synth-by-tag
+    {Θ = []} {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    other-step
+    (Act-AppR {e₂ = e₂} step)
+    refl
+    (T-App {T = A} {U = V}
+      (T-Val dv)
+      argument@(T-Check argumentSynth argumentSub))
+    .(SendInterface.label (send-interface resources))
+    .(SendInterface.extract (send-interface resources))
+    (resources-send resources refl)
+  with strip-value dv
+... | G , G′ , r , dv′ , au
+  with send-value-resources-synth argumentSynth step in inner-eq
+... | inner@(send-value-resources rin take payload sub used)
+  with mergeRemoveContext r rin
+... | action-frame , merge-action , combined-remove
+  with leftover-take take
+... | channel-fragment , take-remove
+  with reduction-preserves-synth-by-tag
+         (direct-match-tag step)
+         step
+         refl
+         argumentSynth
+         (SendInterface.label (send-interface inner))
+         (SendInterface.extract (send-interface inner))
+         (resources-send inner (sym inner-eq))
+... | ps
+  with ctx-step-preserves-disjoint-aligned
+         (ReductionSynthResult.ctx-step ps)
+         (SendInterface.label (send-interface inner))
+         (ReductionSynthResult.compat ps)
+         (remove-preserves-disjoint
+           (ReductionSynthResult.src-remove ps)
+           (sym-disjoint (remove-linear r)))
+         (remove-preserves-disjoint
+           take-remove
+           (sym-disjoint (merge-disjoint merge-action)))
+... | Gstep , upstepFrm , ldstep , upstepAligned
+  with frame-update-value-aligned
+         (ReductionSynthResult.ctx-step ps)
+         upstepFrm
+         upstepAligned
+         (remove-preserves-disjoint
+           (ReductionSynthResult.src-remove ps)
+           (sym-disjoint (remove-linear r)))
+         dv′ au
+... | Gstep′ , upstepOut , auStep , dvStep
+  with frame-updates-preserve-disjoint
+         (ReductionSynthResult.frame-update ps)
+         upstepFrm
+         (trans
+           (sym (ReductionSynthResult.effect-aligned ps))
+           upstepAligned)
+         (remove-removed-disjoint
+           (ReductionSynthResult.src-remove ps)
+           (sym-disjoint (remove-linear r)))
+... | ldframes
+  with restore-disjoint
+         (ReductionSynthResult.dst-remove ps)
+         ldstep
+         ldframes
+... | ldtarget
+  with mergeRemoveContext r (ReductionSynthResult.src-remove ps)
+... | Gf , msrc , rsrc
+  with mergeDisjointContext ldtarget
+... | Γ₁ , mleft
+  with frame-remove mleft
+... | dstr
+  with mergeRemoveContext dstr (ReductionSynthResult.dst-remove ps)
+... | Gfdst , mdst , rdst
+  with frame-update-merge-aligned
+         msrc
+         upstepFrm
+         (ReductionSynthResult.frame-update ps)
+         (trans
+           (sym upstepAligned)
+           (ReductionSynthResult.effect-aligned ps))
+         mdst
+... | mergedFrame , mergedEffect =
+  record
+    { Gf = Gf
+    ; Gf′ = Gfdst
+    ; Γ₀′ = ReductionSynthResult.Γ₀′ ps
+    ; Γ₁ = Γ₁
+    ; Γ₁′ = ReductionSynthResult.Γ₁′ ps
+    ; Γout = ReductionSynthResult.Γout ps
+    ; U = V
+    ; src-remove = rsrc
+    ; frame-update = mergedFrame
+    ; dst-remove = rdst
+    ; ctx-step = ReductionSynthResult.ctx-step ps
+    ; compat = ReductionSynthResult.compat ps
+    ; effect-aligned =
+        trans upstepAligned (sym mergedEffect)
+    ; synth =
+        T-App
+          (T-Val
+            (replay-value-allUsed
+              dvStep
+              (remove-to-rest-frame dstr)
+              auStep))
+          (T-Check
+            (ReductionSynthResult.synth ps)
+            (<:ₜ-trans
+              (ReductionSynthResult.subtype ps)
+              argumentSub))
+    ; subtype = <:ₜ-refl (normalTyOf V)
+    ; leftover = ReductionSynthResult.leftover ps
+    }
+reduction-preserves-synth-by-tag
     {Θ = Θ} {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     other-step
     (Act-PairR {e₂ = e₂} step)
     refl
     (T-Pair {T = T} {U = U} (T-Val dv) right)
-    lbl ex disj
+    lbl ex (resources-disjoint disj)
   with strip-value dv
 ... | G , G′ , r , dv′ , au
   with right-synth-extract-disjoint r right step lbl ex disj
@@ -2857,7 +3250,7 @@ reduction-preserves-synth-by-tag
          right
          lbl
          (remove-extract-fresh r ldex ex)
-         (remove-disjoint r disj)
+         (resources-disjoint (remove-disjoint r disj))
 ... | ps
   with ctx-step-preserves-disjoint-aligned
          (ReductionSynthResult.ctx-step ps)
@@ -2939,6 +3332,113 @@ reduction-preserves-synth-by-tag
     ; leftover = ReductionSynthResult.leftover ps
     }
 reduction-preserves-synth-by-tag
+    {Θ = []} {Γ₀ = Γ₀} {Γ₂ = Γ₃}
+    other-step
+    (Act-PairR {e₂ = e₂} step)
+    refl
+    (T-Pair {T = T} {U = U} (T-Val dv) right)
+    .(SendInterface.label (send-interface resources))
+    .(SendInterface.extract (send-interface resources))
+    (resources-send resources refl)
+  with strip-value dv
+... | G , G′ , r , dv′ , au
+  with send-value-resources-synth right step in inner-eq
+... | inner@(send-value-resources rin take payload sub used)
+  with mergeRemoveContext r rin
+... | action-frame , merge-action , combined-remove
+  with leftover-take take
+... | channel-fragment , take-remove
+  with reduction-preserves-synth-by-tag
+         (direct-match-tag step)
+         step
+         refl
+         right
+         (SendInterface.label (send-interface inner))
+         (SendInterface.extract (send-interface inner))
+         (resources-send inner (sym inner-eq))
+... | ps
+  with ctx-step-preserves-disjoint-aligned
+         (ReductionSynthResult.ctx-step ps)
+         (SendInterface.label (send-interface inner))
+         (ReductionSynthResult.compat ps)
+         (remove-preserves-disjoint
+           (ReductionSynthResult.src-remove ps)
+           (sym-disjoint (remove-linear r)))
+         (remove-preserves-disjoint
+           take-remove
+           (sym-disjoint (merge-disjoint merge-action)))
+... | Gstep , upstepFrm , ldstep , upstepAligned
+  with frame-update-value-aligned
+         (ReductionSynthResult.ctx-step ps)
+         upstepFrm
+         upstepAligned
+         (remove-preserves-disjoint
+           (ReductionSynthResult.src-remove ps)
+           (sym-disjoint (remove-linear r)))
+         dv′ au
+... | Gstep′ , upstepOut , auStep , dvStep
+  with frame-updates-preserve-disjoint
+         (ReductionSynthResult.frame-update ps)
+         upstepFrm
+         (trans
+           (sym (ReductionSynthResult.effect-aligned ps))
+           upstepAligned)
+         (remove-removed-disjoint
+           (ReductionSynthResult.src-remove ps)
+           (sym-disjoint (remove-linear r)))
+... | ldframes
+  with restore-disjoint
+         (ReductionSynthResult.dst-remove ps)
+         ldstep
+         ldframes
+... | ldtarget
+  with mergeRemoveContext r (ReductionSynthResult.src-remove ps)
+... | Gf , msrc , rsrc
+  with mergeDisjointContext ldtarget
+... | Γ₁ , mleft
+  with frame-remove mleft
+... | dstr
+  with mergeRemoveContext dstr (ReductionSynthResult.dst-remove ps)
+... | Gfdst , mdst , rdst
+  with frame-update-merge-aligned
+         msrc
+         upstepFrm
+         (ReductionSynthResult.frame-update ps)
+         (trans
+           (sym upstepAligned)
+           (ReductionSynthResult.effect-aligned ps))
+         mdst
+... | mergedFrame , mergedEffect =
+  record
+    { Gf = Gf
+    ; Gf′ = Gfdst
+    ; Γ₀′ = ReductionSynthResult.Γ₀′ ps
+    ; Γ₁ = Γ₁
+    ; Γ₁′ = ReductionSynthResult.Γ₁′ ps
+    ; Γout = ReductionSynthResult.Γout ps
+    ; U = pairNf T (ReductionSynthResult.U ps)
+    ; src-remove = rsrc
+    ; frame-update = mergedFrame
+    ; dst-remove = rdst
+    ; ctx-step = ReductionSynthResult.ctx-step ps
+    ; compat = ReductionSynthResult.compat ps
+    ; effect-aligned =
+        trans upstepAligned (sym mergedEffect)
+    ; synth =
+        T-Pair
+          (T-Val
+            (replay-value-allUsed
+              dvStep
+              (remove-to-rest-frame dstr)
+              auStep))
+          (ReductionSynthResult.synth ps)
+    ; subtype =
+        <:ₜ-pair
+          (<:ₜ-refl (normalTyOf T))
+          (ReductionSynthResult.subtype ps)
+    ; leftover = ReductionSynthResult.leftover ps
+    }
+reduction-preserves-synth-by-tag
     {Θ = Θ} {Γ₀ = Γ₀} {Γ₂ = Γ₃}
     other-step
     (Act-LetUnitE {e₂ = e₂} {e₃ = e₃} step)
@@ -2946,7 +3446,8 @@ reduction-preserves-synth-by-tag
     (T-LetUnit (T-Check scrutinee scrutineeSub) body)
     lbl ex disj
   with reduction-preserves-synth-by-tag
-         (direct-match-tag step) step refl scrutinee lbl ex disj
+         (direct-match-tag step) step refl scrutinee lbl ex
+         (letUnit-action-resources disj)
 ... | ps
   with retag-synth-input
          (weaken-label-synth lbl body)
@@ -2985,7 +3486,8 @@ reduction-preserves-synth-by-tag
     (T-LetPair {T = T} {U = U} scrutinee body)
     lbl ex disj
   with reduction-preserves-synth-by-tag
-         (direct-match-tag step) step refl scrutinee lbl ex disj
+         (direct-match-tag step) step refl scrutinee lbl ex
+         (letPair-action-resources disj)
 ... | ps
   with pair-subtype-inversion (ReductionSynthResult.subtype ps)
 ... | T′ , U′ , pairEq , T′<:T , U′<:U
@@ -3046,7 +3548,8 @@ reduction-preserves-synth-by-tag
       scrutinee branches join)
     lbl ex disj
   with reduction-preserves-synth-by-tag
-         (direct-match-tag step) step refl scrutinee lbl ex disj
+         (direct-match-tag step) step refl scrutinee lbl ex
+         (match-action-resources disj)
 ... | ps
   with match-input-subtype-inversion (ReductionSynthResult.subtype ps)
 ... | ss′ , P′ , S′ , scrutineeEq , ss′⊆ss , P′<:P , S′<:S
@@ -3164,7 +3667,7 @@ reduction-preserves-synth-by-tag
     ; subtype =
         <:ₜ-pair
           (<:ₜ-refl sessT)
-          (<:ₜ-refl-eq (new-dual-substitution S))
+          (<:ₜ-refl-eq (normalize-dual S))
     ; leftover = ≈ᵘ-refl
     }
 reduction-preserves-synth-by-tag
@@ -3175,9 +3678,10 @@ reduction-preserves-synth-by-tag
     (T-App
       (T-Val TV-Receive₂)
       (T-Check (T-Val (TV-Var-Lin take₀)) sub))
-    (Label-RecvVal {T = T} {S = S} take auin dv au ldin)
+    (Label-RecvVal {T = T} {U = Uv} {S = S}
+      take auin dv payload<:T au ldin)
     (Ex-RecvVal rin _ _)
-    disj
+    (resources-disjoint disj)
   with extract-membership rin (take-membership-fresh take)
 ... | x∈
   with linear-membership-type
@@ -3217,7 +3721,7 @@ reduction-preserves-synth-by-tag
     ; Γ₁ = Γ₁
     ; Γ₁′ = Γ₁
     ; Γout = Γout
-    ; U = pairNf T S
+    ; U = pairNf Uv S
     ; src-remove = remove-allUsedCtx Γ₀
     ; frame-update =
         Frm-Rcv
@@ -3226,11 +3730,11 @@ reduction-preserves-synth-by-tag
             (allUsedCtx-merge merge)
             (allUsedCtx-replace-lin-at x∈ rep))
     ; dst-remove = remove-allUsedCtx Γ₁
-    ; ctx-step = Ctx-Rcv dv au disj x∈ rep repv merge
+    ; ctx-step = Ctx-Rcv dv payload<:T au disj x∈ rep repv merge
     ; compat = Compat-RecvVal
     ; effect-aligned = refl
     ; synth = T-Val (TV-Pair dv-merged (TV-Var-Lin take′))
-    ; subtype = <:ₜ-pair T<:Tᵣ S<:Sᵣ
+    ; subtype = <:ₜ-pair (<:ₜ-trans payload<:T T<:Tᵣ) S<:Sᵣ
     ; leftover = out≈
     }
 reduction-preserves-synth-by-tag
@@ -3243,8 +3747,9 @@ reduction-preserves-synth-by-tag
       (T-Check
         (T-Val (TV-Pair {Γ₂ = Γv₀} dv₀ (TV-Var-Lin take₀)))
         (<:ₜ-pair Targ<:Tᵣ Uchan<:send)))
-    (Label-SendVal {T = T} {S = S} take dv au)
-    (Ex-SendVal rin _ _ _)
+    (Label-SendVal {T = T} {U = Uv} {S = S}
+      take dv payload<:T au)
+    (Ex-SendVal rin _ _ _ _)
     _
   with send-remove-membership-fresh rin take
 ... | Γx , rm , x∈
@@ -3272,7 +3777,7 @@ reduction-preserves-synth-by-tag
            eqChan
            Uchan<:send)
 ... | refl , _ , S<:Sᵣ
-  with take-replace-lin {U = sessTyNf S} take₀
+  with take-replace-lin {U = S} take₀
 ... | Γ₁ , rep
   with replace-take-fresh take₀ rep
 ... | Γout , take′ , out≈ =
@@ -3285,7 +3790,7 @@ reduction-preserves-synth-by-tag
 
     repx =
       subst
-        (λ G → ReplaceAt G x (B-Lin (sessTyNf S)) Γ₁)
+        (λ G → ReplaceAt G x (B-Lin S) Γ₁)
         (sym eqPayloadOut)
         rep
 
@@ -3301,7 +3806,7 @@ reduction-preserves-synth-by-tag
     ; Γ₁ = Γ₁
     ; Γ₁′ = Γ₁
     ; Γout = Γout
-    ; U = sessTyNf S
+    ; U = S
     ; src-remove =
         subst
           (λ Gf → RemoveCtx Γ₀ Gf Γ₀)
@@ -3310,11 +3815,11 @@ reduction-preserves-synth-by-tag
     ; frame-update =
         Frm-Send (allUsedCtx-replace-lin-at x∈₀ rep)
     ; dst-remove = remove-allUsedCtx Γ₁
-    ; ctx-step = Ctx-Send rm dv au x∈ repx
+    ; ctx-step = Ctx-Send rm dv payload<:T au x∈ repx
     ; compat = Compat-SendVal
     ; effect-aligned = refl
     ; synth = T-Val (TV-Var-Lin take′)
-    ; subtype = <:ₜ-sub S<:Sᵣ
+    ; subtype = S<:Sᵣ
     ; leftover = out≈
     }
 reduction-preserves-synth-by-tag
@@ -3377,8 +3882,8 @@ reduction-preserves-synth-by-tag
     (T-App {T = A}
       (T-Val vr@TV-Select₂)
       (T-Check (T-Val (TV-Var-Lin take₀)) sub))
-    (Label-SendLab {v = v} {P = P} {S = S} take au)
-    (Ex-SendLab rin _)
+    (Label-SendLab {v = v} {P = P} {S = S} i∈ take au)
+    (Ex-SendLab rin _ _)
     _
   with extract-membership rin (take-membership-fresh take)
 ... | x∈
@@ -3409,12 +3914,12 @@ reduction-preserves-synth-by-tag
     ; frame-update =
         Frm-Select (allUsedCtx-replace-lin-at x∈ rep)
     ; dst-remove = remove-allUsedCtx Γ₁
-    ; ctx-step = Ctx-Select x∈ rep
+    ; ctx-step = Ctx-Select i∈ x∈ rep
     ; compat = Compat-Select
     ; effect-aligned = refl
     ; synth = T-Val (TV-Var-Lin take′)
     ; subtype =
-        select-app-subtype
+        select-set-app-subtype
           {v₂ = v} {P′ = P} {S′ = S}
           vr
           selSub
@@ -3509,10 +4014,10 @@ reduction-preserves-synth :
     {e₁ : Expr [] n} {e₂ : Expr [] (length Θ + n)}
     {T : NfTy [] (KV pk m)} {ℓ : Label n Θ}
   → (step : e₁ —[ ℓ ]→ e₂)
-  → Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂
+  → (source : Γ₀ ⊢ e₁ ⇒ T ⊣ Γ₂)
   → (lbl : ℓ ⦂ Γin ⇒ Γv)
-  → Extract Γ₀ ℓ Γin
-  → LinearDisjoint Γ₀ Γv
+  → (ex : Extract Γ₀ ℓ Γin)
+  → ActionResources source step lbl ex
   → ReductionSynthResult Γin Γv lbl Γ₀ Γ₂ e₂ T
 reduction-preserves-synth step =
   reduction-preserves-synth-by-tag
@@ -3524,15 +4029,16 @@ reduction-preserves-check :
     {e₁ : Expr [] n} {e₂ : Expr [] (length Θ + n)}
     {T : NfTy [] (KV pk m)} {ℓ : Label n Θ}
   → (step : e₁ —[ ℓ ]→ e₂)
-  → Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂
+  → (typing : Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂)
   → (lbl : ℓ ⦂ Γin ⇒ Γv)
-  → Extract Γ₀ ℓ Γin
-  → LinearDisjoint Γ₀ Γv
+  → (ex : Extract Γ₀ ℓ Γin)
+  → CheckActionResources typing step lbl ex
   → ReductionCheckResult Γin Γv lbl Γ₀ Γ₂ e₂ T
 reduction-preserves-check
-    step (T-Check source source<:expected) lbl ex disjoint
+    step (T-Check source source<:expected) lbl ex
+    (check-resources resources)
   with reduction-preserves-synth
-         step source lbl ex disjoint
+         step source lbl ex resources
 ... | record
         { Gf = Gf
         ; Gf′ = Gf′
@@ -3566,4 +4072,49 @@ reduction-preserves-check
     ; effect-aligned = effect-aligned
     ; check = T-Check reduct (<:ₜ-trans reduct<:source source<:expected)
     ; leftover = out≈
+    }
+
+record SendReductionCheckResult
+    {n pk m}
+    {Γ₀ Γ₂ : Ctx [] n}
+    {e₁ e₂ : Expr [] n}
+    {T : NfTy [] (KV pk m)}
+    {x : Fin n}
+    {v : Value [] n}
+    (typing : Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂)
+    (step : e₁ —[ L-SendVal x v ]→ e₂) : Set where
+  field
+    Γin Γv : Ctx [] n
+    label : L-SendVal x v ⦂ Γin ⇒ Γv
+    result : ReductionCheckResult Γin Γv label Γ₀ Γ₂ e₂ T
+
+send-reduction-preserves-check :
+  ∀ {n pk m}
+    {Γ₀ Γ₂ : Ctx [] n}
+    {e₁ e₂ : Expr [] n}
+    {T : NfTy [] (KV pk m)}
+    {x : Fin n}
+    {v : Value [] n}
+    (typing : Γ₀ ⊢ e₁ ⇐ T ⊣ Γ₂)
+    (step : e₁ —[ L-SendVal x v ]→ e₂)
+  → SendReductionCheckResult typing step
+send-reduction-preserves-check
+    (T-Check source source<:expected) step
+  with send-value-resources-synth source step in resources-eq
+... | resources =
+  let
+    interface = send-interface resources
+    label = SendInterface.label interface
+    extract = SendInterface.extract interface
+  in
+  record
+    { label = label
+    ; result =
+        reduction-preserves-check
+          step
+          (T-Check source source<:expected)
+          label
+          extract
+          (check-resources
+            (resources-send resources (sym resources-eq)))
     }

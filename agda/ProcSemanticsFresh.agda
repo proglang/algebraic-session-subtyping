@@ -127,7 +127,9 @@ data _—conf[_]→_ : ∀ {n} {k} → Conf n → ConfLabel n k → Conf (k + n)
           (subst Fin (sym (length-map _ (exps C))) i) (const e′)
 
   Act-Msg : ∀ {n} {e₁ e₂ : Expr [] (2 + n)} {v : Value [] (2 + n)} {C : Conf (2 + n)}
-          {i j : Fin ∣ C ∣} {i≠j : i ≢ j} {x y : Fin (2 + n)}
+          {x y : Fin (2 + n)}
+      → (i j : Fin ∣ C ∣)
+      → i ≢ j
       → FinFreshPair{n} x y
       → x Subset.∈ live C
       → y Subset.∈ live C
@@ -137,8 +139,10 @@ data _—conf[_]→_ : ∀ {n} {k} → Conf n → ConfLabel n k → Conf (k + n)
                         updateAt C₁ (subst Fin (sym (length-updateAt (exps C) i)) j) (const e₂)
 
   Act-Bra : ∀ {n k} {e₁ e₂ : Expr [] (2 + n)} {ℓ : Fin k}
-          {C : Conf (2 + n)} {i j : Fin ∣ C ∣} {i≠j : i ≢ j}
+          {C : Conf (2 + n)}
           {x y : Fin (2 + n)}
+      → (i j : Fin ∣ C ∣)
+      → i ≢ j
       → FinFreshPair {n} x y
       → x Subset.∈ live C
       → y Subset.∈ live C
@@ -151,8 +155,10 @@ data _—conf[_]→_ : ∀ {n} {k} → Conf n → ConfLabel n k → Conf (k + n)
   -- fresh pair reduces both participating expressions in place and marks the
   -- two endpoint entries dead in the shared de Bruijn namespace.
   Act-Wait : ∀ {n} {e₁ e₂ : Expr [] (2 + n)}
-          {C : Conf (2 + n)} {i j : Fin ∣ C ∣} {i≠j : i ≢ j}
+          {C : Conf (2 + n)}
           {x y : Fin (2 + n)}
+      → (i j : Fin ∣ C ∣)
+      → i ≢ j
       → FinFreshPair {n} x y
       → x Subset.∈ live C
       → y Subset.∈ live C

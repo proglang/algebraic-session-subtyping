@@ -96,9 +96,10 @@ record Terminal {n : ℕ} (C : Conf n) : Set where
 
 data SynchronizationPossible : ∀ {n : ℕ} → Conf n → Set where
   sync-message : ∀ {n} {C : Conf (2 + n)}
-      {i j : Fin ∣ C ∣} {i≠j : i ≢ j}
       {x y : Fin (2 + n)} {v : Value [] (2 + n)}
       {e₁ e₂ : Expr [] (2 + n)}
+    → (i j : Fin ∣ C ∣)
+    → i ≢ j
     → FinFreshPair {n} x y
     → x Subset.∈ live C
     → y Subset.∈ live C
@@ -107,9 +108,10 @@ data SynchronizationPossible : ∀ {n : ℕ} → Conf n → Set where
     → SynchronizationPossible C
 
   sync-branch : ∀ {n k} {C : Conf (2 + n)}
-      {i j : Fin ∣ C ∣} {i≠j : i ≢ j}
       {x y : Fin (2 + n)} {ℓ : Fin k}
       {e₁ e₂ : Expr [] (2 + n)}
+    → (i j : Fin ∣ C ∣)
+    → i ≢ j
     → FinFreshPair {n} x y
     → x Subset.∈ live C
     → y Subset.∈ live C
@@ -118,8 +120,9 @@ data SynchronizationPossible : ∀ {n : ℕ} → Conf n → Set where
     → SynchronizationPossible C
 
   sync-close : ∀ {n} {C : Conf (2 + n)}
-      {i j : Fin ∣ C ∣} {i≠j : i ≢ j}
       {x y : Fin (2 + n)} {e₁ e₂ : Expr [] (2 + n)}
+    → (i j : Fin ∣ C ∣)
+    → i ≢ j
     → FinFreshPair {n} x y
     → x Subset.∈ live C
     → y Subset.∈ live C

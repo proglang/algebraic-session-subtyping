@@ -2,6 +2,7 @@ module ExprTypingInversion where
 
 open import Data.Fin using (Fin)
 import Data.Fin.Subset as Subset
+open import Data.Fin.Subset.Properties using (x∈⁅x⁆)
 open import Data.List using (List; []; _∷_)
 open import Data.Maybe using (just)
 open import Data.List.Relation.Unary.Any using (here)
@@ -30,6 +31,8 @@ open import Types using (Ty)
 open import NormalTypes using
   ( N-Var
   ; N-Arrow
+  ; N-Msg
+  ; N-ProtoP
   ; NV-Var
   ; nfProtoTy
   ; nfProtoTy-fromNormalProto
@@ -180,6 +183,21 @@ recvChan-subtype :
 recvChan-subtype (<:ₜ-msg (<:ₚ′-up T₁<:T₂) S₁<:S₂) =
   refl , T₁<:T₂ , S₁<:S₂
 
+recvChan-subtype-shape :
+  ∀ {pk}
+    {A : NfTy [] SLin}
+    {T : NfTy [] (KV pk Lin)}
+    {S : NfTy [] SLin}
+  → normalTyOf A <:ₜ normalTyOf (recvChanNf T S)
+  → Σ (NfTy [] (KV pk Lin)) λ T₀ →
+      Σ (NfTy [] SLin) λ S₀ →
+        (A ≡ recvChanNf T₀ S₀)
+        × (normalTyOf T₀ <:ₜ normalTyOf T)
+        × (normalTyOf S₀ <:ₜ normalTyOf S)
+recvChan-subtype-shape
+    (<:ₜ-msg (<:ₚ′-up T₀<:T) S₀<:S) =
+  _ , _ , refl , T₀<:T , S₀<:S
+
 sendChan-subtype :
   ∀ {pk₁ pk₂}
     {T₁ : NfTy [] (KV pk₁ Lin)}
@@ -192,6 +210,21 @@ sendChan-subtype :
         × (normalTyOf S₁ <:ₜ normalTyOf S₂)
 sendChan-subtype (<:ₜ-msg (<:ₚ′-up T₂<:T₁) S₁<:S₂) =
   refl , T₂<:T₁ , S₁<:S₂
+
+sendChan-subtype-shape :
+  ∀ {pk}
+    {A : NfTy [] SLin}
+    {T : NfTy [] (KV pk Lin)}
+    {S : NfTy [] SLin}
+  → normalTyOf A <:ₜ normalTyOf (sendChanNf T S)
+  → Σ (NfTy [] (KV pk Lin)) λ T₀ →
+      Σ (NfTy [] SLin) λ S₀ →
+        (A ≡ sendChanNf T₀ S₀)
+        × (normalTyOf T <:ₜ normalTyOf T₀)
+        × (normalTyOf S₀ <:ₜ normalTyOf S)
+sendChan-subtype-shape
+    (<:ₜ-msg (<:ₚ′-up T<:T₀) S₀<:S) =
+  _ , _ , refl , T<:T₀ , S₀<:S
 
 selectIn-subtype :
   ∀ {k}
@@ -206,6 +239,49 @@ selectIn-subtype
   {v₁ = v₁}
   (<:ₜ-msg (<:ₚ′-proto ss paramRel) Ssub) =
   refl , paramRel , Ssub
+
+selectSetIn-subtype :
+  ∀ {k}
+    {ss : Subset.Subset k}
+    {v₁ v₂ : Variance} {i : Fin k}
+    {P₁ P₂ : NfTy [] KP}
+    {S₁ S₂ : NfTy [] SLin}
+  → normalTyOf (selectSetInTyNf ss v₁ P₁ S₁)
+      <:ₜ normalTyOf (selectInNf v₂ i P₂ S₂)
+  → (v₁ ≡ v₂)
+    × (P₂ <<:ₚ[ v₁ ] P₁)
+    × (S₁ <:ₜ S₂)
+selectSetIn-subtype
+  {v₁ = v₁}
+  (<:ₜ-msg (<:ₚ′-proto singleton⊆ss paramRel) Ssub) =
+  refl , paramRel , Ssub
+
+selectSetIn-subtype-shape :
+  ∀ {k}
+    {A : NfTy [] SLin}
+    {v : Variance} {i : Fin k}
+    {P : NfTy [] KP}
+    {S : NfTy [] SLin}
+  → normalTyOf A <:ₜ normalTyOf (selectInNf v i P S)
+  → Σ (Subset.Subset k) λ ss →
+      Σ (NfTy [] KP) λ P₀ →
+        Σ (NfTy [] SLin) λ S₀ →
+          (i Subset.∈ ss)
+          × (A ≡ selectSetInTyNf ss v P₀ S₀)
+          × (P <<:ₚ[ v ] P₀)
+          × (S₀ <:ₜ S)
+selectSetIn-subtype-shape
+    {i = i}
+    (<:ₜ-msg
+      {NP₁ = N-ProtoP ss v P₀}
+      {NS₁ = S₀}
+      (<:ₚ′-proto singleton⊆ss paramRel)
+      Ssub) =
+  ss , P₀ , S₀ ,
+  singleton⊆ss (x∈⁅x⁆ i) ,
+  refl ,
+  paramRel ,
+  Ssub
 
 covers-refl : ∀ {v} → VarianceCovers v v
 covers-refl {v = ⊕} = tt
@@ -524,6 +600,41 @@ select-app-subtype
   with select₂-shape vr
 ... | refl , refl , refl
   with selectIn-subtype selSub
+... | refl , psub , ssub
+  with ProtocolConstructors _ v₁ i
+... | Ts , inj₁ usedTs =
+  materializeListNf-sub-used
+    Ts
+    usedTs
+    psub
+    covers-refl
+    ssub
+... | Ts , inj₂ unusedTs =
+  materializeListNf-sub-unused
+    Ts
+    unusedTs
+    ssub
+
+select-set-app-subtype :
+  ∀ {n k}
+    {ss : Subset.Subset k}
+    {Γ Γ′ : Ctx [] n}
+    {v₁ v₂ : Variance} {i : Fin k}
+    {P : NfTy [] KP} {S : NfTy [] SLin}
+    {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
+    {A R : NfTy [] SLin}
+  → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
+  → normalTyOf (selectSetInTyNf ss v₂ P′ S′)
+      <:ₜ normalTyOf A
+  → normalTyOf (selectOutNf v₂ i P′ S′)
+      <:ₜ normalTyOf R
+select-set-app-subtype
+  {v₁ = v₁} {i = i} {P = P} {S = S}
+  {P′ = P′} {S′ = S′}
+  vr selSub
+  with select₂-shape vr
+... | refl , refl , refl
+  with selectSetIn-subtype selSub
 ... | refl , psub , ssub
   with ProtocolConstructors _ v₁ i
 ... | Ts , inj₁ usedTs =
