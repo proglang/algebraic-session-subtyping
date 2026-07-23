@@ -121,10 +121,8 @@ materialize-at {n} {v} cs i p P S = materialize (cs i) p P S
 
 SelectTy0 : (k : ℕ) → (v : Variance) → AllConstructorSignatures k v → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
 SelectTy0 k v cs i P S = T-Arrow
-                     (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
-                            (T-Msg ⊕ (T-ProtoP (Subset.⁅ i ⁆) v P) S))
-                     (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl) 
-                            (materialize-at cs i ⊕ P S))
+                     (T-Msg ⊕ (T-ProtoP (Subset.⁅ i ⁆) v P) S)
+                     (materialize-at cs i ⊕ P S)
 
 SelectTy : (k : ℕ) → (v : Variance) → (i : Fin k) → (P : Ty Δ KP) → (S : Ty Δ SLin) → Ty Δ TLin
 SelectTy k v i P S = SelectTy0 k v (ProtocolConstructors k v) i P S

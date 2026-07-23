@@ -166,7 +166,7 @@ allUsedCtx-merge :
 allUsedCtx-merge merge = sym (ExprContextReduction.allUsed-merge merge)
 
 end-subtype-invert :
-  ∀ {U : NfTy [] TLin}
+  ∀ {U : NfTy [] SLin}
   → normalTyOf U <:ₜ normalTyOf (normalizeTy EndLin)
   → U ≡ normalizeTy EndLin
 end-subtype-invert {U = N-Sub _ N-End} (<:ₜ-sub <:ₜ-end) = refl

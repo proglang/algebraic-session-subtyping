@@ -1131,13 +1131,12 @@ subst-select2 :
 subst-select2 σ v i P S =
   cong₂ NT.N-Arrow
     refl
-    (cong (NT.N-Sub _)
-      (subst-materializeListNf
-        σ
-        (proj₁ (ProtocolConstructors _ v i))
-        D.⊕
-        P
-        S))
+    (subst-materializeListNf
+      σ
+      (proj₁ (ProtocolConstructors _ v i))
+      D.⊕
+      P
+      S)
 
 subst-select1 :
   ∀ {Δ₁ Δ₂ k}

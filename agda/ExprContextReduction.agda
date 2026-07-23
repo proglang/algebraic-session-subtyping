@@ -135,10 +135,10 @@ sendChanNf T S = msgNF ⊕ (N-Normal (N-Up T)) S
 dualSessNf : NfTy [] SLin → NfTy [] TLin
 dualSessNf S = normalizeTy (SessLin (T-Dual D-S ⌞ S ⌟))
 
-selectInNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
+selectInNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] SLin
 selectInNf = selectInTyNf
 
-selectOutNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] TLin
+selectOutNf : ∀ {k} → Variance → Fin k → NfTy [] KP → NfTy [] SLin → NfTy [] SLin
 selectOutNf = selectOutTyNf
 
 infix 4 _—ctx[_]→_

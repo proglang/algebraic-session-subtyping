@@ -172,8 +172,8 @@ import AlgorithmicNFSubstitution
 -- under normal-form type substitution.
 import AlgorithmicNFMergeSubstitution
 
--- Algorithmic expression typing with normalized
--- environments and result types.
+-- Algorithmic expression typing with normalized environments,
+-- result types, and primitives over raw session endpoints.
 import ExprNormalTyping
 
 -- Structural context relations for all-used, disjoint,

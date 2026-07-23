@@ -57,16 +57,13 @@ Run the project verification command from the Agda project root:
       - scan all modules for unused imports
       - remove unused imports from the import list
 
-- [ ] fresh-channel-kinds:
+- [x] fresh-channel-kinds:
       Make the channel kinds used by fresh configuration typing consistent
       with the primitive close and select operations.
 
       Specifically:
-      - `ProcTypingFresh.LiveCtx` stores live endpoints at kind `SLin`, while
-        `close` and `select` still expect `TLin`-wrapped channel inputs.
-      - Consequently, direct `Act-Close` and `Act-Sel` actions currently
-        appear unreachable from a well-typed fresh configuration.
-      - Adopt the raw-channel convention used by receive and send, and apply
-        the corresponding consistent fix to close and select.
-      - Push the change through the trusted development before completing
-        the canonical-forms/local-progress proof in `ProcProgressFresh`.
+      - `CloseTy` and `closeConstNf` consume a raw `SLin` end channel.
+      - `SelectTy` and `selectNf` consume and return raw `SLin` endpoints.
+      - The inversion, renaming, substitution, context-reduction, and
+        preservation proofs use the same convention as
+        `ProcTypingFresh.LiveCtx`.

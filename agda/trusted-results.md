@@ -154,9 +154,10 @@ trusted:
 - `wkNfTy`, `wkBinding`, `wkCtx` and their injectivity lemmas;
 - `linArrNf`, `unArrNf`, `pairNf`, `polyNf`;
 - receive, send, select, materialization, and match branch type
-  computations, relative to `ProtocolConstructors`; in particular,
-  `ReceiveTy` and `receiveNf` take the raw receive channel directly as their
-  linear-arrow input;
+  computations, relative to `ProtocolConstructors`; `ReceiveTy`/`receiveNf`,
+  `SelectTy`/`selectNf`, and `CloseTy`/`closeConstNf` take raw `SLin`
+  endpoints as their linear-arrow inputs, and select returns its raw `SLin`
+  continuation;
 - `pair-injective`, `nfTyEq`, `nfEq`, and the normal-form constructor
   injectivity lemmas, including the generalized `linArrNf-injective` for
   arbitrary value prekind and multiplicity at both ends of an arrow.
@@ -443,7 +444,9 @@ The `S-Sel` case extracts the label channel into the source context, uses
 it to `selectOutNf`, and derives result subtyping with
 `select-app-subtype`.  The `S-Close` case uses `end-subtype-invert`,
 `take-replace`, and the corresponding all-used-context lemmas to consume the
-endpoint and type the unit reduct.  Both cases are constructive.
+endpoint and type the unit reduct.  The selected and closed endpoints have
+kind `SLin`, matching `ProcTypingFresh.LiveCtx`.  Both cases are
+constructive.
 
 Observable evaluation-context propagation is also constructive.  The
 left-hand contexts use weakening by the complete label extension `Θ`, proved

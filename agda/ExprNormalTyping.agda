@@ -168,11 +168,11 @@ UnitLin = T-Base
 SessLin : Ty Δ SLin → Ty Δ TLin
 SessLin = T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
 
-EndLin : Ty Δ TLin
-EndLin = T-Sub (≤k-step (≤p-step <p-st) ≤m-unl) T-End
+EndLin : Ty Δ SLin
+EndLin = T-Sub (≤k-step ≤p-refl ≤m-unl) T-End
 
 CloseTy : Ty Δ TLin
-CloseTy = LinArr EndLin UnitLin
+CloseTy = T-Arrow {m = Lin} EndLin UnitLin
 
 ForkTy : Ty Δ TLin
 ForkTy = LinArr (LinArr UnitLin UnitLin) UnitLin
@@ -209,8 +209,8 @@ unitConstNf = N-Base
 sessTyNf : NfTy Δ SLin → NfTy Δ TLin
 sessTyNf = N-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
 
-endConstNf : NfTy Δ TLin
-endConstNf = N-Sub (≤k-step (≤p-step <p-st) ≤m-unl) N-End
+endConstNf : NfTy Δ SLin
+endConstNf = N-Sub (≤k-step ≤p-refl ≤m-unl) N-End
 
 closeConstNf : NfTy Δ TLin
 closeConstNf = linArrNf endConstNf unitConstNf
@@ -269,13 +269,13 @@ materializeNf (Ts , _) p P S = materializeListNf Ts p P S
 materialize-atNf : ∀ {c v} → (Fin c → ConstructorSignature v) → Fin c → Polarity → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
 materialize-atNf cs i p P S = materializeNf (cs i) p P S
 
-selectInTyNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ TLin
+selectInTyNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
 selectInTyNf v i P S =
-  sessTyNf (msgNF ⊕ (N-Normal (N-ProtoP (Subset.⁅ i ⁆) v P)) S)
+  msgNF ⊕ (N-Normal (N-ProtoP (Subset.⁅ i ⁆) v P)) S
 
-selectOutTyNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ TLin
+selectOutTyNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ SLin
 selectOutTyNf {c} v i P S =
-  sessTyNf (materialize-atNf (ProtocolConstructors _ v) i ⊕ P S)
+  materialize-atNf (ProtocolConstructors _ v) i ⊕ P S
 
 selectNf : ∀ {c} → Variance → Fin c → NfTy Δ KP → NfTy Δ SLin → NfTy Δ TLin
 selectNf v i P S = linArrNf (selectInTyNf v i P S) (selectOutTyNf v i P S)

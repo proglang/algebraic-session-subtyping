@@ -55,10 +55,8 @@ module Example0 where
                         (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
                              (T-Msg ⊕ (T-ProtoP {k = 2} Subset.⊤ ⊕ (T-Up T-Base)) S))
     _ : example ≡ λ S → T-Arrow
-                             (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl)
-                                 (T-Msg ⊕ (T-ProtoP Subset.⁅ fzero ⁆ ⊕ (T-Up T-Base)) S))
-                             (T-Sub (≤k-step (≤p-step <p-st) ≤m-refl) 
-                                (T-Msg ⊕ (T-Up T-Base) S))
+                             (T-Msg ⊕ (T-ProtoP Subset.⁅ fzero ⁆ ⊕ (T-Up T-Base)) S)
+                             (T-Msg ⊕ (T-Up T-Base) S)
     _ = refl
 
 module Example1 where

@@ -144,7 +144,7 @@ select₂-shape :
   ∀ {n k}
     {Γ Γ′ : Ctx [] n}
     {v : Variance} {i : Fin k} {P : NfTy [] KP} {S : NfTy [] SLin}
-    {A R : NfTy [] TLin}
+    {A R : NfTy [] SLin}
   → Γ ⊢ᵥ V-Select₂ v i P S ⇒ linArrNf A R ⊣ Γ′
   → Γ ≡ Γ′
     × (A ≡ selectInNf v i P S)
@@ -192,7 +192,7 @@ selectIn-subtype :
     × (S₁ <:ₜ S₂)
 selectIn-subtype
   {v₁ = v₁}
-  (<:ₜ-sub (<:ₜ-msg (<:ₚ′-proto ss paramRel) Ssub)) =
+  (<:ₜ-msg (<:ₚ′-proto ss paramRel) Ssub) =
   refl , paramRel , Ssub
 
 covers-refl : ∀ {v} → VarianceCovers v v
@@ -501,7 +501,7 @@ select-app-subtype :
     {v₁ v₂ : Variance} {i : Fin k}
     {P : NfTy [] KP} {S : NfTy [] SLin}
     {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
-    {A R : NfTy [] TLin}
+    {A R : NfTy [] SLin}
   → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
   → normalTyOf (selectInNf v₂ i P′ S′) <:ₜ normalTyOf A
   → normalTyOf (selectOutNf v₂ i P′ S′) <:ₜ normalTyOf R
@@ -515,19 +515,17 @@ select-app-subtype
 ... | refl , psub , ssub
   with ProtocolConstructors _ v₁ i
 ... | Ts , inj₁ usedTs =
-  <:ₜ-sub
-    (materializeListNf-sub-used
-      Ts
-      usedTs
-      psub
-      covers-refl
-      ssub)
+  materializeListNf-sub-used
+    Ts
+    usedTs
+    psub
+    covers-refl
+    ssub
 ... | Ts , inj₂ unusedTs =
-  <:ₜ-sub
-    (materializeListNf-sub-unused
-      Ts
-      unusedTs
-      ssub)
+  materializeListNf-sub-unused
+    Ts
+    unusedTs
+    ssub
 
 tv-const-inversion :
   ∀ {Δ n}

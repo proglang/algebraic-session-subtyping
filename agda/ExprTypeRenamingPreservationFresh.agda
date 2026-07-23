@@ -1327,13 +1327,12 @@ ren-selectNf :
 ren-selectNf ρ v i P S =
   cong₂ NT.N-Arrow
     refl
-    (cong (NT.N-Sub _)
-      (ren-materializeListNf
-        ρ
-        (proj₁ (ProtocolConstructors _ v i))
-        Polarity.⊕
-        P
-        S))
+    (ren-materializeListNf
+      ρ
+      (proj₁ (ProtocolConstructors _ v i))
+      Polarity.⊕
+      P
+      S)
 
 ren-select1Nf :
   ∀ {Δ₁ Δ₂ k}
