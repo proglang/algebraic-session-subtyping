@@ -355,6 +355,7 @@ open import ExprTypingInversion using
   )
 open import ExprTypingUniquenessFresh using
   ( take-membership-fresh
+  ; value-kind-unique
   ; value-output-unique
   )
 open import ExprTypingStripFresh using (strip-value)
@@ -608,10 +609,10 @@ replace-take-fresh (take-there✖ take) (R-there rep)
   _ , take-there✖ take′ , ≈ᵘ-used out≈
 
 recv-payload-replace-≈ᵘ :
-  ∀ {n}
+  ∀ {n pk}
     {Γin Γin′ Γv Γv′ : Ctx [] n}
     {x : Fin n}
-    {T : NfTy [] TLin}
+    {T : NfTy [] (KV pk Lin)}
     {S : NfTy [] SLin}
   → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
   → LinearDisjoint Γin Γv
@@ -633,10 +634,10 @@ recv-payload-replace-≈ᵘ
   ≈ᵘ-lin (recv-payload-replace-≈ᵘ take ld rep)
 
 send-remove-membership-fresh :
-  ∀ {n}
+  ∀ {n pk}
     {Γ₀ Γin Γr Γv : Ctx [] n}
     {x : Fin n}
-    {T : NfTy [] TLin}
+    {T : NfTy [] (KV pk Lin)}
     {S : NfTy [] SLin}
   → RemoveCtx Γ₀ Γin Γr
   → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
@@ -1544,8 +1545,8 @@ recv-extract-disjoint r (Ex-RecvVal rin take au) x∈ =
   recv-input-disjoint-core r rin take au x∈
 
 send-input-disjoint-core :
-  ∀ {n pk} {Γ₀ Γ₂ Γin Γr Γv G : Ctx [] n}
-    {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin}
+  ∀ {n pk pkT} {Γ₀ Γ₂ Γin Γr Γv G : Ctx [] n}
+    {x : Fin n} {T : NfTy [] (KV pkT Lin)} {S : NfTy [] SLin}
     {U : NfTy [] (KV pk Lin)}
   → RemoveCtx Γ₀ G Γ₂
   → RemoveCtx Γ₀ Γin Γr
@@ -2077,7 +2078,7 @@ mutual
   beta-preserves-synth
       (Act-Receive₂ {T = T} {S = S})
       (T-TApp (T-Val TV-Receive₁))
-    rewrite receive₂-instantiation (normalizeTy T) (normalizeTy S) =
+    rewrite receive₂-instantiation T S =
     record
       { actualType = _
       ; Γactual = _
@@ -2097,7 +2098,7 @@ mutual
   beta-preserves-synth
       (Act-Send₂ {T = T} {S = S})
       (T-TApp (T-Val TV-Send₁))
-    rewrite send₂-instantiation (normalizeTy T) (normalizeTy S) =
+    rewrite send₂-instantiation T S =
     record
       { actualType = _
       ; Γactual = _
@@ -2119,7 +2120,7 @@ mutual
   beta-preserves-synth
       (Act-Select₂ {v = v} {i = i} {P = P} {S = S})
       (T-TApp (T-Val TV-Select₁))
-    rewrite select₂-instantiation v i (normalizeTy P) (normalizeTy S) =
+    rewrite select₂-instantiation v i P S =
     record
       { actualType = _
       ; Γactual = _
@@ -2682,7 +2683,7 @@ reduction-preserves-synth-by-tag
     ; Γ₁ = ReductionSynthResult.Γ₁ ps
     ; Γ₁′ = ReductionSynthResult.Γ₁′ ps
     ; Γout = ReductionSynthResult.Γout ps
-    ; U = substNFTy Tpoly′ (normalizeTy Uarg)
+    ; U = substNFTy Tpoly′ Uarg
     ; src-remove = ReductionSynthResult.src-remove ps
     ; frame-update = ReductionSynthResult.frame-update ps
     ; dst-remove = ReductionSynthResult.dst-remove ps
@@ -3188,10 +3189,10 @@ reduction-preserves-synth-by-tag
            (λ X →
              normalTyOf X <:ₜ
              normalTyOf
-               (recvChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
+               (recvChanNf Tᵣ Sᵣ))
            eqChan
            sub)
-... | T<:Tᵣ , S<:Sᵣ
+... | refl , T<:Tᵣ , S<:Sᵣ
   with take-replace-lin {U = S} take₀
 ... | Γx , rep
   with replace-preserves-disjoint x∈ disj rep
@@ -3247,6 +3248,10 @@ reduction-preserves-synth-by-tag
     _
   with send-remove-membership-fresh rin take
 ... | Γx , rm , x∈
+  with value-kind-unique
+         (replay-value-allUsed dv (remove-to-rest-frame rm) au)
+         dv₀
+... | refl , refl
   with value-output-unique
          (replay-value-allUsed dv (remove-to-rest-frame rm) au)
          dv₀
@@ -3263,10 +3268,10 @@ reduction-preserves-synth-by-tag
            (λ X →
              normalTyOf X <:ₜ
              normalTyOf
-               (sendChanNf (normalizeTy Tᵣ) (normalizeTy Sᵣ)))
+               (sendChanNf Tᵣ Sᵣ))
            eqChan
            Uchan<:send)
-... | _ , S<:Sᵣ
+... | refl , _ , S<:Sᵣ
   with take-replace-lin {U = sessTyNf S} take₀
 ... | Γ₁ , rep
   with replace-take-fresh take₀ rep

@@ -126,10 +126,10 @@ replace-used-preserves-disjoint (thereˡ✖ x∈) (LD-used-live d) (R-there rep)
 unitLinNf : NfTy [] TLin
 unitLinNf = unitConstNf
 
-recvChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] SLin
+recvChanNf : NfTy [] (KV pk Lin) → NfTy [] SLin → NfTy [] SLin
 recvChanNf T S = msgNF ⊝ (N-Normal (N-Up T)) S
 
-sendChanNf : NfTy [] TLin → NfTy [] SLin → NfTy [] SLin
+sendChanNf : NfTy [] (KV pk Lin) → NfTy [] SLin → NfTy [] SLin
 sendChanNf T S = msgNF ⊕ (N-Normal (N-Up T)) S
 
 dualSessNf : NfTy [] SLin → NfTy [] TLin
@@ -157,7 +157,8 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γ₀ —ctx[ L-Fork v ]→ Γ₁
 
   Ctx-Rcv : ∀ {n} {Γ₀ Γv-in Γv-used Γv-out Γx Γ₁ : Ctx [] n}
-      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {S : NfTy [] SLin} {v : Value [] n}
     → Γv-in ⊢ᵥ v ⇒ T ⊣ Γv-used
     → AllUsed Γv-used
     → LinearDisjoint Γ₀ Γv-in
@@ -168,7 +169,8 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
     → Γ₀ —ctx[ L-RecvVal x v ]→ Γ₁
 
   Ctx-Send : ∀ {n} {Γ₀ Γx Γv Γv′ Γ₁ : Ctx [] n}
-      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {S : NfTy [] SLin} {v : Value [] n}
     → RemoveCtx Γ₀ Γv Γx
     → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
     → AllUsed Γv′
@@ -257,7 +259,8 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
   Label-RecvVal :
     ∀ {n} {x : Fin n}
       {Γin Γin′ Γv Γv′ : Ctx [] n}
-      {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {pk} {T : NfTy [] (KV pk Lin)}
+      {S : NfTy [] SLin} {v : Value [] n}
     → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
     → AllUsed Γin′
     → Γv ⊢ᵥ v ⇒ T ⊣ Γv′
@@ -273,7 +276,8 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
   Label-SendVal :
     ∀ {n} {x : Fin n}
       {Γin Γv Γin′ : Ctx [] n}
-      {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {pk} {T : NfTy [] (KV pk Lin)}
+      {S : NfTy [] SLin} {v : Value [] n}
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
     → Γv ⊢ᵥ v ⇒ T ⊣ Γin′
     → AllUsed Γin′
@@ -378,7 +382,8 @@ data Compatible :
 
   Compat-RecvVal :
     ∀ {n} {Γ₀ Γv Γv-out Γv′ Γx Γ₁ Γin Γin′ : Ctx [] n}
-      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {S : NfTy [] SLin} {v : Value [] n}
       {ld : LinearDisjoint Γ₀ Γv}
       {x∈ : Γ₀ ∋ˡ x ∶ recvChanNf T S}
       {rep : ReplaceAt Γ₀ x (B-Lin S) Γx}
@@ -394,7 +399,8 @@ data Compatible :
 
   Compat-SendVal :
     ∀ {n} {Γ₀ Γin Γx Γv Γv′ Γ₁ : Ctx [] n}
-      {x : Fin n} {T : NfTy [] TLin} {S : NfTy [] SLin} {v : Value [] n}
+      {x : Fin n} {pk} {T : NfTy [] (KV pk Lin)}
+      {S : NfTy [] SLin} {v : Value [] n}
       {rm : RemoveCtx Γ₀ Γv Γx}
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γv′}
       {auv : AllUsed Γv′}
@@ -467,7 +473,7 @@ data InputCompatible :
   IC-RecvVal :
     ∀ {n} {Γ₀ Γin Γr Γv : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
       {Γin′ Γv′ : Ctx [] n}
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
@@ -486,7 +492,7 @@ data InputCompatible :
   IC-SendVal :
     ∀ {n} {Γ₀ Γin Γr Γv : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
       {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
       {dv : Γv ⊢ᵥ v ⇒ T ⊣ Γr}
       {auv : AllUsed Γr}
@@ -525,7 +531,7 @@ data Extract : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] n → Set where
     ∀ {n}
       {Γ₀ Γin Γr Γin′ : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
     → RemoveCtx Γ₀ Γin Γr
     → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
     → AllUsed Γin′
@@ -541,7 +547,7 @@ data Extract : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] n → Set where
     ∀ {n}
       {Γ₀ Γin Γr Γv Γin′ : Ctx [] n}
       {x : Fin n} {v : Value [] n}
-      {T : NfTy [] TLin} {S : NfTy [] SLin}
+      {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
     → RemoveCtx Γ₀ Γin Γr
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
     → Γv ⊢ᵥ v ⇒ T ⊣ Γin′

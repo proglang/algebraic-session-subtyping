@@ -244,8 +244,20 @@ import ExprPreservationStep2.MaterializeProperties
 -- contexts and defining splitting and exact linear resource allocation.
 import ProcTypingFresh
 
+-- Shared local/global progress predicates, session-only contexts,
+-- and the terminal/deadlock/step trichotomy for flat configurations.
+import ProcProgressFreshDefinitions
+
+-- Canonical-forms and local progress for expressions typed in
+-- session-only run-time contexts.
+import ProcLocalProgressFresh
+
+-- Constructive decisions for independent expression actions and
+-- compatible live-endpoint synchronization in flat configurations.
+import ProcProgressFreshDecidable
+
 -- Terminal, communication-deadlock, and stepping predicates for flat
--- configurations, with a proved lifting from local thread progress.
+-- configurations, with an assumption-free global progress theorem.
 import ProcProgressFresh
 
 -- Preservation of flat-configuration typing for internal steps and for

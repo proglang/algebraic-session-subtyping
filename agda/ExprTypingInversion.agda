@@ -168,18 +168,30 @@ match-branch-subtype :
 match-branch-subtype {sub = sub} i i∈ bj = sub i i∈
 
 recvChan-subtype :
-  ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
+  ∀ {pk₁ pk₂}
+    {T₁ : NfTy [] (KV pk₁ Lin)}
+    {T₂ : NfTy [] (KV pk₂ Lin)}
+    {S₁ S₂ : NfTy [] SLin}
   → normalTyOf (recvChanNf T₁ S₁) <:ₜ normalTyOf (recvChanNf T₂ S₂)
-  → (normalTyOf T₁ <:ₜ normalTyOf T₂)
-    × (normalTyOf S₁ <:ₜ normalTyOf S₂)
+  → Σ (pk₁ ≡ pk₂) λ where
+      refl →
+        (normalTyOf T₁ <:ₜ normalTyOf T₂)
+        × (normalTyOf S₁ <:ₜ normalTyOf S₂)
 recvChan-subtype (<:ₜ-msg (<:ₚ′-up T₁<:T₂) S₁<:S₂) =
-  T₁<:T₂ , S₁<:S₂
+  refl , T₁<:T₂ , S₁<:S₂
 
 sendChan-subtype :
-  ∀ {T₁ T₂ : NfTy [] TLin} {S₁ S₂ : NfTy [] SLin}
+  ∀ {pk₁ pk₂}
+    {T₁ : NfTy [] (KV pk₁ Lin)}
+    {T₂ : NfTy [] (KV pk₂ Lin)}
+    {S₁ S₂ : NfTy [] SLin}
   → normalTyOf (sendChanNf T₁ S₁) <:ₜ normalTyOf (sendChanNf T₂ S₂)
-  → (normalTyOf T₂ <:ₜ normalTyOf T₁) × (normalTyOf S₁ <:ₜ normalTyOf S₂)
-sendChan-subtype (<:ₜ-msg (<:ₚ′-up T₂<:T₁) S₁<:S₂) = T₂<:T₁ , S₁<:S₂
+  → Σ (pk₁ ≡ pk₂) λ where
+      refl →
+        (normalTyOf T₂ <:ₜ normalTyOf T₁)
+        × (normalTyOf S₁ <:ₜ normalTyOf S₂)
+sendChan-subtype (<:ₜ-msg (<:ₚ′-up T₂<:T₁) S₁<:S₂) =
+  refl , T₂<:T₁ , S₁<:S₂
 
 selectIn-subtype :
   ∀ {k}

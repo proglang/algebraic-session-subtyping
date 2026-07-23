@@ -49,8 +49,9 @@ weakenExprBy2 : ∀ (k : ℕ) {n} → Expr [] (sucℕ (sucℕ n)) → Expr [] (s
 weakenExprBy2 k = renameExpr (extRen2 (shiftRen k))
 
 data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ → Expr [] (length Θ + n) → Set where
-  Act-App : ∀ {T : Ty [] TLin} {e : Expr [] (sucℕ n)} {v : Value [] n} →
-      E-App (E-Val (V-Abs (normalizeTy T) e)) (E-Val v)
+  Act-App : ∀ {pk} {T : NfTy [] (KV pk Lin)}
+      {e : Expr [] (sucℕ n)} {v : Value [] n} →
+      E-App (E-Val (V-Abs T e)) (E-Val v)
         —[ L-β ]→
       substExpr e v
 
@@ -74,10 +75,12 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
         —[ L-β ]→
       E-Val (V-Pair u v)
 
-  Act-Rec : ∀ {T U : Ty [] TLin} {v : Value [] (sucℕ n)} {u : Expr [] n} →
-      E-App (E-Val (V-Rec (normalizeTy T) (normalizeTy U) v)) u
+  Act-Rec : ∀ {pk₁ pk₂ m₁ m₂}
+      {T : NfTy [] (KV pk₁ m₁)} {U : NfTy [] (KV pk₂ m₂)}
+      {v : Value [] (sucℕ n)} {u : Expr [] n} →
+      E-App (E-Val (V-Rec T U v)) u
         —[ L-β ]→
-      E-App (E-Val (substValue v (V-Rec (normalizeTy T) (normalizeTy U) v))) u
+      E-App (E-Val (substValue v (V-Rec T U v))) u
 
   Act-Fork : ∀ {v : Value [] n} →
       E-App (E-Val (V-Const C-Fork)) (E-Val v)
@@ -94,13 +97,14 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
         —[ L-β ]→
       E-Val (V-Receive₁ {n = n} (normalizeTy T))
 
-  Act-Receive₂ : ∀ {T : Ty [] TLin} {S : Ty [] SLin} →
-      E-TApp {K = SLin} (E-Val (V-Receive₁ {n = n} (normalizeTy T))) (normalizeTy S)
+  Act-Receive₂ : ∀ {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin} →
+      E-TApp {K = SLin} (E-Val (V-Receive₁ {n = n} T)) S
         —[ L-β ]→
-      E-Val (V-Receive₂ {n = n} (normalizeTy T) (normalizeTy S))
+      E-Val (V-Receive₂ {n = n} T S)
 
-  Act-Rcv : ∀ {T : Ty [] TLin} {S : Ty [] SLin} {x : Fin n} {v : Value [] n} →
-      E-App (E-Val (V-Receive₂ (normalizeTy T) (normalizeTy S))) (E-Val (V-Var x))
+  Act-Rcv : ∀ {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
+      {x : Fin n} {v : Value [] n} →
+      E-App (E-Val (V-Receive₂ T S)) (E-Val (V-Var x))
         —[ L-RecvVal x v ]→
       E-Val (V-Pair v (V-Var x))
 
@@ -109,13 +113,14 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
         —[ L-β ]→
       E-Val (V-Send₁ {n = n} (normalizeTy T))
 
-  Act-Send₂ : ∀ {T : Ty [] TLin} {S : Ty [] SLin} →
-      E-TApp {K = SLin} (E-Val (V-Send₁ {n = n} (normalizeTy T))) (normalizeTy S)
+  Act-Send₂ : ∀ {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin} →
+      E-TApp {K = SLin} (E-Val (V-Send₁ {n = n} T)) S
         —[ L-β ]→
-      E-Val (V-Send₂ {n = n} (normalizeTy T) (normalizeTy S))
+      E-Val (V-Send₂ {n = n} T S)
 
-  Act-Send : ∀ {T : Ty [] TLin} {S : Ty [] SLin} {x : Fin n} {v : Value [] n} →
-      E-App (E-Val (V-Send₂ (normalizeTy T) (normalizeTy S))) (E-Val (V-Pair v (V-Var x)))
+  Act-Send : ∀ {pk} {T : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
+      {x : Fin n} {v : Value [] n} →
+      E-App (E-Val (V-Send₂ T S)) (E-Val (V-Pair v (V-Var x)))
         —[ L-SendVal x v ]→
       E-Val (V-Var x)
 
@@ -126,8 +131,9 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
         —[ L-RecvLab x i ]→
       substExpr (branches i i∈) (V-Var x)
 
-  Act-Sel : ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} {x : Fin n} →
-      E-App (E-Val (V-Select₂ v i (normalizeTy P) (normalizeTy S))) (E-Val (V-Var x))
+  Act-Sel : ∀ {k} {v : Variance} {i : Fin k}
+      {P : NfTy [] KP} {S : NfTy [] SLin} {x : Fin n} →
+      E-App (E-Val (V-Select₂ v i P S)) (E-Val (V-Var x))
         —[ L-SendLab x i ]→
       E-Val (V-Var x)
 
@@ -136,10 +142,11 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
         —[ L-β ]→
       E-Val (V-Select₁ {n = n} v i (normalizeTy P))
 
-  Act-Select₂ : ∀ {k} {v : Variance} {i : Fin k} {P : Ty [] KP} {S : Ty [] SLin} →
-      E-TApp {K = SLin} (E-Val (V-Select₁ {n = n} v i (normalizeTy P))) (normalizeTy S)
+  Act-Select₂ : ∀ {k} {v : Variance} {i : Fin k}
+      {P : NfTy [] KP} {S : NfTy [] SLin} →
+      E-TApp {K = SLin} (E-Val (V-Select₁ {n = n} v i P)) S
         —[ L-β ]→
-      E-Val (V-Select₂ {n = n} v i (normalizeTy P) (normalizeTy S))
+      E-Val (V-Select₂ {n = n} v i P S)
 
   Act-Close : ∀ {x : Fin n} →
       E-App (E-Val (V-Const C-Close)) (E-Val (V-Var x))
@@ -154,9 +161,9 @@ data _—[_]→_ {n} : ∀ {Θ : List (Ty [] SLin)} → Expr [] n → Label n Θ
       e₁ —[ ℓ ]→ e₂
       → E-App (E-Val v) e₁ —[ ℓ ]→ E-App (E-Val (weakenValueBy k v)) e₂
 
-  Act-TAppE : ∀ {Θ K} → let k = length Θ in {e₁ : Expr [] n} {e₂ : Expr [] (k + n)} {T : Ty [] K} {ℓ : Label n Θ} →
+  Act-TAppE : ∀ {Θ K} → let k = length Θ in {e₁ : Expr [] n} {e₂ : Expr [] (k + n)} {T : NfTy [] K} {ℓ : Label n Θ} →
       e₁ —[ ℓ ]→ e₂
-      → E-TApp e₁ (normalizeTy T) —[ ℓ ]→ E-TApp e₂ (normalizeTy T)
+      → E-TApp e₁ T —[ ℓ ]→ E-TApp e₂ T
 
   Act-PairL : ∀ {Θ} → let k = length Θ in {e₁ : Expr [] n} {e₂ : Expr [] (k + n)} {e₃ : Expr [] n} {ℓ : Label n Θ} →
       e₁ —[ ℓ ]→ e₂

@@ -156,7 +156,10 @@ support lemmas import it there.
 | `ProcExamplesFresh` | Flat-configuration operational examples. | Contains no postulates. It demonstrates beta at either list position, fork, fresh-pair activation, both endpoint orientations, a pair below two older slots, branch synchronization, and closing with liveness removal. |
 | `ProcExamples` | Empty compatibility module. | Operational examples live in `ProcExamplesFresh`. |
 | `ProcTypingFresh` | Declarative typing for flat configurations from `ProcSemanticsFresh`. | Contains no postulates. It reexports the canonical `ExprContextProperties.AllUsed` and defines the process-specific `Split`; `LiveCtx` equates live slots with available raw `SLin` bindings and dead slots with used bindings. The receive, select, and close primitive inputs use the same endpoint kind. `ThreadsTyped` splits live resources across the expression list and requires each assigned resource to be consumed exactly once. |
-| `ProcProgressFresh` | Terminal, communication-deadlock, and progress predicates for flat configurations. | Contains no postulates or holes. `GlobalDeadlock` positively classifies all threads, requires at least one communication-blocked thread, and excludes both independent and synchronizing actions; `deadlock-cannot-step` proves that it is genuinely stuck. `configuration-progress` proves the global lifting theorem from the still-open local expression-progress theorem and finite action-decision procedures, all supplied as explicit arguments. |
+| `ProcProgressFreshDefinitions` | Shared local and global progress predicates, session-only contexts, and theorem signatures. | Contains no postulates or holes. `LocalProgress` classifies expressions as values, independently runnable, or blocked on communication; `Progress` classifies configurations as terminal, globally deadlocked, or able to step. |
+| `ProcLocalProgressFresh` | Canonical forms and local expression progress in session-only run-time contexts. | Contains no postulates or holes. `local-progress` proves `LocalProgressTheorem`; the proof follows the typing derivation and uses session-context canonical forms to expose channel variables and communication heads. |
+| `ProcProgressFreshDecidable` | Decisions for independent actions and synchronization. | Contains no postulates or holes. `runnable-at?` structurally decides independent beta/fork/new actions. `synchronization-possible?` performs finite searches over threads and endpoints, checking distinct threads, live fresh-pair endpoints, and matching message, branch, or close actions. |
+| `ProcProgressFresh` | Global progress for flat configurations. | Contains no postulates or holes. `GlobalDeadlock` positively classifies all threads, requires at least one communication-blocked thread, and excludes both independent and synchronizing actions; `deadlock-cannot-step` proves that it is genuinely stuck. `configuration-progress` combines the local theorem and both decisions into the assumption-free terminal/deadlock/step trichotomy. |
 | `ProcReductionPreservationFresh` | Configuration subject reduction built on `ExprReductionPreservationFresh`. | Contains no postulates or holes. Beta, fork, and new preserve typing unconditionally and at arbitrary list positions. Message, branch, and wait preserve typing under `BinaryCompatibility`, which supplies the endpoint/session coherence absent from `LiveCtx`; `ReductionTyping` distinguishes those typed synchronization steps from raw operational steps. The conclusion returns the actual target context and a fresh configuration-typing derivation. |
 
 ## Examples and maintained index
@@ -357,9 +360,6 @@ covered; process preservation is a separate theorem.
 
 ## Future investigation
 
-- Prove the local expression canonical-forms/progress result needed to
-  instantiate `ProcProgressFresh.configuration-progress` without external
-  premises.
 - Decide whether endpoint compatibility should become an invariant of
   configuration typing.  Doing so could internalize `BinaryCompatibility`
   and yield unconditional preservation for message, branch, and wait

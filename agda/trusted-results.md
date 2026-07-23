@@ -81,6 +81,9 @@ protocol-related declarations interpreted relative to the accepted
 - `ExprTypingProperties`
 - `ExprTypingStrengthening`, relative to `ProtocolConstructors`
 - `ProcTypingFresh`
+- `ProcProgressFreshDefinitions`
+- `ProcLocalProgressFresh`
+- `ProcProgressFreshDecidable`
 - `ProcProgressFresh`
 - `ProcSemanticsFresh`
 - `ProcExamples`
@@ -100,15 +103,29 @@ Preservation-relevant highlights are:
   process-specific `Split`.  Fresh progress and preservation consume these
   definitions directly.
 
+- `ProcProgressFreshDefinitions` collects the predicates shared by local and
+  global progress, including `SessionCtx`, `LocalProgress`,
+  `SynchronizationPossible`, `GlobalDeadlock`, and the theorem signatures.
+
+- `ProcLocalProgressFresh.local-progress` proves the local canonical-forms
+  theorem for an expression typed in a session-only run-time context.  Every
+  such expression is a value, can take an independent beta/fork/new action,
+  or exposes a message, branch, or close communication action.
+
+- `ProcProgressFreshDecidable.runnable-at?` decides whether some thread has
+  an independent action.  `synchronization-possible?` decides whether two
+  distinct threads can synchronize on live endpoints forming a fresh pair;
+  its finite search covers message, branch, and close synchronization.
+
 - `ProcProgressFresh`: `Terminal` says that every thread is an expression
   value.  `GlobalDeadlock` positively records that every thread is a value or
   has an observable communication transition, that at least one thread is
   communication-blocked, and that no live peer endpoints can synchronize.
   `deadlock-cannot-step` proves that this characterization excludes every
-  configuration transition.  `configuration-progress` constructively lifts
-  a local expression-progress theorem and finite decisions for independent
-  and synchronizing actions to the terminal / deadlock / step trichotomy.
-  These arguments are explicit proof obligations.
+  configuration transition.  The assumption-free `configuration-progress`
+  combines `local-progress`, `runnable-at?`, and
+  `synchronization-possible?` to establish the terminal / deadlock / step
+  trichotomy.
 
 - `ExprContextProperties`: `AllUsed`, `LinearDisjoint`, `FrameCtx`,
   `RemoveCtx`, `allUsedCtx`, `allUsedCtx-∋ᵘ`, `remove-allUsedCtx`,
@@ -507,6 +524,8 @@ agda -i . ExprDoubleSubstitutionPreservationFresh.agda
 agda -i . ExprUnrestrictedSubstitutionPreservationFresh.agda
 agda -i . ExprReductionPreservationFresh.agda
 agda -i . ProcExamplesFresh.agda
+agda -i . ProcLocalProgressFresh.agda
+agda -i . ProcProgressFreshDecidable.agda
 agda -i . ProcProgressFresh.agda
 agda -i . ProcReductionPreservationFresh.agda
 agda -i . README.agda

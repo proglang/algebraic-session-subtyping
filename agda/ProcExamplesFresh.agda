@@ -188,8 +188,12 @@ message-forward =
     PS.here-fwd
     left-live₂
     right-live₂
-    (ES.Act-Rcv {T = T-Base} {S = endLin} {x = left₂} {v = unitValue})
-    (ES.Act-Send {T = T-Base} {S = endLin} {x = right₂} {v = unitValue})
+    (ES.Act-Rcv
+      {T = normalizeTy T-Base} {S = normalizeTy endLin}
+      {x = left₂} {v = unitValue})
+    (ES.Act-Send
+      {T = normalizeTy T-Base} {S = normalizeTy endLin}
+      {x = right₂} {v = unitValue})
 
 message-source-backward message-target-backward : Conf 2
 message-source-backward = record
@@ -208,8 +212,12 @@ message-backward =
     PS.here-bwd
     right-live₂
     left-live₂
-    (ES.Act-Rcv {T = T-Base} {S = endLin} {x = right₂} {v = unitValue})
-    (ES.Act-Send {T = T-Base} {S = endLin} {x = left₂} {v = unitValue})
+    (ES.Act-Rcv
+      {T = normalizeTy T-Base} {S = normalizeTy endLin}
+      {x = right₂} {v = unitValue})
+    (ES.Act-Send
+      {T = normalizeTy T-Base} {S = normalizeTy endLin}
+      {x = left₂} {v = unitValue})
 
 deepLeft₄ : Fin 4
 deepLeft₄ = fsuc (fsuc fzero)
@@ -247,8 +255,12 @@ message-deep =
     (PS.there PS.here-fwd)
     deep-left-live
     deep-right-live
-    (ES.Act-Rcv {T = T-Base} {S = endLin} {x = deepLeft₄} {v = unitValue})
-    (ES.Act-Send {T = T-Base} {S = endLin} {x = deepRight₄} {v = unitValue})
+    (ES.Act-Rcv
+      {T = normalizeTy T-Base} {S = normalizeTy endLin}
+      {x = deepLeft₄} {v = unitValue})
+    (ES.Act-Send
+      {T = normalizeTy T-Base} {S = normalizeTy endLin}
+      {x = deepRight₄} {v = unitValue})
 
 ------------------------------------------------------------------------
 -- Branch synchronization
@@ -312,8 +324,8 @@ branch-forward =
       {k = 1}
       {v = Variance.⊕}
       {i = fzero}
-      {P = oneProtocol}
-      {S = endLin}
+      {P = normalizeTy oneProtocol}
+      {S = normalizeTy endLin}
       {x = right₂})
 
 branch-source-backward branch-target-backward : Conf 2
@@ -344,8 +356,8 @@ branch-backward =
       {k = 1}
       {v = Variance.⊕}
       {i = fzero}
-      {P = oneProtocol}
-      {S = endLin}
+      {P = normalizeTy oneProtocol}
+      {S = normalizeTy endLin}
       {x = left₂})
 
 ------------------------------------------------------------------------
