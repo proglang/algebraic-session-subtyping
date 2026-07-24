@@ -167,7 +167,7 @@ match-branch-subtype :
     (i : Fin k)
     (i∈ : i Subset.∈ ss)
   → BranchJoin⁺ ss V ≡ just (U , sub)
-  → normalTyOf (V i i∈) <:ₜ normalTyOf U
+  → (V i i∈) <:ₜ U
 match-branch-subtype {sub = sub} i i∈ bj = sub i i∈
 
 recvChan-subtype :
@@ -175,11 +175,11 @@ recvChan-subtype :
     {T₁ : NfTy [] (KV pk₁ Lin)}
     {T₂ : NfTy [] (KV pk₂ Lin)}
     {S₁ S₂ : NfTy [] SLin}
-  → normalTyOf (recvChanNf T₁ S₁) <:ₜ normalTyOf (recvChanNf T₂ S₂)
+  → (recvChanNf T₁ S₁) <:ₜ (recvChanNf T₂ S₂)
   → Σ (pk₁ ≡ pk₂) λ where
       refl →
-        (normalTyOf T₁ <:ₜ normalTyOf T₂)
-        × (normalTyOf S₁ <:ₜ normalTyOf S₂)
+        (T₁ <:ₜ T₂)
+        × (S₁ <:ₜ S₂)
 recvChan-subtype (<:ₜ-msg (<:ₚ′-up T₁<:T₂) S₁<:S₂) =
   refl , T₁<:T₂ , S₁<:S₂
 
@@ -188,12 +188,12 @@ recvChan-subtype-shape :
     {A : NfTy [] SLin}
     {T : NfTy [] (KV pk Lin)}
     {S : NfTy [] SLin}
-  → normalTyOf A <:ₜ normalTyOf (recvChanNf T S)
+  → A <:ₜ (recvChanNf T S)
   → Σ (NfTy [] (KV pk Lin)) λ T₀ →
       Σ (NfTy [] SLin) λ S₀ →
         (A ≡ recvChanNf T₀ S₀)
-        × (normalTyOf T₀ <:ₜ normalTyOf T)
-        × (normalTyOf S₀ <:ₜ normalTyOf S)
+        × (T₀ <:ₜ T)
+        × (S₀ <:ₜ S)
 recvChan-subtype-shape
     (<:ₜ-msg (<:ₚ′-up T₀<:T) S₀<:S) =
   _ , _ , refl , T₀<:T , S₀<:S
@@ -203,11 +203,11 @@ sendChan-subtype :
     {T₁ : NfTy [] (KV pk₁ Lin)}
     {T₂ : NfTy [] (KV pk₂ Lin)}
     {S₁ S₂ : NfTy [] SLin}
-  → normalTyOf (sendChanNf T₁ S₁) <:ₜ normalTyOf (sendChanNf T₂ S₂)
+  → (sendChanNf T₁ S₁) <:ₜ (sendChanNf T₂ S₂)
   → Σ (pk₁ ≡ pk₂) λ where
       refl →
-        (normalTyOf T₂ <:ₜ normalTyOf T₁)
-        × (normalTyOf S₁ <:ₜ normalTyOf S₂)
+        (T₂ <:ₜ T₁)
+        × (S₁ <:ₜ S₂)
 sendChan-subtype (<:ₜ-msg (<:ₚ′-up T₂<:T₁) S₁<:S₂) =
   refl , T₂<:T₁ , S₁<:S₂
 
@@ -216,12 +216,12 @@ sendChan-subtype-shape :
     {A : NfTy [] SLin}
     {T : NfTy [] (KV pk Lin)}
     {S : NfTy [] SLin}
-  → normalTyOf A <:ₜ normalTyOf (sendChanNf T S)
+  → A <:ₜ (sendChanNf T S)
   → Σ (NfTy [] (KV pk Lin)) λ T₀ →
       Σ (NfTy [] SLin) λ S₀ →
         (A ≡ sendChanNf T₀ S₀)
-        × (normalTyOf T <:ₜ normalTyOf T₀)
-        × (normalTyOf S₀ <:ₜ normalTyOf S)
+        × (T <:ₜ T₀)
+        × (S₀ <:ₜ S)
 sendChan-subtype-shape
     (<:ₜ-msg (<:ₚ′-up T<:T₀) S₀<:S) =
   _ , _ , refl , T<:T₀ , S₀<:S
@@ -231,7 +231,7 @@ selectIn-subtype :
     {v₁ v₂ : Variance} {i : Fin k}
     {P₁ P₂ : NfTy [] KP}
     {S₁ S₂ : NfTy [] SLin}
-  → normalTyOf (selectInNf v₁ i P₁ S₁) <:ₜ normalTyOf (selectInNf v₂ i P₂ S₂)
+  → (selectInNf v₁ i P₁ S₁) <:ₜ (selectInNf v₂ i P₂ S₂)
   → (v₁ ≡ v₂)
     × (P₂ <<:ₚ[ v₁ ] P₁)
     × (S₁ <:ₜ S₂)
@@ -246,8 +246,8 @@ selectSetIn-subtype :
     {v₁ v₂ : Variance} {i : Fin k}
     {P₁ P₂ : NfTy [] KP}
     {S₁ S₂ : NfTy [] SLin}
-  → normalTyOf (selectSetInTyNf ss v₁ P₁ S₁)
-      <:ₜ normalTyOf (selectInNf v₂ i P₂ S₂)
+  → (selectSetInTyNf ss v₁ P₁ S₁)
+      <:ₜ (selectInNf v₂ i P₂ S₂)
   → (v₁ ≡ v₂)
     × (P₂ <<:ₚ[ v₁ ] P₁)
     × (S₁ <:ₜ S₂)
@@ -262,7 +262,7 @@ selectSetIn-subtype-shape :
     {v : Variance} {i : Fin k}
     {P : NfTy [] KP}
     {S : NfTy [] SLin}
-  → normalTyOf A <:ₜ normalTyOf (selectInNf v i P S)
+  → A <:ₜ (selectInNf v i P S)
   → Σ (Subset.Subset k) λ ss →
       Σ (NfTy [] KP) λ P₀ →
         Σ (NfTy [] SLin) λ S₀ →
@@ -591,8 +591,8 @@ select-app-subtype :
     {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
     {A R : NfTy [] SLin}
   → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
-  → normalTyOf (selectInNf v₂ i P′ S′) <:ₜ normalTyOf A
-  → normalTyOf (selectOutNf v₂ i P′ S′) <:ₜ normalTyOf R
+  → (selectInNf v₂ i P′ S′) <:ₜ A
+  → (selectOutNf v₂ i P′ S′) <:ₜ R
 select-app-subtype
   {v₁ = v₁} {i = i} {P = P} {S = S}
   {P′ = P′} {S′ = S′}
@@ -624,10 +624,10 @@ select-set-app-subtype :
     {P′ : NfTy [] KP} {S′ : NfTy [] SLin}
     {A R : NfTy [] SLin}
   → Γ ⊢ᵥ V-Select₂ v₁ i P S ⇒ linArrNf A R ⊣ Γ′
-  → normalTyOf (selectSetInTyNf ss v₂ P′ S′)
-      <:ₜ normalTyOf A
-  → normalTyOf (selectOutNf v₂ i P′ S′)
-      <:ₜ normalTyOf R
+  → (selectSetInTyNf ss v₂ P′ S′)
+      <:ₜ A
+  → (selectOutNf v₂ i P′ S′)
+      <:ₜ R
 select-set-app-subtype
   {v₁ = v₁} {i = i} {P = P} {S = S}
   {P′ = P′} {S′ = S′}

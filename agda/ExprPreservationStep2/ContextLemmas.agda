@@ -11,7 +11,6 @@ open import Types using (Ty)
 open import NormalTypes using (N-Sub; N-End)
 open import ExprNormalTyping using
   ( normalizeTy
-  ; normalTyOf
   ; EndLin
   ; Ctx
   ; B-Lin
@@ -167,7 +166,7 @@ allUsedCtx-merge merge = sym (ExprContextReduction.allUsed-merge merge)
 
 end-subtype-invert :
   ∀ {U : NfTy [] SLin}
-  → normalTyOf U <:ₜ normalTyOf (normalizeTy EndLin)
+  → U <:ₜ (normalizeTy EndLin)
   → U ≡ normalizeTy EndLin
 end-subtype-invert {U = N-Sub _ N-End} (<:ₜ-sub <:ₜ-end) = refl
 

@@ -97,9 +97,6 @@ open Traversal Ty-Traversal hiding (_⋯_; ⋯-id)
 ⌞_⌟ : NfTy Δ K → Ty Δ K
 ⌞_⌟ = nfKindTy
 
-normalTyOf : (N : NfTy Δ (KV pk m)) → NFTy Δ (KV pk m)
-normalTyOf N = N
-
 normalProtoOf : (N : NfTy Δ KP) → NFProto Δ
 normalProtoOf N = N
 
@@ -496,7 +493,7 @@ mutual
     T-Check : ∀ {n} {Γ₁ Γ₂ : Ctx Δ n} {e : Expr Δ n} {pk m}
         {T U : NfTy Δ (KV pk m)}
       → Γ₁ ⊢ e ⇒ U ⊣ Γ₂
-      → normalTyOf U <:ₜ normalTyOf T
+      → U <:ₜ T
       → Γ₁ ⊢ e ⇐ T ⊣ Γ₂
 
 pair-injective :

@@ -260,8 +260,8 @@ import ProcProgressFreshDefinitions
 -- session-only run-time contexts.
 import ProcLocalProgressFresh
 
--- Constructive decisions for independent expression actions and
--- compatible live-endpoint synchronization in flat configurations.
+-- Constructive decisions for terminal states, global deadlocks, independent
+-- expression actions, and compatible live-endpoint synchronization.
 import ProcProgressFreshDecidable
 
 -- Terminal, communication-deadlock, and stepping predicates for flat
@@ -271,6 +271,10 @@ import ProcProgressFresh
 -- Unconditional preservation of flat-configuration typing, using constructive
 -- action resources, target splits, and live/paired invariant transports.
 import ProcReductionPreservationFresh
+
+-- Finite-trace preservation and the end-to-end terminal/deadlock/step
+-- theorem for a singleton closed unit-typed initial configuration.
+import ProcSafetyFresh
 
 -- Small example developments exercising
 -- the formalization.

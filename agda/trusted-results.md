@@ -1,6 +1,6 @@
 # Trusted results for expression substitution and preservation
 
-Last audited: 2026-07-20.
+Last audited: 2026-07-24.
 
 This ledger covers the active dependency cone relevant to expression
 substitution and expression reduction preservation.
@@ -86,10 +86,12 @@ protocol-related declarations interpreted relative to the accepted
 - `ProcProgressFreshDecidable`
 - `ProcProgressFresh`
 - `ProcSemanticsFresh`
+- `ProcSemanticsPermutationFresh`
 - `ProcExamples`
 - `ProcExamplesFresh`
 - `ExprActionResourcesFresh`
 - `ProcReductionPreservationFresh`
+- `ProcSafetyFresh`
 - `ExprTypingStripFresh`
 - `ExprPreservationStep2.ContextLemmas`
 - `ExprPreservationStep2.SubstitutionLemmas`, relative to the accepted
@@ -117,6 +119,16 @@ Preservation-relevant highlights are:
   an independent action.  `synchronization-possible?` decides whether two
   distinct threads can synchronize on live endpoints forming a fresh pair;
   its finite search covers message, branch, and close synchronization.
+  `terminal?` and `global-deadlock?` directly decide the two non-stepping
+  outcomes; the latter constructively decides incoming and outgoing
+  communication for arbitrary expressions before checking quiescence,
+  blocked communication, and absence of global actions.
+
+- `ProcSemanticsPermutationFresh` contains no postulates or holes.
+  `step-resp-≈ᶜ` transports every configuration transition across a
+  permutation of the thread list and returns a matching target
+  configuration; `typing-resp-≈ᶜ` transports configuration typing while
+  retaining both `LiveCtx` and `PairedCtx`.
 
 - `ProcProgressFresh`: `Terminal` says that every thread is an expression
   value.  `GlobalDeadlock` positively records that every thread is a value or
@@ -168,7 +180,8 @@ take judgments, typing judgments, labels, and reduction rules.
 The following `ExprNormalTyping` computations and structural results are also
 trusted:
 
-- `normalizeTy`, `normalTyOf`, `normalProtoOf`;
+- `normalizeTy` and `normalProtoOf`; the former identity wrapper
+  `normalTyOf` has been eliminated from statements and proofs;
 - `wkNfTy`, `wkBinding`, `wkCtx` and their injectivity lemmas;
 - `linArrNf`, `unArrNf`, `pairNf`, `polyNf`;
 - receive, send, select, materialization, and match branch type
@@ -539,6 +552,15 @@ Each case feeds the resulting endpoint replacements to the proved `LiveCtx`
 and `PairedCtx` transports.  The former `BinaryCompatibility` and
 `ReductionTyping` wrappers have therefore been removed.
 
+`ProcSafetyFresh` closes the preservation/progress loop.  Its heterogeneous
+finite-trace relation accommodates the two endpoint slots introduced by every
+`Act-New` step.  `finite-reduction-preserves-typing` iterates configuration
+preservation over such traces, and `finite-reduction-progress` applies global
+progress at their endpoints.  The public `closed-unit-finite-progress`
+theorem constructs the empty-live, singleton configuration from a closed
+unit-checking derivation and proves that every finitely reachable
+configuration is terminal, globally deadlocked, or can step.
+
 ## Verification status
 
 At this audit point the following commands succeed:
@@ -561,6 +583,7 @@ agda -i . ProcProgressFreshDecidable.agda
 agda -i . ProcProgressFresh.agda
 agda -i . ProcSemanticsPermutationFresh.agda
 agda -i . ProcReductionPreservationFresh.agda
+agda -i . ProcSafetyFresh.agda
 agda -i . README.agda
 ```
 

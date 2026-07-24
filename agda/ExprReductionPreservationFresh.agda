@@ -153,7 +153,6 @@ open import ExprNormalTyping using
   ; CT-Select
   ; CT-Close
   ; normalizeTy
-  ; normalTyOf
   ; unitConstNf
   ; endConstNf
   ; wkNfTy
@@ -2506,7 +2505,7 @@ record ReductionSynthResult
     compat : Compatible ctx-step lbl
     effect-aligned : ctx-effect ctx-step ≡ frm-effect frame-update
     synth : Γ₁ ⊢ e₂ ⇒ U ⊣ Γout
-    subtype : normalTyOf U <:ₜ normalTyOf T
+    subtype : U <:ₜ T
     leftover : Γout ≈ᵘ extendUsed Θ Γ₂
 
 record ReductionCheckResult
@@ -2630,7 +2629,7 @@ data CheckActionResources
       {T U : NfTy [] (KV pk m)}
       {ℓ : Label n Θ}
       {source : Γ₀ ⊢ e₁ ⇒ U ⊣ Γ₂}
-      {sub : normalTyOf U <:ₜ normalTyOf T}
+      {sub : U <:ₜ T}
       {step : e₁ —[ ℓ ]→ e₂}
       {lbl : ℓ ⦂ Γin ⇒ Γv}
       {ex : Extract Γ₀ ℓ Γin}
@@ -2767,7 +2766,7 @@ letUnit-action-resources :
     {U : NfTy [] (KV KT Lin)}
     {T : NfTy [] (KV pk m)}
     {source-synth : Γ₀ ⊢ source ⇒ U ⊣ Γmid}
-    {source-sub : normalTyOf U <:ₜ normalTyOf unitConstNf}
+    {source-sub : U <:ₜ unitConstNf}
     {body-typing : Γmid ⊢ body ⇒ T ⊣ Γout}
     {ℓ : Label n Θ}
     {step : source —[ ℓ ]→ source′}
@@ -3017,7 +3016,7 @@ reduction-preserves-synth-by-tag
     ; subtype =
         <:ₜ-pair
           (ReductionSynthResult.subtype ps)
-          (<:ₜ-refl (normalTyOf U))
+          (<:ₜ-refl (U))
     ; leftover = right≈
     }
 reduction-preserves-synth-by-tag
@@ -3119,7 +3118,7 @@ reduction-preserves-synth-by-tag
             (<:ₜ-trans
               (ReductionSynthResult.subtype ps)
               argumentSub))
-    ; subtype = <:ₜ-refl (normalTyOf V)
+    ; subtype = <:ₜ-refl (V)
     ; leftover = ReductionSynthResult.leftover ps
     }
 reduction-preserves-synth-by-tag
@@ -3229,7 +3228,7 @@ reduction-preserves-synth-by-tag
             (<:ₜ-trans
               (ReductionSynthResult.subtype ps)
               argumentSub))
-    ; subtype = <:ₜ-refl (normalTyOf V)
+    ; subtype = <:ₜ-refl (V)
     ; leftover = ReductionSynthResult.leftover ps
     }
 reduction-preserves-synth-by-tag
@@ -3327,7 +3326,7 @@ reduction-preserves-synth-by-tag
           (ReductionSynthResult.synth ps)
     ; subtype =
         <:ₜ-pair
-          (<:ₜ-refl (normalTyOf T))
+          (<:ₜ-refl (T))
           (ReductionSynthResult.subtype ps)
     ; leftover = ReductionSynthResult.leftover ps
     }
@@ -3434,7 +3433,7 @@ reduction-preserves-synth-by-tag
           (ReductionSynthResult.synth ps)
     ; subtype =
         <:ₜ-pair
-          (<:ₜ-refl (normalTyOf T))
+          (<:ₜ-refl (T))
           (ReductionSynthResult.subtype ps)
     ; leftover = ReductionSynthResult.leftover ps
     }
@@ -3691,9 +3690,8 @@ reduction-preserves-synth-by-tag
   with recvChan-subtype
          (subst
            (λ X →
-             normalTyOf X <:ₜ
-             normalTyOf
-               (recvChanNf Tᵣ Sᵣ))
+             X <:ₜ
+             recvChanNf Tᵣ Sᵣ)
            eqChan
            sub)
 ... | refl , T<:Tᵣ , S<:Sᵣ
@@ -3771,9 +3769,8 @@ reduction-preserves-synth-by-tag
   with sendChan-subtype
          (subst
            (λ X →
-             normalTyOf X <:ₜ
-             normalTyOf
-               (sendChanNf Tᵣ Sᵣ))
+             X <:ₜ
+             sendChanNf Tᵣ Sᵣ)
            eqChan
            Uchan<:send)
 ... | refl , _ , S<:Sᵣ
@@ -3898,7 +3895,7 @@ reduction-preserves-synth-by-tag
   let
     selSub =
       subst
-        (λ X → normalTyOf X <:ₜ normalTyOf A)
+        (λ X → X <:ₜ A)
         eqChan
         sub
   in
@@ -3969,7 +3966,7 @@ reduction-preserves-synth-by-tag
     ; compat = Compat-Close refl
     ; effect-aligned = refl
     ; synth = T-Val (TV-Const CT-Unit)
-    ; subtype = <:ₜ-refl (normalTyOf unitConstNf)
+    ; subtype = <:ₜ-refl (unitConstNf)
     ; leftover = ≈ᵘ-refl
     }
 reduction-preserves-synth-by-tag
@@ -4004,7 +4001,7 @@ reduction-preserves-synth-by-tag
     ; compat = Compat-Fork refl
     ; effect-aligned = refl
     ; synth = T-Val (TV-Const CT-Unit)
-    ; subtype = <:ₜ-refl (normalTyOf unitConstNf)
+    ; subtype = <:ₜ-refl (unitConstNf)
     ; leftover = ≈ᵘ-refl
     }
 

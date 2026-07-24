@@ -6,6 +6,10 @@ open import Data.Fin.Properties using ()
   renaming (_≟_ to _≟Fin_)
 import Data.Fin.Subset as Subset
 open import Data.List using ([]; _∷_; length)
+open import Data.List.Relation.Unary.All using ()
+  renaming ([] to all[]; _∷_ to _all∷_)
+open import Data.List.Relation.Unary.Any using ()
+  renaming (here to any-here; there to any-there)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Nat.Properties using ()
   renaming (_≟_ to _≟Nat_)
@@ -84,6 +88,43 @@ is-value? (E-LetUnit first second) = no λ ()
 is-value? (E-Pair first second) = no λ ()
 is-value? (E-LetPair first body) = no λ ()
 is-value? (E-Match scrutinee nonempty branches) = no λ ()
+
+all-list? :
+  ∀ {A : Set} {P : A → Set}
+  → ((x : A) → Dec (P x))
+  → (xs : Data.List.List A)
+  → Dec (Data.List.Relation.Unary.All.All P xs)
+all-list? decide [] = yes all[]
+all-list? decide (x ∷ xs) with decide x | all-list? decide xs
+... | yes proof | yes proofs = yes (proof all∷ proofs)
+... | no not-proof | _ =
+  no λ where
+    (proof all∷ proofs) → not-proof proof
+... | yes proof | no not-proofs =
+  no λ where
+    (proof′ all∷ proofs) → not-proofs proofs
+
+any-list? :
+  ∀ {A : Set} {P : A → Set}
+  → ((x : A) → Dec (P x))
+  → (xs : Data.List.List A)
+  → Dec (Data.List.Relation.Unary.Any.Any P xs)
+any-list? decide [] = no λ ()
+any-list? decide (x ∷ xs) with decide x
+... | yes proof = yes (any-here proof)
+... | no not-proof with any-list? decide xs
+... | yes proofs = yes (any-there proofs)
+... | no not-proofs =
+  no λ where
+    (any-here proof) → not-proof proof
+    (any-there proofs) → not-proofs proofs
+
+terminal? : ∀ {n} (C : Conf n) → Dec (Terminal C)
+terminal? C with all-list? is-value? (exps C)
+... | yes values = yes (terminal values)
+... | no not-values =
+  no λ where
+    (terminal values) → not-values values
 
 data AppHeadRunnable {n : ℕ} :
     Value [] n → Expr [] n → Set where
@@ -1721,6 +1762,408 @@ output? (E-LetUnit first second)
   no λ outer → no-output (let-unit-output-invert outer)
 
 ------------------------------------------------------------------------
+-- Existence of an incoming communication
+
+data Input {n : ℕ} (e : Expr [] n) : Set where
+  input-action :
+    ∀ {label : Label n []}
+    → InputLabel label
+    → Accepts e label
+    → Input e
+
+data SomeAppInputHead {n : ℕ}
+    (function : Value [] n) (argument : Expr [] n) : Set where
+  some-app-input-head :
+    ∀ {label : Label n []}
+    → InputLabel label
+    → AppInputHead function argument label
+    → SomeAppInputHead function argument
+
+some-app-input-head? :
+  ∀ {n} (function : Value [] n) (argument : Expr [] n)
+  → Dec (SomeAppInputHead function argument)
+some-app-input-head? (V-Receive₂ T S) argument
+  with variable-argument? argument
+... | yes variable-argument =
+  yes
+    (some-app-input-head
+      {label = L-RecvVal _ (V-Const C-Unit)}
+      input-message
+      input-head-message)
+... | no not-variable =
+  no λ where
+    (some-app-input-head input-message input-head-message) →
+      not-variable variable-argument
+some-app-input-head? (V-Const C-Close) argument
+  with variable-argument? argument
+... | yes variable-argument =
+  yes (some-app-input-head input-close input-head-close)
+... | no not-variable =
+  no λ where
+    (some-app-input-head input-close input-head-close) →
+      not-variable variable-argument
+some-app-input-head? (V-Const C-Unit) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Const C-Fork) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Const C-New) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Const C-Receive) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Const C-Send) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Const (C-Select variance i)) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Var x) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Abs T body) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Rec T U body) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-TAbs K body) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Pair first second) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Receive₁ T) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Send₁ T) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Send₂ T S) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Select₁ variance i P) argument =
+  no λ where (some-app-input-head input ())
+some-app-input-head? (V-Select₂ variance i P S) argument =
+  no λ where (some-app-input-head input ())
+
+data SomeMatchInputHead {n : ℕ} :
+    ∀ {k} {ss : Subset.Subset k}
+    → (scrutinee : Expr [] n)
+    → (ne : Subset.Nonempty ss)
+    → ((i : Fin k) → i Subset.∈ ss → Expr [] (suc n))
+    → Set where
+  some-match-input-head :
+    ∀ {k} {ss : Subset.Subset k} {ne : Subset.Nonempty ss}
+      {scrutinee : Expr [] n}
+      {branches : (i : Fin k) → i Subset.∈ ss → Expr [] (suc n)}
+      {label : Label n []}
+    → InputLabel label
+    → MatchInputHead scrutinee ne branches label
+    → SomeMatchInputHead scrutinee ne branches
+
+some-match-input-head? :
+  ∀ {n k} {ss : Subset.Subset k}
+    (scrutinee : Expr [] n)
+    (ne : Subset.Nonempty ss)
+    (branches : (i : Fin k) → i Subset.∈ ss → Expr [] (suc n))
+  → Dec (SomeMatchInputHead scrutinee ne branches)
+some-match-input-head? scrutinee ne branches
+  with variable-argument? scrutinee
+... | no not-variable =
+  no λ where
+    (some-match-input-head
+      input-branch
+      (input-head-branch i∈)) →
+        not-variable variable-argument
+... | yes variable-argument with ne
+... | i , i∈ =
+  yes
+    (some-match-input-head
+      input-branch
+      (input-head-branch i∈))
+
+decide-from-sum :
+  ∀ {P Q R : Set}
+  → (P → R)
+  → (Q → R)
+  → (R → P ⊎ Q)
+  → Dec P
+  → Dec Q
+  → Dec R
+decide-from-sum left right invert (yes proof) other =
+  yes (left proof)
+decide-from-sum left right invert (no not-left) (yes proof) =
+  yes (right proof)
+decide-from-sum left right invert (no not-left) (no not-right) =
+  no λ result →
+    refute-sum not-left not-right (invert result)
+
+map-dec :
+  ∀ {P Q : Set}
+  → (P → Q)
+  → (Q → P)
+  → Dec P
+  → Dec Q
+map-dec forward backward (yes proof) = yes (forward proof)
+map-dec forward backward (no not-proof) =
+  no λ result → not-proof (backward result)
+
+app-head-input :
+  ∀ {n} {function : Value [] n} {argument : Expr [] n}
+  → SomeAppInputHead function argument
+  → Input (E-App (E-Val function) argument)
+app-head-input (some-app-input-head input head) =
+  input-action input (app-input-head-accepts head)
+
+app-value-input-invert :
+  ∀ {n} {function : Value [] n} {argument : Expr [] n}
+  → Input (E-App (E-Val function) argument)
+  → SomeAppInputHead function argument ⊎ Input argument
+app-value-input-invert (input-action input acceptance)
+  with app-value-accepts-invert input acceptance
+... | inj₁ head =
+  inj₁ (some-app-input-head input head)
+... | inj₂ inner =
+  inj₂ (input-action input inner)
+
+app-left-input :
+  ∀ {n} {left right : Expr [] n}
+  → Input left
+  → Input (E-App left right)
+app-left-input (input-action input acceptance) =
+  input-action input (app-left-accepts acceptance)
+
+app-left-input-invert :
+  ∀ {n} {left right : Expr [] n}
+  → (IsValue left → ⊥)
+  → Input (E-App left right)
+  → Input left
+app-left-input-invert not-value
+    (input-action input acceptance) =
+  input-action input
+    (app-left-accepts-invert input not-value acceptance)
+
+app-right-input :
+  ∀ {n} {function : Value [] n} {argument : Expr [] n}
+  → Input argument
+  → Input (E-App (E-Val function) argument)
+app-right-input (input-action input acceptance) =
+  input-action input (app-right-accepts acceptance)
+
+tapp-input :
+  ∀ {n K} {function : Expr [] n} {argument : NfTy [] K}
+  → Input function
+  → Input (E-TApp function argument)
+tapp-input (input-action input acceptance) =
+  input-action input (tapp-accepts acceptance)
+
+tapp-input-invert :
+  ∀ {n K} {function : Expr [] n} {argument : NfTy [] K}
+  → Input (E-TApp function argument)
+  → Input function
+tapp-input-invert (input-action input acceptance) =
+  input-action input (tapp-accepts-invert input acceptance)
+
+pair-left-input :
+  ∀ {n} {left right : Expr [] n}
+  → Input left
+  → Input (E-Pair left right)
+pair-left-input (input-action input acceptance) =
+  input-action input (pair-left-accepts acceptance)
+
+pair-left-input-invert :
+  ∀ {n} {left right : Expr [] n}
+  → (IsValue left → ⊥)
+  → Input (E-Pair left right)
+  → Input left
+pair-left-input-invert not-value
+    (input-action input acceptance) =
+  input-action input
+    (pair-left-accepts-invert input not-value acceptance)
+
+pair-right-input :
+  ∀ {n} {first : Value [] n} {second : Expr [] n}
+  → Input second
+  → Input (E-Pair (E-Val first) second)
+pair-right-input (input-action input acceptance) =
+  input-action input (pair-right-accepts acceptance)
+
+pair-right-input-invert :
+  ∀ {n} {first : Value [] n} {second : Expr [] n}
+  → Input (E-Pair (E-Val first) second)
+  → Input second
+pair-right-input-invert (input-action input acceptance) =
+  input-action input (pair-right-accepts-invert input acceptance)
+
+match-head-input :
+  ∀ {n k} {ss : Subset.Subset k}
+    {scrutinee : Expr [] n} {ne : Subset.Nonempty ss}
+    {branches : (i : Fin k) → i Subset.∈ ss → Expr [] (suc n)}
+  → SomeMatchInputHead scrutinee ne branches
+  → Input (E-Match scrutinee ne branches)
+match-head-input (some-match-input-head input head) =
+  input-action input (match-input-head-accepts head)
+
+match-input-invert :
+  ∀ {n k} {ss : Subset.Subset k}
+    {scrutinee : Expr [] n} {ne : Subset.Nonempty ss}
+    {branches : (i : Fin k) → i Subset.∈ ss → Expr [] (suc n)}
+  → Input (E-Match scrutinee ne branches)
+  → SomeMatchInputHead scrutinee ne branches ⊎ Input scrutinee
+match-input-invert (input-action input acceptance)
+  with match-accepts-invert input acceptance
+... | inj₁ head =
+  inj₁ (some-match-input-head input head)
+... | inj₂ inner =
+  inj₂ (input-action input inner)
+
+match-inner-input :
+  ∀ {n k} {ss : Subset.Subset k}
+    {scrutinee : Expr [] n} {ne : Subset.Nonempty ss}
+    {branches : (i : Fin k) → i Subset.∈ ss → Expr [] (suc n)}
+  → Input scrutinee
+  → Input (E-Match scrutinee ne branches)
+match-inner-input (input-action input acceptance) =
+  input-action input (match-accepts acceptance)
+
+let-pair-input :
+  ∀ {n} {first : Expr [] n} {body : Expr [] (suc (suc n))}
+  → Input first
+  → Input (E-LetPair first body)
+let-pair-input (input-action input acceptance) =
+  input-action input (let-pair-accepts acceptance)
+
+let-pair-input-invert :
+  ∀ {n} {first : Expr [] n} {body : Expr [] (suc (suc n))}
+  → Input (E-LetPair first body)
+  → Input first
+let-pair-input-invert (input-action input acceptance) =
+  input-action input (let-pair-accepts-invert input acceptance)
+
+let-unit-input :
+  ∀ {n} {first second : Expr [] n}
+  → Input first
+  → Input (E-LetUnit first second)
+let-unit-input (input-action input acceptance) =
+  input-action input (let-unit-accepts acceptance)
+
+let-unit-input-invert :
+  ∀ {n} {first second : Expr [] n}
+  → Input (E-LetUnit first second)
+  → Input first
+let-unit-input-invert (input-action input acceptance) =
+  input-action input (let-unit-accepts-invert input acceptance)
+
+input? : ∀ {n} (e : Expr [] n) → Dec (Input e)
+input? (E-Val value) =
+  no λ where
+    (input-action input (accepts _ ()))
+input? (E-App left right) with is-value? left
+... | no not-value =
+  map-dec app-left-input
+    (app-left-input-invert not-value)
+    (input? left)
+... | yes (is-value function) =
+  decide-from-sum
+    app-head-input
+    app-right-input
+    app-value-input-invert
+    (some-app-input-head? function right)
+    (input? right)
+input? (E-TApp function argument) =
+  map-dec tapp-input tapp-input-invert (input? function)
+input? (E-Pair left right) with is-value? left
+... | no not-value =
+  map-dec pair-left-input
+    (pair-left-input-invert not-value)
+    (input? left)
+... | yes (is-value first) =
+  map-dec pair-right-input pair-right-input-invert (input? right)
+input? (E-Match scrutinee ne branches) =
+  decide-from-sum
+    match-head-input
+    match-inner-input
+    match-input-invert
+    (some-match-input-head? scrutinee ne branches)
+    (input? scrutinee)
+input? (E-LetPair first body) =
+  map-dec let-pair-input let-pair-input-invert (input? first)
+input? (E-LetUnit first second) =
+  map-dec let-unit-input let-unit-input-invert (input? first)
+
+input-label-communication :
+  ∀ {n} {label : Label n []}
+  → InputLabel label
+  → CommunicationLabel label
+input-label-communication input-message = comm-recv-val
+input-label-communication input-branch = comm-recv-lab
+input-label-communication input-close = comm-close
+
+input-communication-blocked :
+  ∀ {n} {e : Expr [] n}
+  → Input e
+  → CommunicationBlocked e
+input-communication-blocked
+    (input-action input (accepts target transition)) =
+  communication-blocked
+    _
+    target
+    (input-label-communication input)
+    transition
+
+output-communication-blocked :
+  ∀ {n} {e : Expr [] n}
+  → Output e
+  → CommunicationBlocked e
+output-communication-blocked (output-message transition) =
+  communication-blocked
+    _
+    _
+    comm-send-val
+    transition
+output-communication-blocked (output-branch transition) =
+  communication-blocked
+    _
+    _
+    comm-send-lab
+    transition
+output-communication-blocked (output-close transition) =
+  communication-blocked
+    _
+    _
+    comm-close
+    transition
+
+communication-blocked-invert :
+  ∀ {n} {e : Expr [] n}
+  → CommunicationBlocked e
+  → Input e ⊎ Output e
+communication-blocked-invert
+    (communication-blocked _ target comm-recv-val transition) =
+  inj₁
+    (input-action
+      input-message
+      (accepts target transition))
+communication-blocked-invert
+    (communication-blocked _ target comm-recv-lab transition) =
+  inj₁
+    (input-action
+      input-branch
+      (accepts target transition))
+communication-blocked-invert
+    (communication-blocked _ target comm-send-val transition) =
+  inj₂ (output-message transition)
+communication-blocked-invert
+    (communication-blocked _ target comm-send-lab transition) =
+  inj₂ (output-branch transition)
+communication-blocked-invert
+    (communication-blocked _ target comm-close transition) =
+  inj₁
+    (input-action
+      input-close
+      (accepts target transition))
+
+communication-blocked? :
+  ∀ {n} (e : Expr [] n)
+  → Dec (CommunicationBlocked e)
+communication-blocked? e =
+  decide-from-sum
+    input-communication-blocked
+    output-communication-blocked
+    communication-blocked-invert
+    (input? e)
+    (output? e)
+
+------------------------------------------------------------------------
 -- Outgoing actions are deterministic
 
 tapp-message-invert :
@@ -2344,3 +2787,69 @@ synchronization-possible? {n = zero} C = no λ ()
 synchronization-possible? {n = suc zero} C = no λ ()
 synchronization-possible? {n = suc (suc n)} C =
   synchronization-possible₂? C
+
+------------------------------------------------------------------------
+-- Terminal and global-deadlock decisions
+
+quiescent? :
+  ∀ {n} (e : Expr [] n)
+  → Dec (IsValue e ⊎ CommunicationBlocked e)
+quiescent? e with is-value? e
+... | yes value = yes (inj₁ value)
+... | no not-value with communication-blocked? e
+... | yes blocked = yes (inj₂ blocked)
+... | no not-blocked =
+  no λ where
+    (inj₁ value) → not-value value
+    (inj₂ blocked) → not-blocked blocked
+
+decide-global-deadlock :
+  ∀ {n} {C : Conf n}
+  → Dec
+      (Data.List.Relation.Unary.All.All
+        (λ e → IsValue e ⊎ CommunicationBlocked e)
+        (exps C))
+  → Dec
+      (Data.List.Relation.Unary.Any.Any
+        CommunicationBlocked
+        (exps C))
+  → Dec (RunnableAt C)
+  → Dec (SynchronizationPossible C)
+  → Dec (GlobalDeadlock C)
+decide-global-deadlock (no not-quiescent) blocked? runnable? sync? =
+  no λ where
+    (global-deadlock quiescent _ _ _) →
+      not-quiescent quiescent
+decide-global-deadlock
+    (yes quiescent) (no not-blocked) runnable? sync? =
+  no λ where
+    (global-deadlock _ blocked _ _) →
+      not-blocked blocked
+decide-global-deadlock
+    (yes quiescent) (yes blocked) (yes runnable) sync? =
+  no λ where
+    (global-deadlock _ _ no-runnable _) →
+      no-runnable runnable
+decide-global-deadlock
+    (yes quiescent) (yes blocked) (no no-runnable) (yes sync) =
+  no λ where
+    (global-deadlock _ _ _ no-sync) →
+      no-sync sync
+decide-global-deadlock
+    (yes quiescent) (yes blocked) (no no-runnable) (no no-sync) =
+  yes
+    (global-deadlock
+      quiescent
+      blocked
+      no-runnable
+      no-sync)
+
+global-deadlock? :
+  ∀ {n} (C : Conf n)
+  → Dec (GlobalDeadlock C)
+global-deadlock? C =
+  decide-global-deadlock
+    (all-list? quiescent? (exps C))
+    (any-list? communication-blocked? (exps C))
+    (runnable-at? C)
+    (synchronization-possible? C)

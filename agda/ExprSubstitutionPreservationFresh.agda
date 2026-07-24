@@ -74,7 +74,6 @@ open import ExprNormalTyping using
   ; _▻_
   ; _∷ˡ_
   ; _∷ᵘ_
-  ; normalTyOf
   ; wkNfTy
   ; wkNfTy-injective
   ; wkBinding
@@ -2744,7 +2743,7 @@ record SynthResult
     actualType : NfTy Δ (KV pk m)
     Γactual : Ctx Δ n
     derivation : Γin ⊢ e ⇒ actualType ⊣ Γactual
-    type-preservation : normalTyOf actualType <:ₜ normalTyOf T
+    type-preservation : actualType <:ₜ T
     leftover : Γactual ≈ᵘ Γexpected
 
 record CheckResult
@@ -2777,7 +2776,7 @@ record BinderStrengtheningResult
       (Tactual ∷ˡ Γin) ⊢ e ⇒ actualType
         ⊣ (B-Used Tactual ▻ Γout)
     type-preservation :
-      normalTyOf actualType <:ₜ normalTyOf Uexpected
+      actualType <:ₜ Uexpected
 
 ExpressionBinderStrengthening : Set
 ExpressionBinderStrengthening =
@@ -2786,7 +2785,7 @@ ExpressionBinderStrengthening =
     {T V : NfTy Δ (KV pkT Lin)}
     {U : NfTy Δ (KV pkU mU)}
     {e : Expr Δ (Data.Nat.suc n)}
-  → normalTyOf V <:ₜ normalTyOf T
+  → V <:ₜ T
   → (T ∷ˡ Γ₁) ⊢ e ⇒ U ⊣ (B-Used T ▻ Γ₂)
   → BinderStrengtheningResult Γ₁ e V U Γ₂
 

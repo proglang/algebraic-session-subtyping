@@ -267,7 +267,7 @@ check-subsumption :
     {e : Expr Δ n}
     {T U : NfTy Δ (KV pk m)}
   → Γ₁ ⊢ e ⇐ T ⊣ Γ₂
-  → normalTyOf T <:ₜ normalTyOf U
+  → T <:ₜ U
   → Γ₁ ⊢ e ⇐ U ⊣ Γ₂
 check-subsumption (T-Check d sub) sub′ = T-Check d (<:ₜ-trans sub sub′)
 
@@ -276,12 +276,12 @@ arrow-subtype-inversion :
     {A : NfTy Δ (KV pk₁ m₁)}
     {B : NfTy Δ (KV pk₂ m₂)}
     {X : NfTy Δ (KV KT m)}
-  → normalTyOf X <:ₜ normalTyOf (NT.N-Arrow {m = m} A B)
+  → X <:ₜ (NT.N-Arrow {m = m} A B)
   → Σ (NfTy Δ (KV pk₁ m₁)) λ A′ →
       Σ (NfTy Δ (KV pk₂ m₂)) λ B′ →
         (X ≡ NT.N-Arrow {m = m} A′ B′)
-        × (normalTyOf A <:ₜ normalTyOf A′)
-        × (normalTyOf B′ <:ₜ normalTyOf B)
+        × (A <:ₜ A′)
+        × (B′ <:ₜ B)
 arrow-subtype-inversion (<:ₜ-arrow dom cod) = _ , _ , refl , dom , cod
 
 pair-subtype-inversion :
@@ -289,21 +289,21 @@ pair-subtype-inversion :
     {T : NfTy Δ (KV pk₁ m)}
     {U : NfTy Δ (KV pk₂ m)}
     {X : NfTy Δ (KV KT m)}
-  → normalTyOf X <:ₜ normalTyOf (pairNf T U)
+  → X <:ₜ (pairNf T U)
   → Σ (NfTy Δ (KV pk₁ m)) λ T′ →
       Σ (NfTy Δ (KV pk₂ m)) λ U′ →
         (X ≡ pairNf T′ U′)
-        × (normalTyOf T′ <:ₜ normalTyOf T)
-        × (normalTyOf U′ <:ₜ normalTyOf U)
+        × (T′ <:ₜ T)
+        × (U′ <:ₜ U)
 pair-subtype-inversion (<:ₜ-pair l r) = _ , _ , refl , l , r
 
 poly-subtype-inversion :
   ∀ {Δ K m}
     {X : NfTy Δ (KV KT m)}
     {T : NfTy (K ∷ Δ) (KV KT m)}
-  → normalTyOf X <:ₜ normalTyOf (polyNf {K = K} T)
+  → X <:ₜ (polyNf {K = K} T)
   → Σ (NfTy (K ∷ Δ) (KV KT m)) λ T′ →
-      (X ≡ polyNf T′) × (normalTyOf T′ <:ₜ normalTyOf T)
+      (X ≡ polyNf T′) × (T′ <:ₜ T)
 poly-subtype-inversion (<:ₜ-poly sub) = _ , refl , sub
 
 strengthen-∋ᵘ :
@@ -313,7 +313,7 @@ strengthen-∋ᵘ :
   → Γ₁ <:Γ Γ₂
   → Γ₂ ∋ᵘ x ∶ T
   → Σ (NfTy Δ (KV pk Un)) λ T′ →
-      (Γ₁ ∋ᵘ x ∶ T′) × (normalTyOf T′ <:ₜ normalTyOf T)
+      (Γ₁ ∋ᵘ x ∶ T′) × (T′ <:ₜ T)
 strengthen-∋ᵘ (<:-sub-unr sub _) hereᵘ = _ , hereᵘ , sub
 strengthen-∋ᵘ (<:-un _) hereᵘ = _ , hereᵘ , <:ₜ-refl _
 strengthen-∋ᵘ (<:-lin rel) (thereᵘˡ x∈)
@@ -344,7 +344,7 @@ strengthen-take :
   → Σ (NfTy Δ (KV pk Lin)) λ T′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ˡ x ∶ T′ ⊣ Γ₃′)
-        × (normalTyOf T′ <:ₜ normalTyOf T
+        × (T′ <:ₜ T
         × Γ₃′ <:Γ Γ₃)
 strengthen-take (<:-sub-lin sub rel) take-here =
   _ , _ , take-here , sub , <:-sub-used sub rel
@@ -384,7 +384,7 @@ strengthen-var-lin :
   → Σ (NfTy Δ (KV pk Lin)) λ T′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ᵥ V-Var x ⇒ T′ ⊣ Γ₃′)
-        × (normalTyOf T′ <:ₜ normalTyOf T
+        × (T′ <:ₜ T
         × Γ₃′ <:Γ Γ₃)
 strengthen-var-lin rel take
   with strengthen-take rel take
@@ -400,7 +400,7 @@ strengthen-var-un :
   → Σ (NfTy Δ (KV pk Un)) λ T′ →
       Σ (Ctx Δ n) λ Γ₂′ →
         (Γ₁ ⊢ᵥ V-Var x ⇒ T′ ⊣ Γ₂′)
-        × (normalTyOf T′ <:ₜ normalTyOf T
+        × (T′ <:ₜ T
         × Γ₂′ <:Γ Γ₂)
 strengthen-var-un {Γ₁ = Γ₁} rel x∈
   with strengthen-∋ᵘ rel x∈
@@ -761,7 +761,7 @@ match-input-subtype-inversion :
     {ss : Subset.Subset k} {v : Variance}
     {P : NfTy Δ KP} {S : NfTy Δ SLin}
     {M : NfTy Δ SLin}
-  → normalTyOf M <:ₜ normalTyOf (MatchBranchInput ss v P S)
+  → M <:ₜ (MatchBranchInput ss v P S)
   → Σ (Subset.Subset k) λ ss′ →
       Σ (NfTy Δ KP) λ P′ →
       Σ (NfTy Δ SLin) λ S′ →
@@ -1028,7 +1028,7 @@ mutual
     → Σ (NfTy Δ (KV KT Lin)) λ W′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ᵥ V-Abs T e ⇒ W′ ⊣ Γ₃′)
-        × (normalTyOf W′ <:ₜ normalTyOf W
+        × (W′ <:ₜ W
         × Γ₃′ <:Γ Γ₃)
 
   strengthen-value-abs {Γ₁ = Γ₁} {T = T} {e = e} {W = W} rel d
@@ -1057,8 +1057,8 @@ mutual
     TV-Abs {U = U′} d″ ,
     subst
       (λ X →
-        normalTyOf (NT.N-Arrow {m = Lin} T U′)
-          <:ₜ normalTyOf X)
+        (NT.N-Arrow {m = Lin} T U′)
+          <:ₜ X)
       (sym eqW)
       (<:ₜ-arrow
         (<:ₜ-refl T)
@@ -1075,7 +1075,7 @@ mutual
     → Σ (NfTy (K ∷ Δ) (KV KT m)) λ T′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (wkCtx {K = K} Γ₁ ⊢ᵥ v ⇒ T′ ⊣ wkCtx Γ₃′)
-        × (normalTyOf T′ <:ₜ normalTyOf T
+        × (T′ <:ₜ T
         × Γ₃′ <:Γ Γ₃)
 
   strengthen-value-tabs {K = K} {Γ₁ = Γ₁} {Γ₂ = Γ₂} {Γ₃ = Γ₃} {v = v} {T = T} rel d =
@@ -1096,7 +1096,7 @@ mutual
     → Σ (NfTy Δ (KV pk m)) λ T′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ᵥ v ⇒ T′ ⊣ Γ₃′)
-        × (normalTyOf T′ <:ₜ normalTyOf T
+        × (T′ <:ₜ T
         × Γ₃′ <:Γ Γ₃)
 
   strengthen-value {Γ₁ = Γ₁} rel (TV-Const cT) =
@@ -1136,7 +1136,7 @@ mutual
     → Σ (NfTy Δ (KV pk m)) λ V′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ e ⇒ V′ ⊣ Γ₃′)
-        × (normalTyOf V′ <:ₜ normalTyOf V
+        × (V′ <:ₜ V
         × Γ₃′ <:Γ Γ₃)
 
   strengthen-synth-match :
@@ -1157,7 +1157,7 @@ mutual
     → Σ (NfTy Δ (KV pk m)) λ U′ →
       Σ (Ctx Δ n) λ Γ₃′ →
         (Γ₁ ⊢ E-Match {ss = ssbranches} e ne branches ⇒ U′ ⊣ Γ₃′)
-        × (normalTyOf U′ <:ₜ normalTyOf U
+        × (U′ <:ₜ U
         × Γ₃′ <:Γ Γ₃)
   strengthen-synth-match
       {Γmid = Γmid} {Γ₃ = Γ₃}

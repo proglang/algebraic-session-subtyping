@@ -39,9 +39,9 @@ Run the project verification command from the Agda project root:
 - [ ] remove-identities:
       Remove identify functions from the code base.
 
-	  Specifically:
-	  - ExprNormalTyping.normalTyOf is an identity function. Remove it.
-	  - find further identity functions and remove them.
+      Specifically:
+      - [x] remove `ExprNormalTyping.normalTyOf` and use its argument directly;
+      - [ ] find further identity functions and remove them.
 
 - [ ] unused-postulates:
       Remove unused postulates from the codebase.

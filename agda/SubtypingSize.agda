@@ -68,20 +68,3 @@ size-<<: {⊙ = ⊝} d = size-<: d
 size-<<: {⊙ = ⊘} T₁≡cT₂ = zero
 
 size-<: d = suc (size-<:-aux d)
-
-{-
-lemma-sub-loop : ∀ {p₃} {T₁ T₂ : Ty Δ KP} (T₁<<:T₂ : T₁ <<:[ injᵥ p₃ ] T₂)
-  → t-loop p₃ (nf ⊕ d?⊥ T₁) .proj₂ <<:[ injᵥ (t-loop p₃ (nf ⊕ d?⊥ T₁) .proj₁) ] t-loop p₃ (nf ⊕ d?⊥ T₂) .proj₂
--}
-{- may not be true
-lemma-sub-loop-preserves-size : {T₁ T₂ : Ty Δ KP} → ∀ p → (T₁<<:T₂ : T₁ <<:[ injᵥ p ] T₂) →
-  size-<<: (lemma-sub-loop T₁<<:T₂) ≤ size-<<: T₁<<:T₂
-lemma-sub-loop-preserves-size {T₁ = T₁} {T₂ = T₃} ⊕ (<:-trans {T₂ = T₂} T₁<<:T₂ T₂<<:T₃) = {!!}
-lemma-sub-loop-preserves-size ⊕ <:-var = s≤s z≤n
-lemma-sub-loop-preserves-size ⊕ (<:-up T₁<<:T₂) = {!!}
-lemma-sub-loop-preserves-size ⊕ (<:-proto x x₁) = {!!}
-lemma-sub-loop-preserves-size ⊕ (<:-minus T₁<<:T₂) = {!!}
-lemma-sub-loop-preserves-size ⊕ (<:-minus-minus-l T₁<<:T₂) = {!!}
-lemma-sub-loop-preserves-size ⊕ (<:-minus-minus-r T₁<<:T₂) = {!!}
-lemma-sub-loop-preserves-size ⊝ T₁<<:T₂ = {!!}
--}

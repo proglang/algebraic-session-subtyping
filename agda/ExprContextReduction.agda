@@ -172,7 +172,7 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
       {U : NfTy [] (KV pk Lin)}
       {S : NfTy [] SLin} {v : Value [] n}
     → Γv-in ⊢ᵥ v ⇒ U ⊣ Γv-used
-    → normalTyOf U <:ₜ normalTyOf T
+    → U <:ₜ T
     → AllUsed Γv-used
     → LinearDisjoint Γ₀ Γv-in
     → Γ₀ ∋ˡ x ∶ recvChanNf T S
@@ -188,7 +188,7 @@ data _—ctx[_]→_ : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] (length 
       {S : NfTy [] SLin} {v : Value [] n}
     → RemoveCtx Γ₀ Γv Γx
     → Γv ⊢ᵥ v ⇒ U ⊣ Γv′
-    → normalTyOf U <:ₜ normalTyOf T
+    → U <:ₜ T
     → AllUsed Γv′
     → Γx ∋ˡ x ∶ sendChanNf T S
     → ReplaceAt Γx x (B-Lin S) Γ₁
@@ -284,7 +284,7 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
     → Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′
     → AllUsed Γin′
     → Γv ⊢ᵥ v ⇒ U ⊣ Γv′
-    → normalTyOf U <:ₜ normalTyOf T
+    → U <:ₜ T
     → AllUsed Γv′
     → LinearDisjoint Γin Γv
     → L-RecvVal x v ⦂ Γin ⇒ Γv
@@ -303,7 +303,7 @@ data _⦂_⇒_ : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] n → Set whe
       {S : NfTy [] SLin} {v : Value [] n}
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
     → Γv ⊢ᵥ v ⇒ U ⊣ Γin′
-    → normalTyOf U <:ₜ normalTyOf T
+    → U <:ₜ T
     → AllUsed Γin′
     → L-SendVal x v ⦂ Γin ⇒ Γv
 
@@ -354,23 +354,6 @@ data FrameUpdate : ∀ {n Θ} → Label n Θ → Ctx [] n → Ctx [] (length Θ 
   FU-Close : ∀ {n} {Γ : Ctx [] n} {x : Fin n}
     → FrameUpdate (L-Close x) Γ Γ
 
-{-
-frm-to-frame-update :
-  ∀ {n Θ}
-    {Γ : Ctx [] n} {Γ′ : Ctx [] (length Θ + n)}
-    {ℓ : Label n Θ}
-  → Γ —frm[ ℓ ]→ Γ′
-  → FrameUpdate ℓ Γ Γ′
-frm-to-frame-update Frm-β = FU-β
-frm-to-frame-update Frm-New = {!!}
-frm-to-frame-update Frm-Fork = FU-Fork
-frm-to-frame-update (Frm-Rcv _) = FU-RecvVal
-frm-to-frame-update (Frm-Send _) = FU-SendVal
-frm-to-frame-update Frm-Close = FU-Close
-frm-to-frame-update (Frm-Match _ _) = FU-RecvLab
-frm-to-frame-update (Frm-Select _) = FU-SendLab
--}
-
 data Compatible :
   ∀ {n Θ}
     {Γ₀ : Ctx [] n} {Γ₁ : Ctx [] (length Θ + n)}
@@ -420,7 +403,7 @@ data Compatible :
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
       {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γv′}
-      {sub : normalTyOf U <:ₜ normalTyOf T}
+      {sub : U <:ₜ T}
       {au : AllUsed Γv′}
       {ldin : LinearDisjoint Γin Γv}
     → Compatible {Γ₀ = Γ₀} {Γ₁ = Γ₁} {ℓ = L-RecvVal x v}
@@ -435,7 +418,7 @@ data Compatible :
       {S : NfTy [] SLin} {v : Value [] n}
       {rm : RemoveCtx Γ₀ Γv Γx}
       {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γv′}
-      {sub : normalTyOf U <:ₜ normalTyOf T}
+      {sub : U <:ₜ T}
       {auv : AllUsed Γv′}
       {x∈ : Γx ∋ˡ x ∶ sendChanNf T S}
       {rep : ReplaceAt Γx x (B-Lin S) Γ₁}
@@ -514,7 +497,7 @@ data InputCompatible :
       {take : Γin ⊢ˡ x ∶ recvChanNf T S ⊣ Γin′}
       {auin : AllUsed Γin′}
       {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γv′}
-      {sub : normalTyOf U <:ₜ normalTyOf T}
+      {sub : U <:ₜ T}
       {auv : AllUsed Γv′}
       {ld : LinearDisjoint Γin Γv}
     → RemoveCtx Γ₀ Γin Γr
@@ -532,7 +515,7 @@ data InputCompatible :
       {pk} {T U : NfTy [] (KV pk Lin)} {S : NfTy [] SLin}
       {take : Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv}
       {dv : Γv ⊢ᵥ v ⇒ U ⊣ Γr}
-      {sub : normalTyOf U <:ₜ normalTyOf T}
+      {sub : U <:ₜ T}
       {auv : AllUsed Γr}
     → RemoveCtx Γ₀ Γin Γr
     → InputCompatible Γ₀ {ℓ = L-SendVal x v}
@@ -592,7 +575,7 @@ data Extract : ∀ {n Θ} → Ctx [] n → Label n Θ → Ctx [] n → Set where
     → RemoveCtx Γ₀ Γin Γr
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
     → Γv ⊢ᵥ v ⇒ U ⊣ Γin′
-    → normalTyOf U <:ₜ normalTyOf T
+    → U <:ₜ T
     → AllUsed Γin′
     → Extract Γ₀ (L-SendVal x v) Γin
 

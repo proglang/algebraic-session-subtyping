@@ -90,7 +90,7 @@ data SendValueResources
     → RemoveCtx Γ Γin Γrest
     → Γin ⊢ˡ x ∶ sendChanNf T S ⊣ Γv
     → Γv ⊢ᵥ v ⇒ U ⊣ Γout
-    → normalTyOf U <:ₜ normalTyOf T
+    → U <:ₜ T
     → AllUsed Γout
     → SendValueResources Γ x v
 

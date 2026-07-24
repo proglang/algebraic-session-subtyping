@@ -105,9 +105,9 @@ record RecursiveUnfoldingResult
     actualType : NfTy Δ (KV KT Un)
     derivation : Γ ⊢ᵥ v ⇒ actualType ⊣ Γ
     type-preservation :
-      ExprNormalTyping.normalTyOf actualType
+      actualType
         <:ₜ
-      ExprNormalTyping.normalTyOf (unArrNf T U)
+      (unArrNf T U)
 
 recursive-unfolding-preserves-value :
   ∀ {Δ n pkT pkU mT mU}

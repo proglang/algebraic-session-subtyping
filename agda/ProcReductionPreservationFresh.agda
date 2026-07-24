@@ -1507,7 +1507,7 @@ recv-result-replacement :
     {input-used : AllUsed Γin′}
     {payload : P ⊢ᵥ v ⇒ U ⊣ Pout}
     {payload-sub :
-      normalTyOf U <:ₜ normalTyOf Payload}
+      U <:ₜ Payload}
     {payload-used : AllUsed Pout}
     {input-payload-disjoint : ECP.LinearDisjoint Γin P}
     (result :
@@ -2150,7 +2150,7 @@ fork-head-preserves step (TT-∷ outer source source-au rest)
         (check-subsumption
           (T-Check
             (T-Val (TV-Const CT-Unit))
-            (<:ₜ-refl (normalTyOf unitConstNf)))
+            (<:ₜ-refl (unitConstNf)))
           unit<:A))
       U<:unit)
     closure-au
@@ -2330,7 +2330,7 @@ message-head-preserves
           payload
           (subst
             (λ T →
-              normalTyOf U <:ₜ normalTyOf T)
+              U <:ₜ T)
             (sym payload-eq)
             payload-sub)
           payload-used
@@ -2348,7 +2348,7 @@ message-head-preserves
             payload
             (subst
               (λ T →
-                normalTyOf U <:ₜ normalTyOf T)
+                U <:ₜ T)
               (sym payload-eq)
               payload-sub)
             payload-used

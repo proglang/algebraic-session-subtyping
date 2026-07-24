@@ -21,7 +21,6 @@ open import ExprNormalTyping using
   ; Ctx
   ; _▻_
   ; _∷ˡ_
-  ; normalTyOf
   ; _⊢ᵥ_⇒_⊣_
   ; _⊢_⇒_⊣_
   )
@@ -147,7 +146,7 @@ record DoubleBinderStrengtheningResult
     derivation :
       (Tactual ∷ˡ (Uactual ∷ˡ Γin)) ⊢ e ⇒ actualType
         ⊣ (B-Used Tactual ▻ (B-Used Uactual ▻ Γout))
-    type-preservation : normalTyOf actualType <:ₜ normalTyOf Vexpected
+    type-preservation : actualType <:ₜ Vexpected
 
 strengthen-double-binder :
   ∀ {Δ n pkT pkU pkV mV}
@@ -156,8 +155,8 @@ strengthen-double-binder :
     {U U′ : NfTy Δ (KV pkU Lin)}
     {V : NfTy Δ (KV pkV mV)}
     {e : Expr Δ (Data.Nat.suc (Data.Nat.suc n))}
-  → normalTyOf T′ <:ₜ normalTyOf T
-  → normalTyOf U′ <:ₜ normalTyOf U
+  → T′ <:ₜ T
+  → U′ <:ₜ U
   → (T ∷ˡ (U ∷ˡ Γin)) ⊢ e ⇒ V
       ⊣ (B-Used T ▻ (B-Used U ▻ Γout))
   → DoubleBinderStrengtheningResult Γin e T′ U′ V Γout
