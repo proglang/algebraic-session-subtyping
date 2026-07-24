@@ -81,6 +81,7 @@ have dual session types.
 
 %\input{fig-ctx}
 \input{fig-type-constants}
+\input{fig-alg-subtyping}
 \input{fig-alg-typing}
 
 Expression typing is again mostly standard with respect to (linear) functional
@@ -91,6 +92,34 @@ $\appe\selectk{C}$ (\cref{fig:type-constants}) and $\matchk$
 The $\typeofop$ operator in~\cref{fig:type-constants} returns the
 types for constants in normal form. The typing rules for expressions are defined
 in~\cref{fig:alg-typing}. 
+%
+Algorithmic subtyping is invoked only by rule \rulenameexpCheck, and both types
+in its premise are in normal form.  \Cref{fig:alg-subtyping} gives the two
+protocol-specific clauses, where $I$ and $J$ are nonempty subsets of the
+constructors of $\proto$.  The relation
+$\paramsSubt{\proto}{P}{Q}$ compares parameters pointwise according to the
+variance inferred from the declaration of $\proto$.  Writing
+$\mathsf{var}_{\proto}(i)$ for the variance of its $i$th parameter, we define
+\[
+  \paramsSubt{\proto}{P}{Q}
+  \quad\Longleftrightarrow\quad
+  \text{for every }i,\quad
+  \begin{cases}
+    \typec{P_i}\subt\typec{Q_i}
+      & \text{if }\mathsf{var}_{\proto}(i)=+,\\
+    \typec{Q_i}\subt\typec{P_i}
+      & \text{if }\mathsf{var}_{\proto}(i)=-,\\
+    \typec{P_i}=\typec{Q_i}
+      & \text{if }\mathsf{var}_{\proto}(i)=0.
+  \end{cases}
+\]
+Thus invariant parameters are equal as normal forms.  Input is covariant in
+its protocol argument, whereas output is contravariant; both are covariant in
+their continuation.  Protocol inversion reverses subtyping:
+$\typec P\subt\typec Q$ if and only if
+$\pneg Q\subt\pneg P$.  The remaining clauses are the standard
+syntax-directed structural rules and are omitted.  The mechanization contains
+the full inductive definition and its decision procedure.
 %
 The type system is algorithmic, implemented with two mutually recursive
 judgments: one to synthetize a type of an expression, the other to check an

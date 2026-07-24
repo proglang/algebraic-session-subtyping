@@ -352,6 +352,9 @@
 \newcommand{\rulenametype}[1]{\rulename{T}{#1}}  % T- for type formation
 \newcommand{\rulenametconv}[1]{\rulename{C}{#1}}  % C- for type conversion
 \newcommand{\rulenameexp}[1]{\rulename{E}{#1}}   % E- for expressions
+\newcommand{\rulenamesub}[1]{\rulename{S}{#1}}   % S- for algorithmic subtyping
+\newcommand{\rulenamesubIn}{\rulenamesub{In}}
+\newcommand{\rulenamesubOut}{\rulenamesub{Out}}
 
 % T- rule names
 \newcommand{\rulenametypeEnd}{\rulenametype{End}}
@@ -502,6 +505,7 @@
 \newcommand{\js}[1]{\todo[js]{#1}}
 
 \newcommand{\subt}{\le}
+\newcommand{\paramsSubt}[3]{\typec{\overline{#2}}\mathrel{\preceq_{\typec{#1}}}\typec{\overline{#3}}}
 
 % Subtyping between two LTS (not needed in this form).
 \newcommand\SubLTS{\preceq}

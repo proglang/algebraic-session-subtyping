@@ -93,7 +93,8 @@ $\TPApp \proto {\overline{T}}$ for the full type
 $\TPAppSet \proto I {\overline{T}}$.  For fixed parameters, constructor-set
 inclusion induces subtyping:
 $\TPAppSet \proto J {\overline{T}}\subt
-\TPAppSet \proto K {\overline{T}}$ whenever $J\subseteq K$.
+\TPAppSet \proto K {\overline{T}}$ whenever $J\subseteq K$; the
+protocol-specific rules are given in \cref{fig:alg-subtyping}.
 The
 operator ``\typec{$-$}'' reverses the direction of communication of its
 protocol parameter. While duality transforms session types

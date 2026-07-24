@@ -1,0 +1,29 @@
+\begin{figure}[t!]
+  \declrel{Algorithmic subtyping of normal forms}
+    {$\typec T \subt \typec U$}
+  \begin{mathpar}
+    \infrule{\rulenamesubIn}
+      {I\subseteq J \\
+       \paramsSubt{\proto}{P}{Q} \\
+       \typec S\subt\typec T}
+      {\TIn{(\TPAppSet \proto I {\overline P})}{S}
+       \subt
+       \TIn{(\TPAppSet \proto J {\overline Q})}{T}}
+
+    \infrule{\rulenamesubOut}
+      {J\subseteq I \\
+       \paramsSubt{\proto}{Q}{P} \\
+       \typec S\subt\typec T}
+      {\TOut{(\TPAppSet \proto I {\overline P})}{S}
+       \subt
+       \TOut{(\TPAppSet \proto J {\overline Q})}{T}}
+  \end{mathpar}
+  \caption{Protocol-specific algorithmic subtyping rules for types in normal
+    form. Standard structural rules are omitted.}
+  \label{fig:alg-subtyping}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:
