@@ -52,19 +52,18 @@ types in normal form, only:
 	%% sessions
 	\algsttocfst{\TIn{T}{U}}= ?\algsttocfst{\typec{T}}; \algsttocfst{\typec U} \qquad
 	\algsttocfst{\TOut{T}{U}}= !\algsttocfst{\typec T}; \algsttocfst{\typec U} \qquad 
-	\algsttocfst{\TEndT} = \syntax{skip} \qquad 
-	\algsttocfst{\TEndW} = \syntax{skip}\\
+	\algsttocfst{\TEnd} = \syntax{skip}\\
 	\algsttocfst{\TIn{\TPApp{P}{\overline U}}{S}}= P_U; \algsttocfst{\typec S} 
 	\text{ where } 
 	P_U \doteq \&\{ C_i\colon
-	\algsttocfst{\TFIn {\overline{T_i[\overline U/\overline\alpha]}}{\TEndT}} \}_{i\in I}
+	\algsttocfst{\TFIn {\overline{T_i[\overline U/\overline\alpha]}}{\TEnd}} \}_{i\in I}
 	\text{ for }
 \protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I} } \\
 	\algsttocfst{\TOut{\TPApp{P}{\overline U}}{S}}= P_U; \algsttocfst{\typec S} 
 	\text{ where } 
 	%% \algsttocfst{\polarizedparam{-}{T}} = \syntax{dual}\, \algsttocfst{\typec T} \\
 	P_U \doteq \oplus\{ C_i\colon
-        \algsttocfst{\TFOut {\overline{T_i[\overline U/\overline\alpha]}}{\TEndT}} \}_{i\in I}
+        \algsttocfst{\TFOut {\overline{T_i[\overline U/\overline\alpha]}}{\TEnd}} \}_{i\in I}
         \text{ for }
 	\protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I} }
     \end{mathpar}
@@ -206,13 +205,14 @@ formally defined by:
 \begin{lstlisting}
 delta t u = match u with {
   XU u -> let t = select XT t in 
-          wait u 
-          |> terminate t }
+          close u
+          |> close t }
 \end{lstlisting}
 Process $\delta$ \lstinline|match|es with $X_U$ on channel $u$ and \lstinline|select|s $X_T$ on channel $t$, as prescribed by the
 protocol definitions resulting from $\cfsttoalgst{\syntax{Skip}}$ (see~\cref{fig:cfst-vs-algst-f}). According
-to the definition of $\cfsttoalgst{\syntax{Skip}}$ and \rulenameexpMatch, we are left with type $\TEndW$ 
-on $u$ and $\TEndT$ on $t$, so we \lstinline|wait| on $u$ and \lstinline|terminate| on $t$. 
+to the definition of $\cfsttoalgst{\syntax{Skip}}$ and \rulenameexpMatch, we are
+left with type $\TEnd$ on both $u$ and $t$, so we apply \lstinline|close| to
+both endpoints.
 
 In general, $\delta$ inserts the explicit unfolds imposed by the translation to the isorecursive setting.
 We showcase our approach for the equivalence $Y \simeq U$ where type $Y$ is defined by $T$, $Y \doteq T$.

@@ -14,13 +14,13 @@
 	\text{ for } X \doteq T \text{ and } \kappa \neq \mathsf{S^{lin}}
 	\text{ where }
 	\datak\ \typec{X}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoalgst{T}}\\
-	\cfsttoalgst{T\colon \mathsf{S^{lin}}} = \TOut{X_T}{\TEndT} \text{ where }\protocolk\ \typec{X_T}~\blk{=}~\typec{\termc{X_T}\ \cfsttoprot T}\text{ and $X_T$ is a fresh name.}
+	\cfsttoalgst{T\colon \mathsf{S^{lin}}} = \TOut{X_T}{\TEnd} \text{ where }\protocolk\ \typec{X_T}~\blk{=}~\typec{\termc{X_T}\ \cfsttoprot T}\text{ and $X_T$ is a fresh name.}
 %% old version, with polymorphic types
 %		\datak\ \typec{X\ \overline{\alpha}}~\blk{=}~\typec{\termc{\mathsf{Unfold}_X}\ \cfsttoalgst{T}} \text{ and }\FVL{T} = \overline\alpha\\
 %	\cfsttoalgst{\langle \ell_1 \colon T_1, \ldots, \ell_n \colon T_n\rangle} = \TPApp {X_{\langle\ell_1\cdots \ell_n\rangle}}{\overline{\alpha}} \text{ where }\datak\ \typec{X_{\langle\ell_1\cdots \ell_n\rangle}\ \overline{\alpha}}~\blk{=}~\typec{\termc{\ell_1}\ \cfsttoalgst{T_1} \mid \ldots \mid \termc{\ell_n}\ \cfsttoalgst{T_n}} 
 %	\text{ and }\cup_{i=1}^n \FVL{T_i} = \overline\alpha
 %\\
-%	\cfsttoalgst{T\colon \mathsf{S^{lin}}} = \TOut{X_T}{\TEndT} \text{ where }\protocolk\ \typec{X_T}~\blk{=}~\typec{\termc{X_T}\ \cfsttoprot T}\text{ and $X_T$ is a fresh name.}
+%	\cfsttoalgst{T\colon \mathsf{S^{lin}}} = \TOut{X_T}{\TEnd} \text{ where }\protocolk\ \typec{X_T}~\blk{=}~\typec{\termc{X_T}\ \cfsttoprot T}\text{ and $X_T$ is a fresh name.}
     \end{mathpar}
     
     \declrel{CFST to AlgST:Translation of the session typed fragment}{$\cfsttoprot{T\colon \mathsf{S^{lin}}}=\typec{\overline {T\colon \kindp}}$}

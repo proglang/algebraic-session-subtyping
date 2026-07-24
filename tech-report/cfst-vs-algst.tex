@@ -17,9 +17,9 @@
 
 % The direction of the communication is not settled until the parameter is
 % instantiated and the protocol is materialized: a stream of integer values is
-% governed by type $\TOut{\mathsf{Stream\,Int}}{\TEndT}$, while a process
+% governed by type $\TOut{\mathsf{Stream\,Int}}{\TEnd}$, while a process
 % that receives integers \emph{ad aeternum} may be typed by
-% $\TOut{\mathsf{Stream\,-Int}}{\TEndT}$. If we were to define a context-free
+% $\TOut{\mathsf{Stream\,-Int}}{\TEnd}$. If we were to define a context-free
 % counterpart for \lstinline|Stream|, we could think of types
 % $\forall \alpha\colon\kindm. \mu x\colon \kinds. !\alpha; x$ or
 % $\forall \alpha\colon\kindm. \mu x\colon \kinds. ?\alpha; x$ but both commit to
@@ -82,19 +82,18 @@ types in normal form, only:
 	%% sessions
 	\algsttocfst{\TIn{T}{U}}= ?\algsttocfst{\typec{T}}; \algsttocfst{\typec U} \qquad
 	\algsttocfst{\TOut{T}{U}}= !\algsttocfst{\typec T}; \algsttocfst{\typec U} \qquad 
-	\algsttocfst{\TEndT} = \syntax{skip} \qquad 
-	\algsttocfst{\TEndW} = \syntax{skip}\\
+	\algsttocfst{\TEnd} = \syntax{skip}\\
 	\algsttocfst{\TIn{\TPApp{P}{\overline U}}{S}}= P_U; \algsttocfst{\typec S} 
 	\text{ where } 
 	P_U \doteq \&\{ C_i\colon
-	\algsttocfst{\TFIn {\overline{T_i[\overline U/\overline\alpha]}}{\TEndT}} \}_{i\in I}
+	\algsttocfst{\TFIn {\overline{T_i[\overline U/\overline\alpha]}}{\TEnd}} \}_{i\in I}
 	\text{ for }
 \protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I} } \\
 	\algsttocfst{\TOut{\TPApp{P}{\overline U}}{S}}= P_U; \algsttocfst{\typec S} 
 	\text{ where } 
 	%% \algsttocfst{\polarizedparam{-}{T}} = \syntax{dual}\, \algsttocfst{\typec T} \\
 	P_U \doteq \oplus\{ C_i\colon
-        \algsttocfst{\TFOut {\overline{T_i[\overline U/\overline\alpha]}}{\TEndT}} \}_{i\in I}
+        \algsttocfst{\TFOut {\overline{T_i[\overline U/\overline\alpha]}}{\TEnd}} \}_{i\in I}
         \text{ for }
 	\protocolk\ \typec{\proto\ \overline{\alpha}}~\blk{=}~\typec{\{{\termc{\constr_i}\ \overline{T_i}}\}_{i\in I} }
     \end{mathpar}

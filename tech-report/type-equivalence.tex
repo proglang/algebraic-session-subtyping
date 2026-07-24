@@ -95,9 +95,9 @@ Normal forms for well formed types are $\typec{R^-}$ such that:
   \TUnit \grmor \TFun[]{R}{R} \grmor \TPair{R}{R} \grmor
   \typec{\alpha} \grmor \TForall \alpha \kind {R}
   % session types
-  \grmor \TEndW \grmor \TEndT \grmor \TIn{R}{R} \grmor \TOut{R}{R} \grmor \TDual{\alpha}
+  \grmor \TEnd \grmor \TIn{R}{R} \grmor \TOut{R}{R} \grmor \TDual{\alpha}
   % protocol and data types
-  \grmor \TPApp X {\overline{R^-}}
+  \grmor \TPAppSet X J {\overline{R^-}}
 \end{align*}
 Essentially, the negative polarity can only occur at most once at the top level (of
 a type of kind $\kindp$) and in the parameters of a protocol type. The

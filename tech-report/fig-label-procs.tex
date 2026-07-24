@@ -4,40 +4,40 @@
   \begin{mathpar}
     \infrule{Act-Beta}
     {\trans{e}{\beta}{e'} }
-    {\trans{(\{e\}\uplus E,L)}\tau
-      {(\{e'\}\uplus E,L)} }
+    {\trans{(\mset{e}\uplus E,L)}\tau
+      {(\mset{e'}\uplus E,L)} }
 
     \infrule{Act-Fork}
     {\trans{e}{\forkl v}{e'} }
-    {\trans{(\{e\}\uplus E,L)}\tau
-      {(\{e',\appe v\unitk\}\uplus E,L)} }
+    {\trans{(\mset{e}\uplus E,L)}\tau
+      {(\mset{e',\appe v\unitk}\uplus E,L)} }
 
     \infrule{Act-New}
     {\trans{e}{\newl xyS}{e'} \and x\ne y \\
-      x,y\notin(\{e\}\uplus E,L) }
-    {\trans{(\{e\}\uplus E,L)}{\newl xyS}
-      {(\{e'\}\uplus E,L\cup\{\{x,y\}\})} }
+      x,y\notin(\mset{e}\uplus E,L) }
+    {\trans{(\mset{e}\uplus E,L)}{\newl xyS}
+      {(\mset{e'}\uplus E,L\cup\{\{x,y\}\})} }
 
     \infrule{Act-Msg}
     {\{x,y\}\in L \\
       \trans{e_1}{\receivel xv}{e_1'} \and
       \trans{e_2}{\sendl yv}{e_2'} }
-    {\trans{(\{e_1,e_2\}\uplus E,L)}\tau
-      {(\{e_1',e_2'\}\uplus E,L)} }
+    {\trans{(\mset{e_1,e_2}\uplus E,L)}\tau
+      {(\mset{e_1',e_2'}\uplus E,L)} }
 
     \infrule{Act-Bra}
     {\{x,y\}\in L \\
       \trans{e_1}{\receivel x{C}}{e_1'} \and
       \trans{e_2}{\sendl y{C}}{e_2'} }
-    {\trans{(\{e_1,e_2\}\uplus E,L)}\tau
-      {(\{e_1',e_2'\}\uplus E,L)} }
+    {\trans{(\mset{e_1,e_2}\uplus E,L)}\tau
+      {(\mset{e_1',e_2'}\uplus E,L)} }
 
     \infrule{Act-Wait}
     {\{x,y\}\in L \\
       \trans{e_1}{\closel x}{e_1'} \and
       \trans{e_2}{\closel y}{e_2'} }
-    {\trans{(\{e_1,e_2\}\uplus E,L)}\tau
-      {(\{e_1',e_2'\}\uplus E,L\setminus\{\{x,y\}\})} }
+    {\trans{(\mset{e_1,e_2}\uplus E,L)}\tau
+      {(\mset{e_1',e_2'}\uplus E,L\setminus\{\{x,y\}\})} }
   \end{mathpar}
   \caption{Labelled transition system for process configurations}
   \label{fig:lts-procs}

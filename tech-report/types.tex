@@ -61,13 +61,13 @@ Here is the grammar of types:
   \TForall \alpha \kind T \grmor \typec{\alpha} \grmor
   && \text{functional types}
   \\
-  & \TIn TS \grmor \TOut TS \grmor \TEndW \grmor \TEndT \grmor \TDual S \grmor
+  & \TIn TS \grmor \TOut TS \grmor \TEnd \grmor \TDual S \grmor
   && \text{session types}
   % \\
   % & \typec{\alpha} \grmor
   % & \text{functional and session types}
   \\
-  & \TPApp \proto {\overline{T}} \grmor \pneg T 
+  & \TPAppSet \proto J {\overline{T}} \grmor \pneg T
   && \text{protocol types}
 \end{align*}
 %   \caption{Grammar of types}
@@ -80,17 +80,21 @@ types (kind $\kinds$). Metavariables $\typec T, \typec U$ range over functional 
 Functional types comprise the usual types of linear System F: unit,
 function, product, universal quantification, and type variables.
 % The handling of the unit type serves as blueprint for other primitive types.
-The session type operators are receiving, sending,
-passive and active termination, and the dual operator. The dual
+The session type operators are receiving, sending, termination, and the dual
 operator swaps the direction of all communications in the spine of a
-session type. Thus, a session type is a
-sequence of communications either terminated by $\TEndW$ or by
-$\TEndT$, or extensible with a type variable $\typec\alpha$ of kind $\kinds$.
+session type. Thus, a session type is a sequence of communications terminated
+by $\TEnd$, or extensible with a type variable $\typec\alpha$ of kind $\kinds$.
 
 
-The protocol type
-$\TPApp \proto {\overline{T}}$ refers to the protocol declared as
-$\proto$ with parameters $\typec{\overline{T}}$. The
+If protocol $\proto$ has constructors indexed by $I$, then
+$\TPAppSet \proto J {\overline{T}}$ denotes the constructor subtype restricted
+to a nonempty set $J\subseteq I$.  We write
+$\TPApp \proto {\overline{T}}$ for the full type
+$\TPAppSet \proto I {\overline{T}}$.  For fixed parameters, constructor-set
+inclusion induces subtyping:
+$\TPAppSet \proto J {\overline{T}}\subt
+\TPAppSet \proto K {\overline{T}}$ whenever $J\subseteq K$.
+The
 operator ``\typec{$-$}'' reverses the direction of communication of its
 protocol parameter. While duality transforms session types
 outside-in, the reverse operator transforms protocols inside-out.
@@ -134,9 +138,9 @@ polymorphism (\rulenametypePoly)
 have kind $\kindt$ like their constituents. Variables have any kind
 that has been assigned to them (\rulenametypeVar).
 %
-\algst's notion of session type distinguishes passive $\TEndW$ and active
-$\TEndT$ termination of a session (\rulenametypeEndW, \rulenametypeEndT), and the
-dual operator (\rulenametypeDual). Conventional session types require types for
+\algst's session type $\TEnd$ marks a completed session
+(\rulenametypeEnd), and is self-dual. The dual operator is governed by
+\rulenametypeDual. Conventional session types require types for
 the values exchanged in messages; here we ask for protocols instead
 (\rulenametypeDotIn and \rulenametypeDotOut).
 %
@@ -169,8 +173,9 @@ This declaration defines the protocol type constructor $\proto$ that takes as
 many parameters as indicated by $\typec{\overline\alpha}$. The protocol has choices
 indexed by $i\in I$. Each choice is tagged by a \emph{selector tag} $\termc{\constr_i}$
 that guards a sequence of subprotocols $\typec{\overline{T_i}}$, to be processed in that
-order. We assume that selector tags are globally unique. Program may use any
-full application $\TPApp \proto {\overline U}$ as a protocol type.
+order. We assume that selector tags are globally unique. Programs may use any
+nonempty constructor subtype $\TPAppSet \proto J {\overline U}$ as a protocol
+type. As above, omission of $J$ denotes the full constructor set $I$.
 %
 % For a data protocol, we can indicate our intent by using the $\datak$
 % keyword instead of $\protocolk$. Moreover, all parameters must be
@@ -223,7 +228,7 @@ rules. Conversion is reflexive, symmetric, and transitive
 %
 We define duality as a conversion on session types. The rules entail
 that duality changes the direction of transmissions from the outside
-(\rulenametconvDualEndW, \rulenametconvDualEndT,
+(\rulenametconvDualEnd,
 \rulenametconvDualInM, \rulenametconvDualOutM)
 and that duality is involutory (\rulenametconvDoubleS). Kind subsumption is lifted to conversion (\rulenametconvSub). The last line
 governs the interaction between the reverse operator and the session
@@ -265,7 +270,7 @@ declarative rules.
 %   \TForall \alpha \kind {R} \grmor \typec\alpha
 %   % session types
 %   \grmor \TIn{R}{R} \grmor \TOut{R}{R}
-%   \grmor \TEndW \grmor \TEndT  \grmor
+%   \grmor \TEnd \grmor
 %   \TDual{\alpha}
 %   % protocol and data types
 %   \grmor \TPApp \proto {\overline{Q}}
@@ -276,7 +281,7 @@ $\dualk$ operator only appears on type variables, at the end of
 the spine of a session type. Thus an algorithm to compute normal forms
 must push all $\dualk$ operators down the spine of a session type
 by applying the conversion rules \rulenametconvDualInM, \rulenametconvDualOutM,
-\rulenametconvDualEndW, and \rulenametconvDualEndT from left to
+and \rulenametconvDualEnd from left to
 right. If it encounters another $\dualk$ operator along the
 spine, it applies rule \rulenametconvDoubleS. We cannot further resolve
 $\TDual\alpha$, hence it is a normal form.
@@ -310,7 +315,7 @@ $^-$ indicates a pending $\dualk$ type constructor, so that
 the function $\Normal[-]\_$ is only used for session
 types. Normalization pushes the pending dual constructor along the spine of a session type to
 implement rules \rulenametconvDualInM, \rulenametconvDualOutM,
-\rulenametconvDualEndW, and \rulenametconvDualEndT. The pending dualization gets reified on
+and \rulenametconvDualEnd. The pending dualization gets reified on
 a type variable.
 
 Normalizing a reversed protocol $\TMinus T$ invokes the negative directional

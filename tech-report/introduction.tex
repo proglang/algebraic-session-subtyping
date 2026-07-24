@@ -19,7 +19,7 @@ types like \lstinline{IntListS} (session type for sending finitely many integers
 close) and \lstinline{IntStreamS} (send infinitely many integers) that
 are assigned to one end of a communication channel:
 \begin{lstlisting}
-  type IntListS   = mualpha. oplus{Cons: !Int.alpha, Nil: EndT} -- finite sequences
+  type IntListS   = mualpha. oplus{Cons: !Int.alpha, Nil: End} -- finite sequences
   type IntStreamS = mualpha. !Int.alpha                    -- infinite sequence
 \end{lstlisting}
 In session types, the $\oplus\{l_i:S_i\}$ constructor stands for
@@ -166,7 +166,7 @@ subtype of an algebraic data type is defined by a non-empty subset of its
 constructors. In our framework, the protocol \lstinline{IntListP} comes in
 three variants: \lstinline{IntListP[Nil]}, \lstinline{IntListP[Cons]},
 and \lstinline{IntListP[Nil,Cons]} ($=$ \lstinline{IntListP}). They roughly correspond to the
-session types \lstinline|oplus{Nil: EndT}|,
+session types \lstinline|oplus{Nil: End}|,
 \lstinline|mualpha.oplus{Cons: !Int.alpha}|, and
 \lstinline{IntListS}. To define the subtyping relation on these
 variants, we have to give the protocol a \emph{direction}: the type

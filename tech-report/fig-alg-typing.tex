@@ -1,5 +1,5 @@
 \begin{figure}[t!]
-\declrel{Type synthesis}{$\expSynth\Gamma eT\Gamma$}
+\declrel{Type synthesis}{$\expSynth{\Gamma_1}eT{\Gamma_2}$}
 \begin{mathpar}
   \axiom{\rulenameexpConst}{\expSynth{\Gamma}{c}{\typeof{\termc c}}{\Gamma}}
   
@@ -30,7 +30,7 @@
   {\expSynth{\Gamma_1}{\paire {e_1}{e_2}}{\TPair {\typec T} {U}}{\Gamma_3}}
 
   \infrule{\rulenameexpRec}
-  {\typeAgainst{T}{\kindt} \\
+  {\typeAgainst{T}{\kindt} \and \typeAgainst{U}{\kindt} \\
     \Normal[+]{\TFun[]TU}=\typec V \\
     \expAgainst{\Gamma, \eubind x{V}}{v}{{V}}{\Gamma, \eubind x{V}}}
   {\expSynth{\Gamma}{\rece x{{\TFun[]TU}}v}{V}{\Gamma}}
@@ -54,23 +54,23 @@
   {\expSynth{\Gamma_1}{\lete xy{e_1}{e_2}}{\typec V}{\Gamma_3}}
 
   \infrule{\rulenameexpMatch}{
-    %\Normal[+]{S}={\TIn{(\TPApp \proto {\overline U})}{S'}} \\
     \protocolsfull \\
-    \forall i\in I: \ \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i} \\\\
-    \expSynth {\Gamma_1} e {\TIn{(\TPApp \proto {\overline U})}{S}} {\Gamma_2} \\
-    \termc{x_i}\not\in\Gamma_i \\
-    \Gamma_3 =_\alpha \Gamma_i \\
-    % MW
-    \hl{\textstyle \typec{V} = \bigsqcup_{i \in I} \typec{V_i}} \\
+    \varnothing\ne K\subseteq J\subseteq I \\
+    \expSynth {\Gamma_1} e
+      {\TIn{(\TPAppSet \proto K {\overline U})}{S}} {\Gamma_2} \\
+    \forall i\in J:\quad
+      \expSynth {\Gamma_2,\ebind{x_i}{\matchin}} {e_i} {V_i} {\Gamma_i}
+      \and \termc{x_i}\not\in\Gamma_i
+      \and \Gamma_3 =_\alpha \Gamma_i \\
+    \textstyle \typec{V} = \bigsqcup_{i \in J} \typec{V_i} \\
   }{
-    \expSynth {\Gamma_1} {\matchwithe eCxeiI} {V} {\Gamma_3}
+    \expSynth {\Gamma_1} {\matchwithe eCxeiJ} {V} {\Gamma_3}
   }
 \end{mathpar}
-\declrel{Type against}{$\expAgainst\Gamma eT\Gamma$}
+\declrel{Type against}{$\expAgainst{\Gamma_1}eT{\Gamma_2}$}
 \begin{mathpar}
   \infrule{\rulenameexpCheck}
-  % MW
-  {\expSynth{\Gamma_1} e U {\Gamma_2} \\ \hl{\typec U \subt \typec T}}
+  {\expSynth{\Gamma_1} e U {\Gamma_2} \\ \typec U \subt \typec T}
   {\expAgainst{\Gamma_1} e T {\Gamma_2}}  
 \end{mathpar}
 \caption{Algorithmic typing rules for expressions}

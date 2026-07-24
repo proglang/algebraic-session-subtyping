@@ -56,11 +56,6 @@ the \lstinline+match+ operator.
 
 
 
-% The operations \lstinline+wait+ and \lstinline+terminate+ are not supported in
-% the implementation. Instead, an exhausted channel is an unrestricted value of
-% type \lstinline+End+ which can be discarded freely as it is not necessary to
-% explicitly close a connection.
-
 \paragraph{Interpretation}
 \label{sec:interpretation}
 
@@ -93,14 +88,14 @@ values of the universal type mentioned above between \lstinline+send+ and
 \begin{lstlisting}[morekeywords={rec},moreemph={End}]
 --- protocol and type in AlgST syntax ---
 protocol Repeat x = More x (Repeat x) | Quit
-?Repeat Int . !(Char, EndT) . EndT
+?Repeat Int . !(Char, End) . End
 --- corresponding type in FreeST syntax ---
 (rec repeat0 : 1S . &{More : ?Int ; repeat0 ; Skip,
                       Quit : Skip}) ; (!(Char, End) ; End)
 --- example of an equivalent AlgST type ---
-Dual (!Repeat Int . ?(Char, EndT) . Dual EndT)
+Dual (!Repeat Int . ?(Char, End) . Dual End)
 --- example of a non-equivalent AlgST type ---
-?Repeat String . !(Char, EndT) . EndT
+?Repeat String . !(Char, End) . End
 \end{lstlisting}
   \caption{An \algst type instance, its FreeST counterpart and examples of equivalent and non-equivalent \algst types, following the rules of our test suite generator.}
   \label{fig:generated-example}

@@ -78,8 +78,6 @@
 
 % TYPES
 \newcommand{\types}[1]{\typec{\syntax{#1}}} % s for syntax
-\newcommand\TEndW{\ensuremath{\types{End}_{\typec ?}}} % wait
-\newcommand\TEndT{\ensuremath{\types{End}_{\typec !}}} % terminate
 \newcommand\TEnd{\types{End}}
 \newcommand{\TG}[2]{\typec{{#1}.{#2}}} % DEPRECATED, no guards anymore
 \newcommand{\TIn}[2]{\TG{?#1}{#2}}
@@ -117,6 +115,7 @@
 \newcommand{\TBForall}[2]{\typec{\forall{#1}{#2}}}
 % \newcommand{\TMForall}[2]{\typec{\forall{#1}{#2}}} # multiple
 \newcommand{\TPApp}[2]{\typec{{#1}~{#2}}}
+\newcommand{\TPAppSet}[3]{\typec{{#1}~{#2}~{#3}}}
 \newcommand{\matchin}[1][i]{\TFIn   {\overline{T_{#1}}\tsubs{\overline U}{\overline\alpha}}{S}}
 \newcommand{\matchout}[1][i]{\TFOut {\overline{T_{#1}}\tsubs{\overline U}{\overline\alpha}}{S'}}
 \newcommand{\protocols}{\protocolk\ \typec{\proto\
@@ -177,8 +176,7 @@
 \newcommand{\forkk}{\exps{fork}}
 \newcommand{\matchk}{\exps{match}}
 \newcommand{\withk}{\exps{with}}
-\newcommand{\terminatek}{\exps{terminate}}
-\newcommand{\waitk}{\exps{wait}}
+\newcommand{\closek}{\exps{close}}
 \newcommand{\unitk}{\exps{*}} % {\exps{unit}}
 \newcommand{\selectk}{\exps{select}}
 
@@ -206,10 +204,9 @@
 \newcommand{\matche}[2]{\matchk\;\termc #1\;\withk\;\termc{#2}}
 \newcommand{\matchwithe}[6]{\termc{\matche{#1}{\{{#2}_{#5}\;{#3}_{#5}\rightarrow{#4}_{#5}\}_{{#5}\in{#6}}}}}
 \newcommand{\selecte}[1]{\selectk\,\termc{#1}} % Use C_i alone
-\newcommand{\sendee}[2]{\sendk\;\termc{#1}\;\termc{#2}}
+\newcommand{\sendee}[2]{\appe{\sendk}{\paire{\termc{#1}}{\termc{#2}}}}
 \newcommand{\receivee}[1]{\receivek\;\termc{#1}}
-\newcommand{\closee}[1]{\terminatek\;\termc{#1}}
-\newcommand{\waite}[1]{\waitk\;\termc{#1}}
+\newcommand{\closee}[1]{\closek\;\termc{#1}}
 \newcommand{\tappe}[2]{\termc{#1[}\typec{#2}\termc{]}}
 
 \newcommand{\ebind}[2]{\termc{{#1}\blk\colon\typec{#2}}}
@@ -235,7 +232,6 @@
 \newcommand{\forkl}[1]{\syntax{fork}\,{#1}}
 \newcommand{\sendl}[2]{{#1}!{#2}}
 \newcommand{\receivel}[2]{{#1}?{#2}}
-\newcommand{\openl}[1]{{#1}!}
 \newcommand{\closel}[1]{{#1?}}
 \newcommand{\newl}[3]{(\nu{#1}{#2})\,{#3}}
 \newcommand{\scopel}[4]{(\nu{#1}{#2}){#3}!{#4}}
@@ -318,6 +314,7 @@
 \newcommand{\isEquiv}[2]{\typec{#1}\equiv_A\typec{#2}} % Abbreviated version
 \newcommand{\isEquivCtx}[2]{{#1}\equiv_\alpha{#2}}
 % \newcommand{\isEquivCtx}[2]{{#1}\equiv_a{#2}} % Abbreviated version
+\newcommand\mset[1]{\Lbag #1 \Rbag}
 \newcommand\isProc[2][\Gamma]{{#1} \vdash \termc{#2}}
 
 \newcommand\isCtx[3][\Delta]{{#1} \vdash {#2}  \Leftarrow {#3}}
@@ -357,9 +354,7 @@
 \newcommand{\rulenameexp}[1]{\rulename{E}{#1}}   % E- for expressions
 
 % T- rule names
-\newcommand{\rulenametypeEndW}{\rulenametype{End?}}
-\newcommand{\rulenametypeEndT}{\rulenametype{End!}}
-% \newcommand{\rulenametypeEnd}{\rulenametype{End}}
+\newcommand{\rulenametypeEnd}{\rulenametype{End}}
 \newcommand{\rulenametypeDot}{\rulenametype{Dot}}
 \newcommand{\rulenametypeDotIn}{\rulenametype{In}}
 \newcommand{\rulenametypeDotOut}{\rulenametype{Out}}
@@ -394,9 +389,7 @@
 \newcommand{\rulenametconvDot}{\rulenametconv{Dot}}
 \newcommand{\rulenametconvDoubleS}{\rulenametconv{DualInv}}
 \newcommand{\rulenametconvDoubleG}{\rulenametconv{DoubleDual2}}
-\newcommand{\rulenametconvDualEndW}{\rulenametconv{DualEnd?}}
-\newcommand{\rulenametconvDualEndT}{\rulenametconv{DualEnd!}}
-% \newcommand{\rulenametconvDualEnd}{\rulenametconv{DualEnd}}
+\newcommand{\rulenametconvDualEnd}{\rulenametconv{DualEnd}}
 \newcommand{\rulenametconvDualDot}{\rulenametconv{DualDot}}
 \newcommand{\rulenametconvDualOutM}{\rulenametconv{DualOut}}
 \newcommand{\rulenametconvDualOutP}{\rulenametconv{DualOut2}}
@@ -461,7 +454,7 @@
   commentstyle=\color{blue!50}\ttfamily,
   emphstyle=\color{RoyalBlue}\ttfamily, % types
   deletekeywords={repeat,List,Int,String,Char,Maybe,Either,Just,Nothing,Left,Right,seq,either,maybe,flip},
-  morekeywords=[1]{protocol,select,send,receive,match,with,new,fork,wait,terminate},
+  morekeywords=[1]{protocol,select,send,receive,match,with,new,fork,close},
   emph={Dual,Unit,Skip,Char,Int,String},
   numbers=none,
   keepspaces=true,
@@ -499,8 +492,6 @@
   {KS}{\kindc{S}}1
   {KM}{\kindc{M}}1
   {KT}{\kindc{T}}1
-  {EndW}{\TEnd}3
-  {EndT}{\TEnd}3
 }
 
 \mprset{lineskip=0ex}
@@ -510,9 +501,6 @@
 \newcommand{\pt}[1]{\todo[pt]{#1}}
 \newcommand{\js}[1]{\todo[js]{#1}}
 
-% MW
-\newcommand{\hl}[1]{\colorbox{violet!15}{$#1$}}
-\newcommand{\hlt}[1]{\colorbox{violet!15}{#1}}
 \newcommand{\subt}{\le}
 
 % Subtyping between two LTS (not needed in this form).

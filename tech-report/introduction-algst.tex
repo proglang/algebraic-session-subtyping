@@ -79,7 +79,7 @@ and as seen from the sender's perspective:\footnote{Writing
   \lstinline+IntList+.}
 %
 \begin{lstlisting}
-  type IntListS = mualpha. oplus{Cons: !Int.alpha, Nil: EndT}
+  type IntListS = mualpha. oplus{Cons: !Int.alpha, Nil: End}
 \end{lstlisting}
 %
 The leading $\mu\alpha\dots$ constructs an equirecursive type. The body is
@@ -88,10 +88,9 @@ an internal choice type $\oplus$ with two alternatives indicated by the tags
 \lstinline+Cons+, it must continue according to
 \lstinline+!Int.alpha+, which means it must send an integer and then
 recurse. If the sender selects \lstinline+Nil+, then the protocol
-comes to an end as indicated by the type \lstinline+EndT+.
+comes to an end as indicated by the type \lstinline+End+.
 %
-Type \lstinline+EndT+ represents a channel endpoint ready to be closed. The dual
-type, \lstinline+EndW+, represents the other endpoint, waiting to be closed.
+Type \lstinline+End+ represents a completed channel endpoint and is self-dual.
 %
 As the name
 suggests, a session type describes a full session of interactions
@@ -163,7 +162,7 @@ particular direction of communication. Rather, a protocol type has to be
 a continuation session: we write \lstinline+!IntListP.S+ to send a sequence of
 integers and continue with session type \lstinline+S+ or \lstinline+?IntListP.S+
 to receive a sequence of integers and continue with \lstinline+S+, so that the
-session type \lstinline/IntListS/ corresponds to \lstinline/!IntListP.EndT/.
+session type \lstinline/IntListS/ corresponds to \lstinline/!IntListP.End/.
 Hence, protocol types relate to session types just like composable continuations
 relate to continuations \cite{DBLP:conf/popl/Felleisen88,DanvyFilinski1992}: the
 former describe a segment of interaction (execution) while the latter describe

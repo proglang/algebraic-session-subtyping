@@ -1,13 +1,20 @@
 \begin{figure}[t!]
-  \declrel{Liveness/context agreement}
-    {$\operator{LiveCtx}(L;\Gamma)$}
-  \begin{equation*}
+  \declrel{Channel/context agreement}
+    {$\operator{LiveCtx}(L;\Gamma)\qquad
+      \operator{PairedCtx}(L;\Gamma)$}
+  \begin{align*}
     \operator{LiveCtx}(L;\Gamma)
-    \quad\Longleftrightarrow\quad
-    \operator{ends}(L)=\operator{dom}(\Gamma),
-    \qquad
-    \operator{ends}(L)=\{x\mid\exists y.\ \{x,y\}\in L\}.
-  \end{equation*}
+    &\quad\Longleftrightarrow\quad
+      \operator{ends}(L)=\operator{dom}(\Gamma),
+      \qquad
+      \operator{ends}(L)=\{x\mid\exists y.\ \{x,y\}\in L\},
+    \\
+    \operator{PairedCtx}(L;\Gamma)
+    &\quad\Longleftrightarrow\quad
+      \forall\{x,y\}\in L.\ \exists S.\
+      \Gamma(x)=S\ \land\
+      \Gamma(y)=\Normal[+]{\TDual S}.
+  \end{align*}
 
   \declrel{Splitting a configuration context}
     {$\Gamma=\Gamma_1+\Gamma_2$}
@@ -27,25 +34,26 @@
   \declrel{Typing a thread multiset}{$\Gamma\vdash_{\mathsf{th}}E$}
   \begin{mathpar}
     \axiom{TM-Empty}
-    {\Empty\vdash_{\mathsf{th}}\emptyset}
+    {\Empty\vdash_{\mathsf{th}}\mset{}}
 
     \infrule{TM-Thread}
     {\Gamma=\Gamma_e+\Gamma_r \\
      \expAgainst[\Empty]{\Gamma_e}{e}{\TUnit}{\Empty} \\
      \Gamma_r\vdash_{\mathsf{th}}E}
-    {\Gamma\vdash_{\mathsf{th}}\{e\}\uplus E}
+    {\Gamma\vdash_{\mathsf{th}}\mset{e}\uplus E}
   \end{mathpar}
 
   \declrel{Typing a process configuration}{$\isProc K$}
   \begin{mathpar}
     \infrule{T-Conf}
     {\operator{LiveCtx}(L;\Gamma) \and
+     \operator{PairedCtx}(L;\Gamma) \and
      \Gamma\vdash_{\mathsf{th}}E}
     {\isProc[\Gamma]{(E,L)}}
   \end{mathpar}
   \caption{Typing rules for process configurations.  Context addition is
-    disjoint union, and $\operator{dom}(\Gamma)$ is the set of variables bound
-    in $\Gamma$.}
+    disjoint union, $\operator{dom}(\Gamma)$ is the set of variables bound in
+    $\Gamma$, and paired endpoint types are normalized.}
   \label{fig:proc-formation}
 \end{figure}
 

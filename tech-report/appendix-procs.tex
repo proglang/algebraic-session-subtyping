@@ -21,7 +21,7 @@
   \begin{enumerate}
        \item By rule induction on the first hypothesis.
        \item Using \cref{it:synth-nf} and observing that a type $\typec U$ such that 
-       $\hl{\typec U \subt \typec T}$ is also in normal form.
+       $\typec U \subt \typec T$ is also in normal form.
   \end{enumerate}         
   \end{proof}
 \end{lemma}
@@ -193,14 +193,14 @@ checking.
     Rule Act-Let*. In this case, $\trans{\letu{\unitk}{e}}{\beta}{\termc{e}}$ and $\Gamma_2 = \Gamma_2' = \Empty$.
     Using inversion of \rulenameexpConst and \rulenameexpCheck for $\unitk$, we know that premises 
     to \rulenameexpLetUnit include 
-    $\expSynth{\Gamma_1,\Gamma_3}{e}{\typec T}{\Gamma_3}$, which is what we want to prove, since $\hl{\typec{T} \subt \typec{T}}$.
+    $\expSynth{\Gamma_1,\Gamma_3}{e}{\typec T}{\Gamma_3}$, which is what we want to prove, since $\typec{T} \subt \typec{T}$.
     
     Rule Act-Rec. Again, $\Gamma_2 = \Gamma_2' = \Empty$. Premises to rule \rulenameexpApp 
     are $\expSynth{\Gamma_1,\Gamma_3}{{\rece xVv}}{\TFun[]{U}{T}}{\Gamma_1,\Gamma_3}$
     and $\expAgainst{\Gamma_1,\Gamma_3}uU{\Gamma_3}$. Applying inversion of \rulenameexpRec on the former, conclude 
     that $\Normal[+]V= \TFun[]{U}{T}$ and then apply inversion of \rulenameexpCheck and the substitution lemma (\cref{lem:substitution}) to 
     get $\expSynth{\Gamma_1,\Gamma_3}{v\esubs{\rece xVv}x}{\TFun[]{U}{T}}{\Gamma_1,\Gamma_3}$. Conclude
-    applying \rulenameexpApp and using the fact that $\hl{\typec{T} \subt \typec{T}}$.
+    applying \rulenameexpApp and using the fact that $\typec{T} \subt \typec{T}$.
 
     Rule Act-Fork. Inversion of \rulenameexpApp
     yields $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{\forkk}{\TFun[]UT}{\Gamma'}$ and
@@ -228,31 +228,37 @@ checking.
     conclude that $\Gamma_1 = \Empty$ and $\typec{T}=\TPair{U}{S}$. Using L-Rcv, \rulenameexpCheck and
     weakening we know that $\expSynth{\ebind{x}{S},\Gamma,\Gamma_3}vU{\ebind{x}{S},\Gamma_3}$, using \rulenameexpVar
     and weakening we get $\expSynth{\ebind{x}{S},\Gamma_3}xS{\Gamma_3}$. Conclude applying \rulenameexpPair and
-    recalling that $\hl{\typec{\TPair{U}{S}} \subt \typec{T}}$.
+    recalling that $\typec{\TPair{U}{S}} \subt \typec{T}$.
 
-    Rule Act-Send. In this case, $\trans{\appe{\appe{\tappe{\tappe \sendk U}{S}}{v}}{x}}{\sendl xv}{x}$.
+    Rule Act-Send. In this case,
+    $\trans{\appe{\tappe{\tappe \sendk U}{S}}{\paire v x}}{\sendl xv}{x}$.
     By L-Send, $\Gamma_2 = \Gamma, \ebind{x}{\TOut{U}{S}}$ where $\Gamma$ is 
     such that $\expAgainst[\Empty] \Gamma v U \Empty$. Proceed similarly to the previous case, 
-    applying inversion of \rulenameexpApp twice, followed by \rulenameexpTApp and then 
+    applying inversion of \rulenameexpApp, followed by inversion of
+    \rulenameexpPair on its argument, \rulenameexpTApp twice, and then
     inversion of \rulenameexpConst over $\sendk$ to conclude that $\typec S=\typec T$. On the other hand, invert 
     \rulenameexpVar and L-Send with weakening applied to the other premises to conclude that 
     $\Gamma_1 = \Empty$. 
     The result follows applying \rulenameexpVar and weakening with $\Gamma_2' = \ebind{x}{T}$,
-    and knowing that $\hl{\typec{T} \subt \typec{T}}$.
+    and knowing that $\typec{T} \subt \typec{T}$.
 
-    Rule Act-Match. In this case, $\trans{\matchwithe xCyeiI}{\receivel
-    x{C_k}}{e_k\esubs x{y_k}}$. By L-Match, we have $\Gamma_2 = \ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}$
+    Rule Act-Match. In this case, $\trans{\matchwithe xCyeiJ}{\receivel
+    x{C_k}}{e_k\esubs x{y_k}}$, where $k\in K\subseteq J$. By L-Match, we have
+    $\Gamma_2 = \ebind{x}{\TIn{(\TPAppSet P K {\overline{U}})}{S'}}$
     for $\protocolsfull$. Premises to \rulenameexpMatch include
-    (a) $\expSynth {\Gamma_1,\ebind{x}{\TIn{(\TPApp P{\overline{U}})}{S'}}, \Gamma_3} x {\TIn{(\TPApp P{\overline{U}})}{S'}} {\Gamma_1,\Gamma_3}$,
-    (b) $\expSynth {\Gamma_1,\Gamma_3,\ebind{y_i}{\matchin}} {e_i} {V_i} {\Gamma_i}$ and
-    (c) $\hl{\typec{V} = \bigsqcup_{i \in I} \typec{V_i}}$. % and $\hl{\Gamma_3 = \bigsqcup_{i \in I} \Gamma_i}$.
+    (a) $\expSynth {\Gamma_1,\ebind{x}{\TIn{(\TPAppSet P K {\overline{U}})}{S'}}, \Gamma_3} x
+    {\TIn{(\TPAppSet P K {\overline{U}})}{S'}} {\Gamma_1,\Gamma_3}$,
+    (b) $\expSynth {\Gamma_1,\Gamma_3,\ebind{y_i}{\matchin}} {e_i} {V_i} {\Gamma_i}$
+    for every $i\in J$, and
+    (c) $\typec{V} = \bigsqcup_{i \in J} \typec{V_i}$.
     By L-Match we know that $\Gamma_2' = \ebind{x}{\matchin[k]}$.
     Applying \rulenameexpVar and \rulenameexpCheck we get (d) $\expAgainst{\ebind{x}{\matchin[k]}}x{\matchin[k]}{\Empty}$.
-    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using \hl{\rulenameexpCheck} together with the definition of the least upper bound.
+    Conclude applying the substitution lemma (\cref*{lem:substitution}) to (b) and (d), and using \rulenameexpCheck together with the definition of the least upper bound.
 
-    Rule Act-Sel. We have $\trans{\appe{\tappe{\selecte{C}}{\overline U}}{x}}{\sendl x{C}}{x}$.
+    Rule Act-Sel. We have $\trans{\appe{\tappe{\selecte{C_k}}{\overline U}}{x}}{\sendl x{C_k}}{x}$.
     Using L-Sel, we know that
-    $\Gamma_2 = \ebind{x}{\TOut{(\TPApp P{\overline{U}})}{S'}}$ for $\protocolsfull$.
+    $\Gamma_2 = \ebind{x}{\TOut{(\TPAppSet P {\{k\}} {\overline{U}})}{S'}}$
+    for $\protocolsfull$.
     Use inversion of \rulenameexpApp and \rulenameexpTApp on the second hypothesis to conclude that 
     $\typec T = \TFOut{\overline{T_k}\tsubs{\overline U}{\overline\alpha}}{S'}$. Using inversion of 
     \rulenameexpVar conclude that $\Gamma_1 = \Empty$. Finally, use \rulenameexpVar
@@ -261,15 +267,13 @@ checking.
     Conclude observing that 
     $\isEquiv{\TFOut{\overline{T_k}\tsubs{\overline U}{\overline\alpha}}{S'} \,\blk{=}\, \typec T}{T}$.
 
-    Rule Act-Wait. In this case, $\Gamma_2 = \ebind{x}{\TEndW}$ and $\Gamma_2' = \Empty$.
+    Rule Act-Close. In this case, $\Gamma_2 = \ebind{x}{\TEnd}$ and $\Gamma_2' = \Empty$.
     Inversion of \rulenameexpApp on the second hypothesis yields 
-    $\expSynth{\Gamma_1,\ebind{x}{\TEndW},\Gamma_3}{\waitk}{\TFun[] UT}{\Gamma'}$
+    $\expSynth{\Gamma_1,\ebind{x}{\TEnd},\Gamma_3}{\closek}{\TFun[] UT}{\Gamma'}$
     and $\expAgainst{\Gamma'}xU{\Gamma_3}$. Apply \rulenameexpConst to the former 
-    and \rulenameexpVar to the latter to conclude that $\Gamma_1=\Empty$, $\typec{U} = \TEndW$
+    and \rulenameexpVar to the latter to conclude that $\Gamma_1=\Empty$, $\typec{U} = \TEnd$
     and $\typec{T}=\TUnit$. The result follows using \rulenameexpConst on $\unitk$ and weakening (\cref*{lem:weakening}),
     using $\typec{T'} = \typec   T$.
-
-    Rule Act-Term is similar.
 
     Rule Act-AppR. In this case, $\trans{\appe{v}{e_1}}{\lambda}{\appe{v}{e_2}}$.
     Using the second hypothesis
@@ -287,11 +291,11 @@ checking.
 
     \item  
     Inversion of \rulenameexpCheck on the second hypothesis yields 
-    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and $\hl{\typec U \subt \typec T}$.
+    $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{U}{\Gamma_3}$ and $\typec U \subt \typec T$.
     By induction hypothesis on~\cref*{it:pres-synth} we know that 
     $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{U'}{\Gamma_3}$ with 
-    $\hl{\typec{U'} \subt \typec{U}}$. By transitivity of subtyping 
-    we know that $\hl{\typec{U'} \subt \typec{T}}$. Using \rulenameexpCheck
+    $\typec{U'} \subt \typec{U}$. By transitivity of subtyping
+    we know that $\typec{U'} \subt \typec{T}$. Using \rulenameexpCheck
     we conclude that $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3}$.
     % We detail the case for rule Act-Rcv. In this case, we have 
     % $\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}$.
@@ -364,7 +368,8 @@ checking.
 
     Rule Act-Wait. Premises to P-New include 
     $\isProc[\Gamma_1, \ebind x{\Normal[+]{T}} , \ebind y{\Normal[-]{T}}]{p_1}$.
-    By L-Par, L-Wait and L-Term, we know that $\Normal[+]{T} = \TEndW$.
+    By L-Par and two applications of L-Close, we know that
+    $\Normal[+]{T} = \TEnd$.
     Applying induction hypothesis on~\cref*{it:pres-proc} we get  
     $\isProc[\Gamma_1]{p_2}$.
 
@@ -418,11 +423,9 @@ Canonical forms tell us the form of values from the form of types.
     $\termc v = \abse xUe$ or
     $\termc v = \rece xTe$ or
     $\termc v = \forkk$ or
-    $\termc v = \waitk$ or 
-    $\termc v = \terminatek$ or
+    $\termc v = \closek$ or
     $\termc v = \tappe{\tappe{\receivek}{W}}{X}$ or
     $\termc v = \tappe{\tappe{\sendk}{W}}{X}$ or
-    $\termc v = \appe{\tappe{\tappe{\sendk}{W}}{X}}{u}$ or
     $\termc v = \tappe{\selecte C}{\overline W}$.
   \item If $\typec T = \TPair UV$, then $\termc v = \paire uw$.
   \item If $\typec T = \TForall \alpha \kind U$, then
@@ -438,7 +441,7 @@ Canonical forms tell us the form of values from the form of types.
     $\termc v = \selecte C$ or 
     $\termc v = \newk$.
   \item If $\typeAgainst T \kinds$, then $\termc v = \termc x$.
-  % \item If $\typec T = \TEndW$ or $\typec T = \TEndT$, then $\termc v = \termc x$.
+  % \item If $\typec T = \TEnd$, then $\termc v = \termc x$.
   \end{enumerate}
 \end{lemma}
 %
@@ -493,14 +496,12 @@ Canonical forms tell us the form of values from the form of types.
   $\termc{e_2}$ is a value, $\termc{e}$ reduces by rule Act-Fork. Otherwise,
   using induction expression $\termc{e}$ reduces by rule Act-AppR.
   %
-  When $\termc{e_1} = \waitk$, we further distinguish two cases. When
+  When $\termc{e_1} = \closek$, we further distinguish two cases. When
   $\termc{e_2}$ is a value, canonical forms give $\termc{e_2} = \termc{x}$,
-  hence $\termc{e}$ reduces by rule Act-Wait. Otherwise,  monotonicity
+  hence $\termc{e}$ reduces by rule Act-Close. Otherwise, monotonicity
   (\cref{lem:monotonicity}) places us in the induction hypothesis, hence
   $\termc{e_2}$ reduces (because it is not a value), and $\termc{e}$ reduces by
   rule Act-AppR.
-  %
-  The subcase for $\terminatek$ is similar.
   %
   When $\termc{e_1} = \tappe{\tappe{\receivek}{W}}{X}$, we further distinguish
   two cases. When $\termc{e_2}$ is a value, canonical forms give
@@ -509,9 +510,11 @@ Canonical forms tell us the form of values from the form of types.
   hypothesis, hence $\termc{e_2}$ reduces (because it is not a value), and
   $\termc{e}$ reduces by rule Act-AppR.
   %
-  The subcases for $\tappe{\tappe{\sendk}{W}}{X}$ and
-  $\appe{\tappe{\tappe{\sendk}{W}}{X}}{u}$ and $\tappe{\selecte C}{\overline W}$
-  are similar.
+  When $\termc{e_1}=\tappe{\tappe{\sendk}{W}}{X}$ and $\termc{e_2}$ is
+  a value, canonical forms give $\termc{e_2}=\paire u x$, so
+  $\termc e$ reduces by Act-Send. If $\termc{e_2}$ is not a value, the result
+  follows by induction and Act-AppR. The subcase for
+  $\tappe{\selecte C}{\overline W}$ is similar.
 
   Rule \rulenameexpTApp. These cases are analogous to those of rule
   \rulenameexpApp.
@@ -530,9 +533,10 @@ Canonical forms tell us the form of values from the form of types.
 
   Rule \rulenameexpLet. Similar to \rulenameexpLetUnit.
 
-  Rule \rulenameexpMatch. In this case $\termc{e} = \matchwithe{e'}CxeiI$. The
+  Rule \rulenameexpMatch. In this case $\termc{e} = \matchwithe{e'}CxeiJ$. The
   premises to the rule include $\expSynth{\Gamma_1^{\kinds}}{e'}{S}{\Gamma_2}$ and
-  $\Normal[+]{S}={\TIn{(\TPApp P {\overline U})}{S'}}$. Agreement
+  $\Normal[+]{S}={\TIn{(\TPAppSet P K {\overline U})}{S'}}$, where
+  $\varnothing\ne K\subseteq J$. Agreement
   (\cref{lem:agreement}) gives $\typeAgainst{S}{\kind}$. Distinguish two cases.
   When $\termc{e'}$ is value, normalization of session types
   (\cref{lem:norm-st}) and canonical forms (\cref{lem:cforms}) give
@@ -585,7 +589,7 @@ $\termc{x},\termc{y}$. Then $\termc{p}$ reduces according to the table below.
     $\newl abT$ & Act-New\\
     $\parl{\receivel xv}{\sendl yv}$ & Act-Msg\\
     $\parl{\receivel xC}{\sendl yC}$ & Act-Bra\\
-    $\parl{\closel x}{\openl y}$ & Act-Wait\\
+    $\parl{\closel x}{\closel y}$ & Act-Wait\\
     $\parl{\receivel xa}{\scopel abya}$ & Act-CloseL\\
     $\parl{\receivel xb}{\scopel abyb}$ & Act-CloseR\\\hline
   \end{tabular}

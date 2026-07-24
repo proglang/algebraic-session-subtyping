@@ -19,8 +19,7 @@ grammar below.
        \grmor \receivek 
        \grmor \sendk 
        \grmor \selecte C
-       \grmor \waitk
-       \grmor \terminatek
+       \grmor \closek
   \\
   \termc v \grmeq & \termc{c}
       \grmor \termc{x}
@@ -33,7 +32,6 @@ grammar below.
   \\& \tappe{\tappe{\receivek}{T}}{T}
       \grmor \tappe{\sendk}{T}
       \grmor \tappe{\tappe{\sendk}{T}}{T}
-      \grmor \appe{\tappe{\tappe{\sendk}{T}}{T}}{v}
       \grmor \tappe{\selecte C}{\overline T}
   \\
   \termc e \grmeq & \termc{v}
@@ -43,10 +41,10 @@ grammar below.
        \grmor \paire ee
        \grmor \lete xxee
       \grmor
-  \\& \matchwithe eCxeiI
+  \\& \matchwithe eCxeiJ
   \\
   \termc E \grmeq &
-  \termc{\{e_1,\ldots,e_m\}}
+  \termc{\mset{e_1,\ldots,e_m}}
   \\
   \termc K \grmeq &
   \termc{(E,L)}
@@ -59,12 +57,12 @@ and elimination ($\paire{e_1}{e_2}$ and $\lete xy{e_1}{e_2}$), linear unit
 introduction and elimination ($\unitk$ and $\letu{e_1}{e_2}$). From session
 languages we find most of the constructors in the form of constants, including
 $\forkk$ to spawn a new thread, $\newk$ to create a new channel, $\receivek$ to
-receive a value on a given channel, $\sendk$ to send a value on a given channel,
-$\waitk$ to wait for a channel to be closed, $\terminatek$ to force channel
-closing, and $\appe \selectk {C}$ to exercise a choice on a given
+receive a value on a given channel, $\sendk$ to send a payload--endpoint pair,
+$\closek$ to close a completed channel endpoint, and $\appe \selectk {C}$ to
+exercise a choice on a given
 channel indicated by selector name $\constr$. The
 operator to offer a choice on some channel cannot be captured by a type in our
-type language, hence we have made it an expression ($\matchwithe eCxeiI$).
+type language, hence we have made it an expression ($\matchwithe eCxeiJ$).
 %
 At the level of processes, a configuration $\termc{K=(E,L)}$ consists of a
 finite multiset $E$ of expressions and a finite set $L$ of live channels.  Each
@@ -76,6 +74,8 @@ pool of parallel threads; multiplicity distinguishes separate occurrences of
 the same expression, while order is immaterial.  Closing a channel removes its
 pair from $L$, while allocation adds a pair of fresh variables.  This flat
 representation avoids structural congruence and scope-extrusion rules.
+Configuration typing additionally requires the two endpoints in every pair to
+have dual session types.
 
 % \paragraph{Typing}
 
@@ -150,23 +150,20 @@ bindings provide for termination of recursive functions. Such functions cannot u
 environment, which we enforce by requiring the incoming context
 $\Gamma$ to be equal to the outgoing context.
 
-The truly new rule is \rulenameexpMatch, which indicates that all
-rules are parametric with respect to an implicit set of protocol
-declarations: there is a declaration for each protocol $\proto$ which
-has a kinding in $\Delta$. The rule starts by synthesizing the 
-input type of the expression to be matched;
-the type is 
-$\TIn{(\TPApp \proto {\overline U})}{S}$ for some
-protocol constructor $\proto$. At this point, the declaration of protocol
-$\proto$ is looked up in the implicit set of declarations. The
-$\matchk$ branch for each choice of selector $\termc{C_i}$ is then typed in turn. The
+Rule \rulenameexpMatch is parametric in the implicit set of protocol
+declarations. Suppose that protocol $\proto$ has constructors indexed by $I$.
+The branches range over a nonempty set $J\subseteq I$, while synthesis for the
+scrutinee may return
+$\TIn{(\TPAppSet \proto K {\overline U})}{S}$ for any nonempty
+$K\subseteq J$. Thus the match must cover every constructor that the scrutinee
+may select, but may contain additional branches. For each $i\in J$, the
+corresponding branch is then typed in turn. The
 parameters $\typec{\overline \alpha}$ of the protocol are instantiated with
 the arguments $\typec{\overline U}$ to produce a sequence of types
 $\typec{\overline{T_i}\tsubs{\overline U}{\overline \alpha}}$. This sequence of
 types is converted to a normalized session type as described in \cref{sec:types},
 which is assigned to variable $\termc{x_i}$. Now, each branch synthesizes a type
-$\typec{V_i}$ and context $\Gamma_i$, for $i\in I$. 
-\hl{[\text{MW}]:} In all branches,
+$\typec{V_i}$ and context $\Gamma_i$, for $i\in J$. In all branches,
 the contexts must coincide (up to $\alpha$
 equivalence) with the output context of the $\matchk$. 
 The output type $\typec V$ is the least upper bound of the branch types. 
@@ -189,7 +186,7 @@ $\polarizedparam{\pm}{\overline{T}}{} =
 $\tosession {\varepsilon}S = \typec S$ and $\tosession {T\overline T}S =
 \tosession{T}{\tosession {\overline T}S}$.
 
-\hl{[\text{MW}]:} Rule \rulenameexpCheck relies on the previous judgement to check expression $\termc e$ against 
+Rule \rulenameexpCheck relies on the previous judgment to check expression $\termc e$ against
 type $\typec T$, up to subtyping.
 Both types can be assumed to have normal form, because synthesis outputs $\typec U$ in normal form and
 checking must be invoked with $\typec T$ in normal form.
@@ -243,9 +240,8 @@ defined via transition relations labelled by the actions below.
        && \text{labels for processes}
 \end{align*}
 %
-The $\sigma$ labels capture value and selector communication and the
-close-style action on a session endpoint.  The mechanization uses one close
-label for both ends of a closing synchronization.
+The $\sigma$ labels capture value and selector communication and the close
+action on a completed session endpoint.
 %
 Labels $\lambda$ are for expressions: $\beta$ is for internal actions,
 $\forkl v$ records a forked value, and $\newl xyT$ records the type and the two
@@ -278,8 +274,8 @@ closing.
 
 The labelled transition system for configurations is defined by the rules in
 \cref{fig:lts-procs}.  Multiset union is written $\uplus$.  A source of the
-form $(\{e\}\uplus E,L)$ distinguishes one occurrence of $e$ and leaves the
-remainder $E$ unchanged; similarly, $(\{e_1,e_2\}\uplus E,L)$ distinguishes
+form $(\mset{e}\uplus E,L)$ distinguishes one occurrence of $e$ and leaves the
+remainder $E$ unchanged; similarly, $(\mset{e_1,e_2}\uplus E,L)$ distinguishes
 two thread occurrences.  Thus the rules require neither thread positions nor
 an explicit premise that the two occurrences are distinct.  The notation
 $x\notin K$ means that $x$ occurs neither in an expression of $K$ nor in a pair

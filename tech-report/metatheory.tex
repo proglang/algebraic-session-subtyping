@@ -32,10 +32,14 @@ The rules for typing process configurations are in
 endpoints and their linear session types.  Thus
 $\operator{LiveCtx}(L;\Gamma)$ states that the domain of $\Gamma$ is exactly
 the set of endpoints occurring in the pairs of $L$.  Endpoints of closed
-channels do not occur in the context.
+channels do not occur in the context.  The judgment
+$\operator{PairedCtx}(L;\Gamma)$ requires the two endpoint types of each live
+channel to be normalized duals.  Because channel pairs are unordered and
+duality is involutive, this condition is independent of the order in which
+their endpoints are named.
 %
 The thread-multiset judgment selects an expression $e$ from a decomposition
-$\{e\}\uplus E$ and partitions the context as
+$\mset{e}\uplus E$ and partitions the context as
 $\Gamma=\Gamma_e+\Gamma_r$.  Context addition is disjoint, so each binding is
 assigned either to $e$ or to the remainder $E$.  The selected expression must
 check against $\TUnit$ and consume its entire context, leaving the empty
@@ -46,18 +50,13 @@ exactly one thread.
 Expression preservation still uses the labelled context transition from
 \cref{sec:proofs} (\cref{fig:lts-ctx}).  At the configuration level the updated
 context is instead constructed together with the target typing derivation.
-A raw synchronization step records live peer endpoints, but not the coherence
-of their session types.  We write $\operator{redTyped}(\mathcal D,s)$ when a
-step $s$ is compatible with a source typing derivation $\mathcal D$; this
-condition is immediate for beta reduction, fork, and allocation, and supplies
-the endpoint and context-effect compatibility for the three synchronization
-rules.  This is the paper-level presentation of the mechanized
-\textsf{ReductionTyping} judgment.
-
-% \hl{[\text{MW}]:} Because our type system incorporates subtyping and pointwise joins for contexts, 
-% type preservation for synthesis no longer guarantees strict type equivalence. 
-% Instead, a well-typed expression that takes a step will synthesize a type $\typec{T'}$ 
-% that is a subtype of the original type $\typec{T}$.
+The paired-context invariant supplies the compatibility of the endpoints
+selected by a synchronization.  For value communication, preservation
+transfers exactly the resources used to type the payload from the sender's
+context share to the receiver's and reconstructs the target split.  Selection
+and closing similarly use endpoint duality to advance or remove both endpoint
+types.  The mechanization contains the corresponding resource-extraction and
+context-reconstruction lemmas.
 
 \begin{theorem}[Preservation]\
   \label{thm:preservation}
@@ -66,20 +65,16 @@ rules.  This is the paper-level presentation of the mechanized
     $\expSynth{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
     $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
-    % MW 
-    % Note: Do we need \Gamma_3' \subt \Gamma_3?
-    % No.. should be left untouched by all branches..
     $\expSynth{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T'}{\Gamma_3}$ and
-    $\hl{\typec{T'} \subt \typec{T}}$. % and $\hl{\Gamma_3' \subt \Gamma_3}$.
+    $\typec{T'} \subt \typec{T}$.
   \item\label{it:pres-against} If $\trans{e_1}{\lambda}{e_2}$ and
     $\expAgainst{\Gamma_1,\Gamma_2,\Gamma_3}{e_1}{T}{\Gamma_3}$ and
     $\transCtx{\Gamma_2}{\lambda}{\Gamma_2'}$ and 
     $\isCtx{\Gamma_1,\Gamma_2,\Gamma_3}{\kindt}$, then
     $\expAgainst{\Gamma_1,\Gamma_2',\Gamma_3}{e_2}{T}{\Gamma_3}$.
-  \item\label{it:pres-proc} If $\mathcal D$ derives
-    $\isProc[\Gamma]K$, where $s=\trans K\pi{K'}$, and
-    $\operator{redTyped}(\mathcal D,s)$, then there exists a context
-    $\Gamma'$ such that $\isProc[\Gamma']{K'}$.
+  \item\label{it:pres-proc} If $\isProc[\Gamma]K$ and
+    $\trans K\pi{K'}$, then there exists a context $\Gamma'$ such that
+    $\isProc[\Gamma']{K'}$.
   \end{enumerate}
 \end{theorem}
 
@@ -108,21 +103,38 @@ below:
 The last two clauses exclude every source of a configuration transition, so a
 global deadlock cannot step.
 
-The mechanization proves the global lifting below.  The local expression
-progress result and the finite decision procedures are explicit hypotheses;
-their full statements are recorded in the mechanization.
+Local progress holds for expressions in session-only run-time contexts: an
+expression that checks against $\TUnit$ is a value, is runnable, or exposes a
+communication action.  Moreover, both $\operator{RunnableAt}(K)$ and
+$\operator{Sync}(K)$ are decidable by finite search.  Lifting the local result
+over the typed thread multiset and applying these decisions yields the
+following trichotomy.
 
 \begin{theorem}[Configuration progress]\
   \label{thm:progress}
-  Assume local expression progress: every expression that checks against
-  $\TUnit$ in a session-only context is a value, runnable, or
-  communication-blocked.  Also assume that
-  $\operator{RunnableAt}(K)$ and $\operator{Sync}(K)$ are decidable.  If
-  $\isProc[\Gamma]K$, then either $\termc K$ is terminal, it is a global
+  If $\isProc[\Gamma]K$, then either $\termc K$ is terminal, it is a global
   deadlock, or there exist $\pi$ and $\termc{K'}$ such that
   $\trans K\pi{K'}$.
 \end{theorem}
 %
+
+Write $\termc K\Longrightarrow^*\termc{K'}$ for the reflexive-transitive
+closure of configuration reduction, with labels omitted.  Iterating
+preservation and applying configuration progress at the endpoint gives finite
+type safety.
+
+\begin{theorem}[Finite type safety]\
+  \label{thm:finite-safety}
+  If $\isProc[\Gamma]K$ and
+  $\termc K\Longrightarrow^*\termc{K'}$, then there exists a context
+  $\Gamma'$ such that $\isProc[\Gamma']{K'}$.  Moreover, $\termc{K'}$ is
+  terminal, is a global deadlock, or can take a configuration step.
+\end{theorem}
+
+If a closed expression $e$ checks against $\TUnit$ from and to the empty
+context, then $(\mset{e},\emptyset)$ is well typed.  Thus every finite reduction
+from this singleton configuration ends in a terminal state, a global
+deadlock, or a state that can step, including after channel allocations.
 
 
 %%% Local Variables:

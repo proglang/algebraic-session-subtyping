@@ -27,11 +27,11 @@ protocol Flipper = Flipper -Int -Flipper
 A server for \lstinline+Flipper+ can be implemented with a pair of
 mutually recursive functions or even with just one function:
 \begin{lstlisting}
-flipper : !Flipper.EndT -> Unit
-flipper c = let c = select Flipper [EndT] c in
-            let (x, c) = receive [Int, ?Flipper.EndT] c in
+flipper : !Flipper.End -> Unit
+flipper c = let c = select Flipper [End] c in
+            let (x, c) = receive [Int, ?Flipper.End] c in
 	    match c with {
-	      Flipper c -> send [Int, !Flipper.EndT] x c |> flipper }
+	      Flipper c -> send [Int, !Flipper.End] (x, c) |> flipper }
 \end{lstlisting}
 
 \subsection{Mutual recursion}
@@ -48,19 +48,21 @@ would be implemented by mutually recursive functions.
 % flipflop c = let c = select Flip [End] c in
 %             let (x, c) = receive [Int, !Flop.End] c in
 % 	    select Flop [End] c
-% 	    |> send [Int, !Flip.End] x []
+% 	    |> send [Int, !Flip.End] (x, [])
 %             |> flipflop
 % \end{lstlisting}
 \begin{lstlisting}
 protocol Flip = Flip -Int Flop
 protocol Flop = Flop Int Flip
 
-flip : !Flip.EndT -> Unit
-flip c = select Flip [EndT] c |> receive [Int, !Flop.EndT] |> flop
+flip : !Flip.End -> Unit
+flip c = select Flip [End] c |> receive [Int, !Flop.End] |> flop
 
-flop : (Int, !Flop.EndT) -> Unit
+flop : (Int, !Flop.End) -> Unit
 flop p = let (x, c) = p in
-         select Flop [EndT] c |> send [Int, !Flip.EndT] x |> flip
+         let c = select Flop [End] c in
+         let c = send [Int, !Flip.End] (x, c) in
+         flip c
 \end{lstlisting}
 \subsection{Duality vs.\ polarities}
 \label{sec:what-diff-betw}
@@ -104,12 +106,12 @@ Using equations we could define the type $\typec T$ by $\typec{T = \TOut{T}T}$.
 Translated to algebraic session types, the protocol underlying $\typec T$ is as follows:
 \begin{lstlisting}
 protocol X = Mu T X
-type T = !X.EndT
+type T = !X.End
 
 selectMu : T -> !T.T
-selectMu c = select Mu [EndT] c
+selectMu c = select Mu [End] c
 
-dualT : Dual T -> ?X.EndT
+dualT : Dual T -> ?X.End
 dualT c = c
 
 matchMu : Dual T -> ?T.(Dual T)
@@ -119,7 +121,7 @@ This behavior matches exactly the outcome for $\typec T$ according to
 \citet{BernardiH16}. The function \lstinline+selectMu+ performs the
 unfolding of $\typec T$ whereas \lstinline+matchMu+ performs the
 unfolding of $\TDual T$. The type of the identity function
-\lstinline+dualT+ shows that \lstinline+Dual T = ?X.EndT+. 
+\lstinline+dualT+ shows that \lstinline+Dual T = ?X.End+.
 
 \subsection{Efficiency of generic servers}
 \label{sec:are-generic-servers}
@@ -185,7 +187,7 @@ because $\alpha$ could be substituted by some protocol $\TMinus {T'}$.
 As soon as $\typec T$ is an ordinary type of kind $\kindt$ (even if
 $\typec T$ is a variable), the direction is fixed. For example, in the
 type of primitive send
-\lstinline+forall(a:M). forall(s:S).  a -> !a.s -> s+, the payload type
+\lstinline+forall(a:M). forall(s:S). (a, !a.s) -> s+, the payload type
 \lstinline+a+ has kind $\kindm$, so the direction is fixed. \\
 
 %%% Local Variables:

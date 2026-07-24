@@ -18,16 +18,14 @@
 
 	\inferrule[Act-Rcv]{}{\trans{\appe{\tappe{\tappe \receivek T}{U}}{x}}{\receivel xv}{\paire{v}{x}}}
 	
-	\inferrule[Act-Send]{}{\trans{\appe{\appe{\tappe{\tappe \sendk T}{U}}{v}}{x}}{\sendl xv}{x}}
+	\inferrule[Act-Send]{}{\trans{\appe{\tappe{\tappe \sendk T}{U}}{\paire v x}}{\sendl xv}{x}}
 	
-	\inferrule[Act-Match]{}{\trans{\matchwithe xCyeiI}{\receivel
-        x{C_k}}{e_k\esubs x{y_k}}}
+		\inferrule[Act-Match]{k\in J}{\trans{\matchwithe xCyeiJ}{\receivel
+	        x{C_k}}{e_k\esubs x{y_k}}}
 
 	\inferrule[Act-Sel]{}{\trans{\appe{\tappe{\selecte{C}}{\overline T}}{x}}{\sendl x{C}}{x}}
 	
-	\inferrule[Act-Wait]{}{\trans{\waite{x}}{\closel x}\unitk}
-
-	\inferrule[Act-Term]{}{\trans{\closee{x}}{\closel x}{\unitk}}
+		\inferrule[Act-Close]{}{\trans{\closee{x}}{\closel x}{\unitk}}
 
 	\inferrule[Act-AppL]{\trans{e_1}{\lambda}{e_2}}
 	{\trans{\appe{e_1}{e_3}}{\lambda}{\appe{e_2}{e_3}}}
@@ -49,7 +47,7 @@
 	{\trans{\paire{v}{e_1}}{\lambda}{\paire{v}{e_2}}}
 
 	\inferrule[Act-MatchE]{\trans{e_1}{\lambda}{e_2}}
-	{\trans{\matchwithe{e_1}CxeiI}{\lambda}{\matchwithe{e_2}CxeiI}}
+	{\trans{\matchwithe{e_1}CxeiJ}{\lambda}{\matchwithe{e_2}CxeiJ}}
 
 	\inferrule[Act-LetE]{\trans{e_1}{\lambda}{e_2}}{\trans{\lete xy{e_1}{e_3}}{\lambda}{\lete xy{e_2}{e_3}}}
 

@@ -9,9 +9,7 @@
 
     \infrule{\rulenametconvTrans}{\isConv {T_1} {T_2} \kind \\ \isConv {T_2} {T_3} \kind}{\isConv {T_1} {T_3} \kind}
 
-    \infrule{\rulenametconvDualEndW}{}{\isConv{\TDual\TEndW}\TEndT\kinds}
-    
-    \infrule{\rulenametconvDualEndT}{}{\isConv{\TDual\TEndT}\TEndW\kinds}
+    \infrule{\rulenametconvDualEnd}{}{\isConv{\TDual\TEnd}\TEnd\kinds}
     
     \infrule{\rulenametconvDualInM}{\typeAgainst T \kindp \\ \typeAgainst S {\kinds}}{
       \isConv{\TDual{(\TIn TS)}} {\TOut T{(\TDual S)}} \kinds}

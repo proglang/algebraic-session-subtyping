@@ -7,8 +7,8 @@ $T\simeq U \colon \mathsf{S^{lin}}$&$\cfsttoalgst{T} \to
 %% E-Skip
 $\axiom{}{\isodecl{\delta} \mathsf{Skip}\simeq \mathsf{Skip}}$ & 
 \begin{lstlisting}
-delta t u = wait u 
-        |> terminate t  
+delta t u = close u
+        |> close t
 \end{lstlisting}
 \\\hline
  %% E-IdL
@@ -30,7 +30,7 @@ $\inferrule{\isodecl{\theta} T \simeq U\\\isodecl{\delta_1} V \simeq W}{\isodecl
 \begin{lstlisting}
 delta v w = let (u, w) = receive w in 
         let t = theta^-1 u 
-        let v = send t v in 
+        let v = send (t, v) in
         delta1 v w
 \end{lstlisting}
  \\\hline
@@ -39,10 +39,10 @@ $\inferrule{\isodecl{\theta} T \simeq U\\\isodecl{\sigma} V \checkmark}{\isodecl
 \begin{lstlisting}
 delta t u = let (u', u) = receive u in 
         let t' = theta^-1 u'
-        let v = send t' t in
+        let v = send (t', t) in
         let v = sigma v in
-        wait u 
-        |> terminate v
+        close u
+        |> close v
 \end{lstlisting}
  \\\hline
 %% E-Msg
@@ -50,9 +50,9 @@ $\inferrule{\isodecl{\theta} T \simeq U }{\isodecl{\delta} !T \simeq !U}$ &
 \begin{lstlisting}
 delta t u = let (u', u) = receive u in
         let t' = theta^-1 u' in
-        let t = send t' t in
-        wait u 
-        |> terminate t
+        let t = send (t', t) in
+        close u
+        |> close t
 \end{lstlisting}
  \\\hline
 %% E-Choice
@@ -140,7 +140,7 @@ theta x = let t = select UnfoldX x in
 \begin{tabular}{| c | l |}
 \hline
 Is terminated predicate & Witness\\
-$T \colon \mathsf{S^{lin}}$&$\sigma \colon \cfsttoalgst{T} \rightarrow \TEndT$\\\hline
+$T \colon \mathsf{S^{lin}}$&$\sigma \colon \cfsttoalgst{T} \rightarrow \TEnd$\\\hline
 %% E-Unit
 $\axiom{}{\isodecl{\sigma} \mathsf{Skip}\checkmark}$ & 
 \begin{lstlisting}
